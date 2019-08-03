@@ -141,6 +141,25 @@ extern int sim_vax_snprintf(char *buf, size_t buf_size, const char *fmt, ...);
 #undef ERROR                        /* avoid macro name collision */
 #undef MEM_MAPPED                   /* avoid macro name collision */
 #include <process.h>
+
+#  ifdef USE_ISO_C99_NAMES
+/* Avoid macro name collisions... */
+#    undef chdir
+#    undef unlink
+#    undef mkdir
+#    undef rmdir
+#    undef fileno
+#    undef getpid
+#    undef getcwd
+
+#    define chdir _chdir
+#    define unlink _unlink
+#    define mkdir _mkdir
+#    define rmdir _rmdir
+#    define fileno _fileno
+#    define getpid _getpid
+#    define getcwd _getcwd
+#  endif
 #endif
 
 #ifdef USE_REGEX

@@ -46,4 +46,5 @@ ipch/
 !Visual Studio Projects/0ReadMe_Projects.txt
 Visual Studio Projects/*
 
-
+# CMake artifacts
+cmake-build
