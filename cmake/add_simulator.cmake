@@ -14,20 +14,20 @@ set(SIMH_THREADS_LIBS "")
 if (WIN32)
     # Have pthreads... go with async I/O
     if (PTW_FOUND OR MINGW)
-	set(SIMH_THREADS_DEFINES "${SIMH_THREADS_DEFINES}" USE_READER_THREAD)
-	# Remember to remove SIM_ASYNCH_IO if the TODO option is False.
-	set(SIMH_THREADS_DEFINES "${SIMH_THREADS_DEFINES}" SIM_ASYNCH_IO)
+      set(SIMH_THREADS_DEFINES "${SIMH_THREADS_DEFINES}" USE_READER_THREAD)
+      # Remember to remove SIM_ASYNCH_IO if the TODO option is False.
+      set(SIMH_THREADS_DEFINES "${SIMH_THREADS_DEFINES}" SIM_ASYNCH_IO)
 
-	if (PTW_FOUND)
-	    set(SIMH_THREADS_DEFINES "${SIMH_THREADS_DEFINES}" PTW32_STATIC_LIB _POSIX_C_SOURCE)
-	    set(SIMH_THREADS_INCLUDES "${SIMH_THREADS_INCLUDES}" "${PTW_INCLUDE_DIRS}")
-	    set(SIMH_THREADS_LIBS "${SIMH_THREADS_LIBS}" "${PTW_LIBRARIES}")
-	elseif (MINGW)
-	    # Use MinGW's threads instead
-	    set(SIMH_THREADS_CFLAGS "${SIMH_THREADS_CFLAGS}" "-pthread")
-	    set(SIMH_THREADS_LIBS "${SIMH_THREADS_LIBS}" pthread)
-	endif ()
-    endif ()
+      if (PTW_FOUND)
+          set(SIMH_THREADS_DEFINES "${SIMH_THREADS_DEFINES}" PTW32_STATIC_LIB _POSIX_C_SOURCE)
+          set(SIMH_THREADS_INCLUDES "${SIMH_THREADS_INCLUDES}" "${PTW_INCLUDE_DIRS}")
+          set(SIMH_THREADS_LIBS "${SIMH_THREADS_LIBS}" "${PTW_LIBRARIES}")
+      elseif (MINGW)
+          # Use MinGW's threads instead
+          set(SIMH_THREADS_CFLAGS "${SIMH_THREADS_CFLAGS}" "-pthread")
+          set(SIMH_THREADS_LIBS "${SIMH_THREADS_LIBS}" pthread)
+      endif ()
+  endif ()
 endif ()
 
 ##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
@@ -39,8 +39,8 @@ function(target_network_config _targ)
   if (WITH_NETWORK)
     if (WITH_PCAP AND PCAP_FOUND)
       target_compile_definitions("${_targ}" PUBLIC
-	USE_SHARED
-	HAVE_PCAP_NETWORK)
+        USE_SHARED
+        HAVE_PCAP_NETWORK)
 
       target_include_directories("${_targ}" PUBLIC "${PCAP_INCLUDE_DIRS}")
       target_link_libraries("${_targ}" "${PCAP_LIBRARIES}")
@@ -181,3 +181,7 @@ add_library(simhcore STATIC "${SIM_SOURCES}")
 target_network_config(simhcore)
 target_thread_config(simhcore)
 target_video_config(simhcore)
+
+# Make sure that the conditionally compiled code is really compiled..
+# (Note: This is just a compatibility issue with the existing makefile.)
+target_compile_definitions(simhcore PRIVATE USE_SIM_IMD USE_SIM_CARD)

@@ -64,7 +64,7 @@ uint8               cmd[NUM_CHAN];              /* Current command */
 uint16              irqdev[NUM_CHAN];           /* Device to generate interupts
                                                    for channel */
 uint32              chunit[NUM_CHAN];           /* Channel unit */
-uint32              assembly[NUM_CHAN];         /* Assembly register */
+t_value             assembly[NUM_CHAN];         /* Assembly register */
 uint32              chan_flags[NUM_CHAN];       /* Unit status */
 extern uint8        chan_io_status[NUM_CHAN];
 extern uint8        inquiry;
@@ -653,7 +653,7 @@ chan_read_char(int chan, uint8 * data, int flags)
 
     /* If we had a previous word mark send it */
     if ((cmd[chan] & (CHAN_LOAD|CHAN_WM)) == (CHAN_LOAD|CHAN_WM)) {
-        *data = assembly[chan];
+        *data = (uint8) assembly[chan];
         cmd[chan] &= ~CHAN_WM;
     } else {
         if (!MEM_ADDR_OK(caddr[chan]+1)) {
@@ -681,7 +681,7 @@ chan_read_char(int chan, uint8 * data, int flags)
         }
         if (cmd[chan] & CHAN_6BIT)
             *data &= 077;
-        *data = assembly[chan];
+        *data = (uint8) assembly[chan];
     }
 
     /* If end of record, don't transfer any data */

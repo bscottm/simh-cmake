@@ -93,7 +93,7 @@ uint8               bcnt[NUM_CHAN];             /* Channel character count */
 uint16              cmd[NUM_CHAN];              /* Current command */
 uint16              irqdev[NUM_CHAN];           /* Device to generate interupts
                                                    for channel */
-uint32              assembly[NUM_CHAN];         /* Assembly register */
+t_value             assembly[NUM_CHAN];         /* Assembly register */
 uint32              chan_flags[NUM_CHAN];       /* Unit status */
 extern uint8        inquiry;
 

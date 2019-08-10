@@ -48,3 +48,6 @@ Visual Studio Projects/*
 
 # CMake artifacts
 cmake-build
+
+# VS Code stuff...
+simh.code-workspace

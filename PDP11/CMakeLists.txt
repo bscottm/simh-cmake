@@ -58,3 +58,21 @@ endif ()
 
 add_simulator(pdp11 "${PDP11_SOURCES}" "${PDP11_DEFINES}" "${PDP11_INCLUDES}")
 
+set(UC15_SOURCES
+    pdp11_cis.c 
+    pdp11_cpu.c
+	pdp11_cpumod.c 
+    pdp11_cr.c
+	pdp11_fp.c 
+    pdp11_io.c
+	pdp11_io_lib.c
+    pdp11_lp.c
+	pdp11_rh.c 
+    pdp11_rk.c
+	pdp11_stddev.c 
+    pdp11_sys.c
+	pdp11_uc15.c)
+
+set(UC15_DEFINES VM_PDP11 UC15)
+set(UC15_INCLUDES "${PDP11_INCLUDES}" "${PDP18BD}")
+add_simulator(uc15 "${UC15_SOURCES}" "${UC15_DEFINES}" "${UC15_INCLUDES}")
