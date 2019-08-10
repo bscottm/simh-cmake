@@ -1,5 +1,4 @@
-#
-set(PDP1D "${CMAKE_SOURCE_DIR}/PDP1")
+# PDP-1 simulator:
 
 set(PDP1_SOURCES
     pdp1_lp.c

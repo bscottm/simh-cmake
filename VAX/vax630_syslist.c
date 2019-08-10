@@ -87,7 +87,7 @@ DEVICE *sim_devices[] = {
     &vh_dev,
     &cr_dev,
     &lpt_dev,
-#if defined(USE_SIM_VIDEO) && defined(HAVE_LIBSDL)
+#if !defined(VAX_620) /* defined(USE_SIM_VIDEO) && defined(HAVE_LIBSDL) */
     &va_dev,
     &vc_dev,
     &lk_dev,

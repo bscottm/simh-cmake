@@ -20,7 +20,7 @@ set(PDP8_SOURCES
     pdp8_ct.c
     pdp8_fpp.c)
 
-set(PDP8_INCLUDES ${CMAKE_SOURCE_DIR}/PDP8)
+set(PDP8_INCLUDES "${CMAKE_SOURCE_DIR}/PDP8")
 set(PDP8_DEFINES)
 add_simulator(pdp8 "${PDP8_SOURCES}" "${PDP8_DEFINES}" "${PDP8_INCLUDES}")
 

@@ -151,7 +151,23 @@ message(STATUS "")
 
 include (add_simulator)
 
+## The various video outputs for simulators:
+set(DISPLAYL   "${CMAKE_SOURCE_DIR}/display/display.c" "${CMAKE_SOURCE_DIR}/display/sim_ws.c")
+set(DISPLAYVT  "${CMAKE_SOURCE_DIR}/display/vt11.c")
+set(DISPLAY340 "${CMAKE_SOURCE_DIR}/display/type340.c")
+set(DISPLAYNG  "${CMAKE_SOURCE_DIR}/display/ng.c")
+
+## Source directories:
+set(PDP1D   "${CMAKE_SOURCE_DIR}/PDP1")
+set(PDP10D  "${CMAKE_SOURCE_DIR}/PDP10")
+set(PDP11D  "${CMAKE_SOURCE_DIR}/PDP11")
+set(PDP18BD "${CMAKE_SOURCE_DIR}/PDP18B")
+set(VAXD    "${CMAKE_SOURCE_DIR}/VAX")
+
 add_subdirectory(slirp)
 add_subdirectory(PDP1)
+add_subdirectory(PDP18B)
 add_subdirectory(PDP8)
+add_subdirectory(PDP10)
+add_subdirectory(PDP11)
 add_subdirectory(VAX)

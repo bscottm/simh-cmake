@@ -1012,7 +1012,7 @@ if ((cptr == NULL) || (!*cptr))
 cptr = get_glyph (cptr, gbuf, 0);
 if (MATCH_CMD(gbuf, "MICROVAX") == 0) {
     sys_model = 0;
-#if defined(USE_SIM_VIDEO) && defined(HAVE_LIBSDL)
+#if !defined(VAX_620) /* defined(USE_SIM_VIDEO) && defined(HAVE_LIBSDL) */
     vc_dev.flags = vc_dev.flags | DEV_DIS;               /* disable QVSS */
     va_dev.flags = va_dev.flags | DEV_DIS;               /* disable QDSS */
     lk_dev.flags = lk_dev.flags | DEV_DIS;               /* disable keyboard */
@@ -1022,7 +1022,7 @@ if (MATCH_CMD(gbuf, "MICROVAX") == 0) {
     reset_all (0);                                       /* reset everything */
     }
 else if (MATCH_CMD(gbuf, "VAXSTATION") == 0) {
-#if defined(USE_SIM_VIDEO) && defined(HAVE_LIBSDL)
+#if !defined(VAX_620) /* defined(USE_SIM_VIDEO) && defined(HAVE_LIBSDL) */
     sys_model = 1;
     vc_dev.flags = vc_dev.flags & ~DEV_DIS;              /* enable QVSS */
     va_dev.flags = va_dev.flags | DEV_DIS;               /* disable QDSS */
@@ -1035,7 +1035,7 @@ else if (MATCH_CMD(gbuf, "VAXSTATION") == 0) {
 #endif
     }
 else if (MATCH_CMD(gbuf, "VAXSTATIONGPX") == 0) {
-#if defined(USE_SIM_VIDEO) && defined(HAVE_LIBSDL)
+#if !defined(VAX_620) /* defined(USE_SIM_VIDEO) && defined(HAVE_LIBSDL) */
     sys_model = 2;
     vc_dev.flags = vc_dev.flags | DEV_DIS;               /* disable QVSS */
     va_dev.flags = va_dev.flags & ~DEV_DIS;              /* enable QDSS */

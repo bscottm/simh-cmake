@@ -5,12 +5,6 @@ if (MSVC)
   set(SIMH_BINDIR "${SIMH_BINDIR}/Win32/$<CONFIG>")
 endif ()
 
-## The various video outputs for simulators:
-set(DISPLAYL   "${CMAKE_SOURCE_DIR}/display/display.c" "${CMAKE_SOURCE_DIR}/display/sim_ws.c")
-set(DISPLAYVT  "${CMAKE_SOURCE_DIR}/display/vt11.c")
-set(DISPLAY340 "${CMAKE_SOURCE_DIR}/display/type340.c")
-set(DISPLAYNG  "${CMAKE_SOURCE_DIR}/display/ng.c")
-
 ## Threading flags:
 set(SIMH_THREADS_CFLAGS "")
 set(SIMH_THREADS_DEFINES "")
@@ -186,3 +180,4 @@ set(SIM_SOURCES
 add_library(simhcore STATIC "${SIM_SOURCES}")
 target_network_config(simhcore)
 target_thread_config(simhcore)
+target_video_config(simhcore)
