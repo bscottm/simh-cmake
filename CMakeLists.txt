@@ -14,10 +14,28 @@ endif ()
 cmake_minimum_required(VERSION 3.14)
 
 set(SIMH_VERSION "4.0.0")
-project(simh VERSION ${SIMH_VERSION} LANGUAGES C)
+project(simh VERSION "${SIMH_VERSION}" LANGUAGES C)
 
-option(NETWORK_USEFUL "Enable/disable simulator networking support." TRUE)
-option(VIDEO_USEFUL   "Enable/disable simulator display and graphics support" TRUE)
+option(WITH_NETWORK "Enable (=1)/disable (=0) simulator networking support." TRUE)
+option(WITH_PCAP    "Enable (=1)/disable (=0) libpcap (packet capture) support." TRUE)
+option(WITH_VIDEO   "Enable (=1)/disable (=0) simulator display and graphics support" TRUE)
+option(WITH_ASYNC   "Enable (=1)/disable (=0) simulator asynchronous I/O" TRUE)
+
+# For 64-bit builds (and this is especially true for MSVC), set the library
+# architecture.
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  #
+  # For the WinPcap and Npcap SDKs, the Lib subdirectory of the top-level
+  # directory contains 32-bit libraries; the 64-bit libraries are in the
+  # Lib/x64 directory.
+  #
+  # The only way to *FORCE* CMake to look in the Lib/x64 directory
+  # without searching in the Lib directory first appears to be to set
+  # CMAKE_LIBRARY_ARCHITECTURE to "x64".
+  #
+  set(CMAKE_C_LIBRARY_ARCHITECTURE "x64")
+  set(CMAKE_LIBRARY_ARCHITECTURE "x64")
+endif()
 
 # SIMH_WINDOWS_BUILD: This is the top-level directory storing the Windows runtime support
 # artifacts.
@@ -79,8 +97,12 @@ if (WIN32)
     add_compile_definitions(USE_ISO_C99_NAMES)
   endif ()
  
-  # Pthreads4w: pthreads for windows
-  include (FindPthreads4w)
+  if (NOT MINGW)
+    # Pthreads4w: pthreads for windows
+    include (FindPthreads4w)
+  else (NOT MINGW)
+    set(PTW_FOUND FALSE)
+  endif (NOT MINGW)
 endif (WIN32)
 
 # Perl-Compatible Regular Expressions (PCRE). PCRE depends on zlib...
@@ -125,33 +147,11 @@ message(STATUS "Portable Network Graphics .. ${PNG_FOUND}")
 message(STATUS "Packet Capture (PCAP) ...... ${PCAP_FOUND}")
 message(STATUS "")
 
-## Simulator sources:
-set(SIM_SOURCES
-  ${CMAKE_SOURCE_DIR}/scp.c
-  ${CMAKE_SOURCE_DIR}/sim_console.c
-  ${CMAKE_SOURCE_DIR}/sim_fio.c
-  ${CMAKE_SOURCE_DIR}/sim_timer.c
-  ${CMAKE_SOURCE_DIR}/sim_sock.c
-  ${CMAKE_SOURCE_DIR}/sim_tmxr.c
-  ${CMAKE_SOURCE_DIR}/sim_ether.c
-  ${CMAKE_SOURCE_DIR}/sim_tape.c
-  ${CMAKE_SOURCE_DIR}/sim_disk.c
-  ${CMAKE_SOURCE_DIR}/sim_serial.c
-  ${CMAKE_SOURCE_DIR}/sim_video.c
-  ${CMAKE_SOURCE_DIR}/sim_imd.c
-  ${CMAKE_SOURCE_DIR}/sim_card.c)
-
-## Helpers:
-## Put everything together into one nice function.
-
-set(DISPLAYL "display/display.c display/sim_ws.c")
-set(DISPLAYVT "display/vt11.c")
-set(DISPLAY340 "display/type340.c")
-set(DISPLAYNG "display/ng.c")
-
 ## The actual simulators:
 
 include (add_simulator)
 
 add_subdirectory(slirp)
+add_subdirectory(PDP1)
+add_subdirectory(PDP8)
 add_subdirectory(VAX)

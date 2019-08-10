@@ -37,6 +37,14 @@ find_library(PCRE_LIBRARY
         PATHS ${PCRE_PATH}
         )
 
+find_library(PCREPOSIX_LIBRARY
+	NAMES pcreposix
+	HINTS
+	  ENV PCRE_DIR
+	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
+	PATHS ${PCRE_PATH}
+	)
+
 if (PCRE_INCLUDE_DIR AND EXISTS "${PCRE_INCLUDE_DIR}/pcre.h")
   file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE_VERSION_MAJOR_LINE REGEX "^#define[ \t]+PCRE_MAJOR[ \t]+[0-9]+$")
   file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE_VERSION_MINOR_LINE REGEX "^#define[ \t]+PCRE_MINOR[ \t]+[0-9]+$")
@@ -51,6 +59,7 @@ endif ()
 
 set(PCRE_LIBRARIES ${PCRE_LIBRARY})
 set(PCRE_INCLUDE_DIRS ${PCRE_INCLUDE_DIR})
+set(PCREPOSIX_LIBRARIES ${PCREPOSIX_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
 

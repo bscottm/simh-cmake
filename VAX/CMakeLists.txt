@@ -1,5 +1,6 @@
 ## VAX simulators:
 
+set(VAXD   "${CMAKE_SOURCE_DIR}/VAX")
 set(PDP11D "${CMAKE_SOURCE_DIR}/PDP11")
 
 ## Default VAX simulator (aka MicroVAX 3900):
@@ -34,5 +35,5 @@ set(VAX_SOURCES
       ${PDP11D}/pdp11_io_lib.c)
 
 set(VAX_DEFINES VM_VAX USE_INT64 USE_ADDR64 USE_SIM_VIDEO)
-set(VAX_INCLUDES "${CMAKE_SOURCE_DIR}/VAX" ${PDP11D})
+set(VAX_INCLUDES "${VAXD}" "${PDP11D}")
 add_simulator(microvax3900 "${VAX_SOURCES}" "${VAX_DEFINES}" "${VAX_INCLUDES}")
