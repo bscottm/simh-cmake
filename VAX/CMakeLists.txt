@@ -33,7 +33,7 @@ set(VAX_SOURCES
 
 set(VAX_DEFINES VM_VAX USE_INT64 USE_ADDR64 USE_SIM_VIDEO)
 set(VAX_INCLUDES "${VAXD}" "${PDP11D}")
-add_simulator(microvax3900 "${VAX_SOURCES}" "${VAX_DEFINES}" "${VAX_INCLUDES}")
+add_simulator(vax "${VAX_SOURCES}" "${VAX_DEFINES}" "${VAX_INCLUDES}")
 
 set(VAX610_SOURCES
     vax_cpu.c

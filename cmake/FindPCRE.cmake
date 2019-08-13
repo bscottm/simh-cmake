@@ -29,7 +29,7 @@ else ()
   set(LIB_PATH_SUFFIXES lib/x86 lib)
 endif ()
 
-find_library(PCRE_LIBRARY
+find_library(PCRE_LIBRARY_RELEASE
         NAMES pcre pcre_static
         HINTS
 	  ENV PCRE_DIR
@@ -37,8 +37,24 @@ find_library(PCRE_LIBRARY
         PATHS ${PCRE_PATH}
         )
 
-find_library(PCREPOSIX_LIBRARY
+find_library(PCRE_LIBRARY_DEBUG
+        NAMES pcred
+        HINTS
+	  ENV PCRE_DIR
+	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
+        PATHS ${PCRE_PATH}
+        )
+
+find_library(PCREPOSIX_LIBRARY_RELEASE
 	NAMES pcreposix
+	HINTS
+	  ENV PCRE_DIR
+	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
+	PATHS ${PCRE_PATH}
+	)
+
+find_library(PCREPOSIX_LIBRARY_DEBUG
+	NAMES pcreposixd
 	HINTS
 	  ENV PCRE_DIR
 	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
@@ -57,9 +73,14 @@ if (PCRE_INCLUDE_DIR AND EXISTS "${PCRE_INCLUDE_DIR}/pcre.h")
   unset(PCRE_VERSION_MINOR)
 endif ()
 
-set(PCRE_LIBRARIES ${PCRE_LIBRARY})
+# set(PCRE_LIBRARIES ${PCRE_LIBRARY})
 set(PCRE_INCLUDE_DIRS ${PCRE_INCLUDE_DIR})
-set(PCREPOSIX_LIBRARIES ${PCREPOSIX_LIBRARY})
+# set(PCREPOSIX_LIBRARIES ${PCREPOSIX_LIBRARY})
+
+include(SelectLibraryConfigurations)
+
+select_library_configurations(PCRE)
+select_library_configurations(PCREPOSIX)
 
 include(FindPackageHandleStandardArgs)
 

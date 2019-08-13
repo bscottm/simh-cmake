@@ -60,7 +60,7 @@ set(ISYS8024_SOURCES
     common/isbc201.c
     common/zx200a.c)
 
-set(ISYS8024_DEFINES "${ISYS8024D}")
+set(ISYS8024_DEFINES "")
 set(ISYS8024_INCLUDES "${ISYS8024D}")
 add_simulator(isys8024 "${ISYS8024_SOURCES}" "${ISYS8024_DEFINES}" "${ISYS8024_INCLUDES}")
 

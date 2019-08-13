@@ -16,11 +16,12 @@ cmake_minimum_required(VERSION 3.14)
 set(SIMH_VERSION "4.0.0")
 project(simh VERSION "${SIMH_VERSION}" LANGUAGES C)
 
+##-- Options --##
 option(WITH_NETWORK "Enable (=1)/disable (=0) simulator networking support." TRUE)
 option(WITH_PCAP    "Enable (=1)/disable (=0) libpcap (packet capture) support." TRUE)
 option(WITH_VIDEO   "Enable (=1)/disable (=0) simulator display and graphics support" TRUE)
 option(WITH_ASYNC   "Enable (=1)/disable (=0) simulator asynchronous I/O" TRUE)
-option(PANDA_LIGHTS "Enable (=1)/disable (=0) KA-10 simulator's display." FALSE)
+option(PANDA_LIGHTS "Enable (=1)/disable (=0) KA-10/KI-11 simulator's Panda display." FALSE)
 
 # For 64-bit builds (and this is especially true for MSVC), set the library
 # architecture.
@@ -42,6 +43,17 @@ endif()
 # artifacts.
 get_filename_component(SIMH_WINDOWS_BUILD "${CMAKE_SOURCE_DIR}/../windows-build/build-stage" ABSOLUTE)
 
+## Default install location is ${CMAKE_SOURCE_DIR}/BIN if not otherwise set
+if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/" CACHE PATH "${CMAKE_SOURCE_DIR} default install prefix" FORCE)
+  if (NOT WIN32)
+    set(CMAKE_INSTALL_BINDIR "BIN" CACHE PATH "BIN default binary install directory" FORCE)
+  else ()
+    set(CMAKE_INSTALL_BINDIR "Win32/$<CONFIG>" CACHE PATH "Win32/<config> default binary install directory" FORCE)
+  endif ()
+endif()
+
+# Places to look for CMake modules/includes
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_SOURCE_DIR}/cmake")
 
 if (WIN32)
@@ -62,23 +74,6 @@ include (CheckTypeSize)
 
 # Make sure we can include from the top level source...
 include_directories("${CMAKE_SOURCE_DIR}")
-
-# Add a rule to ensure that the BIN directory exists:
-if (NOT WIN32)
-  set(COPY_CMD "cp")
-
-  add_custom_target("bin_directory" ALL
-    COMMAND "$ENV{SHELL}" "-c" "\
-[ ! -d \"${CMAKE_SOURCE_DIR}/BIN\" ] && { \
-  rm -rf \"${CMAKE_SOURCE_DIR}/BIN\"; \
-  mkdir \"${CMAKE_SOURCE_DIR}/BIN\"; \
-}")
-else (NOT WIN32)
-  set(COPY_CMD "copy")
-
-  add_custom_target("bin_directory" ALL
-    COMMAND "powershell" "-NoProfile" "${CMAKE_SOURCE_DIR}\\cmake\\BINdir.ps1" "${CMAKE_SOURCE_DIR}")
-endif (NOT WIN32)
 
 # A bunch of Windows customizations
 if (WIN32)
@@ -209,3 +204,6 @@ add_subdirectory(sigma)
 
 # Experimental simulator:
 add_subdirectory(CDC1700)
+
+# Oh, and for the MSVC crowd, set the default startup project...
+set_property(DIRECTORY "${CMAKE_SOURCE_DIR}" PROPERTY VS_STARTUP_PROJECT vax)

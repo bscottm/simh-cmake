@@ -21,7 +21,17 @@ if (WIN32)
       if (PTW_FOUND)
           set(SIMH_THREADS_DEFINES "${SIMH_THREADS_DEFINES}" PTW32_STATIC_LIB _POSIX_C_SOURCE)
           set(SIMH_THREADS_INCLUDES "${SIMH_THREADS_INCLUDES}" "${PTW_INCLUDE_DIRS}")
-          set(SIMH_THREADS_LIBS "${SIMH_THREADS_LIBS}" "${PTW_LIBRARIES}")
+	  set(vclib_flavor "VC3")
+	  if ("VC3d" IN_LIST PTW_LIBRARY_FLAVORS)
+	    set(vclib_flavor "VC3d")
+	  endif()
+	  if (EXISTS "${PTW_LIBRARY_PATH}/libpthread${vclib_flavor}.lib")
+	    set(SIMH_THREADS_LIBS "${SIMH_THREADS_LIBS}" "libpthread${vclib_flavor}")
+	  elseif (EXISTS "${PTW_LIBRARY_PATH}/pthread${vclib_flavor}.lib")
+	    set(SIMH_THREADS_LIBS "${SIMH_THREADS_LIBS}" "pthread${vclib_flavor}")
+	  else ()
+	    message(FATAL_ERROR "Did not find libpthread${vclib_flavor}.lib or pthread${vclib_flavor}.lib library.")
+	  endif ()
       elseif (MINGW)
           # Use MinGW's threads instead
           set(SIMH_THREADS_CFLAGS "${SIMH_THREADS_CFLAGS}" "-pthread")
@@ -48,7 +58,8 @@ function(target_network_config _targ)
 
     target_compile_definitions("${_targ}" PUBLIC
       USE_NETWORK
-      HAVE_SLIRP_NETWORK)
+      HAVE_SLIRP_NETWORK
+	  USE_SIMH_SLIRP_DEBUG)
 
     target_include_directories("${_targ}" PUBLIC
       "${CMAKE_SOURCE_DIR}/slirp"
@@ -74,7 +85,13 @@ function(target_video_config _targ)
     if (SDL2_FOUND AND SDL2_TTF_FOUND)
       target_compile_definitions("${_targ}" PUBLIC HAVE_LIBSDL)
       target_include_directories("${_targ}" PUBLIC "${SDL2_INCLUDE_DIR}" "${SDL2_TTF_INCLUDE_DIRS}")
-      target_link_libraries("${_targ}" "${SDL2_TTF_LIBRARIES}" "${SDL2_LIBRARY}")
+      target_link_libraries("${_targ}" "${SDL2_TTF_LIBRARIES}")
+      if (SDL2_STATIC_LIBRARY)
+	target_link_libraries("${_targ}" "${SDL2_STATIC_LIBRARY}")
+	target_link_libraries("${_targ}" "imm32" "version")
+      else ()
+	target_link_libraries("${_targ}" "${SDL2_LIBRARY}")
+      endif ()
     endif ()
 
     if (PNG_FOUND)
@@ -95,6 +112,9 @@ function(target_thread_config _targ)
   target_compile_definitions("${_targ}" PUBLIC "${SIMH_THREADS_DEFINES}")
   target_include_directories("${_targ}" PUBLIC "${SIMH_THREADS_INCLUDES}")
   target_link_libraries("${_targ}" "${SIMH_THREADS_LIBS}")
+  if (PTW_FOUND)
+    target_link_directories("${_targ}" PUBLIC "${PTW_LIBRARY_PATH}")
+  endif ()
 endfunction ()
 
 ##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
@@ -121,7 +141,6 @@ function(add_simulator _targ _sources _defines _includes)
   if (${PCRE_FOUND})
     target_compile_definitions("${_targ}" PUBLIC HAVE_PCREPOSIX_H PCRE_STATIC)
     target_include_directories("${_targ}" PUBLIC "${PCRE_INCLUDE_DIRS}")
-
     target_link_libraries("${_targ}" "${PCREPOSIX_LIBRARIES}" "${PCRE_LIBRARIES}")
   endif (${PCRE_FOUND})
 
@@ -140,6 +159,9 @@ function(add_simulator _targ _sources _defines _includes)
       # Need the math library...
       target_link_libraries("${_targ}" m)
     endif ()
+    if (MINGW)
+      target_compile_options("${_targ}" PUBLIC "-fms-extensions" "-mwindows")
+    endif ()
 
     target_link_libraries("${_targ}" wsock32 winmm)
 
@@ -148,15 +170,14 @@ function(add_simulator _targ _sources _defines _includes)
       # target_link_options("${_targ}" PUBLIC "/NODEFAULTLIB:MSVCRT")
       # target_link_libraries("${_targ}" ucrt)
     endif ()
-
-    add_dependencies("${_targ}" "bin_directory")
-
-    add_custom_command(TARGET "${_targ}" POST_BUILD
-      COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:${_targ}>" "${SIMH_BINDIR}")
   endif ()
 
   # And, lastly, add the thread libraries...
   target_thread_config("${_targ}")
+
+  # Remember to add the install rule, which defaults to ${CMAKE_SOURCE_DIR}/BIN.
+  # Installs the executables.
+  install(TARGETS "${_targ}" RUNTIME)
 endfunction ()
 
 ## Simulator sources and library:
@@ -182,6 +203,13 @@ target_network_config(simhcore)
 target_thread_config(simhcore)
 target_video_config(simhcore)
 
-# Make sure that the conditionally compiled code is really compiled..
-# (Note: This is just a compatibility issue with the existing makefile.)
-target_compile_definitions(simhcore PRIVATE USE_SIM_IMD USE_SIM_CARD)
+target_compile_definitions(simhcore PRIVATE
+  # Make sure that the conditionally compiled code is really compiled in
+  # the simulation core library...
+  #
+  # (Note: This is just an interoperability issue with the makefile, which
+  # insists on compiling the simulator core from scratch with each simulator.)
+  USE_SIM_IMD
+  USE_SIM_CARD
+  # And, when we need to know that we're building the simhcore library...
+  BUILDING_SIMHCORE)
