@@ -246,6 +246,13 @@
 #include <dlfcn.h>
 #endif
 
+/* Needed to interoperate with simulators that use display code and
+ * have a core simulator library.
+ */
+#if defined(BUILDING_SIMHCORE) && defined(HAVE_LIBSDL)
+#include <SDL.h>
+#endif
+
 #ifndef MAX
 #define MAX(a,b)  (((a) >= (b)) ? (a) : (b))
 #endif
