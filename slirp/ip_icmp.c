@@ -30,6 +30,9 @@
  * ip_icmp.c,v 1.7 1995/05/30 08:09:42 rgrimes Exp
  */
 
+#include <inttypes.h>
+#include <stdint.h>
+
 #include "slirp.h"
 #include "ip_icmp.h"
 
@@ -125,7 +128,7 @@ icmp_input(struct mbuf *m, int hlen)
   Slirp *slirp = m->slirp;
 
   DEBUG_CALL("icmp_input");
-  DEBUG_ARG("m = %lx", (long )m);
+  DEBUG_ARG("m = %l" PRIxPTR "x", (uintptr_t) m);
   DEBUG_ARG("m_len = %d", m->m_len);
 
   /*
@@ -252,7 +255,7 @@ icmp_error(struct mbuf *msrc, u_char type, u_char code, int minsize,
   register struct mbuf *m;
 
   DEBUG_CALL("icmp_error");
-  DEBUG_ARG("msrc = %lx", (long )msrc);
+  DEBUG_ARG("msrc = %" PRIxPTR, (uintptr_t) msrc);
   DEBUG_ARG("msrc_len = %d", msrc->m_len);
 
   if(type!=ICMP_UNREACH && type!=ICMP_TIMXCEED) goto end_error;

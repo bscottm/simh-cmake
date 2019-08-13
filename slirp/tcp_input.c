@@ -38,6 +38,9 @@
  * terms and conditions of the copyright.
  */
 
+#include <inttypes.h>
+#include <stdint.h>
+
 #include <slirp.h>
 #include "ip_icmp.h"
 
@@ -231,8 +234,8 @@ tcp_input(struct mbuf *m, int iphlen, struct socket *inso)
     Slirp *slirp;
 
         DEBUG_CALL("tcp_input");
-        DEBUG_ARGS(" m = %8lx  iphlen = %2d  inso = %lx\n",
-                    (long )m, iphlen, (long )inso );
+        DEBUG_ARGS(" m = %8" PRIxPTR "  iphlen = %2d  inso = %" PRIxPTR "\n",
+                    (uintptr_t) m, iphlen, (uintptr_t) inso );
 
         /*
          * If called with m == 0, then we're continuing the connect
@@ -923,8 +926,8 @@ trimthenstep6:
 
                 if (SEQ_LEQ(ti->ti_ack, tp->snd_una)) {
                         if (ti->ti_len == 0 && tiwin == tp->snd_wnd) {
-                          DEBUG_MISC(" dup ack  m = %lx  so = %lx\n",
-                                      (long )m, (long )so);
+                          DEBUG_MISC(" dup ack  m = %" PRIxPTR "  so = %" PRIxPTR "\n",
+                                      (uintptr_t) m, (uintptr_t) so);
                                 /*
                                  * If we have outstanding data (other than
                                  * a window probe), this is a completely
@@ -1302,7 +1305,7 @@ tcp_dooptions(struct tcpcb *tp, u_char *cp, int cnt, struct tcpiphdr *ti)
         int opt, optlen;
 
         DEBUG_CALL("tcp_dooptions");
-        DEBUG_ARGS(" tp = %lx  cnt=%i\n", (long)tp, cnt);
+        DEBUG_ARGS(" tp = %" PRIxPTR "  cnt=%i\n", (uintptr_t) tp, cnt);
 
         for (; cnt > 0; cnt -= optlen, cp += optlen) {
                 opt = cp[0];
@@ -1383,7 +1386,7 @@ tcp_xmit_timer(register struct tcpcb *tp, int rtt)
         register short delta;
 
         DEBUG_CALL("tcp_xmit_timer");
-        DEBUG_ARG("tp = %lx", (long)tp);
+        DEBUG_ARG("tp = %" PRIxPTR, (uintptr_t) tp);
         DEBUG_ARG("rtt = %d", rtt);
 
         if (tp->t_srtt != 0) {
@@ -1471,7 +1474,7 @@ tcp_mss(struct tcpcb *tp, u_int offer)
         u_int mss;
 
         DEBUG_CALL("tcp_mss");
-        DEBUG_ARG("tp = %lx", (long)tp);
+        DEBUG_ARG("tp = %" PRIxPTR, (uintptr_t) tp);
         DEBUG_ARG("offer = %d", offer);
 
         mss = min(IF_MTU, IF_MRU) - sizeof(struct tcpiphdr);

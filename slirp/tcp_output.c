@@ -38,6 +38,9 @@
  * terms and conditions of the copyright.
  */
 
+#include <stdint.h>
+#include <inttypes.h>
+
 #include <slirp.h>
 
 static const u_char  tcp_outflags[TCP_NSTATES] = {
@@ -66,7 +69,7 @@ tcp_output(struct tcpcb *tp)
         int idle, sendalot;
 
         DEBUG_CALL("tcp_output");
-        DEBUG_ARG("tp = %lx", (long )tp);
+        DEBUG_ARG("tp = %" PRIxPTR, (uintptr_t) tp);
 
         /*
          * Determine length of data that should be transmitted,

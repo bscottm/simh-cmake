@@ -5,6 +5,8 @@
  * terms and conditions of the copyright.
  */
 
+#include <inttypes.h>
+#include <stdint.h>
 #include <slirp.h>
 #include "qemu/timer.h"
 
@@ -53,8 +55,8 @@ if_output(struct socket *so, struct mbuf *ifm)
         int on_fastq = 1;
 
         DEBUG_CALL("if_output");
-        DEBUG_ARG("so = %lx", (long)so);
-        DEBUG_ARG("ifm = %lx", (long)ifm);
+        DEBUG_ARG("so = %" PRIxPTR, (uintptr_t) so);
+        DEBUG_ARG("ifm = %" PRIxPTR, (uintptr_t) ifm);
 
         /*
          * First remove the mbuf from m_usedlist,

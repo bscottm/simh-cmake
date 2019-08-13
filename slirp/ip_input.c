@@ -38,6 +38,9 @@
  * terms and conditions of the copyright.
  */
 
+#include <inttypes.h>
+#include <stdint.h>
+
 #include <slirp.h>
 #include <qemu/osdep.h>
 #include "ip_icmp.h"
@@ -80,7 +83,7 @@ ip_input(struct mbuf *m)
         int hlen;
 
         DEBUG_CALL("ip_input");
-        DEBUG_ARG("m = %lx", (long)m);
+        DEBUG_ARG("m = %" PRIxPTR, (uintptr_t) m);
         DEBUG_ARG("m_len = %d", m->m_len);
 
         if (m->m_len < sizeof (struct ip)) {
@@ -232,9 +235,9 @@ ip_reass(Slirp *slirp, struct ip *ip, struct ipq *fp)
         int i, next;
 
         DEBUG_CALL("ip_reass");
-        DEBUG_ARG("ip = %lx", (long)ip);
-        DEBUG_ARG("fp = %lx", (long)fp);
-        DEBUG_ARG("m = %lx", (long)m);
+        DEBUG_ARG("ip = %" PRIxPTR, (uintptr_t) ip);
+        DEBUG_ARG("fp = %" PRIxPTR, (uintptr_t) fp);
+        DEBUG_ARG("m = %" PRIxPTR, (uintptr_t) m);
 
         /*
          * Presence of header sizes in mbufs
@@ -400,7 +403,7 @@ static void
 ip_enq(register struct ipasfrag *p, register struct ipasfrag *prev)
 {
         DEBUG_CALL("ip_enq");
-        DEBUG_ARG("prev = %lx", (long)prev);
+        DEBUG_ARG("prev = %" PRIxPTR, (uintptr_t) prev);
         p->ipf_prev =  prev;
         p->ipf_next = prev->ipf_next;
         ((struct ipasfrag *)(prev->ipf_next))->ipf_prev = p;
