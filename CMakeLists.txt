@@ -89,7 +89,7 @@ if (WIN32)
   include_directories("${SIMH_WINDOWS_BUILD}/include")
   link_directories("${SIMH_WINDOWS_BUILD}/lib")
   
-  if ("${MSVC_VERSION}" GREATER_EQUAL 1920)
+  if (MSVC_VERSION GREATER_EQUAL 1920)
     add_compile_definitions(USE_ISO_C99_NAMES)
   endif ()
  
