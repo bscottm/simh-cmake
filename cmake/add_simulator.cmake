@@ -120,6 +120,11 @@ endfunction ()
 ##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 ## add_simulator: Does all of the hard work to set up a new simulation target's
 ## compile and link flags.
+##
+## Optional arguments that determine which simh library with which the target links:
+##
+## USEI64: Set the USE_INT64 preprocessor define (uses 64-bit integers)
+## USEZ64: Set both USE_INT64 and USE_ADDR64 defines (uses 64-bit integers and addresses)
 ##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
 function(add_simulator _targ _sources _defines _includes)
@@ -134,9 +139,19 @@ function(add_simulator _targ _sources _defines _includes)
     list(APPEND _normalized_includes "${inc}")
   endforeach ()
 
-  target_compile_definitions("${_targ}" PUBLIC "${_defines}" "${SIMH_THREADS_DEFINES}")
-  target_include_directories("${_targ}" PUBLIC "${_normalized_includes}" "${SIMH_THREADS_INCLUDES}")
-  target_link_libraries("${_targ}" simhcore)
+  target_compile_definitions("${_targ}" PUBLIC "${_defines}")
+  target_include_directories("${_targ}" PUBLIC "${_normalized_includes}")
+
+  if (USEI64 IN_LIST ARGN)
+    target_compile_definitions("${_targ}" PUBLIC USE_INT64)
+    target_link_libraries("${_targ}" simhi64)
+  elseif  (USEZ64 IN_LIST ARGN)
+    target_compile_definitions("${_targ}" PUBLIC USE_INT64 USE_ADDR64)
+    target_link_libraries("${_targ}" simhz64)
+  else ()
+    # Nope, it's just a regular simulator
+    target_link_libraries("${_targ}" simhcore)
+  endif ()
 
   if (${PCRE_FOUND})
     target_compile_definitions("${_targ}" PUBLIC HAVE_PCREPOSIX_H PCRE_STATIC)
@@ -212,4 +227,29 @@ target_compile_definitions(simhcore PRIVATE
   USE_SIM_IMD
   USE_SIM_CARD
   # And, when we need to know that we're building the simhcore library...
+  BUILDING_SIMHCORE)
+
+# Build the simhcore library a second time with USE_INT64:
+add_library(simhi64 STATIC "${SIM_SOURCES}")
+target_network_config(simhi64)
+target_thread_config(simhi64)
+target_video_config(simhi64)
+
+target_compile_definitions(simhi64 PRIVATE
+  USE_SIM_IMD
+  USE_SIM_CARD
+  USE_INT64
+  BUILDING_SIMHCORE)
+
+# Build the simhcore library a third time with USE_INT64 and USE_ADDR64:
+add_library(simhz64 STATIC "${SIM_SOURCES}")
+target_network_config(simhz64)
+target_thread_config(simhz64)
+target_video_config(simhz64)
+
+target_compile_definitions(simhz64 PRIVATE
+  USE_SIM_IMD
+  USE_SIM_CARD
+  USE_INT64
+  USE_ADDR64
   BUILDING_SIMHCORE)

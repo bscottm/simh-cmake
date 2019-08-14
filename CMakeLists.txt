@@ -49,7 +49,7 @@ if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   if (NOT WIN32)
     set(CMAKE_INSTALL_BINDIR "BIN" CACHE PATH "BIN default binary install directory" FORCE)
   else ()
-    set(CMAKE_INSTALL_BINDIR "Win32/$<CONFIG>" CACHE PATH "Win32/<config> default binary install directory" FORCE)
+    set(CMAKE_INSTALL_BINDIR "BIN/Win32/$<CONFIG>" CACHE PATH "BIN/Win32/<config> default binary install directory" FORCE)
   endif ()
 endif()
 
@@ -204,6 +204,3 @@ add_subdirectory(sigma)
 
 # Experimental simulator:
 add_subdirectory(CDC1700)
-
-# Oh, and for the MSVC crowd, set the default startup project...
-set_property(DIRECTORY "${CMAKE_SOURCE_DIR}" PROPERTY VS_STARTUP_PROJECT vax)

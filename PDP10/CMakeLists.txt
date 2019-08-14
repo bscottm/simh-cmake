@@ -22,54 +22,54 @@ set(PDP10_SOURCES
     ${PDP11D}/pdp11_xu.c
     ${PDP11D}/pdp11_ch.c)
 
-set(PDP10_DEFINES VM_PDP10 USE_INT64)
+set(PDP10_DEFINES VM_PDP10)
 set(PDP10_INCLUDES "${PDP10D}" "${PDP11D}")
 
-add_simulator(pdp10 "${PDP10_SOURCES}" "${PDP10_DEFINES}" "${PDP10_INCLUDES}")
+add_simulator(pdp10 "${PDP10_SOURCES}" "${PDP10_DEFINES}" "${PDP10_INCLUDES}" USEI64)
 
 
 set(KA10_SOURCES
     kx10_cpu.c 
     kx10_sys.c 
     kx10_df.c
-	kx10_dp.c 
+    kx10_dp.c 
     kx10_mt.c 
     kx10_cty.c
-	kx10_lp.c 
+    kx10_lp.c 
     kx10_pt.c 
     kx10_dc.c
-	kx10_rp.c 
+    kx10_rp.c 
     kx10_rc.c 
     kx10_dt.c
-	kx10_dk.c 
+    kx10_dk.c 
     kx10_cr.c 
     kx10_cp.c
-	kx10_tu.c 
+    kx10_tu.c 
     kx10_rs.c 
     ka10_pd.c
-	kx10_imp.c 
+    kx10_imp.c 
     ka10_tk10.c 
     ka10_mty.c
-	ka10_imx.c 
+    ka10_imx.c 
     ka10_ch10.c 
     ka10_stk.c
-	ka10_ten11.c 
+    ka10_ten11.c 
     ka10_auxcpu.c
     ka10_pmp.c
-	ka10_dkb.c 
+    ka10_dkb.c 
     pdp6_dct.c 
     pdp6_dtc.c
-	pdp6_mtc.c 
+    pdp6_mtc.c 
     pdp6_dsk.c 
     pdp6_dcs.c
-	ka10_dpk.c 
+    ka10_dpk.c 
     kx10_dpy.c 
     ${DISPLAYL} 
     ${DISPLAY340})
 
-set(KA10_DEFINES KA=1 USE_INT64 USE_SIM_CARD USE_DISPLAY)
+set(KA10_DEFINES KA=1 USE_SIM_CARD USE_DISPLAY)
 set(KA10_INCLUDES "${PDP10_INCLUDES}")
-add_simulator(pdp10-ka "${KA10_SOURCES}" "${KA10_DEFINES}" "${KA10_INCLUDES}")
+add_simulator(pdp10-ka "${KA10_SOURCES}" "${KA10_DEFINES}" "${KA10_INCLUDES}" USEI64)
 
 if (NOT WIN32 AND PANDA_LIGHTS)
     # ONLY for Panda display.
@@ -102,8 +102,8 @@ set(KI10_SOURCES
     ${DISPLAYL} 
     ${DISPLAY340})
 
-set(KI10_DEFINES KI=1 USE_INT64 USE_SIM_CARD USE_DISPLAY)
-add_simulator(pdp10-ki "${KI10_SOURCES}" "${KI10_DEFINES}" "${PDP10_INCLUDES}")
+set(KI10_DEFINES KI=1 USE_SIM_CARD USE_DISPLAY)
+add_simulator(pdp10-ki "${KI10_SOURCES}" "${KI10_DEFINES}" "${PDP10_INCLUDES}" USEI64)
 
 if (NOT WIN32 AND PANDA_LIGHTS)
     # ONLY for Panda display.
@@ -129,5 +129,5 @@ set(PDP6_SOURCES
     ${DISPLAYL} 
     ${DISPLAY340})
 
-set(PDP6_DEFINES PDP6=1 USE_INT64USE_SIM_CARD USE_DISPLAY)
-add_simulator(pdp6 "${PDP6_SOURCES}" "${PDP6_DEFINES}" "${PDP10_INCLUDES}")
+set(PDP6_DEFINES PDP6=1 USE_SIM_CARD USE_DISPLAY)
+add_simulator(pdp6 "${PDP6_SOURCES}" "${PDP6_DEFINES}" "${PDP10_INCLUDES}" USEI64)

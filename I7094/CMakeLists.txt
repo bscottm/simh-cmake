@@ -14,6 +14,6 @@ set(I7094_SOURCES
     i7094_mt.c
     i7094_binloader.c)
 
-set(I7094_DEFINES DUSE_INT64)
+set(I7094_DEFINES "")
 set(I7094_INCLUDES "${I7094D}")
-add_simulator(i7094 "${I7094_SOURCES}" "${I7094_DEFINES}" "${I7094_INCLUDES}")
+add_simulator(i7094 "${I7094_SOURCES}" "${I7094_DEFINES}" "${I7094_INCLUDES}" USEI64)
