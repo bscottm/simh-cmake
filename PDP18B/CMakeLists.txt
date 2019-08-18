@@ -16,18 +16,35 @@ set(PDP18B_SOURCES
     pdp18b_g2tty.c
     pdp18b_dr15.c)
 
-set(PDP4_DEFINES PDP4)
-set(PDP4_INCLUDES "${PDP18BD}")
-add_simulator(pdp4 "${PDP18B_SOURCES}" "${PDP4_DEFINES}" "${PDP4_INCLUDES}")
+add_simulator(pdp4
+    SOURCES
+	${PDP18B_SOURCES}
+    DEFINES
+	PDP4
+    INCLUDES
+	${PDP18BD})
 
-set(PDP7_DEFINES PDP7)
-set(PDP7_INCLUDES "${PDP18BD}")
-add_simulator(pdp7 "${PDP18B_SOURCES}" "${PDP7_DEFINES}" "${PDP7_INCLUDES}")
+add_simulator(pdp7
+    SOURCES
+	${PDP18B_SOURCES}
+    DEFINES
+	PDP7
+    INCLUDES
+	${PDP18BD}
+    TEST pdp7)
 
-set(PDP9_DEFINES PDP9)
-set(PDP9_INCLUDES "${PDP18BD}")
-add_simulator(pdp9 "${PDP18B_SOURCES}" "${PDP9_DEFINES}" "${PDP9_INCLUDES}")
+add_simulator(pdp9
+    SOURCES
+	${PDP18B_SOURCES}
+    DEFINES
+	PDP9
+    INCLUDES
+	${PDP18BD})
 
-set(PDP15_DEFINES PDP15)
-set(PDP15_INCLUDES "${PDP18BD}")
-add_simulator(pdp15 "${PDP18B_SOURCES}" "${PDP15_DEFINES}" "${PDP15_INCLUDES}")
+add_simulator(pdp15
+    SOURCES
+    	${PDP18B_SOURCES}
+    DEFINES
+	PDP15
+    INCLUDES
+	${PDP18BD})

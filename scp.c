@@ -232,7 +232,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <math.h>
-#if defined(_WIN32)
+#if defined(WIN32)
 #include <direct.h>
 #include <io.h>
 #include <fcntl.h>
@@ -1210,7 +1210,7 @@ static const char simh_help[] =
       "+SET CONSOLE WRU=value       specify console drop to simh character\n"
       "+SET CONSOLE BRK=value       specify console Break character\n"
       "+SET CONSOLE DEL=value       specify console delete character\n"
-#if (defined(__GNUC__) && !defined(__OPTIMIZE__) && !defined(_WIN32))/* Debug build? */
+#if (defined(__GNUC__) && !defined(__OPTIMIZE__) && !defined(WIN32))/* Debug build? */
       "+SET CONSOLE DBGINT=value    specify SIGINT character in debugger\n"
 #endif
       "+SET CONSOLE PCHAR=bitmask   bit mask of printable characters in\n"
@@ -2479,7 +2479,7 @@ static SHTAB show_unit_tab[] = {
     };
 
 
-#if defined(_WIN32) || defined(__hpux)
+#if defined(WIN32) || defined(__hpux)
 static
 int setenv(const char *envname, const char *envval, int overwrite)
 {
@@ -2487,7 +2487,7 @@ char *envstr = (char *)malloc(strlen(envname)+strlen(envval)+2);
 int r;
 
 sprintf(envstr, "%s=%s", envname, envval);
-#if defined(_WIN32)
+#if defined(WIN32)
 r = _putenv(envstr);
 free(envstr);
 #else
@@ -5887,7 +5887,7 @@ if (flag) {
         strlcat (os_type, arch, sizeof (os_type));
         fprintf (st, "\n        OS: OpenVMS %s %s", arch, __VMS_VERSION);
         }
-#elif defined(_WIN32)
+#elif defined(WIN32)
     if (1) {
         char *proc_id = getenv ("PROCESSOR_IDENTIFIER");
         char *arch = getenv ("PROCESSOR_ARCHITECTURE");
@@ -6588,7 +6588,7 @@ while ((c = strchr (c, '/'))) {
         return sim_messagef (SCPE_ARG, "%s is not a directory\n", path);
         }
     if (
-#if defined(_WIN32)
+#if defined(WIN32)
         mkdir (path)
 #else
         mkdir (path, 0777)
@@ -6599,7 +6599,7 @@ while ((c = strchr (c, '/'))) {
     ++c;
     }
 if (
-#if defined(_WIN32)
+#if defined(WIN32)
     mkdir (path)
 #else
     mkdir (path, 0777)
@@ -13482,7 +13482,7 @@ static void displayMagicTopic (FILE *st, DEVICE *dptr, TOPIC *topic)
 {
 char tbuf[CBUFSIZE];
 size_t i, skiplines = 0;
-#ifdef _WIN32
+#ifdef WIN32
 FILE *tmp;
 char *tmpnam;
 
@@ -13538,7 +13538,7 @@ while (fgets (tbuf, sizeof (tbuf), tmp)) {
     fputs (tbuf, st);
     }
 fclose (tmp);
-#ifdef _WIN32
+#ifdef WIN32
 remove (tmpnam);
 free (tmpnam);
 #endif
@@ -13789,7 +13789,7 @@ while (TRUE) {
         }
 
     if (!cptr) {                            /* EOF, exit help */
-#if !defined(_WIN32)
+#if !defined(WIN32)
         printf ("\n");
 #endif
         break;

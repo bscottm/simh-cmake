@@ -57,6 +57,13 @@ endif()
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_SOURCE_DIR}/cmake")
 
 if (WIN32)
+endif()
+
+# Make sure we can include from the top level source...
+include_directories("${CMAKE_SOURCE_DIR}")
+
+# A bunch of Windows customizations
+if (WIN32)
   # Places where CMake should look for the various package configuration fragments:
   set(CMAKE_MODULE_PATH
     "${CMAKE_MODULE_PATH}"
@@ -64,19 +71,6 @@ if (WIN32)
     "${SIMH_WINDOWS_BUILD}/lib/cmake"
     "${SIMH_WINDOWS_BUILD}/lib/libpng")
 
-  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-endif()
-
-include (CheckIncludeFile)
-include (CheckFunctionExists)
-include (CheckSymbolExists)
-include (CheckTypeSize)
-
-# Make sure we can include from the top level source...
-include_directories("${CMAKE_SOURCE_DIR}")
-
-# A bunch of Windows customizations
-if (WIN32)
   set(CMAKE_LIBRARY_PATH "${CMAKE_LIBRARY_PATH}" "${SIMH_WINDOWS_BUILD}/lib")
   set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH}" "${SIMH_WINDOWS_BUILD}/include")
   # Assistance variables for the "Find<Package>" packages we use:
@@ -86,6 +80,7 @@ if (WIN32)
   set(PTW_PATH "${SIMH_WINDOWS_BUILD}")
   set(PCAP_PATH "${SIMH_WINDOWS_BUILD}")
 
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
   include_directories("${SIMH_WINDOWS_BUILD}/include")
   link_directories("${SIMH_WINDOWS_BUILD}/lib")
   
@@ -193,14 +188,14 @@ add_subdirectory(Interdata)
 add_subdirectory(SDS)
 add_subdirectory(LGP)
 add_subdirectory(H316)
-add_subdirectory(swtp6800)
-add_subdirectory(TX-0)
-add_subdirectory(SSEM)
-add_subdirectory(B5500)
-add_subdirectory(Intel-Systems)
-add_subdirectory(3B2)
-add_subdirectory(I7000)
-add_subdirectory(sigma)
+# add_subdirectory(swtp6800)
+# add_subdirectory(TX-0)
+# add_subdirectory(SSEM)
+# add_subdirectory(B5500)
+# add_subdirectory(Intel-Systems)
+# add_subdirectory(3B2)
+# add_subdirectory(I7000)
+# add_subdirectory(sigma)
 
 # Experimental simulator:
-add_subdirectory(CDC1700)
+# add_subdirectory(CDC1700)

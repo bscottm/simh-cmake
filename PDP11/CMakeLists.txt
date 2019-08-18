@@ -49,30 +49,38 @@ set(PDP11_SOURCES
     pdp11_daz.c)
 
 set(PDP11_DEFINES VM_PDP11)
-set(PDP11_INCLUDES "${PDP11D}")
 
 if (WITH_VIDEO)
-    set(PDP11_SOURCES "${PDP11_SOURCES}" "${DISPLAYL}" "${DISPLAYVT}" "${DISPLAYNG}")
-    set(PDP11_DEFINES "${PDP11_DEFINES}" USE_DISPLAY)
+    set(PDP11_SOURCES ${PDP11_SOURCES} ${DISPLAYL} ${DISPLAYVT} ${DISPLAYNG})
+    set(PDP11_DEFINES ${PDP11_DEFINES} USE_DISPLAY)
 endif ()
 
-add_simulator(pdp11 "${PDP11_SOURCES}" "${PDP11_DEFINES}" "${PDP11_INCLUDES}")
+add_simulator(pdp11 
+    SOURCES
+	${PDP11_SOURCES}
+    DEFINES
+	${PDP11_DEFINES}
+    INCLUDES
+	${PDP11D})
 
-set(UC15_SOURCES
-    pdp11_cis.c 
-    pdp11_cpu.c
+add_simulator(uc15
+    SOURCES
+	pdp11_cis.c 
+	pdp11_cpu.c
 	pdp11_cpumod.c 
-    pdp11_cr.c
+	pdp11_cr.c
 	pdp11_fp.c 
-    pdp11_io.c
+	pdp11_io.c
 	pdp11_io_lib.c
-    pdp11_lp.c
+	pdp11_lp.c
 	pdp11_rh.c 
-    pdp11_rk.c
+	pdp11_rk.c
 	pdp11_stddev.c 
-    pdp11_sys.c
-	pdp11_uc15.c)
-
-set(UC15_DEFINES VM_PDP11 UC15)
-set(UC15_INCLUDES "${PDP11_INCLUDES}" "${PDP18BD}")
-add_simulator(uc15 "${UC15_SOURCES}" "${UC15_DEFINES}" "${UC15_INCLUDES}")
+	pdp11_sys.c
+	pdp11_uc15.c
+    DEFINES
+	VM_PDP11
+	UC15
+    INCLUDES
+	${PDP11_INCLUDES}
+	${PDP18BD})

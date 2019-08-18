@@ -133,7 +133,7 @@ extern int sim_vax_snprintf(char *buf, size_t buf_size, const char *fmt, ...);
 #endif
 
 
-#ifdef _WIN32
+#ifdef WIN32
 #include <winsock2.h>
 #include <windows.h>
 #include <winerror.h>
@@ -245,7 +245,7 @@ typedef int             t_bool;                         /* boolean */
 #if defined (__GNUC__)                                  /* GCC */
 typedef signed long long        t_int64;
 typedef unsigned long long      t_uint64;
-#elif defined (_WIN32)                                  /* Windows */
+#elif defined (WIN32)                                   /* Windows */
 typedef signed __int64          t_int64;
 typedef unsigned __int64        t_uint64;
 #elif (defined (__ALPHA) || defined (__ia64)) && defined (VMS) /* 64b VMS */
@@ -284,7 +284,7 @@ typedef uint32          t_addr;
 #define T_ADDR_FMT      ""
 #endif                                                  /* end 64b address */
 
-#if defined (_WIN32)
+#if defined (WIN32)
 #define vsnprintf _vsnprintf
 #endif
 #if defined (__DECC) && defined (__VMS) && (defined (__VAX) || (__CRTL_VER <= 70311000))
@@ -296,7 +296,7 @@ typedef uint32          t_addr;
 #define STACKBUFSIZE 2048
 #endif
 
-#if defined (_WIN32) /* Actually, a GCC issue */
+#if defined (WIN32) /* Actually, a GCC issue */
 #define LL_FMT "I64"
 #define LL_TYPE long long
 #else
@@ -317,7 +317,7 @@ typedef uint32          t_addr;
 #define HAVE_C99_STRFTIME 1
 #endif
 
-#if defined (_WIN32)
+#if defined (WIN32)
 #define NULL_DEVICE "NUL:"
 #elif defined (_VMS)
 #define NULL_DEVICE "NL:"
@@ -911,7 +911,7 @@ struct MEMFILE {
 #define _REGDATANF(nm,loc,rdx,wd,off,dep,desc,flds,qptr,siz) \
     nm, (loc), (rdx), (wd), (off), (dep), (desc), (flds), (qptr), (siz)
 
-#if defined (__STDC__) || defined (_WIN32) /* Variants which depend on how macro arguments are convered to strings */
+#if defined (__STDC__) || defined (WIN32) /* Variants which depend on how macro arguments are convered to strings */
 /* Generic Register declaration for all fields.  
    If the register structure is extended, this macro will be retained and a 
    new internal macro will be provided that populates the new register structure */
@@ -1178,7 +1178,7 @@ extern int32 sim_asynch_inst_latency;
 #define USE_AIO_INTRINSICS 1
 #endif
 #endif
-#if defined(_WIN32) || defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4) || defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)
+#if defined(WIN32) || defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4) || defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)
 #define USE_AIO_INTRINSICS 1
 #endif
 /* Provide a way to test both Intrinsic and Lock based queue manipulations  */
@@ -1208,7 +1208,7 @@ extern int32 sim_asynch_inst_latency;
       pthread_mutex_destroy(&sim_tmxr_poll_lock);                 \
       pthread_cond_destroy(&sim_tmxr_poll_cond);                  \
       } while (0)
-#ifdef _WIN32
+#ifdef WIN32
 #elif defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4) || defined(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8)
 #define InterlockedCompareExchangePointer(Destination, Exchange, Comparand) __sync_val_compare_and_swap(Destination, Comparand, Exchange)
 #elif defined(__DECC_VER)

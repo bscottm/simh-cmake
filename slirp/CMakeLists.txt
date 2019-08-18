@@ -25,7 +25,20 @@ set(SLIRP_SOURCES
   "${CMAKE_SOURCE_DIR}/slirp_glue/sim_slirp.c")
 
 add_library(slirp STATIC "${SLIRP_SOURCES}")
-target_compile_definitions(slirp PRIVATE HAVE_SLIRP_NETWORK USE_SIMH_SLIRP_DEBUG _WINSOCK_DEPRECATED_NO_WARNINGS)
+target_compile_definitions(slirp
+    PRIVATE HAVE_SLIRP_NETWORK USE_SIMH_SLIRP_DEBUG _WINSOCK_DEPRECATED_NO_WARNINGS
+    INTERFACE HAVE_SLIRP_NETWORK USE_SIMH_SLIRP_DEBUG)
+
+target_include_directories(slirp PUBLIC
+    "${CMAKE_SOURCE_DIR}/slirp"
+    "${CMAKE_SOURCE_DIR}/slirp_glue"
+    "${CMAKE_SOURCE_DIR}/slirp_glue/qemu")
+
+if (WIN32)
+    target_include_directories(slirp PUBLIC "${CMAKE_SOURCE_DIR}/slirp_glue/qemu/win32/include")
+endif ()
+
+target_link_libraries(slirp Iphlpapi)
 
 target_include_directories(slirp PRIVATE
   "${CMAKE_SOURCE_DIR}/slirp"

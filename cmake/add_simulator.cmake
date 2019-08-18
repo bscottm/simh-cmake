@@ -1,199 +1,87 @@
 ## Put everything together into one nice function.
 
+include (CTest)
+
 set(SIMH_BINDIR "${CMAKE_SOURCE_DIR}/BIN")
 if (MSVC)
   set(SIMH_BINDIR "${SIMH_BINDIR}/Win32/$<CONFIG>")
 endif ()
 
-## Threading flags:
-set(SIMH_THREADS_CFLAGS "")
-set(SIMH_THREADS_DEFINES "")
-set(SIMH_THREADS_INCLUDES "")
-set(SIMH_THREADS_LIBS "")
+## INTERFACE libraries: Interface libraries let us refer to the libraries,
+## set includes and defines, flags in a consistent way.
+##
+## Here's the way it works:
+##
+## 1. Add the library as INTERFACE. The name isn't particularly important,
+##    but it should be meaningful, like "thread_lib".
+## 2. If specific features are enabled, add target attributes and properties,
+##    such as defines, include directories to the interface library.
+## 3. "Link" with the interface library. All of the flags, defines, includes
+##    get picked up in the dependent.
+##
+
+if (PCRE_FOUND)
+    add_library(pcreposix INTERFACE)
+    add_library(pcre INTERFACE)
+    target_compile_definitions(pcreposix INTERFACE HAVE_PCREPOSIX_H PCRE_STATIC)
+    target_include_directories(pcreposix INTERFACE "${PCRE_INCLUDE_DIRS}")
+    target_link_libraries(pcreposix INTERFACE "${PCREPOSIX_LIBRARIES}")
+    target_link_libraries(pcre INTERFACE "${PCRE_LIBRARIES}")
+endif (PCRE_FOUND)
+
+## Threading support:
+add_library(thread_lib INTERFACE)
 
 if (WIN32)
-    # Have pthreads... go with async I/O
-    if (PTW_FOUND OR MINGW)
-      set(SIMH_THREADS_DEFINES "${SIMH_THREADS_DEFINES}" USE_READER_THREAD)
-      # Remember to remove SIM_ASYNCH_IO if the TODO option is False.
-      set(SIMH_THREADS_DEFINES "${SIMH_THREADS_DEFINES}" SIM_ASYNCH_IO)
-
-      if (PTW_FOUND)
-          set(SIMH_THREADS_DEFINES "${SIMH_THREADS_DEFINES}" PTW32_STATIC_LIB _POSIX_C_SOURCE)
-          set(SIMH_THREADS_INCLUDES "${SIMH_THREADS_INCLUDES}" "${PTW_INCLUDE_DIRS}")
-	  set(vclib_flavor "VC3")
-	  if ("VC3d" IN_LIST PTW_LIBRARY_FLAVORS)
-	    set(vclib_flavor "VC3d")
-	  endif()
-	  if (EXISTS "${PTW_LIBRARY_PATH}/libpthread${vclib_flavor}.lib")
-	    set(SIMH_THREADS_LIBS "${SIMH_THREADS_LIBS}" "libpthread${vclib_flavor}")
-	  elseif (EXISTS "${PTW_LIBRARY_PATH}/pthread${vclib_flavor}.lib")
-	    set(SIMH_THREADS_LIBS "${SIMH_THREADS_LIBS}" "pthread${vclib_flavor}")
-	  else ()
-	    message(FATAL_ERROR "Did not find libpthread${vclib_flavor}.lib or pthread${vclib_flavor}.lib library.")
-	  endif ()
-      elseif (MINGW)
-          # Use MinGW's threads instead
-          set(SIMH_THREADS_CFLAGS "${SIMH_THREADS_CFLAGS}" "-pthread")
-          set(SIMH_THREADS_LIBS "${SIMH_THREADS_LIBS}" pthread)
-      endif ()
-  endif ()
+    # Have pthreads... go with async I/O (TODO: Disable async I/O if option present.)
+    if (MINGW)
+        # Use MinGW's threads instead
+        target_compile_definitions(thread_lib USE_READER_THREAD SIM_ASYNCH_IO)
+        target_compile_options(thread_lib INTERFACE "-pthread")
+        target_link_libraries(thread_lib PUBLIC pthread)
+    elseif (PTW_FOUND)
+        target_compile_definitions(thread_lib INTERFACE USE_READER_THREAD SIM_ASYNCH_IO PTW32_STATIC_LIB)
+        target_include_directories(thread_lib INTERFACE ${PTW_INCLUDE_DIRS})
+        target_link_libraries(thread_lib INTERFACE pthreadVC3)
+        target_link_directories(thread_lib INTERFACE ${PTW_LIBRARY_PATH})
+    endif ()
 endif ()
 
-##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
-## target_network_config: Configure target's compile and link for networking, if
-## WITH_NETWORK is enabled.
-##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+# pcap networking (slirp is always included):
+add_library(pcap INTERFACE)
 
-function(target_network_config _targ)
-  if (WITH_NETWORK)
+if (WITH_NETWORK)
     if (WITH_PCAP AND PCAP_FOUND)
-      target_compile_definitions("${_targ}" PUBLIC
-        USE_SHARED
-        HAVE_PCAP_NETWORK)
-
-      target_include_directories("${_targ}" PUBLIC "${PCAP_INCLUDE_DIRS}")
-      target_link_libraries("${_targ}" "${PCAP_LIBRARIES}")
+        target_compile_definitions(pcap INTERFACE USE_SHARED HAVE_PCAP_NETWORK)
+        target_include_directories(pcap INTERFACE "${PCAP_INCLUDE_DIRS}")
+        target_link_libraries(pcap INTERFACE "${PCAP_LIBRARIES}")
     endif ()
+endif ()
 
-    target_compile_definitions("${_targ}" PUBLIC
-      USE_NETWORK
-      HAVE_SLIRP_NETWORK
-	  USE_SIMH_SLIRP_DEBUG)
+## Simple Direct Media Layer (v2) support:
+add_library(simh_video INTERFACE)
 
-    target_include_directories("${_targ}" PUBLIC
-      "${CMAKE_SOURCE_DIR}/slirp"
-      "${CMAKE_SOURCE_DIR}/slirp_glue"
-      "${CMAKE_SOURCE_DIR}/slirp_glue/qemu")
-
-    if (WIN32)
-      target_include_directories("${_targ}" PUBLIC "${CMAKE_SOURCE_DIR}/slirp_glue/qemu/win32/include")
-    endif ()
-
-    target_link_libraries("${_targ}" slirp Iphlpapi)
-  endif ()
-endfunction ()
-
-##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
-## target_video_config: Configure for SDL and png...
-##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
-
-function(target_video_config _targ)
-  if (WITH_VIDEO)
-    target_compile_definitions("${_targ}" PUBLIC USE_SIM_VIDEO)
-
+if (WITH_VIDEO)
     if (SDL2_FOUND AND SDL2_TTF_FOUND)
-      target_compile_definitions("${_targ}" PUBLIC HAVE_LIBSDL)
-      target_include_directories("${_targ}" PUBLIC "${SDL2_INCLUDE_DIR}" "${SDL2_TTF_INCLUDE_DIRS}")
-      target_link_libraries("${_targ}" "${SDL2_TTF_LIBRARIES}")
-      if (SDL2_STATIC_LIBRARY)
-	target_link_libraries("${_targ}" "${SDL2_STATIC_LIBRARY}")
-	target_link_libraries("${_targ}" "imm32" "version")
-      else ()
-	target_link_libraries("${_targ}" "${SDL2_LIBRARY}")
-      endif ()
+        target_compile_definitions(simh_video INTERFACE USE_SIM_VIDEO HAVE_LIBSDL)
+        target_include_directories(simh_video INTERFACE "${SDL2_INCLUDE_DIR}" "${SDL2_TTF_INCLUDE_DIRS}")
+        target_link_libraries(simh_video INTERFACE "${SDL2_TTF_LIBRARIES}")
+        if (SDL2_STATIC_LIBRARY)
+            target_link_libraries(simh_video INTERFACE "${SDL2_STATIC_LIBRARY}")
+            if (WIN32)
+                target_link_libraries(simh_video INTERFACE "imm32" "version")
+            endif (WIN32)
+        else ()
+            target_link_libraries(simh_video INTERFACE "${SDL2_LIBRARY}")
+        endif ()
     endif ()
 
     if (PNG_FOUND)
-      target_compile_definitions("${_targ}" PUBLIC ${PNG_DEFINITIONS})
-      target_include_directories("${_targ}" PUBLIC "${PNG_INCLUDE_DIRS}")
-      target_link_libraries("${_targ}" "${PNG_LIBRARIES}")
+        target_compile_definitions(simh_video INTERFACE ${PNG_DEFINITIONS})
+        target_include_directories(simh_video INTERFACE "${PNG_INCLUDE_DIRS}")
+        target_link_libraries(simh_video INTERFACE "${PNG_LIBRARIES}")
     endif ()
-  endif ()
-endfunction ()
-
-##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
-## target_thread_config: Configure target's compile and linking for threads and
-## async I/O.
-##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
-
-function(target_thread_config _targ)
-  target_compile_options("${_targ}" PUBLIC "${SIMH_THREADS_CFLAGS}")
-  target_compile_definitions("${_targ}" PUBLIC "${SIMH_THREADS_DEFINES}")
-  target_include_directories("${_targ}" PUBLIC "${SIMH_THREADS_INCLUDES}")
-  target_link_libraries("${_targ}" "${SIMH_THREADS_LIBS}")
-  if (PTW_FOUND)
-    target_link_directories("${_targ}" PUBLIC "${PTW_LIBRARY_PATH}")
-  endif ()
-endfunction ()
-
-##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
-## add_simulator: Does all of the hard work to set up a new simulation target's
-## compile and link flags.
-##
-## Optional arguments that determine which simh library with which the target links:
-##
-## USEI64: Set the USE_INT64 preprocessor define (uses 64-bit integers)
-## USEZ64: Set both USE_INT64 and USE_ADDR64 defines (uses 64-bit integers and addresses)
-##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
-
-function(add_simulator _targ _sources _defines _includes)
-  add_executable("${_targ}" "${_sources}")
-
-  # This is a quick cheat to make sure that 
-  set(_normalized_includes)
-  foreach (inc IN LISTS _includes)
-    if (NOT IS_ABSOLUTE "${inc}")
-      get_filename_component(inc "${CMAKE_SOURCE_DIR}/${inc}" ABSOLUTE)
-    endif ()
-    list(APPEND _normalized_includes "${inc}")
-  endforeach ()
-
-  target_compile_definitions("${_targ}" PUBLIC "${_defines}")
-  target_include_directories("${_targ}" PUBLIC "${_normalized_includes}")
-
-  if (USEI64 IN_LIST ARGN)
-    target_compile_definitions("${_targ}" PUBLIC USE_INT64)
-    target_link_libraries("${_targ}" simhi64)
-  elseif  (USEZ64 IN_LIST ARGN)
-    target_compile_definitions("${_targ}" PUBLIC USE_INT64 USE_ADDR64)
-    target_link_libraries("${_targ}" simhz64)
-  else ()
-    # Nope, it's just a regular simulator
-    target_link_libraries("${_targ}" simhcore)
-  endif ()
-
-  if (${PCRE_FOUND})
-    target_compile_definitions("${_targ}" PUBLIC HAVE_PCREPOSIX_H PCRE_STATIC)
-    target_include_directories("${_targ}" PUBLIC "${PCRE_INCLUDE_DIRS}")
-    target_link_libraries("${_targ}" "${PCREPOSIX_LIBRARIES}" "${PCRE_LIBRARIES}")
-  endif (${PCRE_FOUND})
-
-  target_video_config("${_targ}")
-  target_network_config("${_targ}")
-
-  if (ZLIB_FOUND)
-    # Add zlib, just in case. PCRE depends on it, and PNG might also (although, PNG
-    # probably adds it to the link libraries anyway, but it doesn't hurt to add it
-    # twice.
-    target_link_libraries("${_targ}" "${ZLIB_LIBRARIES}")
-  endif (ZLIB_FOUND)
-
-  if (WIN32)
-    if (NOT MSVC)
-      # Need the math library...
-      target_link_libraries("${_targ}" m)
-    endif ()
-    if (MINGW)
-      target_compile_options("${_targ}" PUBLIC "-fms-extensions" "-mwindows")
-    endif ()
-
-    target_link_libraries("${_targ}" wsock32 winmm)
-
-    if ("${MSVC_VERSION}" GREATER_EQUAL 1920)
-      # MSVCRT conflicts with the new ucrt C runtime:
-      # target_link_options("${_targ}" PUBLIC "/NODEFAULTLIB:MSVCRT")
-      # target_link_libraries("${_targ}" ucrt)
-    endif ()
-  endif ()
-
-  # And, lastly, add the thread libraries...
-  target_thread_config("${_targ}")
-
-  # Remember to add the install rule, which defaults to ${CMAKE_SOURCE_DIR}/BIN.
-  # Installs the executables.
-  install(TARGETS "${_targ}" RUNTIME)
-endfunction ()
+endif ()
 
 ## Simulator sources and library:
 set(SIM_SOURCES
@@ -213,43 +101,94 @@ set(SIM_SOURCES
     ${CMAKE_SOURCE_DIR}/sim_tmxr.c
     ${CMAKE_SOURCE_DIR}/sim_video.c)
 
-add_library(simhcore STATIC "${SIM_SOURCES}")
-target_network_config(simhcore)
-target_thread_config(simhcore)
-target_video_config(simhcore)
+function(build_simcore _targ)
+    cmake_parse_arguments(SIMH "" "" "DEFINES" ${ARGN})
 
-target_compile_definitions(simhcore PRIVATE
-  # Make sure that the conditionally compiled code is really compiled in
-  # the simulation core library...
-  #
-  # (Note: This is just an interoperability issue with the makefile, which
-  # insists on compiling the simulator core from scratch with each simulator.)
-  USE_SIM_IMD
-  USE_SIM_CARD
-  # And, when we need to know that we're building the simhcore library...
-  BUILDING_SIMHCORE)
+    add_library(${_targ} STATIC ${SIM_SOURCES})
 
-# Build the simhcore library a second time with USE_INT64:
-add_library(simhi64 STATIC "${SIM_SOURCES}")
-target_network_config(simhi64)
-target_thread_config(simhi64)
-target_video_config(simhi64)
+    # Components that need to be turned on while building the library, but
+    # don't export out to the dependencies (hence PRIVATE.)
+    target_compile_definitions(${_targ} PRIVATE USE_SIM_CARD USE_SIM_IMD)
 
-target_compile_definitions(simhi64 PRIVATE
-  USE_SIM_IMD
-  USE_SIM_CARD
-  USE_INT64
-  BUILDING_SIMHCORE)
+    if (DEFINED SIMH_DEFINES)
+        target_compile_definitions(${_targ} PUBLIC ${SIMH_DEFINES})
+    endif (DEFINED SIMH_DEFINES)
 
-# Build the simhcore library a third time with USE_INT64 and USE_ADDR64:
-add_library(simhz64 STATIC "${SIM_SOURCES}")
-target_network_config(simhz64)
-target_thread_config(simhz64)
-target_video_config(simhz64)
+    target_link_libraries(${_targ} PUBLIC pcreposix pcre thread_lib simh_video slirp pcap)
 
-target_compile_definitions(simhz64 PRIVATE
-  USE_SIM_IMD
-  USE_SIM_CARD
-  USE_INT64
-  USE_ADDR64
-  BUILDING_SIMHCORE)
+    if (WITH_NETWORK)
+        target_compile_definitions(${_targ} PUBLIC USE_NETWORK)
+    endif (WITH_NETWORK)
+
+    if (WIN32)
+        if (NOT MSVC)
+          # Need the math library...
+          target_link_libraries(${_targ} PUBLIC m)
+        endif ()
+
+        if (MINGW)
+          target_compile_options(${_targ} PUBLIC "-fms-extensions" "-mwindows")
+        endif ()
+
+        if (WITH_NETWORK)
+            target_link_libraries(${_targ} PUBLIC wsock32 winmm)
+        endif (WITH_NETWORK)
+    endif ()
+endfunction(build_simcore _targ)
+
+
+## INT64: Use the simhi64 library (USE_INT64)
+## FULL64: Use the simhz64 library (USE_INT64, USE_ADDR64)
+
+function (add_simulator _targ) ## _sources _defines _includes)
+    cmake_parse_arguments(SIMH "INT64;FULL64" "TEST" "DEFINES;INCLUDES;SOURCES" ${ARGN})
+
+    if (NOT DEFINED SIMH_SOURCES)
+        message(FATAL_ERROR "${_targ}: No source files?")
+    endif (NOT DEFINED SIMH_SOURCES)
+
+    add_executable("${_targ}" "${SIMH_SOURCES}")
+
+    if (DEFINED SIMH_DEFINES)
+        target_compile_definitions("${_targ}" PRIVATE "${SIMH_DEFINES}")
+    endif (DEFINED SIMH_DEFINES)
+
+    # This is a quick cheat to make sure that all of the include paths are
+    # absolute paths.
+    if (DEFINED SIMH_INCLUDES)
+        set(_normalized_includes)
+        foreach (inc IN LISTS SIMH_INCLUDES)
+            if (NOT IS_ABSOLUTE "${inc}")
+                get_filename_component(inc "${CMAKE_SOURCE_DIR}/${inc}" ABSOLUTE)
+            endif ()
+            list(APPEND _normalized_includes "${inc}")
+        endforeach (inc IN LISTS ${SIMH_INCLUDES})
+
+        target_include_directories("${_targ}" PRIVATE "${_normalized_includes}")
+    endif (DEFINED SIMH_INCLUDES)
+
+    if (SIMH_INT64)
+        target_link_libraries("${_targ}" PRIVATE simhi64)
+    elseif (SIMH_FULL64)
+        target_link_libraries("${_targ}" PRIVATE simhz64)
+    else ()
+        target_link_libraries("${_targ}" PRIVATE simhcore)
+    endif ()
+
+    # Remember to add the install rule, which defaults to ${CMAKE_SOURCE_DIR}/BIN.
+    # Installs the executables.
+    install(TARGETS "${_targ}" RUNTIME)
+
+    set(test_fname "${CMAKE_CURRENT_SOURCE_DIR}/tests/${SIMH_TEST}_test.ini")
+    if (DEFINED SIMH_TEST AND EXISTS "${test_fname}")
+	add_test(NAME "test-${_targ}" COMMAND "${_targ}" "${test_fname}")
+    endif (DEFINED SIMH_TEST AND EXISTS "${test_fname}")
+endfunction ()
+
+##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+## Now build things!
+##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+build_simcore(simhcore)
+build_simcore(simhi64 DEFINES USE_INT64)
+build_simcore(simhz64 DEFINES USE_INT64 USE_ADDR64)
