@@ -38,6 +38,7 @@ add_simulator(vax
         ${VAXD}
         ${PDP11D}
     FULL64
+    BUILDROMS
     TEST vax-diag)
 
 # For the MSVC crowd, set the default startup project...
@@ -83,6 +84,7 @@ add_simulator(microvax1
         ${VAXD}
         ${PDP11D}
     FULL64
+    BUILDROMS
     TEST vax-diag)
 
 set(VAX630_SOURCES
@@ -128,6 +130,7 @@ add_simulator(rtvax1000
         ${VAXD}
         ${PDP11D}
     FULL64
+    BUILDROMS
     TEST vax-diag)
 
 add_simulator(microvax2
@@ -142,6 +145,7 @@ add_simulator(microvax2
         ${VAXD}
         ${PDP11D}
     FULL64
+    BUILDROMS
     TEST vax-diag)
 
 
@@ -186,6 +190,7 @@ add_simulator(vax730
         ${VAXD}
         ${PDP11D}
     FULL64
+    BUILDROMS
     TEST vax-diag)
 
 add_simulator(vax750
@@ -232,6 +237,7 @@ add_simulator(vax750
         ${VAXD}
         ${PDP11D}
     FULL64
+    BUILDROMS
     TEST vax-diag)
 
 add_simulator(vax780
@@ -279,6 +285,7 @@ add_simulator(vax780
         ${VAXD}
         ${PDP11D}
     FULL64
+    BUILDROMS
     TEST vax-diag)
 
 add_simulator(vax8200
@@ -323,6 +330,7 @@ add_simulator(vax8200
         ${VAXD}
         ${PDP11D}
     FULL64
+    BUILDROMS
     TEST vax-diag)
 
 add_simulator(vax8600
@@ -369,6 +377,7 @@ add_simulator(vax8600
         ${VAXD}
         ${PDP11D}
     FULL64
+    BUILDROMS
     TEST vax-diag)
 
 add_simulator(microvax2000
@@ -403,7 +412,8 @@ add_simulator(microvax2000
     INCLUDES
         ${VAXD}
         ${PDP11D}
-    FULL64)
+    FULL64
+    BUILDROMS)
 
 set(VAX420_SOURCES
     vax_cpu.c
@@ -442,7 +452,8 @@ add_simulator(infoserver100
     INCLUDES
         ${VAXD}
         ${PDP11D}
-    FULL64)
+    FULL64
+    BUILDROMS)
 
 add_simulator(infoserver150vxt
     SOURCES
@@ -453,7 +464,8 @@ add_simulator(infoserver150vxt
     INCLUDES
         ${VAXD}
         ${PDP11D}
-    FULL64)
+    FULL64
+    BUILDROMS)
 
 add_simulator(microvax3100
     SOURCES
@@ -464,7 +476,8 @@ add_simulator(microvax3100
     INCLUDES
         ${VAXD}
         ${PDP11D}
-    FULL64)
+    FULL64
+    BUILDROMS)
 
 add_simulator(microvax3100e
     SOURCES
@@ -475,7 +488,8 @@ add_simulator(microvax3100e
     INCLUDES
         ${VAXD}
         ${PDP11D}
-    FULL64)
+    FULL64
+    BUILDROMS)
 
 add_simulator(vaxstation3100m30
     SOURCES
@@ -486,7 +500,8 @@ add_simulator(vaxstation3100m30
     INCLUDES
         ${VAXD}
         ${PDP11D}
-    FULL64)
+    FULL64
+    BUILDROMS)
 
 add_simulator(vaxstation3100m38
     SOURCES
@@ -497,7 +512,8 @@ add_simulator(vaxstation3100m38
     INCLUDES
         ${VAXD}
         ${PDP11D}
-    FULL64)
+    FULL64
+    BUILDROMS)
 
 
 add_simulator(vaxstation3100m76
@@ -530,7 +546,8 @@ add_simulator(vaxstation3100m76
     INCLUDES
         ${VAXD}
         ${PDP11D}
-    FULL64)
+    FULL64
+    BUILDROMS)
 
 set(VAX440_SOURCES
     vax_cpu.c
@@ -564,7 +581,8 @@ add_simulator(vaxstation4000m60
     INCLUDES
         ${VAXD}
         ${PDP11D}
-    FULL64)
+    FULL64
+    BUILDROMS)
 
 add_simulator(vaxstation3100m80
     SOURCES
@@ -575,9 +593,10 @@ add_simulator(vaxstation3100m80
     INCLUDES
         ${VAXD}
         ${PDP11D}
-    FULL64)
+    FULL64
+    BUILDROMS)
 
-add_simulator(vaxstation4100lvc
+add_simulator(vaxstation4100vlc
     SOURCES
 	${VAX440_SOURCES}
     DEFINES
@@ -586,7 +605,8 @@ add_simulator(vaxstation4100lvc
     INCLUDES
         ${VAXD}
         ${PDP11D}
-    FULL64)
+    FULL64
+    BUILDROMS)
 
 
 add_simulator(infoserver1000
@@ -613,4 +633,5 @@ add_simulator(infoserver1000
     INCLUDES
         ${VAXD}
         ${PDP11D}
-    FULL64)
+    FULL64
+    BUILDROMS)
