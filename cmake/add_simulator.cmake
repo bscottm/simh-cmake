@@ -20,9 +20,9 @@ endif ()
 ##    get picked up in the dependent.
 ##
 
+add_library(pcreposix INTERFACE)
+add_library(pcre INTERFACE)
 if (PCRE_FOUND)
-    add_library(pcreposix INTERFACE)
-    add_library(pcre INTERFACE)
     target_compile_definitions(pcreposix INTERFACE HAVE_PCREPOSIX_H PCRE_STATIC)
     target_include_directories(pcreposix INTERFACE "${PCRE_INCLUDE_DIRS}")
     target_link_libraries(pcreposix INTERFACE "${PCREPOSIX_LIBRARIES}")
@@ -45,7 +45,12 @@ if (WIN32)
         target_link_libraries(thread_lib INTERFACE pthreadVC3)
         target_link_directories(thread_lib INTERFACE ${PTW_LIBRARY_PATH})
     endif ()
-endif ()
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    # Use MinGW's threads instead
+    target_compile_definitions(thread_lib INTERFACE USE_READER_THREAD SIM_ASYNCH_IO)
+    target_compile_options(thread_lib INTERFACE "-pthread")
+    target_link_libraries(thread_lib INTERFACE pthread)
+endif (WIN32)
 
 # pcap networking (slirp is always included):
 add_library(pcap INTERFACE)
@@ -133,6 +138,9 @@ function(build_simcore _targ)
         if (WITH_NETWORK)
             target_link_libraries(${_targ} PUBLIC wsock32 winmm)
         endif (WITH_NETWORK)
+    elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
+	target_link_libraries(${_targ} PUBLIC "m")
     endif ()
 endfunction(build_simcore _targ)
 
@@ -148,6 +156,10 @@ function (add_simulator _targ) ## _sources _defines _includes)
     endif (NOT DEFINED SIMH_SOURCES)
 
     add_executable("${_targ}" "${SIMH_SOURCES}")
+
+    if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
+    endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
     if (DEFINED SIMH_DEFINES)
         target_compile_definitions("${_targ}" PRIVATE "${SIMH_DEFINES}")
@@ -177,7 +189,7 @@ function (add_simulator _targ) ## _sources _defines _includes)
 
     # Remember to add the install rule, which defaults to ${CMAKE_SOURCE_DIR}/BIN.
     # Installs the executables.
-    install(TARGETS "${_targ}" RUNTIME)
+    install(TARGETS "${_targ}" RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
     set(test_fname "${CMAKE_CURRENT_SOURCE_DIR}/tests/${SIMH_TEST}_test.ini")
     if (DEFINED SIMH_TEST AND EXISTS "${test_fname}")

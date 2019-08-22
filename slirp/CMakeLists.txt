@@ -36,12 +36,5 @@ target_include_directories(slirp PUBLIC
 
 if (WIN32)
     target_include_directories(slirp PUBLIC "${CMAKE_SOURCE_DIR}/slirp_glue/qemu/win32/include")
+    target_link_libraries(slirp Iphlpapi)
 endif ()
-
-target_link_libraries(slirp Iphlpapi)
-
-target_include_directories(slirp PRIVATE
-  "${CMAKE_SOURCE_DIR}/slirp"
-  "${CMAKE_SOURCE_DIR}/slirp_glue"
-  "${CMAKE_SOURCE_DIR}/slirp_glue/qemu"
-  "${CMAKE_SOURCE_DIR}/slirp_glue/qemu/win32/include")

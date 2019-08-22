@@ -1,8 +1,12 @@
 # PDP-1 simulator:
 
 set(PDP1_DEFINES "")
-if (WITH_VIDEO)
+set(PDP1_DISPLAY "")
+if (BUILD_WITH_VIDEO)
     set(PDP1_DEFINES "${PDP1_DEFINES}" USE_DISPLAY DISPLAY_TYPE=DIS_TYPE30 PIX_SCALE=RES_HALF)
+    set(PDP1_DISPLAY ${DISPLAYL})
+else (BUILD_WITH_VIDEO)
+    message(STATUS "SDL2 video support unavailable: skipping TX-0")
 endif ()
 
 add_simulator(pdp1 "${PDP1_SOURCES}" "${PDP1_DEFINES}" "${PDP1_INCLUDES}"
@@ -16,7 +20,7 @@ add_simulator(pdp1 "${PDP1_SOURCES}" "${PDP1_DEFINES}" "${PDP1_INCLUDES}"
 	pdp1_clk.c
 	pdp1_dcs.c
 	pdp1_dpy.c
-	${DISPLAYL}
+	${PDP1_DISPLAY}
     DEFINES
 	${PDP1_DEFINES}
     INCLUDES

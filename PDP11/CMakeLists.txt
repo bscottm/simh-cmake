@@ -50,10 +50,12 @@ set(PDP11_SOURCES
 
 set(PDP11_DEFINES VM_PDP11)
 
-if (WITH_VIDEO)
+if (BUILD_WITH_VIDEO)
     set(PDP11_SOURCES ${PDP11_SOURCES} ${DISPLAYL} ${DISPLAYVT} ${DISPLAYNG})
     set(PDP11_DEFINES ${PDP11_DEFINES} USE_DISPLAY)
-endif ()
+else (BUILD_WITH_VIDEO)
+    message(STATUS "Not building video support into PDP-11")
+endif (BUILD_WITH_VIDEO)
 
 add_simulator(pdp11 
     SOURCES

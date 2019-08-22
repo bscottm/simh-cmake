@@ -11,7 +11,7 @@ if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   message(FATAL_ERROR "Preventing in-tree source build.")
 endif ()
 
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.10)
 
 set(SIMH_VERSION "4.0.0")
 project(simh VERSION "${SIMH_VERSION}" LANGUAGES C)
@@ -47,18 +47,15 @@ get_filename_component(SIMH_WINDOWS_BUILD "${CMAKE_SOURCE_DIR}/../windows-build/
 ## Default install location is ${CMAKE_SOURCE_DIR}/BIN if not otherwise set
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/" CACHE PATH "${CMAKE_SOURCE_DIR} default install prefix" FORCE)
-  if (NOT WIN32)
-    set(CMAKE_INSTALL_BINDIR "BIN" CACHE PATH "BIN default binary install directory" FORCE)
-  else ()
+  set(CMAKE_INSTALL_BINDIR "BIN" CACHE PATH "BIN default binary install directory" FORCE)
+
+  if (WIN32 AND MSVC)
     set(CMAKE_INSTALL_BINDIR "BIN/Win32/$<CONFIG>" CACHE PATH "BIN/Win32/<config> default binary install directory" FORCE)
   endif ()
 endif()
 
 # Places to look for CMake modules/includes
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_SOURCE_DIR}/cmake")
-
-if (WIN32)
-endif()
 
 # Make sure we can include from the top level source...
 include_directories("${CMAKE_SOURCE_DIR}")
@@ -95,6 +92,9 @@ if (WIN32)
   else (NOT MINGW)
     set(PTW_FOUND FALSE)
   endif (NOT MINGW)
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    add_compile_options("-m32")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -m32")
 endif (WIN32)
 
 # Perl-Compatible Regular Expressions (PCRE). PCRE depends on zlib...
@@ -123,6 +123,13 @@ else ()
   set(SDL2_FOUND FALSE)
   set(SDL2_TTF_FOUND FALSE)
 endif ()
+
+## BUILD_VIDEO: If WITH_VIDEO is enabled and we have the requisite
+## libraries.
+set(BUILD_VIDEO ON)
+if (NOT WITH_VIDEO OR NOT SDL2_FOUND OR NOT SDL2_TTF_FOUND)
+  set(BUILD_WITH_VIDEO OFF)
+endif (NOT WITH_VIDEO OR NOT SDL2_FOUND OR NOT SDL2_TTF_FOUND)
 
 include (FindPNG)
 include (FindPCAP)
