@@ -12,7 +12,8 @@ if (BUILD_WITH_VIDEO)
 	DEFINES
 	    USE_DISPLAY
 	INCLUDES
-	    TX-0)
+            TX-0
+        VIDEO)
 else (BUILD_WITH_VIDEO)
     message(STATUS "SDL2 video support unavailable: skipping TX-0")
 endif (BUILD_WITH_VIDEO)

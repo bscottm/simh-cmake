@@ -63,7 +63,8 @@ add_simulator(pdp11
     DEFINES
 	${PDP11_DEFINES}
     INCLUDES
-	${PDP11D})
+	${PDP11D}
+    VIDEO)
 
 add_simulator(uc15
     SOURCES

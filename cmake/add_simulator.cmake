@@ -68,7 +68,7 @@ if (WITH_NETWORK)
     endif ()
 endif ()
 
-## Simple Direct Media Layer (v2) support:
+## Simulator video/display support via Simple Direct Media Layer (v2):
 add_library(simh_video INTERFACE)
 
 if (WITH_VIDEO)
@@ -84,6 +84,10 @@ if (WITH_VIDEO)
         else ()
             target_link_libraries(simh_video INTERFACE "${SDL2_LIBRARY}")
         endif ()
+
+	if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+	    target_compile_definitions(simh_video INTERFACE SDL_MAIN_AVAILABLE)
+	endif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 
 	## PNG only makes sense if SDL2 is present.
 	if (PNG_FOUND)
@@ -113,7 +117,7 @@ set(SIM_SOURCES
     ${CMAKE_SOURCE_DIR}/sim_video.c)
 
 function(build_simcore _targ)
-    cmake_parse_arguments(SIMH "" "" "DEFINES" ${ARGN})
+    cmake_parse_arguments(SIMH "VIDEO" "" "DEFINES" ${ARGN})
 
     add_library(${_targ} STATIC ${SIM_SOURCES})
 
@@ -125,15 +129,15 @@ function(build_simcore _targ)
         target_compile_definitions(${_targ} PUBLIC ${SIMH_DEFINES})
     endif (DEFINED SIMH_DEFINES)
 
-    target_link_libraries(${_targ} PUBLIC pcreposix pcre thread_lib simh_video slirp pcap)
+    target_link_libraries(${_targ} PUBLIC pcreposix pcre thread_lib slirp pcap)
 
     if (WITH_NETWORK)
         target_compile_definitions(${_targ} PUBLIC USE_NETWORK)
     endif (WITH_NETWORK)
 
-    if (WITH_VIDEO AND SDL2_FOUND AND SDL2_TTF_FOUND AND PNG_FOUND)
-	target_compile_definitions(${_targ} PRIVATE HAVE_LIBPNG)
-    endif (WITH_VIDEO AND SDL2_FOUND AND SDL2_TTF_FOUND AND PNG_FOUND)
+    if (SIMH_VIDEO)
+	target_link_libraries(${_targ} PUBLIC simh_video)
+    endif (SIMH_VIDEO)
 
     if (WIN32)
         if (NOT MSVC)
@@ -157,9 +161,11 @@ endfunction(build_simcore _targ)
 
 ## INT64: Use the simhi64 library (USE_INT64)
 ## FULL64: Use the simhz64 library (USE_INT64, USE_ADDR64)
+## BUILDROMS: Build the hardcoded boot rooms
+## VIDEO: Add video support
 
 function (add_simulator _targ) ## _sources _defines _includes)
-    cmake_parse_arguments(SIMH "INT64;FULL64;BUILDROMS" "TEST" "DEFINES;INCLUDES;SOURCES" ${ARGN})
+    cmake_parse_arguments(SIMH "INT64;FULL64;BUILDROMS;VIDEO" "TEST" "DEFINES;INCLUDES;SOURCES" ${ARGN})
 
     if (NOT DEFINED SIMH_SOURCES)
         message(FATAL_ERROR "${_targ}: No source files?")
@@ -190,14 +196,18 @@ function (add_simulator _targ) ## _sources _defines _includes)
     endif (DEFINED SIMH_INCLUDES)
 
     set(SIMH_SIMLIB simhcore)
+    set(SIMH_VIDLIB "")
 
     if (SIMH_INT64)
 	set(SIMH_SIMLIB simhi64)
     elseif (SIMH_FULL64)
 	set(SIMH_SIMLIB simhz64)
     endif ()
+    if (SIMH_VIDEO)
+	set(SIMH_VIDLIB "_video")
+    endif (SIMH_VIDEO)
 
-    target_link_libraries("${_targ}" PRIVATE "${SIMH_SIMLIB}")
+    target_link_libraries("${_targ}" PRIVATE "${SIMH_SIMLIB}${SIMH_VIDLIB}")
 
     # Remember to add the install rule, which defaults to ${CMAKE_SOURCE_DIR}/BIN.
     # Installs the executables.
@@ -218,8 +228,11 @@ endfunction ()
 ##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
 build_simcore(simhcore)
-build_simcore(simhi64      DEFINES USE_INT64)
-build_simcore(simhz64 	   DEFINES USE_INT64 USE_ADDR64)
+build_simcore(simhi64        DEFINES USE_INT64)
+build_simcore(simhz64 	     DEFINES USE_INT64 USE_ADDR64)
+build_simcore(simhcore_video VIDEO)
+build_simcore(simhi64_video  VIDEO DEFINES USE_INT64)
+build_simcore(simhz64_video  VIDEO DEFINES USE_INT64 USE_ADDR64)
 
 if (NOT DONT_USE_ROMS)
     add_executable(BuildROMs sim_BuildROMs.c)

@@ -33,12 +33,12 @@ add_simulator(vax
       ${PDP11D}/pdp11_io_lib.c
     DEFINES
         VM_VAX
-        USE_SIM_VIDEO
     INCLUDES
         ${VAXD}
         ${PDP11D}
     FULL64
     BUILDROMS
+    VIDEO
     TEST vax-diag)
 
 # For the MSVC crowd, set the default startup project...
@@ -79,12 +79,12 @@ add_simulator(microvax1
     DEFINES
 	VM_VAX
 	VAX_610
-	USE_SIM_VIDEO
     INCLUDES
         ${VAXD}
         ${PDP11D}
     FULL64
     BUILDROMS
+    VIDEO
     TEST vax-diag)
 
 set(VAX630_SOURCES
@@ -139,13 +139,12 @@ add_simulator(microvax2
     DEFINES
 	VM_VAX
 	VAX_630
-	USE_SIM_VIDEO
     INCLUDES
         ${VAXD}
         ${PDP11D}
     FULL64
     BUILDROMS
-    SDL
+    VIDEO
     TEST vax-diag)
 
 
@@ -408,12 +407,12 @@ add_simulator(microvax2000
     DEFINES
 	VM_VAX
 	VAX_410
-	USE_SIM_VIDEO
     INCLUDES
         ${VAXD}
         ${PDP11D}
     FULL64
-    BUILDROMS)
+    BUILDROMS
+    VIDEO)
 
 set(VAX420_SOURCES
     vax_cpu.c
@@ -441,7 +440,7 @@ set(VAX420_SOURCES
     vax_vs.c
     vax_gpx.c)
 
-set(VAX420_DEFINES VM_VAX VAX_420 USE_SIM_VIDEO)
+set(VAX420_DEFINES VM_VAX VAX_420)
 
 add_simulator(infoserver100
     SOURCES
@@ -453,7 +452,8 @@ add_simulator(infoserver100
         ${VAXD}
         ${PDP11D}
     FULL64
-    BUILDROMS)
+    BUILDROMS
+    VIDEO)
 
 add_simulator(infoserver150vxt
     SOURCES
@@ -465,7 +465,8 @@ add_simulator(infoserver150vxt
         ${VAXD}
         ${PDP11D}
     FULL64
-    BUILDROMS)
+    BUILDROMS
+    VIDEO)
 
 add_simulator(microvax3100
     SOURCES
@@ -477,7 +478,8 @@ add_simulator(microvax3100
         ${VAXD}
         ${PDP11D}
     FULL64
-    BUILDROMS)
+    BUILDROMS
+    VIDEO)
 
 add_simulator(microvax3100e
     SOURCES
@@ -489,7 +491,8 @@ add_simulator(microvax3100e
         ${VAXD}
         ${PDP11D}
     FULL64
-    BUILDROMS)
+    BUILDROMS
+    VIDEO)
 
 add_simulator(vaxstation3100m30
     SOURCES
@@ -501,7 +504,8 @@ add_simulator(vaxstation3100m30
         ${VAXD}
         ${PDP11D}
     FULL64
-    BUILDROMS)
+    BUILDROMS
+    VIDEO)
 
 add_simulator(vaxstation3100m38
     SOURCES
@@ -513,7 +517,8 @@ add_simulator(vaxstation3100m38
         ${VAXD}
         ${PDP11D}
     FULL64
-    BUILDROMS)
+    BUILDROMS
+    VIDEO)
 
 
 add_simulator(vaxstation3100m76
@@ -542,12 +547,12 @@ add_simulator(vaxstation3100m76
     DEFINES
 	VM_VAX
 	VAX_43
-	USE_SIM_VIDEO
     INCLUDES
         ${VAXD}
         ${PDP11D}
     FULL64
-    BUILDROMS)
+    BUILDROMS
+    VIDEO)
 
 set(VAX440_SOURCES
     vax_cpu.c

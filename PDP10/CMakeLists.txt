@@ -77,7 +77,8 @@ if (BUILD_WITH_VIDEO)
 	INCLUDES
 	    ${PDP10D}
 	    ${PDP11D}
-	INT64)
+	INT64
+        VIDEO)
 
     if (NOT WIN32 AND PANDA_LIGHTS)
 	# ONLY for Panda display.
@@ -116,7 +117,8 @@ if (BUILD_WITH_VIDEO)
 	INCLUDES
 	    ${PDP10D}
 	    ${PDP11D}
-	INT64)
+	INT64
+        VIDEO)
 
     if (NOT WIN32 AND PANDA_LIGHTS)
 	# ONLY for Panda display.

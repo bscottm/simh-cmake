@@ -17,17 +17,27 @@ set(SIMH_VERSION "4.0.0")
 project(simh VERSION "${SIMH_VERSION}" LANGUAGES C)
 
 ##-- Options --##
-option(WITH_NETWORK  "Enable (=1)/disable (=0) simulator networking support." TRUE)
-option(WITH_PCAP     "Enable (=1)/disable (=0) libpcap (packet capture) support." TRUE)
-option(WITH_VIDEO    "Enable (=1)/disable (=0) simulator display and graphics support" TRUE)
-option(WITH_ASYNC    "Enable (=1)/disable (=0) simulator asynchronous I/O" TRUE)
-option(PANDA_LIGHTS  "Enable (=1)/disable (=0) KA-10/KI-11 simulator's Panda display." FALSE)
-option(DONT_USE_ROMS "Enable (=1)/disable (=0) building support ROMs" FALSE)
+option(WITH_NETWORK
+       "Enable (=1)/disable (=0) simulator networking support. (def: enabled)"
+       TRUE)
+option(WITH_PCAP
+       "Enable (=1)/disable (=0) libpcap (packet capture) support. (def: enabled)"
+       TRUE)
+option(WITH_VIDEO
+       "Enable (=1)/disable (=0) simulator display and graphics support (def: enabled)"
+       TRUE)
+option(WITH_ASYNC
+       "Enable (=1)/disable (=0) simulator asynchronous I/O (def: enabled)" TRUE)
+option(PANDA_LIGHTS
+       "Enable (=1)/disable (=0) KA-10/KI-11 simulator's Panda display. (def: disabled)"
+       FALSE)
+option(DONT_USE_ROMS
+       "Enable (=1)/disable (=0) building support ROMs. (def: disabled)"
+       FALSE)
 
 # For 64-bit builds (and this is especially true for MSVC), set the library
 # architecture.
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-    #
     # For the WinPcap and Npcap SDKs, the Lib subdirectory of the top-level
     # directory contains 32-bit libraries; the 64-bit libraries are in the
     # Lib/x64 directory.
@@ -37,11 +47,12 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     # CMAKE_LIBRARY_ARCHITECTURE to "x64".
     #
     if (MSVC OR MINGW)
-	set(CMAKE_C_LIBRARY_ARCHITECTURE "x64")
-	set(CMAKE_LIBRARY_ARCHITECTURE "x64")
+        set(CMAKE_C_LIBRARY_ARCHITECTURE "x64")
+        set(CMAKE_LIBRARY_ARCHITECTURE "x64")
     else (EXISTS /usr/lib/x86_64-linux-gnu)
-	set(CMAKE_C_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
-	set(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
+        # Linux-ism
+        set(CMAKE_C_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
+        set(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
     endif ()
 endif()
 
@@ -125,12 +136,6 @@ if (FREETYPE_FOUND)
     find_package(SDL2)
     find_package(SDL2_ttf)
 
-    if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    # ifeq (Darwin,$(OSTYPE))
-    #   VIDEO_CCDEFS += -DSDL_MAIN_AVAILABLE
-    # endif
-    endif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-
     include (FindPNG)
 else ()
   set(SDL2_FOUND FALSE)
@@ -139,7 +144,8 @@ else ()
 endif ()
 
 ## BUILD_VIDEO: If WITH_VIDEO is enabled and we have the requisite
-## libraries.
+## libraries. Note that PNG is optional -- if we find it, use it, if not
+## don't.
 set(BUILD_VIDEO FALSE)
 if (WITH_VIDEO AND SDL2_FOUND AND SDL2_TTF_FOUND)
     set(BUILD_WITH_VIDEO ON)
