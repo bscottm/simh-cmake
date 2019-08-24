@@ -6,10 +6,10 @@ if (BUILD_WITH_VIDEO)
     set(PDP1_DEFINES "${PDP1_DEFINES}" USE_DISPLAY DISPLAY_TYPE=DIS_TYPE30 PIX_SCALE=RES_HALF)
     set(PDP1_DISPLAY ${DISPLAYL})
 else (BUILD_WITH_VIDEO)
-    message(STATUS "SDL2 video support unavailable: skipping TX-0")
+    message(STATUS "Not building display support into TX-0")
 endif ()
 
-add_simulator(pdp1 "${PDP1_SOURCES}" "${PDP1_DEFINES}" "${PDP1_INCLUDES}"
+add_simulator(pdp1
     SOURCES
 	pdp1_lp.c
 	pdp1_cpu.c

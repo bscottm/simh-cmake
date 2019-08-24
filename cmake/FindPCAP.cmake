@@ -33,8 +33,10 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
   # without searching in the Lib directory first appears to be to set
   # CMAKE_LIBRARY_ARCHITECTURE to "x64".
   #
-  set(CMAKE_C_LIBRARY_ARCHITECTURE "x64")
-  set(CMAKE_LIBRARY_ARCHITECTURE "x64")
+  if (WIN32)
+      set(CMAKE_C_LIBRARY_ARCHITECTURE "x64")
+      set(CMAKE_LIBRARY_ARCHITECTURE "x64")
+  endif (WIN32)
 endif()
 
 find_library(PCAP_LIBRARY
@@ -45,13 +47,18 @@ find_library(PCAP_LIBRARY
         PATHS ${PCAP_PATH}
         )
 
-find_library(PACKET_LIBRARY
-        NAMES packet Packet
-        HINTS
-	  ENV PCAP_DIR
-	PATH_SUFFIXES lib
-        PATHS ${PCAP_PATH}
-        )
+if (WIN32)
+    ## Only worry about the packet library on Windows.
+    find_library(PACKET_LIBRARY
+	    NAMES packet Packet
+	    HINTS
+	      ENV PCAP_DIR
+	    PATH_SUFFIXES lib
+	    PATHS ${PCAP_PATH}
+	    )
+else (WIN32)
+    set(PACKET_LIBRARY "")
+endif (WIN32)
 
 set(PCAP_LIBRARIES ${PCAP_LIBRARY} ${PACKET_LIBRARY})
 set(PCAP_INCLUDE_DIRS ${PCAP_INCLUDE_DIR})

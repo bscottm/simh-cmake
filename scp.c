@@ -232,7 +232,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <math.h>
-#if defined(WIN32)
+#if defined(_WIN32)
 #include <direct.h>
 #include <io.h>
 #include <fcntl.h>
@@ -244,13 +244,6 @@
 
 #if defined(HAVE_DLOPEN)                                /* Dynamic Readline support */
 #include <dlfcn.h>
-#endif
-
-/* Needed to interoperate with simulators that use display code and
- * have a core simulator library.
- */
-#if defined(BUILDING_SIMHCORE) && defined(HAVE_LIBSDL)
-#include <SDL.h>
 #endif
 
 #ifndef MAX
@@ -2049,7 +2042,7 @@ static const char simh_help[] =
       " as a regular expression applied to the output data stream.  This regular\n"
       " expression may contain parentheses delimited sub-groups.\n\n"
        /***************** 80 character line width template *************************/
-#if defined (HAVE_PCREPOSIX_H)
+#if defined (HAVE_PCREPOSIX_H) || defined(HAVE_PCRE2_POSIX_H)
       " The syntax of the regular expressions available are those supported by\n"
       " the Perl Compatible Regular Expression package (aka PCRE).  As the name\n"
       " implies, the syntax is generally the same as Perl regular expressions.\n"
@@ -2479,7 +2472,7 @@ static SHTAB show_unit_tab[] = {
     };
 
 
-#if defined(WIN32) || defined(__hpux)
+#if defined(_WIN32) || defined(__hpux)
 static
 int setenv(const char *envname, const char *envval, int overwrite)
 {
@@ -2487,7 +2480,7 @@ char *envstr = (char *)malloc(strlen(envname)+strlen(envval)+2);
 int r;
 
 sprintf(envstr, "%s=%s", envname, envval);
-#if defined(WIN32)
+#if defined(_WIN32)
 r = _putenv(envstr);
 free(envstr);
 #else
@@ -2615,7 +2608,7 @@ if (!sim_quiet) {
     }
 sim_timer_precalibrate_execution_rate ();
 show_version (stdnul, NULL, NULL, 1, NULL);             /* Quietly set SIM_OSTYPE */
-#if defined (HAVE_PCREPOSIX_H)
+#if defined (HAVE_PCREPOSIX_H) || defined(HAVE_PCRE2_POSIX_H)
 setenv ("SIM_REGEX_TYPE", "PCREPOSIX", 1);              /* Publish regex type */
 #elif defined (HAVE_REGEX_H)
 setenv ("SIM_REGEX_TYPE", "REGEX", 1);                  /* Publish regex type */
@@ -5866,6 +5859,8 @@ if (flag) {
     fprintf (st, "\n        SDL Video support: %s", vid_version());
 #if defined (HAVE_PCREPOSIX_H)
     fprintf (st, "\n        PCRE RegEx (Version %s) support for EXPECT commands", pcre_version());
+#elif defined(HAVE_PCRE2_POSIX_H)
+    fprintf (st, "\n        PCRE2 RegEx (Version %d.%d) support for EXPECT commands", PCRE2_MAJOR, PCRE2_MINOR);
 #elif defined (HAVE_REGEX_H)
     fprintf (st, "\n        RegEx support for EXPECT commands");
 #else
@@ -6444,7 +6439,7 @@ if (file == NULL)                           /* open failed? */
     return;
 sim_printf ("\n%s\n\n", FullPath);
 lbuf[sizeof(lbuf)-1] = '\0';
-while (fgets (lbuf, sizeof(lbuf)-1, file))
+while (NULL != fgets (lbuf, sizeof(lbuf)-1, file))
     sim_printf ("%s", lbuf);
 fclose (file);
 }
@@ -6472,7 +6467,7 @@ if (file == NULL) {                         /* open failed? */
     return sim_messagef (SCPE_OPENERR, "The system cannot find the file specified.\n");
     }
 lbuf[sizeof(lbuf)-1] = '\0';
-while (fgets (lbuf, sizeof(lbuf)-1, file))
+while (NULL != fgets (lbuf, sizeof(lbuf)-1, file))
     sim_printf ("%s", lbuf);
 fclose (file);
 return SCPE_OK;
@@ -6591,7 +6586,7 @@ while ((c = strchr (c, '/'))) {
         return sim_messagef (SCPE_ARG, "%s is not a directory\n", path);
         }
     if (
-#if defined(WIN32)
+#if defined(_WIN32)
         mkdir (path)
 #else
         mkdir (path, 0777)
@@ -6602,7 +6597,7 @@ while ((c = strchr (c, '/'))) {
     ++c;
     }
 if (
-#if defined(WIN32)
+#if defined(_WIN32)
     mkdir (path)
 #else
     mkdir (path, 0777)
@@ -13485,7 +13480,7 @@ static void displayMagicTopic (FILE *st, DEVICE *dptr, TOPIC *topic)
 {
 char tbuf[CBUFSIZE];
 size_t i, skiplines = 0;
-#ifdef WIN32
+#ifdef _WIN32
 FILE *tmp;
 char *tmpnam;
 
@@ -13533,15 +13528,15 @@ rewind (tmp);
 /* Discard leading blank lines/redundant titles */
 
 for (i =0; i < skiplines; i++)
-    fgets (tbuf, sizeof (tbuf), tmp);
+    (void) fgets (tbuf, sizeof (tbuf), tmp);
 
-while (fgets (tbuf, sizeof (tbuf), tmp)) {
+while (NULL != fgets (tbuf, sizeof (tbuf), tmp)) {
     if (tbuf[0] != '\n')
         fputs ("    ", st);
     fputs (tbuf, st);
     }
 fclose (tmp);
-#ifdef WIN32
+#ifdef _WIN32
 remove (tmpnam);
 free (tmpnam);
 #endif

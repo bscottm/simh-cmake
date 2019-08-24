@@ -1,6 +1,6 @@
 ## Lincoln Labs' TX-0 simulator:
 
-if (BUILD_WITH_DISPLAY)
+if (BUILD_WITH_VIDEO)
     add_simulator(tx-0
 	SOURCES
 	    tx0_cpu.c
@@ -13,6 +13,6 @@ if (BUILD_WITH_DISPLAY)
 	    USE_DISPLAY
 	INCLUDES
 	    TX-0)
-else (BUILD_WITH_DISPLAY)
+else (BUILD_WITH_VIDEO)
     message(STATUS "SDL2 video support unavailable: skipping TX-0")
-endif (BUILD_WITH_DISPLAY)
+endif (BUILD_WITH_VIDEO)

@@ -27,17 +27,22 @@ option(DONT_USE_ROMS "Enable (=1)/disable (=0) building support ROMs" FALSE)
 # For 64-bit builds (and this is especially true for MSVC), set the library
 # architecture.
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-  #
-  # For the WinPcap and Npcap SDKs, the Lib subdirectory of the top-level
-  # directory contains 32-bit libraries; the 64-bit libraries are in the
-  # Lib/x64 directory.
-  #
-  # The only way to *FORCE* CMake to look in the Lib/x64 directory
-  # without searching in the Lib directory first appears to be to set
-  # CMAKE_LIBRARY_ARCHITECTURE to "x64".
-  #
-  set(CMAKE_C_LIBRARY_ARCHITECTURE "x64")
-  set(CMAKE_LIBRARY_ARCHITECTURE "x64")
+    #
+    # For the WinPcap and Npcap SDKs, the Lib subdirectory of the top-level
+    # directory contains 32-bit libraries; the 64-bit libraries are in the
+    # Lib/x64 directory.
+    #
+    # The only way to *FORCE* CMake to look in the Lib/x64 directory
+    # without searching in the Lib directory first appears to be to set
+    # CMAKE_LIBRARY_ARCHITECTURE to "x64".
+    #
+    if (MSVC OR MINGW)
+	set(CMAKE_C_LIBRARY_ARCHITECTURE "x64")
+	set(CMAKE_LIBRARY_ARCHITECTURE "x64")
+    else (EXISTS /usr/lib/x86_64-linux-gnu)
+	set(CMAKE_C_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
+	set(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
+    endif ()
 endif()
 
 # SIMH_WINDOWS_BUILD: This is the top-level directory storing the Windows runtime support
@@ -93,8 +98,13 @@ if (WIN32)
     set(PTW_FOUND FALSE)
   endif (NOT MINGW)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    add_compile_options("-m32")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -m32")
+    # For some reason, the MSVC solution builds as 32-bit, but none of the
+    # *nix platforms do.
+    #
+    # If 32-bit compiles have to be added back, uncomment the following 2 lines:
+    #
+    # add_compile_options("-m32")
+    # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -m32")
 endif (WIN32)
 
 # Perl-Compatible Regular Expressions (PCRE). PCRE depends on zlib...
@@ -104,6 +114,7 @@ if (ZLIB_FOUND)
   include (FindPCRE)
 else (ZLIB_FOUND)
   set(PCRE_FOUND FALSE)
+  set(PCRE2_FOUND FALSE)
 endif (ZLIB_FOUND)
 
 # Look for SDL and SDL_ttf: They install CMake scripts that set compiler and linker
@@ -111,27 +122,29 @@ endif (ZLIB_FOUND)
 
 include (FindFreetype)
 if (FREETYPE_FOUND)
-  find_package(SDL2)
-  find_package(SDL2_ttf)
+    find_package(SDL2)
+    find_package(SDL2_ttf)
 
-  if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  # ifeq (Darwin,$(OSTYPE))
-  #   VIDEO_CCDEFS += -DSDL_MAIN_AVAILABLE
-  # endif
-  endif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    # ifeq (Darwin,$(OSTYPE))
+    #   VIDEO_CCDEFS += -DSDL_MAIN_AVAILABLE
+    # endif
+    endif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+
+    include (FindPNG)
 else ()
   set(SDL2_FOUND FALSE)
   set(SDL2_TTF_FOUND FALSE)
+  set(PNG_FOUND FALSE)
 endif ()
 
 ## BUILD_VIDEO: If WITH_VIDEO is enabled and we have the requisite
 ## libraries.
-set(BUILD_VIDEO ON)
-if (NOT WITH_VIDEO OR NOT SDL2_FOUND OR NOT SDL2_TTF_FOUND)
-  set(BUILD_WITH_VIDEO OFF)
-endif (NOT WITH_VIDEO OR NOT SDL2_FOUND OR NOT SDL2_TTF_FOUND)
+set(BUILD_VIDEO FALSE)
+if (WITH_VIDEO AND SDL2_FOUND AND SDL2_TTF_FOUND)
+    set(BUILD_WITH_VIDEO ON)
+endif (WITH_VIDEO AND SDL2_FOUND AND SDL2_TTF_FOUND)
 
-include (FindPNG)
 include (FindPCAP)
 
 message(STATUS "")
@@ -139,7 +152,11 @@ if (WIN32)
   message(STATUS "Pthreads4w ................. ${PTW_FOUND}")
 endif ()
 message(STATUS "zlib ....................... ${ZLIB_FOUND}")
-message(STATUS "Perl-Compatible RegExps..... ${PCRE_FOUND}")
+if (PCRE_FOUND OR PCRE2_FOUND)
+    message(STATUS "Perl-Compatible RegExps..... TRUE")
+else (PCRE_FOUND OR PCRE2_FOUND)
+    message(STATUS "Perl-Compatible RegExps..... FALSE")
+endif (PCRE_FOUND OR PCRE2_FOUND)
 message(STATUS "SDL2 ....................... ${SDL2_FOUND}")
 message(STATUS "SDL2_ttf ................... ${SDL2_TTF_FOUND}")
 message(STATUS "Portable Network Graphics .. ${PNG_FOUND}")

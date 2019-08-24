@@ -1070,7 +1070,7 @@ static void feedcycle (t_bool load, t_bool punching)
 
                 /* nwrite is now number of characters to output */
 
-#ifdef WIN32
+#ifdef _WIN32
                 buf[nwrite++] = '\r';               /* add CR before NL for microsoft */
 #endif
                 buf[nwrite++] = '\n';               /* append newline */
@@ -2106,7 +2106,7 @@ void xio_1442_card (int32 addr, int32 func, int32 modify)
     }
 }
 
-#if ! (defined(ENABLE_PHYSICAL_CARD_READER_SUPPORT) && defined(WIN32))
+#if ! (defined(ENABLE_PHYSICAL_CARD_READER_SUPPORT) && defined(_WIN32))
 
     /* stub out the physical card reader routines */
 

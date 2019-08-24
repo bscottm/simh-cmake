@@ -79,7 +79,7 @@ add_simulator(microvax1
     DEFINES
 	VM_VAX
 	VAX_610
-	USE_DISPLAY
+	USE_SIM_VIDEO
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -140,12 +140,12 @@ add_simulator(microvax2
 	VM_VAX
 	VAX_630
 	USE_SIM_VIDEO
-	USE_DISPLAY
     INCLUDES
         ${VAXD}
         ${PDP11D}
     FULL64
     BUILDROMS
+    SDL
     TEST vax-diag)
 
 

@@ -34,6 +34,7 @@ if (BUILD_WITH_VIDEO)
 	SOURCES
 	    kx10_cpu.c 
 	    kx10_sys.c 
+	    ka10_ai.c
 	    kx10_df.c
 	    kx10_dp.c 
 	    kx10_mt.c 

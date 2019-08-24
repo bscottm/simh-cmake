@@ -25,8 +25,13 @@ add_library(pcre INTERFACE)
 if (PCRE_FOUND)
     target_compile_definitions(pcreposix INTERFACE HAVE_PCREPOSIX_H PCRE_STATIC)
     target_include_directories(pcreposix INTERFACE "${PCRE_INCLUDE_DIRS}")
-    target_link_libraries(pcreposix INTERFACE "${PCREPOSIX_LIBRARIES}")
-    target_link_libraries(pcre INTERFACE "${PCRE_LIBRARIES}")
+    target_link_libraries(pcreposix INTERFACE "${PCREPOSIX_LIBRARY}")
+    target_link_libraries(pcre INTERFACE "${PCRE_LIBRARY}")
+elseif (PCRE2_FOUND)
+    target_compile_definitions(pcreposix INTERFACE HAVE_PCRE2_POSIX_H)
+    target_include_directories(pcreposix INTERFACE "${PCRE2_INCLUDE_DIRS}")
+    target_link_libraries(pcreposix INTERFACE "${PCRE2_POSIX}")
+    target_link_libraries(pcre INTERFACE "${PCRE2_LIBRARY}")
 endif (PCRE_FOUND)
 
 ## Threading support:
@@ -67,7 +72,7 @@ endif ()
 add_library(simh_video INTERFACE)
 
 if (WITH_VIDEO)
-    if (SDL2_FOUND AND SDL2_TTF_FOUND)
+    IF (SDL2_FOUND AND SDL2_TTF_FOUND)
         target_compile_definitions(simh_video INTERFACE USE_SIM_VIDEO HAVE_LIBSDL)
         target_include_directories(simh_video INTERFACE "${SDL2_INCLUDE_DIR}" "${SDL2_TTF_INCLUDE_DIRS}")
         target_link_libraries(simh_video INTERFACE "${SDL2_TTF_LIBRARIES}")
@@ -79,12 +84,13 @@ if (WITH_VIDEO)
         else ()
             target_link_libraries(simh_video INTERFACE "${SDL2_LIBRARY}")
         endif ()
-    endif ()
 
-    if (PNG_FOUND)
-        target_compile_definitions(simh_video INTERFACE ${PNG_DEFINITIONS})
-        target_include_directories(simh_video INTERFACE "${PNG_INCLUDE_DIRS}")
-        target_link_libraries(simh_video INTERFACE "${PNG_LIBRARIES}")
+	## PNG only makes sense if SDL2 is present.
+	if (PNG_FOUND)
+	    target_compile_definitions(simh_video INTERFACE ${PNG_DEFINITIONS} HAVE_LIBPNG)
+	    target_include_directories(simh_video INTERFACE "${PNG_INCLUDE_DIRS}")
+	    target_link_libraries(simh_video INTERFACE "${PNG_LIBRARIES}")
+	endif ()
     endif ()
 endif ()
 
@@ -124,6 +130,10 @@ function(build_simcore _targ)
     if (WITH_NETWORK)
         target_compile_definitions(${_targ} PUBLIC USE_NETWORK)
     endif (WITH_NETWORK)
+
+    if (WITH_VIDEO AND SDL2_FOUND AND SDL2_TTF_FOUND AND PNG_FOUND)
+	target_compile_definitions(${_targ} PRIVATE HAVE_LIBPNG)
+    endif (WITH_VIDEO AND SDL2_FOUND AND SDL2_TTF_FOUND AND PNG_FOUND)
 
     if (WIN32)
         if (NOT MSVC)
@@ -179,13 +189,15 @@ function (add_simulator _targ) ## _sources _defines _includes)
         target_include_directories("${_targ}" PRIVATE "${_normalized_includes}")
     endif (DEFINED SIMH_INCLUDES)
 
+    set(SIMH_SIMLIB simhcore)
+
     if (SIMH_INT64)
-        target_link_libraries("${_targ}" PRIVATE simhi64)
+	set(SIMH_SIMLIB simhi64)
     elseif (SIMH_FULL64)
-        target_link_libraries("${_targ}" PRIVATE simhz64)
-    else ()
-        target_link_libraries("${_targ}" PRIVATE simhcore)
+	set(SIMH_SIMLIB simhz64)
     endif ()
+
+    target_link_libraries("${_targ}" PRIVATE "${SIMH_SIMLIB}")
 
     # Remember to add the install rule, which defaults to ${CMAKE_SOURCE_DIR}/BIN.
     # Installs the executables.
@@ -206,8 +218,8 @@ endfunction ()
 ##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
 build_simcore(simhcore)
-build_simcore(simhi64 DEFINES USE_INT64)
-build_simcore(simhz64 DEFINES USE_INT64 USE_ADDR64)
+build_simcore(simhi64      DEFINES USE_INT64)
+build_simcore(simhz64 	   DEFINES USE_INT64 USE_ADDR64)
 
 if (NOT DONT_USE_ROMS)
     add_executable(BuildROMs sim_BuildROMs.c)
