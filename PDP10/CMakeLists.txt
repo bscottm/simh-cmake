@@ -151,7 +151,8 @@ if (BUILD_WITH_VIDEO)
 	INCLUDES
 	    ${PDP10D}
 	    ${PDP11D}
-	INT64)
+	INT64
+        VIDEO)
 else ()
     message(STATUS "SDL2 video support unavailable: skipping pdp10-ka, pdp10-ki and pdp6")
 endif ()

@@ -56,15 +56,8 @@ include(SelectLibraryConfigurations)
 select_library_configurations(PTW)
 
 set(PTW_LIBRARY_PATH "")
-set(PTW_LIBRARY_FLAVORS "")
 if (PTW_LIBRARY)
   get_filename_component(PTW_LIBRARY_PATH "${PTW_LIBRARY}" DIRECTORY)
-  foreach (flavor VC3 VCE3 VSE3 GC3 GCE GSE3 VC3d VCE3d VSE3d GC3d GCEd GSE3d)
-    if (EXISTS "${PTW_LIBRARY_PATH}/libpthread${flavor}.lib" OR
-        EXISTS "${PTW_LIBRARY_PATH}/pthread${flavor}.lib")
-      list(APPEND PTW_LIBRARY_FLAVORS ${flavor})
-    endif ()
-  endforeach ()
 endif ()
 set(PTW_INCLUDE_DIRS ${PTW_INCLUDE_DIR})
 
@@ -75,7 +68,5 @@ FIND_PACKAGE_HANDLE_STANDARD_ARGS(
   REQUIRED_VARS PTW_LIBRARY_PATH PTW_INCLUDE_DIRS
   )
 
-message(STATUS "Pthread4w library flavors: ${PTW_LIBRARY_FLAVORS}")
-       
 set(PTW_LIBRARY)
 set(PTW_INCLUDE_DIR)
