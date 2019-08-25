@@ -274,21 +274,22 @@ static void bootp_reply(Slirp *slirp, const struct bootp_t *bp)
         q += 4;
 
         if (*slirp->client_hostname) {
-            val = strlen(slirp->client_hostname);
+            val = (int) strlen(slirp->client_hostname);
             *q++ = RFC1533_HOSTNAME;
-            *q++ = val;
+            *q++ = (uint8_t) val;
             memcpy(q, slirp->client_hostname, val);
             q += val;
         }
 
         if (slirp->vdnssearch) {
             size_t spaceleft = sizeof(rbp->bp_vend) - (q - rbp->bp_vend);
+			size_t needed = slirp->vdnssearch_len + 1;
             val = slirp->vdnssearch_len;
-            if ((size_t)val + 1 > spaceleft) {
+            if (needed > spaceleft) {
                 g_warning("DHCP packet size exceeded, "
                     "omitting domain-search option.");
             } else {
-                memcpy(q, slirp->vdnssearch, val);
+                memcpy(q, slirp->vdnssearch, needed);
                 q += val;
             }
         }
