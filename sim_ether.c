@@ -1707,7 +1707,7 @@ int status = 0;
 int sel_ret = 0;
 int do_select = 0;
 SOCKET select_fd = 0;
-#if defined (_WIN32)
+#if defined (_WIN32) && defined(HAVE_PCAP_NETWORK)
 HANDLE hWait = (dev->eth_api == ETH_API_PCAP) ? pcap_getevent ((pcap_t*)dev->handle) : NULL;
 #endif
 
@@ -1737,7 +1737,7 @@ sim_debug(dev->dbit, dev->dptr, "Reader Thread Starting\n");
 sim_os_set_thread_priority (PRIORITY_ABOVE_NORMAL);
 
 while (dev->handle) {
-#if defined (_WIN32)
+#if defined (_WIN32) && defined(HAVE_PCAP_NETWORK)
   if (dev->eth_api == ETH_API_PCAP) {
     if (WAIT_OBJECT_0 == WaitForSingleObject (hWait, 250))
       sel_ret = 1;
@@ -1867,7 +1867,7 @@ while (dev->handle) {
       ++dev->receive_packet_errors;
       _eth_error (dev, "_eth_reader");
       if (dev->handle) { /* Still attached? */
-#if defined (_WIN32)
+#if defined (_WIN32) && defined(HAVE_PCAP_NETWORK)
         hWait = (dev->eth_api == ETH_API_PCAP) ? pcap_getevent ((pcap_t*)dev->handle) : NULL;
 #endif
         if (do_select) {
