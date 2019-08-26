@@ -20,83 +20,6 @@ endif ()
 ##    get picked up in the dependent.
 ##
 
-add_library(pcreposix INTERFACE)
-add_library(pcre INTERFACE)
-if (PCRE_FOUND)
-    target_compile_definitions(pcreposix INTERFACE HAVE_PCREPOSIX_H PCRE_STATIC)
-    target_include_directories(pcreposix INTERFACE "${PCRE_INCLUDE_DIRS}")
-    target_link_libraries(pcreposix INTERFACE "${PCREPOSIX_LIBRARY}")
-    target_link_libraries(pcre INTERFACE "${PCRE_LIBRARY}")
-elseif (PCRE2_FOUND)
-    target_compile_definitions(pcreposix INTERFACE HAVE_PCRE2_POSIX_H)
-    target_include_directories(pcreposix INTERFACE "${PCRE2_INCLUDE_DIRS}")
-    target_link_libraries(pcreposix INTERFACE "${PCRE2_POSIX}")
-    target_link_libraries(pcre INTERFACE "${PCRE2_LIBRARY}")
-endif (PCRE_FOUND)
-
-## Threading support:
-add_library(thread_lib INTERFACE)
-
-if (WIN32)
-    # Have pthreads... go with async I/O (TODO: Disable async I/O if option present.)
-    if (MINGW)
-        # Use MinGW's threads instead
-	target_compile_definitions(thread_lib INTERFACE USE_READER_THREAD SIM_ASYNCH_IO)
-        target_compile_options(thread_lib INTERFACE "-pthread")
-	target_link_libraries(thread_lib INTERFACE pthread)
-    elseif (PTW_FOUND)
-        target_compile_definitions(thread_lib INTERFACE USE_READER_THREAD SIM_ASYNCH_IO PTW32_STATIC_LIB)
-        target_include_directories(thread_lib INTERFACE ${PTW_INCLUDE_DIRS})
-        target_link_libraries(thread_lib INTERFACE pthreadVC3)
-        target_link_directories(thread_lib INTERFACE ${PTW_LIBRARY_PATH})
-    endif ()
-elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    # Use MinGW's threads instead
-    target_compile_definitions(thread_lib INTERFACE USE_READER_THREAD SIM_ASYNCH_IO)
-    target_compile_options(thread_lib INTERFACE "-pthread")
-    target_link_libraries(thread_lib INTERFACE pthread)
-endif (WIN32)
-
-# pcap networking (slirp is always included):
-add_library(pcap INTERFACE)
-
-if (WITH_NETWORK)
-    if (WITH_PCAP AND PCAP_FOUND)
-        target_compile_definitions(pcap INTERFACE USE_SHARED HAVE_PCAP_NETWORK)
-        target_include_directories(pcap INTERFACE "${PCAP_INCLUDE_DIRS}")
-        target_link_libraries(pcap INTERFACE "${PCAP_LIBRARIES}")
-    endif ()
-endif ()
-
-## Simulator video/display support via Simple Direct Media Layer (v2):
-add_library(simh_video INTERFACE)
-
-if (WITH_VIDEO)
-    IF (SDL2_FOUND AND SDL2_TTF_FOUND)
-        target_compile_definitions(simh_video INTERFACE USE_SIM_VIDEO HAVE_LIBSDL)
-        target_include_directories(simh_video INTERFACE "${SDL2_INCLUDE_DIR}" "${SDL2_TTF_INCLUDE_DIRS}")
-        target_link_libraries(simh_video INTERFACE "${SDL2_TTF_LIBRARIES}")
-        if (SDL2_STATIC_LIBRARY)
-            target_link_libraries(simh_video INTERFACE "${SDL2_STATIC_LIBRARY}")
-            if (WIN32)
-                target_link_libraries(simh_video INTERFACE "imm32" "version")
-            endif (WIN32)
-        else ()
-            target_link_libraries(simh_video INTERFACE "${SDL2_LIBRARY}")
-        endif ()
-
-	if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-	    target_compile_definitions(simh_video INTERFACE SDL_MAIN_AVAILABLE)
-	endif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-
-	## PNG only makes sense if SDL2 is present.
-	if (PNG_FOUND)
-	    target_compile_definitions(simh_video INTERFACE ${PNG_DEFINITIONS} HAVE_LIBPNG)
-	    target_include_directories(simh_video INTERFACE "${PNG_INCLUDE_DIRS}")
-	    target_link_libraries(simh_video INTERFACE "${PNG_LIBRARIES}")
-	endif ()
-    endif ()
-endif ()
 
 ## Simulator sources and library:
 set(SIM_SOURCES
@@ -129,7 +52,7 @@ function(build_simcore _targ)
         target_compile_definitions(${_targ} PUBLIC ${SIMH_DEFINES})
     endif (DEFINED SIMH_DEFINES)
 
-    target_link_libraries(${_targ} PUBLIC pcreposix pcre thread_lib slirp pcap)
+    target_link_libraries(${_targ} PUBLIC regexp_lib thread_lib slirp pcap)
 
     if (WITH_NETWORK)
         target_compile_definitions(${_targ} PUBLIC USE_NETWORK)

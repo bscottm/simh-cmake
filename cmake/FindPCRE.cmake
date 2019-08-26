@@ -22,8 +22,11 @@ find_path(PCRE_INCLUDE_DIR pcre.h
         HINTS
 	  ENV PCRE_DIR
 	# path suffixes to search inside ENV{PCRE_DIR}
-	include/pcre include/PCRE include
 	PATHS ${PCRE_PATH}
+	PATH_SUFFIXES
+	    include/pcre
+	    include/PCRE
+	    include
         )
 
 
@@ -31,8 +34,11 @@ find_path(PCRE2_INCLUDE_DIR pcre2.h
         HINTS
 	  ENV PCRE_DIR
 	# path suffixes to search inside ENV{PCRE_DIR}
-	include/pcre include/PCRE include
 	PATHS ${PCRE_PATH}
+	PATH_SUFFIXES
+	    include/pcre
+	    include/PCRE
+	    include
         )
 
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -57,7 +63,7 @@ find_library(PCRE_LIBRARY_DEBUG
         PATHS ${PCRE_PATH}
         )
 
-find_library(PCRE2_LIBRARY
+find_library(PCRE2_LIBRARY_RELEASE
         NAMES pcre2-8
         HINTS
 	  ENV PCRE_DIR
@@ -65,13 +71,13 @@ find_library(PCRE2_LIBRARY
         PATHS ${PCRE_PATH}
         )
 
-find_library(PCRE2_POSIX
-	NAMES pcre2-posix
-	HINTS
+find_library(PCRE2_LIBRARY_DEBUG
+        NAMES pcre2-8d
+        HINTS
 	  ENV PCRE_DIR
 	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
-	PATHS ${PCRE_PATH}
-	)
+        PATHS ${PCRE_PATH}
+        )
 
 find_library(PCREPOSIX_LIBRARY_RELEASE
 	NAMES pcreposix
@@ -83,6 +89,22 @@ find_library(PCREPOSIX_LIBRARY_RELEASE
 
 find_library(PCREPOSIX_LIBRARY_DEBUG
 	NAMES pcreposixd
+	HINTS
+	  ENV PCRE_DIR
+	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
+	PATHS ${PCRE_PATH}
+	)
+
+find_library(PCRE2_POSIX_LIBRARY_RELEASE
+	NAMES pcre2-posix
+	HINTS
+	  ENV PCRE_DIR
+	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
+	PATHS ${PCRE_PATH}
+	)
+
+find_library(PCRE2_POSIX_LIBRARY_DEBUG
+	NAMES pcre2-posixd
 	HINTS
 	  ENV PCRE_DIR
 	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
@@ -113,6 +135,13 @@ if (PCRE_INCLUDE_DIR OR PCRE2_INCLUDE_DIR)
     unset(PCRE_VERSION_MINOR)
 endif ()
 
+include(SelectLibraryConfigurations)
+
+select_library_configurations(PCRE)
+select_library_configurations(PCREPOSIX)
+select_library_configurations(PCRE2)
+select_library_configurations(PCRE2_POSIX)
+
 set(PCRE_LIBRARIES ${PCRE_LIBRARY})
 set(PCRE_INCLUDE_DIRS ${PCRE_INCLUDE_DIR})
 set(PCREPOSIX_LIBRARIES ${PCREPOSIX_LIBRARY})
@@ -120,11 +149,6 @@ set(PCREPOSIX_LIBRARIES ${PCREPOSIX_LIBRARY})
 set(PCRE2_INCLUDE_DIRS ${PCRE2_INCLUDE_DIR})
 set(PCRE2_LIBRARIES ${PCRE2_LIBRARY})
 set(PCRE2_POSIX_LIBRARIES ${PCRE2_POSIX})
-
-include(SelectLibraryConfigurations)
-
-select_library_configurations(PCRE)
-select_library_configurations(PCREPOSIX)
 
 include(FindPackageHandleStandardArgs)
 
@@ -138,7 +162,7 @@ if (PCRE_INCLUDE_DIR)
 endif (PCRE_INCLUDE_DIR)
 if (PCRE2_INCLUDE_DIR)
     FIND_PACKAGE_HANDLE_STANDARD_ARGS(PCRE2
-	REQUIRED PCRE2_LIBRARY PCRE2_POSIX PCRE2_INCLUDE_DIR
+	REQUIRED PCRE2_LIBRARY PCRE2_POSIX_LIBRARY PCRE2_INCLUDE_DIR
 	# VERSION_VAR PCRE_VERSION_STRING
     )
 endif (PCRE2_INCLUDE_DIR)

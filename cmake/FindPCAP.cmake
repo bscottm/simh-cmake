@@ -23,22 +23,6 @@ find_path(PCAP_INCLUDE_DIR pcap.h
 	PATHS ${PCAP_PATH}
         )
 
-if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-  #
-  # For the WinPcap and Npcap SDKs, the Lib subdirectory of the top-level
-  # directory contains 32-bit libraries; the 64-bit libraries are in the
-  # Lib/x64 directory.
-  #
-  # The only way to *FORCE* CMake to look in the Lib/x64 directory
-  # without searching in the Lib directory first appears to be to set
-  # CMAKE_LIBRARY_ARCHITECTURE to "x64".
-  #
-  if (WIN32)
-      set(CMAKE_C_LIBRARY_ARCHITECTURE "x64")
-      set(CMAKE_LIBRARY_ARCHITECTURE "x64")
-  endif (WIN32)
-endif()
-
 find_library(PCAP_LIBRARY
         NAMES pcap pcap_static libpcap libpcap_static
         HINTS

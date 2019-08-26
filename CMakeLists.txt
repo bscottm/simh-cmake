@@ -56,14 +56,15 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     endif ()
 endif()
 
-# SIMH_WINDOWS_BUILD: This is the top-level directory storing the Windows runtime support
-# artifacts.
-get_filename_component(SIMH_WINDOWS_BUILD "${CMAKE_SOURCE_DIR}/../windows-build/build-stage" ABSOLUTE)
+# SIMH_WINDOWS_BUILD: This is the top-level directory where dependencies live:
+
+set(SIMH_WINDOWS_BUILD ${CMAKE_BINARY_DIR}/build-stage)
+message(STATUS "SIMH_WINDOWS_BUILD ${SIMH_WINDOWS_BUILD}")
 
 ## Default install location is ${CMAKE_SOURCE_DIR}/BIN if not otherwise set
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/" CACHE PATH "${CMAKE_SOURCE_DIR} default install prefix" FORCE)
-  set(CMAKE_INSTALL_BINDIR "BIN" CACHE PATH "BIN default binary install directory" FORCE)
+  set(CMAKE_INSTALL_BINDIR BIN CACHE PATH "BIN default binary install directory" FORCE)
 
   if (WIN32 AND MSVC)
     set(CMAKE_INSTALL_BINDIR "BIN/Win32/$<CONFIG>" CACHE PATH "BIN/Win32/<config> default binary install directory" FORCE)
@@ -71,43 +72,35 @@ if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 
 # Places to look for CMake modules/includes
-set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" "${CMAKE_SOURCE_DIR}/cmake")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
 # Make sure we can include from the top level source...
-include_directories("${CMAKE_SOURCE_DIR}")
+include_directories(${CMAKE_SOURCE_DIR} ${SIMH_WINDOWS_BUILD}/include)
+link_directories(${SIMH_WINDOWS_BUILD}/lib)
 
 # A bunch of Windows customizations
 if (WIN32)
   # Places where CMake should look for the various package configuration fragments:
   set(CMAKE_MODULE_PATH
-    "${CMAKE_MODULE_PATH}"
-    "${SIMH_WINDOWS_BUILD}/cmake"
-    "${SIMH_WINDOWS_BUILD}/lib/cmake"
-    "${SIMH_WINDOWS_BUILD}/lib/libpng")
+    ${CMAKE_MODULE_PATH}
+    ${SIMH_WINDOWS_BUILD}/cmake
+    ${SIMH_WINDOWS_BUILD}/lib/cmake
+    ${SIMH_WINDOWS_BUILD}/lib/libpng)
 
-  set(CMAKE_LIBRARY_PATH "${CMAKE_LIBRARY_PATH}" "${SIMH_WINDOWS_BUILD}/lib")
-  set(CMAKE_INCLUDE_PATH "${CMAKE_INCLUDE_PATH}" "${SIMH_WINDOWS_BUILD}/include")
+  set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${SIMH_WINDOWS_BUILD}/lib)
+  set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} ${SIMH_WINDOWS_BUILD}/include)
+
   # Assistance variables for the "Find<Package>" packages we use:
-  set(SDL2_PATH "${SIMH_WINDOWS_BUILD}")
-  set(SDL2_TTF_PATH "${SIMH_WINDOWS_BUILD}")
-  set(PCRE_PATH "${SIMH_WINDOWS_BUILD}")
-  set(PTW_PATH "${SIMH_WINDOWS_BUILD}")
-  set(PCAP_PATH "${SIMH_WINDOWS_BUILD}")
+  # set(SDL2_PATH "${SIMH_WINDOWS_BUILD}")
+  # set(SDL2_TTF_PATH "${SIMH_WINDOWS_BUILD}")
+  # set(PTW_PATH "${SIMH_WINDOWS_BUILD}")
+  # set(PCAP_PATH "${SIMH_WINDOWS_BUILD}")
 
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-  include_directories("${SIMH_WINDOWS_BUILD}/include")
-  link_directories("${SIMH_WINDOWS_BUILD}/lib")
   
   if (MSVC_VERSION GREATER_EQUAL 1920)
     add_compile_definitions(USE_ISO_C99_NAMES)
   endif ()
- 
-  if (NOT MINGW)
-    # Pthreads4w: pthreads for windows
-    include (FindPthreads4w)
-  else (NOT MINGW)
-    set(PTW_FOUND FALSE)
-  endif (NOT MINGW)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     # For some reason, the MSVC solution builds as 32-bit, but none of the
     # *nix platforms do.
@@ -118,128 +111,149 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -m32")
 endif (WIN32)
 
-# Perl-Compatible Regular Expressions (PCRE). PCRE depends on zlib...
-include (FindZLIB)
+# Find packages, arrange for dependency download/compile/install:
+#
+# SIMH_BUILD_DEPS is a list that holds dependencies that we need to build,
+# which is our super build approach.
+set(SIMH_BUILD_DEPS)
 
-if (ZLIB_FOUND)
-  include (FindPCRE)
-else (ZLIB_FOUND)
-  set(PCRE_FOUND FALSE)
-  set(PCRE2_FOUND FALSE)
-endif (ZLIB_FOUND)
+set(THREADING_PKG_STATUS "unknown")
+set(ZLIB_PKG_STATUS "unknown")
+set(PCRE_PKG_STATUS "unknown")
+set(VIDEO_PKG_STATUS "unknown")
+set(NETWORK_PKG_STATUS "unknown")
 
-# Look for SDL and SDL_ttf: They install CMake scripts that set compiler and linker
-# flags. Assume that the packages are available. (Which depends on Freetype.)
+if (WITH_ASYNC)
+    include(pthreads-dep)
+else (WITH_ASYNC)
+    set(THREADING_PKG_STATUS "skipped")
+endif (WITH_ASYNC)
 
-include (FindFreetype)
-if (FREETYPE_FOUND)
-    find_package(SDL2)
-    find_package(SDL2_ttf)
+include(zlib-dep)
+include(pcre-dep)
 
-    include (FindPNG)
-else ()
-  set(SDL2_FOUND FALSE)
-  set(SDL2_TTF_FOUND FALSE)
-  set(PNG_FOUND FALSE)
-endif ()
+if (WITH_VIDEO)
+    include(video-deps)
+    set(BUILD_WITH_VIDEO TRUE)
+else (WITH_VIDEO)
+    set(VIDEO_PKG_STATUS "skipped")
+    set(BUILD_WITH_VIDEO FALSE)
+endif (WITH_VIDEO)
 
-## BUILD_VIDEO: If WITH_VIDEO is enabled and we have the requisite
-## libraries. Note that PNG is optional -- if we find it, use it, if not
-## don't.
-set(BUILD_VIDEO FALSE)
-if (WITH_VIDEO AND SDL2_FOUND AND SDL2_TTF_FOUND)
-    set(BUILD_WITH_VIDEO ON)
-endif (WITH_VIDEO AND SDL2_FOUND AND SDL2_TTF_FOUND)
-
-include (FindPCAP)
+if (WITH_NETWORK)
+    include(network-deps)
+else (WITH_NETWORK)
+    set(NETWORK_PKG_STATUS "skipped")
+endif (WITH_NETWORK)
 
 message(STATUS "")
 message(STATUS "Libraries and features:")
-if (WIN32)
-  message(STATUS "Pthreads4w ................... ${PTW_FOUND}")
-endif ()
-message(STATUS "zlib ......................... ${ZLIB_FOUND}")
-if (PCRE_FOUND OR PCRE2_FOUND)
-    message(STATUS "Perl-Compatible RegExps....... TRUE")
-else (PCRE_FOUND OR PCRE2_FOUND)
-    message(STATUS "Perl-Compatible RegExps....... FALSE")
-endif (PCRE_FOUND OR PCRE2_FOUND)
-message(STATUS "SDL2 ......................... ${SDL2_FOUND}")
-message(STATUS "SDL2_ttf ..................... ${SDL2_TTF_FOUND}")
-message(STATUS "Portable Network Graphics .... ${PNG_FOUND}")
-message(STATUS "Packet Capture (PCAP) ........ ${PCAP_FOUND}")
+message(STATUS "  Thread support .................. ${THREADING_PKG_STATUS}")
+message(STATUS "  zlib ............................ ${ZLIB_PKG_STATUS}")
+message(STATUS "  Perl-Compatible RegExps.......... ${PCRE_PKG_STATUS}")
+message(STATUS "  PNG, Freetype, SDL2, SDL2_ttf ... ${VIDEO_PKG_STATUS}")
+message(STATUS "  Packet Capture (PCAP) ........... ${NETWORK_PKG_STATUS}")
 message(STATUS "")
 message(STATUS "Build options:")
-message(STATUS "Video/graphics support ....... ${BUILD_WITH_VIDEO}")
-message(STATUS "Networking ................... ${WITH_NETWORK}")
-message(STATUS "Asynchronous I/O ............. ${WITH_ASYNC}")
+message(STATUS "  Video/graphics support ....... ${BUILD_WITH_VIDEO}")
+message(STATUS "  Networking ................... ${WITH_NETWORK}")
+message(STATUS "  Asynchronous I/O ............. ${WITH_ASYNC}")
 if (DONT_SET_ROMS)
     set(ROM_STATUS "No")
 else ()
     set(ROM_STATUS "Yes")
 endif ()
-message(STATUS "Build internal ROMS .......... ${ROM_STATUS}")
+message(STATUS "  Build internal ROMS .......... ${ROM_STATUS}")
 message(STATUS "")
+
 unset(ROM_STATUS)
 
-## The actual simulators:
+if (NOT SIMH_BUILD_DEPS)
+    ## The actual simulators:
 
-include (add_simulator)
+    include (add_simulator)
 
-## The various video outputs for simulators:
-set(DISPLAYL   "${CMAKE_SOURCE_DIR}/display/display.c" "${CMAKE_SOURCE_DIR}/display/sim_ws.c")
-set(DISPLAYVT  "${CMAKE_SOURCE_DIR}/display/vt11.c")
-set(DISPLAY340 "${CMAKE_SOURCE_DIR}/display/type340.c")
-set(DISPLAYNG  "${CMAKE_SOURCE_DIR}/display/ng.c")
+    ## The various video outputs for simulators:
+    set(DISPLAYL   "${CMAKE_SOURCE_DIR}/display/display.c" "${CMAKE_SOURCE_DIR}/display/sim_ws.c")
+    set(DISPLAYVT  "${CMAKE_SOURCE_DIR}/display/vt11.c")
+    set(DISPLAY340 "${CMAKE_SOURCE_DIR}/display/type340.c")
+    set(DISPLAYNG  "${CMAKE_SOURCE_DIR}/display/ng.c")
 
-## Source/include directories:
-set(ALTAIRD    "${CMAKE_SOURCE_DIR}/ALTAIR")
-set(ALTAIRZ80D "${CMAKE_SOURCE_DIR}/AltairZ80")
-set(HP2100D    "${CMAKE_SOURCE_DIR}/HP2100")
-set(HP3000D    "${CMAKE_SOURCE_DIR}/HP3000")
-set(I1401D     "${CMAKE_SOURCE_DIR}/I1401")
-set(I1620D     "${CMAKE_SOURCE_DIR}/I1620")
-set(I7094D     "${CMAKE_SOURCE_DIR}/I7094")
-set(ID16D      "${CMAKE_SOURCE_DIR}/Interdata")
-set(ID32D      "${CMAKE_SOURCE_DIR}/Interdata")
-set(NOVAD      "${CMAKE_SOURCE_DIR}/NOVA")
-set(PDP1D      "${CMAKE_SOURCE_DIR}/PDP1")
-set(PDP10D     "${CMAKE_SOURCE_DIR}/PDP10")
-set(PDP11D     "${CMAKE_SOURCE_DIR}/PDP11")
-set(PDP18BD    "${CMAKE_SOURCE_DIR}/PDP18B")
-set(VAXD       "${CMAKE_SOURCE_DIR}/VAX")
+    ## Source/include directories:
+    set(ALTAIRD    "${CMAKE_SOURCE_DIR}/ALTAIR")
+    set(ALTAIRZ80D "${CMAKE_SOURCE_DIR}/AltairZ80")
+    set(HP2100D    "${CMAKE_SOURCE_DIR}/HP2100")
+    set(HP3000D    "${CMAKE_SOURCE_DIR}/HP3000")
+    set(I1401D     "${CMAKE_SOURCE_DIR}/I1401")
+    set(I1620D     "${CMAKE_SOURCE_DIR}/I1620")
+    set(I7094D     "${CMAKE_SOURCE_DIR}/I7094")
+    set(ID16D      "${CMAKE_SOURCE_DIR}/Interdata")
+    set(ID32D      "${CMAKE_SOURCE_DIR}/Interdata")
+    set(NOVAD      "${CMAKE_SOURCE_DIR}/NOVA")
+    set(PDP1D      "${CMAKE_SOURCE_DIR}/PDP1")
+    set(PDP10D     "${CMAKE_SOURCE_DIR}/PDP10")
+    set(PDP11D     "${CMAKE_SOURCE_DIR}/PDP11")
+    set(PDP18BD    "${CMAKE_SOURCE_DIR}/PDP18B")
+    set(VAXD       "${CMAKE_SOURCE_DIR}/VAX")
 
-## And here's where the actual work gets done:
-add_subdirectory(slirp)
-add_subdirectory(PDP1)
-add_subdirectory(PDP18B)
-add_subdirectory(PDP8)
-add_subdirectory(PDP10)
-add_subdirectory(PDP11)
-add_subdirectory(VAX)
-add_subdirectory(NOVA)
-add_subdirectory(HP2100)
-add_subdirectory(HP3000)
-add_subdirectory(I1401)
-add_subdirectory(I1620)
-add_subdirectory(S3)
-add_subdirectory(ALTAIR)
-add_subdirectory(AltairZ80)
-add_subdirectory(GRI)
-add_subdirectory(I7094)
-add_subdirectory(Ibm1130)
-add_subdirectory(Interdata)
-add_subdirectory(SDS)
-add_subdirectory(LGP)
-add_subdirectory(H316)
-add_subdirectory(swtp6800)
-add_subdirectory(TX-0)
-add_subdirectory(SSEM)
-add_subdirectory(B5500)
-add_subdirectory(Intel-Systems)
-add_subdirectory(3B2)
-add_subdirectory(I7000)
-add_subdirectory(sigma)
+    ## And here's where the actual work gets done:
+    add_subdirectory(slirp)
+    add_subdirectory(PDP1)
+    add_subdirectory(PDP18B)
+    add_subdirectory(PDP8)
+    add_subdirectory(PDP10)
+    add_subdirectory(PDP11)
+    add_subdirectory(VAX)
+    add_subdirectory(NOVA)
+    add_subdirectory(HP2100)
+    add_subdirectory(HP3000)
+    add_subdirectory(I1401)
+    add_subdirectory(I1620)
+    add_subdirectory(S3)
+    add_subdirectory(ALTAIR)
+    add_subdirectory(AltairZ80)
+    add_subdirectory(GRI)
+    add_subdirectory(I7094)
+    add_subdirectory(Ibm1130)
+    add_subdirectory(Interdata)
+    add_subdirectory(SDS)
+    add_subdirectory(LGP)
+    add_subdirectory(H316)
+    add_subdirectory(swtp6800)
+    add_subdirectory(TX-0)
+    add_subdirectory(SSEM)
+    add_subdirectory(B5500)
+    add_subdirectory(Intel-Systems)
+    add_subdirectory(3B2)
+    add_subdirectory(I7000)
+    add_subdirectory(sigma)
 
-# Experimental simulator:
-add_subdirectory(CDC1700)
+    # Experimental simulator:
+    add_subdirectory(CDC1700)
+
+    # Install the DLLs... including Packet.DLL
+    if (WIN32 AND EXISTS ${CMAKE_BINARY_DIR}/build-stage/bin)
+	file(GLOB SIMH_DLLS ${CMAKE_BINARY_DIR}/build-stage/bin/*.dll)
+
+	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+	    set(NPCAP_PACKET_DLL "C:/Windows/System32/Npcap/Packet.DLL")
+	else(CMAKE_SIZEOF_VOID_P EQUAL 8)
+	    set(NPCAP_PACKET_DLL "C:/Windows/SysWOW64/Npcap/Packet.DLL")
+	endif(CMAKE_SIZEOF_VOID_P EQUAL 8)
+
+	install(
+	    FILES ${SIMH_DLLS} ${NPCAP_PACKET_DLL}
+	    DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
+	)
+    endif (WIN32 AND EXISTS ${CMAKE_BINARY_DIR}/build-stage/bin)
+else (NOT SIMH_BUILD_DEPS)
+    message(STATUS "")
+    message(STATUS "The following dependencies need to be built:")
+    message(STATUS "")
+    message(STATUS "  ${SIMH_BUILD_DEPS}")
+    message(STATUS "")
+    message(STATUS "Execute 'cmake --build . --config <Release|Debug|...>'")
+    message(STATUS "")
+    message(STATUS "Reconfigure CMake after the build is complete and successful (no errors)")
+    message(STATUS "")
+endif (NOT SIMH_BUILD_DEPS)
