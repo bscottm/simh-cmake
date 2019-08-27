@@ -31,7 +31,7 @@ find_library(PCAP_LIBRARY
         PATHS ${PCAP_PATH}
         )
 
-if (WIN32)
+if (WIN32 AND PCAP_LIBRARY)
     ## Only worry about the packet library on Windows.
     find_library(PACKET_LIBRARY
 	    NAMES packet Packet
@@ -40,9 +40,9 @@ if (WIN32)
 	    PATH_SUFFIXES lib
 	    PATHS ${PCAP_PATH}
 	    )
-else (WIN32)
-    set(PACKET_LIBRARY "")
-endif (WIN32)
+else (WIN32 AND PCAP_LIBRARY)
+    set(PACKET_LIBRARY)
+endif (WIN32 AND PCAP_LIBRARY)
 
 set(PCAP_LIBRARIES ${PCAP_LIBRARY} ${PACKET_LIBRARY})
 set(PCAP_INCLUDE_DIRS ${PCAP_INCLUDE_DIR})

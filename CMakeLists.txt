@@ -235,14 +235,8 @@ if (NOT SIMH_BUILD_DEPS)
     if (WIN32 AND EXISTS ${CMAKE_BINARY_DIR}/build-stage/bin)
 	file(GLOB SIMH_DLLS ${CMAKE_BINARY_DIR}/build-stage/bin/*.dll)
 
-	if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-	    set(NPCAP_PACKET_DLL "C:/Windows/System32/Npcap/Packet.DLL")
-	else(CMAKE_SIZEOF_VOID_P EQUAL 8)
-	    set(NPCAP_PACKET_DLL "C:/Windows/SysWOW64/Npcap/Packet.DLL")
-	endif(CMAKE_SIZEOF_VOID_P EQUAL 8)
-
 	install(
-	    FILES ${SIMH_DLLS} ${NPCAP_PACKET_DLL}
+	    FILES ${SIMH_DLLS}
 	    DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
 	)
     endif (WIN32 AND EXISTS ${CMAKE_BINARY_DIR}/build-stage/bin)
