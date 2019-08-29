@@ -228,6 +228,7 @@
 #include "sim_video.h"
 #include "sim_sock.h"
 #include "sim_frontpanel.h"
+#include "simh_iso_names.h"
 #include <signal.h>
 #include <ctype.h>
 #include <time.h>
@@ -6308,7 +6309,7 @@ if ((!cptr) || (*cptr == 0))
 gbuf[sizeof(gbuf)-1] = '\0';
 strlcpy (gbuf, cptr, sizeof(gbuf));
 sim_trim_endspc(gbuf);
-if (chdir(gbuf) != 0)
+if (simh_chdir(gbuf) != 0)
     return sim_messagef(SCPE_IOERR, "Unable to directory change to: %s\n", gbuf);
 return SCPE_OK;
 }
@@ -6488,7 +6489,7 @@ char FullPath[PATH_MAX + 1];
 
 sprintf (FullPath, "%s%s", directory, filename);
 
-if (!unlink (FullPath))
+if (!simh_unlink (FullPath))
     return;
 ctx->stat = sim_messagef (SCPE_ARG, "%s\n", strerror (errno));
 }
@@ -6587,7 +6588,7 @@ while ((c = strchr (c, '/'))) {
         }
     if (
 #if defined(_WIN32)
-        mkdir (path)
+        simh_mkdir (path)
 #else
         mkdir (path, 0777)
 #endif
@@ -6598,7 +6599,7 @@ while ((c = strchr (c, '/'))) {
     }
 if (
 #if defined(_WIN32)
-    mkdir (path)
+    simh_mkdir (path)
 #else
     mkdir (path, 0777)
 #endif
@@ -6611,7 +6612,7 @@ t_stat rmdir_cmd (int32 flg, CONST char *cptr)
 {
 if ((!cptr) || (*cptr == '\0'))
     return sim_messagef (SCPE_2FARG, "Must specify a directory\n");
-if (rmdir (cptr))
+if (simh_rmdir (cptr))
     return sim_messagef (SCPE_ARG, "Can't remove directory: %s - %s\n", cptr, strerror (errno));
 return SCPE_OK;
 }
@@ -7513,7 +7514,7 @@ sim_switches &= ~(SWMASK ('F') | SWMASK ('D') | SWMASK ('Q'));  /* remove digest
     goto Cleanup_Return;                                                \
     }
 
-if (fstat (fileno (rfile), &rstat)) {
+if (fstat (simh_fileno (rfile), &rstat)) {
     r = SCPE_IOERR;
     goto Cleanup_Return;
     }

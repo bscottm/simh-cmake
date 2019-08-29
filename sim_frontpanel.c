@@ -47,6 +47,7 @@ extern "C" {
 #endif
 
 #include "sim_frontpanel.h"
+#include "simh_iso_names.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -60,6 +61,8 @@ extern "C" {
 
 #include "sim_sock.h"
 
+
+/* sim_timer.c already takes care of this in the library-ized version */
 #if defined(_WIN32)
 #include <process.h>
 #include <windows.h>
@@ -786,7 +789,7 @@ else {
     p->temp_config = (char *)_panel_malloc (strlen (sim_config) + 40);
     if (p->temp_config == NULL)
         goto Error_Return;
-    sprintf (p->temp_config, "%s-Panel-%d", sim_config, getpid());
+    sprintf (p->temp_config, "%s-Panel-%d", sim_config, simh_getpid());
     fOut = fopen (p->temp_config, "w");
     if (fOut == NULL) {
         sim_panel_set_error (NULL, "Can't create temporary configuration file '%s': %s", p->temp_config, strerror(errno));

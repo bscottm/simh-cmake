@@ -60,6 +60,7 @@
 */
 
 #include "sim_defs.h"
+#include "simh_iso_names.h"
 
 t_bool sim_end;                     /* TRUE = little endian, FALSE = big endian */
 t_bool sim_taddr_64;                /* t_addr is > 32b and Large File Support available */
@@ -711,7 +712,7 @@ char *sim_getcwd (char *buf, size_t buf_size)
 #if defined (VMS)
 return getcwd (buf, buf_size, 0);
 #else
-return getcwd (buf, buf_size);
+return simh_getcwd (buf, buf_size);
 #endif
 }
 

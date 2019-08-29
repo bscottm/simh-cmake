@@ -52,8 +52,10 @@ extern "C" {
 
 #if defined (_WIN32)                                    /* Windows */
 #include <winsock2.h>
+#  if _WIN32_WINNT >= 0x0600
+#    include <ws2tcpip.h>
+#  endif
 #include <winerror.h>
-
 #elif !defined (__OS2__) || defined (__EMX__)           /* VMS, Mac, Unix, OS/2 EMX */
 #include <sys/types.h>                                  /* for fcntl, getpid */
 #include <sys/socket.h>                                 /* for sockets */

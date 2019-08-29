@@ -78,6 +78,7 @@ Internal routines:
 #include "sim_defs.h"
 #include "sim_disk.h"
 #include "sim_ether.h"
+#include "simh_iso_names.h"
 #include <ctype.h>
 #include <sys/stat.h>
 
@@ -3604,7 +3605,7 @@ if (!File) {
     goto Return_Cleanup;
     }
 if (ModifiedTimeStamp) {
-    if (fstat (fileno (File), &statb)) {
+    if (fstat (simh_fileno (File), &statb)) {
         Return = errno;
         goto Return_Cleanup;
         }

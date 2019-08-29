@@ -369,6 +369,7 @@
 #include "sim_ether.h"
 #include "sim_sock.h"
 #include "sim_timer.h"
+#include "simh_iso_names.h"
 #if defined(_WIN32)
 #include <direct.h>
 #else
@@ -417,7 +418,7 @@ t_stat eth_mac_scan_ex (ETH_MAC* mac, const char* strmac, UNIT *uptr)
   memset (&state, 0, sizeof(state));
   _eth_get_system_id (state.system_id, sizeof(state.system_id));
   strlcpy (state.sim, sim_name, sizeof(state.sim));
-  getcwd (state.cwd, sizeof(state.cwd));
+  simh_getcwd (state.cwd, sizeof(state.cwd));
   if (uptr)
     strlcpy (state.uname, sim_uname (uptr), sizeof(state.uname));
   cptr = strchr (strmac, '>');

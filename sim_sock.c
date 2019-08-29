@@ -51,10 +51,6 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 
-#if defined(AF_INET6) && defined(_WIN32)
-#include <ws2tcpip.h>
-#endif
-
 #ifdef HAVE_DLOPEN
 #include <dlfcn.h>
 #endif
@@ -69,6 +65,10 @@ extern "C" {
 
 #ifndef   NI_MAXHOST
 #define   NI_MAXHOST 1025
+#endif
+
+#if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0600
+#define NEED_STUBS
 #endif
 
 /* OS dependent routines
@@ -206,6 +206,8 @@ typedef size_t socklen_t;
 typedef int (WSAAPI *getnameinfo_func) (const struct sockaddr *sa, socklen_t salen, char *host, size_t hostlen, char *serv, size_t servlen, int flags);
 static getnameinfo_func p_getnameinfo;
 
+
+#if defined(NEED_STUBS)
 static void    WSAAPI s_freeaddrinfo (struct addrinfo *ai)
 {
 struct addrinfo *a, *an;
@@ -280,26 +282,31 @@ if (service) {
     }
 
 if (hostname) {
-    if ((0xffffffff != (ipaddr.s_addr = inet_addr(hostname))) || 
+	int is_ipv4dots;
+
+	ipaddr.s_addr = inet_addr(hostname);
+	is_ipv4dots = 0xffffffff != ipaddr.s_addr;
+
+	if (is_ipv4dots ||
         (0 == strcmp("255.255.255.255", hostname))) {
         fixed[0] = &ipaddr;
         fixed[1] = NULL;
         }
     else {
-        if ((0xffffffff != (ipaddr.s_addr = inet_addr(hostname))) || 
+		/* ????? same test ????? */
+        if (is_ipv4dots ||
             (0 == strcmp("255.255.255.255", hostname))) {
             fixed[0] = &ipaddr;
             fixed[1] = NULL;
             if ((hints->ai_flags & AI_CANONNAME) && !(hints->ai_flags & AI_NUMERICHOST)) {
-                he = gethostbyaddr((char *)&ipaddr, 4, AF_INET);
-                if (NULL != he)
-                    cname = he->h_name;
-                else
-                    cname = hostname;
-                }
+				struct hostent* he = gethostbyaddr((char*)& ipaddr, 4, AF_INET);
+
+				cname = hostname;
+				if (NULL != he)
+					cname = he->h_name;
+			}
             ips = fixed;
-            }
-        else {
+        } else {
             if (hints->ai_flags & AI_NUMERICHOST)
                 return EAI_NONAME;
             he = gethostbyname(hostname);
@@ -413,10 +420,10 @@ if ((serv) && (servlen > 0)) {
         }
     }
 if ((host) && (hostlen > 0)) {
-    if (flags & NI_NUMERICHOST)
-        he = NULL;
-    else
-        he = gethostbyaddr((const char *)&sin->sin_addr, 4, AF_INET);
+	if (flags & NI_NUMERICHOST)
+		he = NULL;
+	else
+		he = gethostbyaddr((const char *)&sin->sin_addr, 4, AF_INET);
     if (he) {
         if (hostlen < strlen(he->h_name)+1)
             return EAI_OVERFLOW;
@@ -432,6 +439,7 @@ if ((host) && (hostlen > 0)) {
     }
 return 0;
 }
+#endif /* NEED_STUBS */
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 
@@ -477,22 +485,26 @@ int load_ws2(void) {
         sim_printf ("Sockets: Failed to load %s\r\n", lib_name);
         lib_loaded = 2;
         break;
-      } else {
-        /* library loaded OK */
-        lib_loaded = 1;
-      }
+	  }
 
-      /* load required functions; sets dll_load=3 on error */
-      load_function("getaddrinfo",       (_func *) &p_getaddrinfo);
-      load_function("getnameinfo",       (_func *) &p_getnameinfo);
-      load_function("freeaddrinfo",      (_func *) &p_freeaddrinfo);
+	  /* library loaded OK */
+	  lib_loaded = 1;
 
+	  /* load required functions; sets dll_load=3 on error */
+	  /* This will always succeed on Windows versions that don't need the stubs, 
+	     so don't attach stubs (which aren't compiled anyway). */
+	  load_function("getaddrinfo", (_func*)& p_getaddrinfo);
+	  load_function("getnameinfo", (_func*)& p_getnameinfo);
+	  load_function("freeaddrinfo", (_func*)& p_freeaddrinfo);
+
+#if defined(NEED_STUBS)
       if (lib_loaded != 1) {
         /* unsuccessful load, connect stubs */
         p_getaddrinfo = (getaddrinfo_func)s_getaddrinfo;
         p_getnameinfo = (getnameinfo_func)s_getnameinfo;
         p_freeaddrinfo = (freeaddrinfo_func)s_freeaddrinfo;
       }
+#endif
       break;
     default:                /* loaded or failed */
       break;
