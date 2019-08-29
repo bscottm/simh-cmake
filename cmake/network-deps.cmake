@@ -26,22 +26,18 @@ if (WITH_NETWORK)
 	    set(NPCAP_ARCHIVE ${CMAKE_SOURCE_DIR}/dep-patches/libpcap/npcap-sdk-1.03.zip)
 
 	    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-		set(NPCAP_PACKET_DLL "C:/Windows/System32/Npcap/Packet.DLL")
+		set(NPCAP_PACKET_DLL C:/Windows/System32/Npcap/Packet.DLL)
 	    else(CMAKE_SIZEOF_VOID_P EQUAL 8)
-		set(NPCAP_PACKET_DLL "C:/Windows/SysWOW64/Npcap/Packet.DLL")
+		set(NPCAP_PACKET_DLL C:/Windows/SysWOW64/Npcap/Packet.DLL)
 	    endif(CMAKE_SIZEOF_VOID_P EQUAL 8)
 
 	    execute_process(
-		COMMAND ${CMAKE_COMMAND} -E make_directory build-stage
+		COMMAND ${CMAKE_COMMAND} -E copy ${NPCAP_PACKET_DLL} build-stage/bin
 		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 	    )
 
 	    execute_process(
-		COMMAND ${CMAKE_COMMAND} -E make_directory include
-		COMMAND ${CMAKE_COMMAND} -E make_directory lib
-		COMMAND ${CMAKE_COMMAND} -E make_directory bin
 		COMMAND ${CMAKE_COMMAND} -E tar xzf ${NPCAP_ARCHIVE} Include/ Lib/
-		COMMAND ${CMAKE_COMMAND} -E copy ${NPCAP_PACKET_DLL} bin/
 		WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/build-stage/
 	    )
 

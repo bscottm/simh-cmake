@@ -56,10 +56,15 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     endif ()
 endif()
 
-# SIMH_WINDOWS_BUILD: This is the top-level directory where dependencies live:
+# SIMH_DEP_TOPDIR: This is the top-level directory where dependencies live:
 
-set(SIMH_WINDOWS_BUILD ${CMAKE_BINARY_DIR}/build-stage)
-message(STATUS "SIMH_WINDOWS_BUILD ${SIMH_WINDOWS_BUILD}")
+set(SIMH_DEP_TOPDIR ${CMAKE_BINARY_DIR}/build-stage)
+message(STATUS "SIMH_DEP_TOPDIR ${SIMH_DEP_TOPDIR}")
+
+execute_process(
+    COMMAND ${CMAKE_COMMAND} -E make_directory build-stage build-stage/include build-stage/lib build-stage/bin
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
 
 ## Default install location is ${CMAKE_SOURCE_DIR}/BIN if not otherwise set
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -73,34 +78,27 @@ endif()
 
 # Places to look for CMake modules/includes
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
+# Places where CMake should look for the various package configuration fragments:
+set(CMAKE_PREFIX_PATH
+    ${CMAKE_PREFIX_PATH}
+    ${SIMH_DEP_TOPDIR}/cmake
+    ${SIMH_DEP_TOPDIR}/lib/cmake
+    ${SIMH_DEP_TOPDIR}/lib/libpng)
 
 # Make sure we can include from the top level source...
-include_directories(${CMAKE_SOURCE_DIR} ${SIMH_WINDOWS_BUILD}/include)
-link_directories(${SIMH_WINDOWS_BUILD}/lib)
+include_directories(${CMAKE_SOURCE_DIR} ${SIMH_DEP_TOPDIR}/include)
+link_directories(${SIMH_DEP_TOPDIR}/lib)
 
 # A bunch of Windows customizations
 if (WIN32)
-  # Places where CMake should look for the various package configuration fragments:
-  set(CMAKE_MODULE_PATH
-    ${CMAKE_MODULE_PATH}
-    ${SIMH_WINDOWS_BUILD}/cmake
-    ${SIMH_WINDOWS_BUILD}/lib/cmake
-    ${SIMH_WINDOWS_BUILD}/lib/libpng)
+    set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${SIMH_DEP_TOPDIR}/lib)
+    set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} ${SIMH_DEP_TOPDIR}/include)
 
-  set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${SIMH_WINDOWS_BUILD}/lib)
-  set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} ${SIMH_WINDOWS_BUILD}/include)
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
-  # Assistance variables for the "Find<Package>" packages we use:
-  # set(SDL2_PATH "${SIMH_WINDOWS_BUILD}")
-  # set(SDL2_TTF_PATH "${SIMH_WINDOWS_BUILD}")
-  # set(PTW_PATH "${SIMH_WINDOWS_BUILD}")
-  # set(PCAP_PATH "${SIMH_WINDOWS_BUILD}")
-
-  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
-  
-  if (MSVC_VERSION GREATER_EQUAL 1920)
-    add_compile_definitions(USE_ISO_C99_NAMES)
-  endif ()
+    if (MSVC_VERSION GREATER_EQUAL 1920)
+	add_compile_definitions(USE_ISO_C99_NAMES)
+    endif ()
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     # For some reason, the MSVC solution builds as 32-bit, but none of the
     # *nix platforms do.
