@@ -67,7 +67,7 @@ extern "C" {
 #define   NI_MAXHOST 1025
 #endif
 
-#if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0600
+#if (!defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0600) && !defined(__MINGW__)
 #define NEED_STUBS
 #endif
 

@@ -2711,8 +2711,7 @@ while (stat != SCPE_EXIT) {                             /* in case exit */
         if (sim_do_echo)
             printf ("%s+ %s\n", sim_prompt, cptr);      /* echo */
         sim_cptr_is_action[sim_do_depth] = TRUE;
-        }
-    else {
+    } else {
         if (sim_vm_read != NULL) {                      /* sim routine? */
             printf ("%s", sim_prompt);                  /* prompt */
             cptr = (*sim_vm_read) (cbuf, sizeof(cbuf), stdin);
