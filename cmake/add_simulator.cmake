@@ -69,7 +69,7 @@ function(build_simcore _targ)
         endif ()
 
         if (MINGW)
-          target_compile_options(${_targ} PUBLIC "-fms-extensions" "-mwindows")
+          target_compile_options(${_targ} PUBLIC "-fms-extensions" "-mconsole")
         endif ()
 
         if (WITH_NETWORK)
@@ -87,7 +87,7 @@ endfunction(build_simcore _targ)
 ## BUILDROMS: Build the hardcoded boot rooms
 ## VIDEO: Add video support
 
-function (add_simulator _targ) ## _sources _defines _includes)
+function (add_simulator _targ)
     cmake_parse_arguments(SIMH "INT64;FULL64;BUILDROMS;VIDEO" "TEST" "DEFINES;INCLUDES;SOURCES" ${ARGN})
 
     if (NOT DEFINED SIMH_SOURCES)
@@ -98,6 +98,8 @@ function (add_simulator _targ) ## _sources _defines _includes)
 
     if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 	target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
+    elif (WIN32)
+	target_compile_options(${_targ} PRIVATE "-fms-extensions" "-mconsole")
     endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
     if (DEFINED SIMH_DEFINES)
@@ -131,6 +133,13 @@ function (add_simulator _targ) ## _sources _defines _includes)
     endif (SIMH_VIDEO)
 
     target_link_libraries("${_targ}" PRIVATE "${SIMH_SIMLIB}${SIMH_VIDLIB}")
+    if (WIN32)
+	if (MSVC)
+	    target_link_options(${_targ} PRIVATE "/SUBSYSTEM:CONSOLE")
+	elseif (MINGW)
+	    target_link_options(${_targ} PRIVATE "-mconsole")
+	endif ()
+    endif (WIN32)
 
     # Remember to add the install rule, which defaults to ${CMAKE_SOURCE_DIR}/BIN.
     # Installs the executables.
