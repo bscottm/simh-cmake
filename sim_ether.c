@@ -369,7 +369,7 @@
 #include "sim_ether.h"
 #include "sim_sock.h"
 #include "sim_timer.h"
-#include "simh_iso_names.h"
+#include "sim_iso_names.h"
 #if defined(_WIN32)
 #include <direct.h>
 #else

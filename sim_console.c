@@ -131,7 +131,7 @@
 #include "sim_tmxr.h"
 #include "sim_serial.h"
 #include "sim_timer.h"
-#include "simh_iso_names.h"
+#include "sim_iso_names.h"
 #include <ctype.h>
 #include <math.h>
 

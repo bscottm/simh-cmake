@@ -19,7 +19,7 @@ if (PCRE_FOUND OR PCRE2_FOUND)
     elseif (PCRE2_FOUND)
 	target_compile_definitions(regexp_lib INTERFACE HAVE_PCRE2_POSIX_H)
 	target_include_directories(regexp_lib INTERFACE ${PCRE2_INCLUDE_DIRS})
-	target_link_libraries(regexp_lib INTERFACE ${PCRE2_POSIX_LIBARY} ${PCRE2_LIBRARY})
+	target_link_libraries(regexp_lib INTERFACE ${PCRE2_POSIX_LIBRARY} ${PCRE2_LIBRARY})
 
 	set(PCRE_PKG_STATUS "installed pcre2")
     endif (PCRE_FOUND)

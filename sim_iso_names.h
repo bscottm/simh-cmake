@@ -1,3 +1,7 @@
+/*
+ *
+ */
+
 #if !defined(SIMH_ISO_NAMES_H)
 
 #  ifdef USE_ISO_C99_NAMES
@@ -16,6 +20,12 @@
 #    define simh_fileno fileno
 #    define simh_getpid getpid
 #    define simh_getcwd getcwd
+#  endif
+
+#  if defined(_WIN32)
+#    define simh_putenv _putenv
+#  elif defined(__hpux)
+#    define simh_putenv putenv
 #  endif
 
 #define SIMH_ISO_NAMES_H

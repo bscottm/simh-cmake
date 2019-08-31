@@ -47,7 +47,7 @@ extern "C" {
 #endif
 
 #include "sim_frontpanel.h"
-#include "simh_iso_names.h"
+#include "sim_iso_names.h"
 
 #include <stdio.h>
 #include <stdarg.h>

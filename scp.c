@@ -228,7 +228,7 @@
 #include "sim_video.h"
 #include "sim_sock.h"
 #include "sim_frontpanel.h"
-#include "simh_iso_names.h"
+#include "sim_iso_names.h"
 #include <signal.h>
 #include <ctype.h>
 #include <time.h>
@@ -2481,12 +2481,8 @@ char *envstr = (char *)malloc(strlen(envname)+strlen(envval)+2);
 int r;
 
 sprintf(envstr, "%s=%s", envname, envval);
-#if defined(_WIN32)
-r = _putenv(envstr);
+r = simh_putenv(envstr);
 free(envstr);
-#else
-r = putenv(envstr);
-#endif
 return r;
 }
 

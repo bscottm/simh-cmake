@@ -47,7 +47,7 @@ ipch/
 Visual Studio Projects/*
 
 # CMake artifacts
-cmake-build
+cmake-*
 
 # VS Code stuff...
 simh.code-workspace

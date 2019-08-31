@@ -78,7 +78,7 @@ Internal routines:
 #include "sim_defs.h"
 #include "sim_disk.h"
 #include "sim_ether.h"
-#include "simh_iso_names.h"
+#include "sim_iso_names.h"
 #include <ctype.h>
 #include <sys/stat.h>
 
