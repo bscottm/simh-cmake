@@ -2,7 +2,7 @@
 # Manage the freetype, SDL2, SDL2_ttf dependencies
 #
 # (a) Try to locate the system's installed libraries.
-# (b) Build a dependent libraries, if not found.
+# (b) Build source libraries, if not found.
 #~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
 include (ExternalProject)
@@ -50,7 +50,9 @@ if (WITH_NETWORK)
 
 	    list(APPEND SIMH_BUILD_DEPS "pcap")
 	    message(STATUS "Building PCAP from github repository")
-	    set(NETWORK_PKG_STATUS "PCAP dependent build")
+	    set(NETWORK_PKG_STATUS "PCAP source build")
 	endif (PCAP_FOUND)
     endif ()
+else ()
+    set(NETWORK_STATUS "networking disabled")
 endif ()

@@ -28,5 +28,5 @@ else (ZLIB_FOUND)
 
     list(APPEND SIMH_BUILD_DEPS zlib)
     message(STATUS "Building ZLIB from github repository.")
-    set(ZLIB_PKG_STATUS "ZLIB dependent build")
+    set(ZLIB_PKG_STATUS "ZLIB source build")
 endif (ZLIB_FOUND)

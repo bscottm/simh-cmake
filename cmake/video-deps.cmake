@@ -2,7 +2,7 @@
 # Manage the freetype, SDL2, SDL2_ttf dependencies
 #
 # (a) Try to locate the system's installed libraries.
-# (b) Build a dependent libraries, if not found.
+# (b) Build dependent libraries, if not found.
 #~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
 include (ExternalProject)
@@ -35,7 +35,7 @@ if (WITH_VIDEO)
 
 	list(APPEND SIMH_BUILD_DEPS "png")
 	message(STATUS "Building PNG from https://sourceforge.net/projects/libpng/files/libpng16/1.6.37/libpng-1.6.37.tar.xz/download")
-	set(VIDEO_PKG_STATUS "PNG dependent build")
+	set(VIDEO_PKG_STATUS "PNG source build")
     endif ()
 
     find_package(Freetype)
@@ -61,7 +61,7 @@ if (WITH_VIDEO)
 
 	list(APPEND SIMH_BUILD_DEPS "freetype")
 	message(STATUS "Building Freetype from github repository.")
-	set(VIDEO_PKG_STATUS "F${VIDEO_PKG_STATUS}, Freetype dependent build")
+	set(VIDEO_PKG_STATUS "F${VIDEO_PKG_STATUS}, Freetype source build")
     endif (FREETYPE_FOUND)
 
     find_package(SDL2 CONFIG)
@@ -81,7 +81,7 @@ if (WITH_VIDEO)
 
 	    list(APPEND SIMH_BUILD_DEPS "SDL2")
 	    message(STATUS "Building SDL2 from https://www.libsdl.org/release/SDL2-2.0.10.zip.")
-	    set(VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}, SDL2 dependent build")
+	    set(VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}, SDL2 source build")
 	ELSE (NOT SDL2_FOUND)
 	    set(VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}, installed SDL2")
 	ENDIF (NOT SDL2_FOUND)
@@ -107,7 +107,7 @@ if (WITH_VIDEO)
 
 	    list(APPEND SIMH_BUILD_DEPS "SDL2_ttf")
 	    message(STATUS "Building SDL2_ttf from https://www.libsdl.org/release/SDL2_ttf-2.0.15.zip.")
-	    set(VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}, SDL2_ttf dependent build")
+	    set(VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}, SDL2_ttf source build")
 	ELSE (NOT SDL2_ttf_FOUND)
 	    set(VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}, installed SDL2_ttf")
 	ENDIF (NOT SDL2_ttf_FOUND)

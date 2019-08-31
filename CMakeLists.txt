@@ -23,6 +23,9 @@ option(WITH_NETWORK
 option(WITH_PCAP
        "Enable (=1)/disable (=0) libpcap (packet capture) support. (def: enabled)"
        TRUE)
+option(WITH_SLIRP
+       "Enable (=1)/disable (=0) SLIRP network support. (def: enabled)"
+       TRUE)
 option(WITH_VIDEO
        "Enable (=1)/disable (=0) simulator display and graphics support (def: enabled)"
        TRUE)
@@ -57,10 +60,10 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
 endif()
 
 # SIMH_DEP_TOPDIR: This is the top-level directory where dependencies live:
-
 set(SIMH_DEP_TOPDIR ${CMAKE_BINARY_DIR}/build-stage)
-message(STATUS "SIMH_DEP_TOPDIR ${SIMH_DEP_TOPDIR}")
+message(STATUS "SIMH_DEP_TOPDIR = ${SIMH_DEP_TOPDIR}")
 
+message(STATUS "Creating build-stage directory hierarchy (include, lib, bin)")
 execute_process(
     COMMAND ${CMAKE_COMMAND} -E make_directory build-stage build-stage/include build-stage/lib build-stage/bin
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
@@ -85,7 +88,7 @@ set(CMAKE_PREFIX_PATH
     ${SIMH_DEP_TOPDIR}/lib/cmake
     ${SIMH_DEP_TOPDIR}/lib/libpng)
 
-# Make sure we can include from the top level source...
+# Make sure we can include and link from the top level source...
 include_directories(${CMAKE_SOURCE_DIR} ${SIMH_DEP_TOPDIR}/include)
 link_directories(${SIMH_DEP_TOPDIR}/lib)
 

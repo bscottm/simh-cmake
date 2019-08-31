@@ -49,7 +49,7 @@ if (WIN32)
 	  PATHS ${PTW_PATH}
 	)
 
-	find_library(PTW_${libflavor}_LIBRARY_DEBUG
+	find_library(PTW_${flavor}_LIBRARY_DEBUG
 	  NAMES 
 	    libpthread${libflavor}d  pthread${libflavor}d
 	  HINTS

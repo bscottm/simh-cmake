@@ -1,0 +1,113 @@
+version: 3.0.1.{build}
+
+shallow_clone: true
+clone_depth: 1
+
+branches:
+  only:
+  - cmake
+
+configuration:
+  - Release
+  - Debug
+
+platform:
+  - x86
+
+environment:
+  DIST_DIR: '%APPVEYOR_BUILD_FOLDER%\dist'
+  CMAKE_DIST_DIR: C:/projects/simh/dist
+  APPVEYOR_SAVE_CACHE_ON_ERROR: true
+
+  matrix:
+    ## MSVC:
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+      VCVARSALL: "%ProgramFiles(x86)%\\Microsoft Visual Studio 14.0\\VC\\vcvarsall.bat"
+      ARCHIVE: VS2015_%CONFIGURATION%_x86_%APPVEYOR_BUILD_NUMBER%
+      GENERATOR: Visual Studio 14 2015
+      BUILD_ARCH: x86
+
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+      VCVARSALL: "%ProgramFiles(x86)%\\Microsoft Visual Studio\\2017\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat"
+      ARCHIVE: VS2017_%CONFIGURATION%_x86_%APPVEYOR_BUILD_NUMBER%
+      GENERATOR: Visual Studio 15 2017
+      BUILD_ARCH: x86
+
+    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+      VCVARSALL: "%ProgramFiles(x86)%\\Microsoft Visual Studio\\2019\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat"
+      ARCHIVE: VS2019_%CONFIGURATION%_ARM64_%APPVEYOR_BUILD_NUMBER%
+      GENERATOR: Visual Studio 16 2019
+      BUILD_ARCH: x86
+      CMAKE_ARCHITECTURE: -Awin32
+
+    ## MinGW GNU C Compiler:
+    ## x86 flavor:
+    - APPVEYOR_BUILD_WORKER_IMAGE: 'Visual Studio 2015'
+      ARCHIVE: VS2015_%CONFIGURATION%_x86_%APPVEYOR_BUILD_NUMBER%
+      GENERATOR: MinGW Makefiles
+      MINGW: C:\\mingw-w64\\i686-5.3.0-posix-dwarf-rt_v4-rev0\\mingw32\\bin
+
+    - APPVEYOR_BUILD_WORKER_IMAGE: 'Visual Studio 2015'
+      ARCHIVE: VS2015_%CONFIGURATION%_x86_%APPVEYOR_BUILD_NUMBER%
+      GENERATOR: MinGW Makefiles
+      MINGW: C:\\mingw-w64\\i686-6.3.0-posix-dwarf-rt_v5-rev1\\mingw32\\bin
+
+    - APPVEYOR_BUILD_WORKER_IMAGE: 'Visual Studio 2019'
+      ARCHIVE: VS2015_%CONFIGURATION%_x86_%APPVEYOR_BUILD_NUMBER%
+      GENERATOR: MinGW Makefiles
+      MINGW: C:\\msys64\\mingw32\\bin
+
+init:
+  - echo BUILD_NUMBER=%APPVEYOR_BUILD_NUMBER%
+  - echo Building in %APPVEYOR_BUILD_WORKER_IMAGE% image
+  - echo Generator is %GENERATOR%
+
+install:
+  - cmake --version
+
+build:
+  parallel: true
+
+build_script:
+  ## Remove Git's MSYS from PATH, otherwise CMake borks.
+  # - set PATH=%PATH:C:\Program Files (x86)\Git\bin;=% 
+  # - set PATH=%PATH:C:\Program Files\Git\bin;=% 
+  - set PATH=%PATH:C:\Program Files\Git\usr\bin;=% 
+  ## If we add PCAP back to the compile, need to add winflexbixon to the PATH
+  # - set PATH=C:\\ProgramData\\chocolatey\\lib\\winflexbison\\tools;%PATH%
+  - if defined VCVARSALL call "%VCVARSALL%" %BUILD_ARCH%
+  - if defined MINGW set PATH=%MINGW%;%PATH%
+  - cd %APPVEYOR_BUILD_FOLDER%
+  - mkdir cmake-build
+  - cd cmake-build
+  - mkdir build-stage
+  - mkdir build-stage\bin
+  - mkdir build-stage\include
+  - mkdir build-stage\lib
+  - if exist %APPVEYOR_BUILD_FOLDER%\cmake-build\build-stage\bin 
+          set PATH=%APPVEYOR_BUILD_FOLDER%\cmake-build\build-stage\bin;%PATH%
+  - cmake -G "%GENERATOR%" %CMAKE_ARCHITECTURE%
+          -DCMAKE_BUILD_TYPE=%CONFIGURATION%
+          -DBUILD_NUMBER=%APPVEYOR_BUILD_NUMBER%
+          -DWITH_PCAP=Off
+          ..
+          # -DDIST_ROOT="%CMAKE_DIST_DIR%/%APPVEYOR_BUILD_WORKER_IMAGE%"
+  - cmake --build . --config %CONFIGURATION%
+  - cmake -G "%GENERATOR%" %CMAKE_ARCHITECTURE%
+          -DCMAKE_BUILD_TYPE=%CONFIGURATION%
+          -DBUILD_NUMBER=%APPVEYOR_BUILD_NUMBER%
+          -DWITH_PCAP=Off
+          ..
+          # -DDIST_ROOT="%CMAKE_DIST_DIR%/%APPVEYOR_BUILD_WORKER_IMAGE%"
+  - cmake --build . --config %CONFIGURATION%
+
+test:
+
+before_test:
+
+test_script:
+  - if exist %APPVEYOR_BUILD_FOLDER%\cmake-build\build-stage\bin
+          set PATH=%APPVEYOR_BUILD_FOLDER%\cmake-build\build-stage\bin;%PATH%
+  - ctest -C %CONFIGURATION% -V --timeout 600
+after_test:
+  # TODO process CTest output

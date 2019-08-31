@@ -33,7 +33,7 @@ if (WIN32)
 
 	    list(APPEND SIMH_BUILD_DEPS pthreads4w)
 	    message(STATUS "Building Pthreads4w from Git repository https://github.com/bscottm/pthreads4w.git")
-	    set(THREADING_PKG_STATUS "pthreads4w dependent build")
+	    set(THREADING_PKG_STATUS "pthreads4w source build")
 	endif (PTW_FOUND)
     else (NOT MINGW)
 	set(PTW_FOUND FALSE)
