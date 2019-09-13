@@ -2923,9 +2923,9 @@ character(int c)
             lp_suppress = x == 0 || x == 5;
 
             for (y = 0; y < 8; ++y) {
-                int delay_skew;
+                int delay_skew = 0;
                 int compress = vt11_csp_w <= 12 && x == 2;
-                int dot = col & (1<<y), nxtdot;
+                int dot = col & (1<<y), nxtdot = 0;
 
                 if (dot) {
                     illum2(xbase + xllc, ybase + yllc);

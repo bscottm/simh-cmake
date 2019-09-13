@@ -153,15 +153,15 @@ map_key(int k)
 static void
 key_to_ascii (SIM_KEY_EVENT *kev)
 {
-    static t_bool k_ctrl, k_shift, k_alt, k_win;
+    static t_bool k_ctrl, k_shift /* , k_alt, k_win (currently unused.) */;
 
 #define MODKEY(L, R, mod)   \
     case L: case R: mod = (kev->state != SIM_KEYPRESS_UP); break;
 #define MODIFIER_KEYS       \
-    MODKEY(SIM_KEY_ALT_L,    SIM_KEY_ALT_R,      k_alt)     \
+    /*MODKEY(SIM_KEY_ALT_L,    SIM_KEY_ALT_R,      k_alt)*/     \
     MODKEY(SIM_KEY_CTRL_L,   SIM_KEY_CTRL_R,     k_ctrl)    \
     MODKEY(SIM_KEY_SHIFT_L,  SIM_KEY_SHIFT_R,    k_shift)   \
-    MODKEY(SIM_KEY_WIN_L,    SIM_KEY_WIN_R,      k_win)
+    /*MODKEY(SIM_KEY_WIN_L,    SIM_KEY_WIN_R,      k_win)*/
 #define SPCLKEY(K, LC, UC)  \
     case K:                                                 \
         if (kev->state != SIM_KEYPRESS_UP)                  \
