@@ -11,6 +11,9 @@ if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   message(FATAL_ERROR "Preventing in-tree source build.")
 endif ()
 
+include(CheckCSourceCompiles)
+include(CheckCCompilerFlag)
+
 cmake_minimum_required(VERSION 3.10)
 
 set(SIMH_VERSION "4.0.0")
@@ -111,6 +114,17 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     # add_compile_options("-m32")
     # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -m32")
 endif (WIN32)
+
+# Tweak GNU's flags
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+  include(fpintrin)
+  if (NOT "${CMAKE_C_FLAGS_RELEASE}" MATCHES ".*Wall.*")
+    string(REPLACE ";" " " EXTRA_CFLAGS "${EXTRA_CFLAGS}")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall ${EXTRA_CFLAGS}"
+	CACHE STRING "Flags used by the C compiler during RELEASE builds."
+	FORCE)
+  endif ()
+endif (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 
 # Find packages, arrange for dependency download/compile/install:
 #
