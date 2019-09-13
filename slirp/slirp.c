@@ -194,8 +194,10 @@ static void slirp_init_once(void)
     loopback_mask = htonl(IN_CLASSA_NET);
 }
 
+#if 0
 static void slirp_state_save(QEMUFile *f, void *opaque);
 static int slirp_state_load(QEMUFile *f, void *opaque, int version_id);
+#endif
 
 Slirp *slirp_init(int restricted, struct in_addr vnetwork,
                   struct in_addr vnetmask, struct in_addr vhost,
@@ -943,6 +945,7 @@ void slirp_socket_recv(Slirp *slirp, struct in_addr guest_addr, int guest_port,
         tcp_output(sototcpcb(so));
 }
 
+#if 0
 static void slirp_tcp_save(QEMUFile *f, struct tcpcb *tp)
 {
     int i;
@@ -1051,7 +1054,9 @@ static void slirp_state_save(QEMUFile *f, void *opaque)
 
     slirp_bootp_save(f, slirp);
 }
+#endif
 
+#if 0
 static void slirp_tcp_load(QEMUFile *f, struct tcpcb *tp)
 {
     int i;
@@ -1200,3 +1205,4 @@ static int slirp_state_load(QEMUFile *f, void *opaque, int version_id)
 
     return 0;
 }
+#endif
