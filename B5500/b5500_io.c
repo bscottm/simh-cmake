@@ -187,7 +187,7 @@ start_io() {
      }
      chan--;
      i = 1 << chan;
-     sim_debug(DEBUG_DETAIL, &chan_dev, "strtio(%016llo %d)\n", M[addr], chan);   
+     sim_debug(DEBUG_DETAIL, &chan_dev, "strtio(%016"LL_FMT"o %d)\n", M[addr], chan);   
      D[chan] = M[addr] & D_MASK;
      CC[chan] = 0;
      W[chan] = 0;
@@ -304,7 +304,7 @@ chan_set_end(int chan) {
         IAR |= IRQ_5 << chan;
      else
         loading = 0;
-     sim_debug(DEBUG_DETAIL, &chan_dev, "endio (%016llo %o)\n", D[chan], chan);   
+     sim_debug(DEBUG_DETAIL, &chan_dev, "endio (%016"LL_FMT"o %o)\n", D[chan], chan);   
 }
 
 void
@@ -525,7 +525,7 @@ int chan_write_char(int chan, uint8 *ch, int flags) {
             uint16      addr = (uint16)(D[chan] & CORE);
                 
             M[addr] = W[chan];
-            sim_debug(DEBUG_DATA, &chan_dev, "write(%d, %05o, %016llo)\n", 
+            sim_debug(DEBUG_DATA, &chan_dev, "write(%d, %05o, %016"LL_FMT"o)\n", 
                         chan, addr, W[chan]);   
         
             if (chan_advance(chan)) 
@@ -554,7 +554,7 @@ int chan_write_char(int chan, uint8 *ch, int flags) {
                 uint16      addr = (uint16)(D[chan] & CORE);
 
                 M[addr] = W[chan];
-                sim_debug(DEBUG_DATA, &chan_dev, "writef(%d, %05o, %016llo)\n",
+                sim_debug(DEBUG_DATA, &chan_dev, "writef(%d, %05o, %016"LL_FMT"o)\n",
                          chan, addr, W[chan]);   
                 (void)chan_advance(chan);
                 W[chan] = 0;
@@ -586,7 +586,7 @@ int chan_read_char(int chan, uint8 *ch, int flags) {
             uint16      addr = (uint16)(D[chan] & CORE);
             if (chan_advance(chan))
                 return 1;
-            sim_debug(DEBUG_DATA, &chan_dev, "read(%d, %05o, %016llo)\n", chan,
+            sim_debug(DEBUG_DATA, &chan_dev, "read(%d, %05o, %016"LL_FMT"o)\n", chan,
                  addr, W[chan]);   
         }
 
