@@ -1109,5 +1109,6 @@ return "VCB01 Monochrome Graphics Adapter";
 }
 
 #else /* defined(VAX_620) */
+/* Needed by some baroque compiler? */
 static const char *dummy_declaration = "Something to compile";
 #endif /* !defined(VAX_620) */

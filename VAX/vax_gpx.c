@@ -188,7 +188,7 @@ void va_erase (uint32 x0, uint32 x1, uint32 y0, uint32 y1);
 
 void va_adpstat (uint32 set, uint32 clr)
 {
-uint32 chg = (va_adp[ADP_STAT] ^ set) & set;
+/* uint32 chg = (va_adp[ADP_STAT] ^ set) & set; */
 
 if (va_adp[ADP_INT] & set)                              /* unmasked ints 0->1? */
     va_setint (INT_ADP);
@@ -1696,7 +1696,7 @@ sim_debug (DBG_ROP, gpx_dev, "\n");
 
 t_stat va_ptb (UNIT *uptr, t_bool zmode)
 {
-uint32 val, sc;
+uint32 val = 0, sc;
 t_bool clip;
 
 if ((uptr->CMD != CMD_PTBX) && (uptr->CMD != CMD_PTBZ))
@@ -1759,7 +1759,7 @@ return SCPE_OK;
 
 t_stat va_btp (UNIT *uptr, t_bool zmode)
 {
-uint32 val, sc;
+uint32 val = 0, sc = 0;
 
 if ((uptr->CMD != CMD_BTPX) && (uptr->CMD != CMD_BTPZ))
     return SCPE_OK;
@@ -1863,5 +1863,8 @@ return SCPE_OK;
 }
 
 #else /* defined(VAX_620) */
+#ifndef __GNUC__
+/* Needed by some baroque compiler? */
 static const char *dummy_declaration = "Something to compile";
+#endif
 #endif /* !defined(VAX_620) */

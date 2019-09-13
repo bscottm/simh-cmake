@@ -373,7 +373,7 @@ va_dga_fifo_sz++;
 
 uint32 va_dga_fifo_rd (void)
 {
-uint32 val, wc, bc, r;
+uint32 val, wc, bc;
 
 if (va_dga_fifo_sz == 0) {                              /* reading empty fifo */
     if (va_dga_count > 0) {                             /* DMA in progress? */
@@ -385,7 +385,7 @@ if (va_dga_fifo_sz == 0) {                              /* reading empty fifo */
                 if (bc > (VA_DGA_FIFOSIZE << 1))        /* limit to size of FIFO */
                     bc = (VA_DGA_FIFOSIZE << 1);
                 wc = bc >> 1;                           /* bytes -> words */
-                r = Map_ReadW (va_dga_addr, bc, &va_ram[VA_FFO_OF]);
+                (void) Map_ReadW (va_dga_addr, bc, &va_ram[VA_FFO_OF]);
                                                         /* do the DMA */
                 va_dga_fifo_sz = wc;
                 va_dga_fifo_wp = wc;
@@ -481,7 +481,7 @@ return data;
 void va_dga_wr (int32 pa, int32 val, int32 lnt)
 {
 int32 rg = (pa >> 1) & 0xFF;
-uint32 addr = VA_FFO_OF;
+/*uint32 addr = VA_FFO_OF;*/
 
 if (rg <= DGA_MAXREG)
     sim_debug (DBG_DGA, &va_dev, "dga_wr: %s, %X from PC %08X\n", va_dga_rgd[rg], val, fault_PC);
@@ -552,7 +552,7 @@ int32 va_mem_rd (int32 pa)
 {
 int32 rg = (pa >> 1) & 0x7FFF;
 int32 data;
-UNIT *uptr = &va_dev.units[0];
+/*UNIT *uptr = &va_dev.units[0];*/
 uint16 *qr = (uint16*) vax_vcb02_bin;
 
 if (rg >= VA_RSV_OF) {
@@ -1001,7 +1001,7 @@ return SCPE_OK;
 
 t_stat va_dmasvc (UNIT *uptr)
 {
-uint32 wc, bc, i, r;
+uint32 wc, bc, i;
 
 if (GET_MODE (va_dga_csr) == MODE_HALT)
     return SCPE_OK;
@@ -1015,7 +1015,7 @@ while (va_dga_count > 0) {
     switch (GET_MODE (va_dga_csr)) {
 
         case MODE_PTB:
-            r = Map_ReadW (va_dga_addr, bc, &va_ram[VA_FFO_OF]);
+            (void) Map_ReadW (va_dga_addr, bc, &va_ram[VA_FFO_OF]);
             va_dga_count -= bc;
             va_dga_addr += bc;
             for (i = 0; i < wc; i++) {
@@ -1053,13 +1053,13 @@ while (va_dga_count > 0) {
                     va_ram[VA_FFO_OF + i] = va_fifo_rd ();
                     }
                 }
-            r = Map_WriteW (va_dga_addr, bc, &va_ram[VA_FFO_OF]);
+            (void) Map_WriteW (va_dga_addr, bc, &va_ram[VA_FFO_OF]);
             va_dga_count -= bc;
             va_dga_addr += bc;
             break;
 
         case MODE_DL:
-            r = Map_ReadW (va_dga_addr, bc, &va_ram[VA_FFO_OF]);
+            (void) Map_ReadW (va_dga_addr, bc, &va_ram[VA_FFO_OF]);
             va_dga_count -= bc;
             va_dga_addr += bc;
             for (i = 0; i < wc; i++)
@@ -1231,5 +1231,6 @@ return "VCB02 Colour Graphics Adapter";
 }
 
 #else /* defined(VAX_620) */
+/* Needed by some baroque compiler? */
 static const char *dummy_declaration = "Something to compile";
 #endif /* !defined(VAX_620) */

@@ -98,7 +98,7 @@ extern int32 eval_int (void);
 
 int32 op_cis (int32 *op, int32 cc, int32 opc, int32 acc)
 {
-int32 i, j, c, t, pop, rpt, V;
+int32 i, j, c, t, pop, rpt = 0, V;
 int32 match, fill, sign, shift;
 int32 ldivd, ldivr;
 int32 lenl, lenp;
@@ -1217,7 +1217,7 @@ return cc;
 
 int32 ReadDstr (int32 lnt, int32 adr, DSTR *src, int32 acc)
 {
-int32 c, i, end, t;
+int32 c, i, end, t = 0;
 
 *src = Dstr_zero;                                       /* clear result */
 end = lnt / 2;                                          /* last byte */

@@ -56,7 +56,9 @@ t_stat mctl_wrreg (int32 val, int32 pa, int32 mode);
    mctlx_reg    MCTLx register list
 */
 
-DIB mctl0_dib[] = { TR_MCTL0, 0, &mctl_rdreg, &mctl_wrreg, 0 };
+DIB mctl0_dib[] = {
+    { TR_MCTL0, 0, &mctl_rdreg, &mctl_wrreg, 0 }
+};
 
 UNIT mctl0_unit = { UDATA (NULL, 0, 0) };
 
@@ -72,7 +74,9 @@ MTAB mctl0_mod[] = {
     { 0 }
     };
 
-DIB mctl1_dib[] = { TR_MCTL1, 0, &mctl_rdreg, &mctl_wrreg, 0 };
+DIB mctl1_dib[] = {
+    { TR_MCTL1, 0, &mctl_rdreg, &mctl_wrreg, 0 }
+};
 
 UNIT mctl1_unit = { UDATA (NULL, 0, 0) };
 
@@ -113,7 +117,7 @@ DEVICE mctl_dev[] = {
 t_stat mctl_rdreg (int32 *val, int32 pa, int32 lnt)
 {
 int32 mctl, ofs;
-t_bool extmem = MEMSIZE > MAXMEMSIZE;
+/*t_bool extmem = MEMSIZE > MAXMEMSIZE;*/
 
 mctl = NEXUS_GETNEX (pa) - TR_MCTL0;                    /* get mctl num */
 ofs = NEXUS_GETOFS (pa);                                /* get offset */
@@ -157,10 +161,18 @@ return SCPE_OK;
 
 t_stat mctl_wrreg (int32 val, int32 pa, int32 lnt)
 {
-int32 mctl, ofs;
-t_bool extmem = MEMSIZE > MAXMEMSIZE;
+int32 ofs;
+#if 0
+/* Value is never used. */
+int32 r;
+#endif
+/*t_bool extmem = MEMSIZE > MAXMEMSIZE;*/
 
-mctl = NEXUS_GETNEX (pa) - TR_MCTL0;                    /* get mctl num */
+#if 0
+/* Never used. */
+r = NEXUS_GETNEX (pa) - TR_MCTL0;                       /* get mctl num */
+#endif
+
 ofs = NEXUS_GETOFS (pa);                                /* get offset */
 switch (ofs) {
 

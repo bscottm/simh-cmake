@@ -988,7 +988,7 @@ return SCPE_OK;
 int32 fl_rd (int32 pa)
 {
 int32 rg = (pa >> 1) & 0xF;
-int32 val;
+int32 val = 0;
 
 switch (rg) {
 
@@ -1205,8 +1205,6 @@ return FALSE;
 
 t_stat fl_reset (DEVICE *dptr)
 {
-extern int32 sys_model;
-
 fl_ecode = 0;                                           /* clear error */
 fl_sector = 0;                                          /* clear addr */
 fl_track = 0;

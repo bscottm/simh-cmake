@@ -102,7 +102,9 @@ extern void cpu_start (int32 cpu, uint32 addr);
    kax_reg      KAx register list
 */
 
-DIB ka0_dib[] = { TR_KA0, 0, &ka_rdreg, &ka_wrreg, 0 };
+DIB ka0_dib[] = {
+    { TR_KA0, 0, &ka_rdreg, &ka_wrreg, 0, 0, 0, { NULL, }, 0, 0, NULL }
+};
 
 UNIT ka0_unit = { UDATA (&ka_svc, 0, 0) };
 
@@ -116,7 +118,9 @@ MTAB ka0_mod[] = {
     { 0 }
     };
 
-DIB ka1_dib[] = { TR_KA1, 0, &ka_rdreg, &ka_wrreg, 0 };
+DIB ka1_dib[] = {
+    { TR_KA1, 0, &ka_rdreg, &ka_wrreg, 0, 0, 0, { NULL, }, 0, 0, NULL }
+};
 
 UNIT ka1_unit = { UDATA (&ka_svc, 0, 0) };
 
@@ -151,7 +155,7 @@ DEVICE ka_dev[] = {
 t_stat ka_rdreg (int32 *val, int32 pa, int32 lnt)
 {
 int32 ka, ofs;
-t_bool extmem = MEMSIZE > MAXMEMSIZE;
+/*t_bool extmem = MEMSIZE > MAXMEMSIZE;*/
 
 ka = NEXUS_GETNEX (pa) - TR_KA0;                        /* get CPU num */
 ofs = NEXUS_GETOFS (pa);                                /* get offset */
@@ -194,7 +198,7 @@ return SCPE_OK;
 t_stat ka_wrreg (int32 val, int32 pa, int32 lnt)
 {
 int32 ka, ofs;
-t_bool extmem = MEMSIZE > MAXMEMSIZE;
+/*t_bool extmem = MEMSIZE > MAXMEMSIZE;*/
 
 ka = NEXUS_GETNEX (pa) - TR_KA0;                        /* get CPU num */
 ofs = NEXUS_GETOFS (pa);                                /* get offset */
@@ -280,9 +284,11 @@ void rxcd_wr (int32 val)
 {
 int32 cpu = (val >> 8) & 7;
 int32 ch = val & 0xFF;
+#if defined (VAX_MP)
 int32 rg;
 int32 rval;
 t_stat r;
+#endif
 char conv[10];
 
 if (ka_rxcd[cpu] & 0x8000) {                            /* busy? */
@@ -297,10 +303,12 @@ switch (ch) {
         printf (">>> %s\n", &rxcd_ibuf[0]);
         if (rxcd_ibuf[0] == 'D') {                      /* DEPOSIT */
             snprintf (&conv[0], 2, "%s", &rxcd_ibuf[4]);
-            rg = (int32)get_uint (&conv[0], 16, 0xF, &r); /* get register number */
-            snprintf (&conv[0], 9, "%s", &rxcd_ibuf[6]);
-            rval = (int32)get_uint (&conv[0], 16, 0xFFFFFFFF, &r); /* get deposit value */
 #if defined (VAX_MP)
+            rg = (int32)get_uint (&conv[0], 16, 0xF, &r); /* get register number */
+#endif
+            snprintf (&conv[0], 9, "%s", &rxcd_ibuf[6]);
+#if defined (VAX_MP)
+            rval = (int32)get_uint (&conv[0], 16, 0xFFFFFFFF, &r); /* get deposit value */
             cpu_setreg (cpu, rg, rval);
 #endif
             rxcd_count = 3;                             /* ready for next cmd */
@@ -314,8 +322,8 @@ switch (ch) {
             }
         else if (rxcd_ibuf[0] == 'S') {                 /* START */
             snprintf (&conv[0], 9, "%s", &rxcd_ibuf[2]);
-            rval = (int32)get_uint (&conv[0], 16, 0xFFFFFFFF, &r);
 #if defined (VAX_MP)
+            rval = (int32)get_uint (&conv[0], 16, 0xFFFFFFFF, &r);
             cpu_start (cpu, rval);
 #endif
             }

@@ -1281,7 +1281,7 @@ t_bool updated = FALSE;                                 /* flag for refresh */
 uint32 lines;
 uint32 ln, col, off;
 uint32 i, c;
-uint32 rg, val;
+uint32 rg = 0, val = 0;
 
 for (i = 0; i < 4; i++) {
     if (tbc_csr & TBC_CSR_FIFOEN(i)) {

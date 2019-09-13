@@ -304,7 +304,7 @@ void xs_process_receive(CTLR* xs)
 {
 uint8 b0, b1, b2, b3;
 uint32 segb, ba;
-int slen, wlen, off;
+int slen, wlen, off = 0;
 t_stat rstatus, wstatus;
 ETH_ITEM* item = 0;
 int no_buffers = xs->var->csr0 & CSR0_MISS;
@@ -453,7 +453,7 @@ while (xs->var->ReadQ.count > 0) {
 void xs_process_transmit (CTLR* xs)
 {
 uint32 segb, ba;
-int slen, wlen, off, giant, runt;
+int slen, wlen, off = 0, giant = 0, runt = 0;
 t_stat rstatus, wstatus;
 
 /* sim_debug(DBG_TRC, xs->dev, "xs_process_transmit()\n"); */
@@ -488,21 +488,21 @@ for (;;) {
     if (xs->var->txhdr[1] & TXR_STF) {
         memset(&xs->var->write_buffer, 0, sizeof(ETH_PACK));
         off = giant = runt = 0;
-        }
+    }
 
     /* get packet data from host */
     if (xs->var->write_buffer.len + slen > ETH_MAX_PACKET) {
         wlen = ETH_MAX_PACKET - xs->var->write_buffer.len;
         giant = 1;
-        }
+    }
     if (wlen > 0) {
         rstatus = XS_READB(segb, wlen, &xs->var->write_buffer.msg[off]);
         if (rstatus) {
             /* tell host bus read failed */
             xs->var->csr0 |= CSR0_MERR;
             break;
-            }
-        }
+	}
+    }
     off += wlen;
     xs->var->write_buffer.len += wlen;
 

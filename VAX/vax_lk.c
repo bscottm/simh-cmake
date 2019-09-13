@@ -291,7 +291,7 @@ fifo->count = 0;
 void lk_cmd ()
 {
 int32 i, group, mode;
-uint8 data;
+uint8 data = 0;
 
 lk_get_fifo (&lk_rcvf, &data);
 
@@ -861,5 +861,6 @@ return "  VCB01 - LK Keyboard interface";
 }
 
 #else /* defined(VAX_620) */
+/* Needed by some baroque compiler? */
 static const char *dummy_declaration = "Something to compile";
 #endif /* !defined(VAX_620) */

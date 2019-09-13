@@ -329,10 +329,8 @@ int32 rz_rd (int32 pa)
 int32 ctlr = (pa >> 8) & 1;
 CTLR *rz = rz_ctxmap[ctlr];
 DEVICE *dptr = rz_devmap[ctlr];
-UNIT *uptr = dptr->units + RZ_CTLR;
 int32 rg = (pa >> 2) & 0x1F;
 int32 data = 0;
-int32 len;
 
 if (dptr->flags & DEV_DIS)                              /* disabled? */
     return 0;
@@ -343,7 +341,7 @@ switch (rg) {
         if ((rz->icmd & ICMD_ENOUT) || (rz->icmd & ICMD_AIP)) /* initiator controlling bus */
             data = rz->odata;
         else if (rz->bus.target >= 0) {
-            len = scsi_read (&rz->bus, &rz->cdata, 0);  /* receive current byte */
+            (void) scsi_read (&rz->bus, &rz->cdata, 0);  /* receive current byte */
             data = rz->cdata;
             }
         else {                                          /* bus idle */
@@ -389,7 +387,7 @@ switch (rg) {
             if (rz->icmd & ICMD_ENOUT)
                 data = data | (rz_parity (rz->odata, 1));
             else if (rz->bus.target >= 0) {
-                len = scsi_read (&rz->bus, &rz->cdata, 0);  /* receive current byte */
+                (void) scsi_read (&rz->bus, &rz->cdata, 0);  /* receive current byte */
                 data = data | (rz_parity (rz->cdata, 1));
                 }
             }
@@ -412,7 +410,7 @@ switch (rg) {
 
     case 6:                                             /* SCS_IN_DATA */
         if (rz->bus.target >= 0) {                      /* target selected? */
-            len = scsi_read (&rz->bus, &rz->cdata, 0);  /* receive current byte */
+            (void) scsi_read (&rz->bus, &rz->cdata, 0);  /* receive current byte */
             data = rz->cdata;
             }
         else data = 0;
@@ -605,7 +603,6 @@ return odd;
 
 void rz_ack (CTLR *rz)
 {
-uint32 len;
 uint32 old_phase;
 
 old_phase = rz->bus.phase;
@@ -623,7 +620,7 @@ switch (rz->bus.phase) {
     case PH_DATA_IN:
     case PH_STATUS:
     case PH_MSG_IN:
-        len = scsi_read (&rz->bus, &rz->cdata, 1);      /* receive next byte */
+        (void) scsi_read (&rz->bus, &rz->cdata, 1);     /* receive next byte */
         break;
         }
 if (old_phase != rz->bus.phase)                         /* new phase? */

@@ -84,6 +84,8 @@
 #define TXDB_SEL        (TXDB_M_SEL << TXDB_V_SEL)      /* non-terminal */
 #define TXDB_GETSEL(x)  (((x) >> TXDB_V_SEL) & TXDB_M_SEL)
 
+#if 0
+/* Never referenced */
 static BITFIELD rx_csr_bits[] = {
     BITNCF(6),                          /* unused */
     BIT(IE),                            /* Interrupt Enable */
@@ -92,6 +94,7 @@ static BITFIELD rx_csr_bits[] = {
     ENDBITS
 };
 
+/* Never referenced */
 static BITFIELD rx_buf_bits[] = {
     BITF(DAT,8),                        /* data buffer */
     BITNCF(5),                          /* unused */
@@ -101,6 +104,7 @@ static BITFIELD rx_buf_bits[] = {
     ENDBITS
 };
 
+/* Never referenced */
 static BITFIELD tx_csr_bits[] = {
     BIT(XBR),                           /* Break */
     BITNC,                              /* unused */
@@ -112,11 +116,13 @@ static BITFIELD tx_csr_bits[] = {
     ENDBITS
 };
 
+/* Never referenced */
 static BITFIELD tx_buf_bits[] = {
     BITF(DAT,8),                        /* data buffer */
     BITNCF(8),                          /* unused */
     ENDBITS
 };
+#endif
 
 
 /* Clock definitions */
