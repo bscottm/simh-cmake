@@ -325,7 +325,7 @@ for (i = 0; i < 80; i++) {
             rbuf[i] == '\r' ||
             rbuf[i] == 0x00)
              rbuf[i] = ' ';
-        rbuf[i] = ascii_to_ebcdic[rbuf[i]];             /* convert to EBCDIC */
+        rbuf[i] = ascii_to_ebcdic[(size_t) rbuf[i]];    /* convert to EBCDIC */
     }   
     PutMem(DAR, rbuf[i]);                               /* Copy to main memory */
     DAR++;
@@ -346,7 +346,7 @@ int32 i;
 if (s2sel) uptr = &stack_unit[0];                       /* stacker 1? */
 else uptr = &stack_unit[0];                             /* then default */
 if ((uptr -> flags & UNIT_ATT) == 0) return SCPE_OK;    /* attached? */
-for (i = 0; (size_t)i < CDR_WIDTH; i++) rbuf[i] = ebcdic_to_ascii[rbuf[i]];
+for (i = 0; (size_t)i < CDR_WIDTH; i++) rbuf[i] = ebcdic_to_ascii[(size_t) rbuf[i]];
 for (i = CDR_WIDTH - 1; (i >= 0) && (rbuf[i] == ' '); i--) rbuf[i] = 0;
 rbuf[CDR_WIDTH] = 0;                                    /* null at end */
 fputs (rbuf, uptr -> fileref);                          /* write card */

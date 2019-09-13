@@ -200,12 +200,12 @@ int32 dsk2 (int32 op, int32 m, int32 n, int32 data)
 int32 dsk (int32 disk, int32 op, int32 m, int32 n, int32 data)
 {
     int32 iodata, i, j, u, sect, nsects, addr, r, c, res;
-    int32 F, C, S, N, usave;
-    UNIT *uptr;
+    int32 /*F,*/ C, S, N, usave;
+    UNIT *uptr = NULL;                                  /* Initialize it to something. */
     
     u = m;
     if (disk == 1) u += 2;
-    F = GetMem(DCAR[disk]+0);                           /* Flag bits */
+    /*F = GetMem(DCAR[disk]+0);                          * Flag bits */
     C = GetMem(DCAR[disk]+1);                           /* Cylinder */
     S = GetMem(DCAR[disk]+2);                           /* Sector */
     N = GetMem(DCAR[disk]+3);                           /* Number of sectors */

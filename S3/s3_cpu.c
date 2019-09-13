@@ -506,7 +506,7 @@ register int32 PC, IR;
 int32 i, j, carry, zero, op1, op2;
 int32 opcode = 0, qbyte = 0, rbyte = 0;
 int32 opaddr, addr1, addr2, dlen1, dlen2, r;
-int32 int_savelevel = 8, intpri, intlev, intdev, intmask;
+int32 int_savelevel = 8, intpri, intlev, intdev = 0, intmask;
 int32 devno, devm, devn;
 char display[3][9];
 int32 val [32];

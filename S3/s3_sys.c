@@ -505,10 +505,10 @@ return -(oplen - 1);
 
 t_stat parse_sym (CONST char *cptr, t_addr addr, UNIT *uptr, t_value *val, int32 sw)
 {
-int32 cflag, i = 0, j, r, oplen, addtyp, saveaddr, vptr;
+int32 /*cflag,*/ i = 0, j, r, oplen, addtyp, saveaddr, vptr;
 char gbuf[CBUFSIZE];
 
-cflag = (uptr == NULL) || (uptr == &cpu_unit);
+/*cflag = (uptr == NULL) || (uptr == &cpu_unit);*/
 while (isspace (*cptr)) cptr++;                         /* absorb spaces */
 if ((sw & SWMASK ('A')) || ((*cptr == '\'') && cptr++)) { /* ASCII char? */
     if (cptr[0] == 0) return SCPE_ARG;                  /* must have 1 char */
