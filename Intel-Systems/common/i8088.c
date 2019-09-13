@@ -228,7 +228,9 @@ BORROW CHAIN CALCULATION.
 #define CLR_FLAG(FLAG)      (PSW &= ~FLAG)
 #define GET_FLAG(FLAG)      (PSW & FLAG)
 #define CONDITIONAL_SET_FLAG(COND,FLAG) \
-    if (COND) SET_FLAG(FLAG); else CLR_FLAG(FLAG)
+    do { \
+        if (COND) SET_FLAG(FLAG); else CLR_FLAG(FLAG); \
+    } while (0)
 
 /* union of byte and word registers */
 union   {                       
@@ -581,7 +583,7 @@ int32 sim_instr (void)
 {
     extern int32 sim_interval;
     uint32 IR, OP, reason;
-    uint32 MRR, REG, EA, MOD, RM, VAL, DATA, OFF, SEG, INC, VAL1;
+    uint32 MRR, REG, EA = 0, MOD, RM, VAL = 0, DATA = 0, OFF, SEG, INC, VAL1;
 
     IP = saved_PC & ADDRMASK16;         /* load local IP */
     reason = 0;                         /* clear stop reason */
@@ -4743,9 +4745,9 @@ t_stat sim_load (FILE *fileref, const char *cptr, const char *fnam, int flag)
 t_stat fprint_sym (FILE *of, t_addr addr, t_value *val,
     UNIT *uptr, int32 sw)
 {
-    int32 cflag, c1, c2, inst, adr;
+    int32 /*cflag,*/ c1, c2, inst, adr;
 
-    cflag = (uptr == NULL) || (uptr == &i8088_unit);
+    /*cflag = (uptr == NULL) || (uptr == &i8088_unit);*/
     c1 = (val[0] >> 8) & 0177;
     c2 = val[0] & 0177;
     if (sw & SWMASK ('A')) {
@@ -4791,11 +4793,11 @@ t_stat fprint_sym (FILE *of, t_addr addr, t_value *val,
 
 t_stat parse_sym (const char *cptr, t_addr addr, UNIT *uptr, t_value *val, int32 sw)
 {
-    int32 cflag, i = 0, j, r;
+    int32 /*cflag,*/ i = 0, j, r;
     char gbuf[CBUFSIZE];
 
     memset (gbuf, 0, sizeof (gbuf));
-    cflag = (uptr == NULL) || (uptr == &i8088_unit);
+    /*cflag = (uptr == NULL) || (uptr == &i8088_unit);*/
     while (isspace (*cptr)) cptr++;                         /* absorb spaces */
     if ((sw & SWMASK ('A')) || ((*cptr == '\'') && cptr++)) { /* ASCII char? */
         if (cptr[0] == 0) return SCPE_ARG;                  /* must have 1 char */

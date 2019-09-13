@@ -427,7 +427,7 @@ void i8237_reset1(void)
 {
     int32 i;
     UNIT *uptr;
-    static int flag = 1;
+    /*static int flag = 1;*/
 
     for (i = 0; i < 1; i++) {     /* handle all units */
         uptr = i8237_dev.units + i;

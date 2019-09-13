@@ -1270,9 +1270,9 @@ int32 sim_load (FILE *fileref, CONST char *cptr, CONST char *fnam, int flag)
 t_stat fprint_sym (FILE *of, t_addr addr, t_value *val,
     UNIT *uptr, int32 sw)
 {
-    int32 cflag, c1, c2, inst, adr;
+    int32 /*cflag,*/ c1, c2, inst, adr;
 
-    cflag = (uptr == NULL) || (uptr == &i8080_unit);
+    /*cflag = (uptr == NULL) || (uptr == &i8080_unit);*/
     c1 = (val[0] >> 8) & 0x7F;
     c2 = val[0] & 0x7F;
     if (sw & SWMASK ('A')) {
@@ -1317,11 +1317,11 @@ t_stat fprint_sym (FILE *of, t_addr addr, t_value *val,
 
 t_stat parse_sym (CONST char *cptr, t_addr addr, UNIT *uptr, t_value *val, int32 sw)
 {
-    int32 cflag, i = 0, j, r;
+    int32 /*cflag,*/ i = 0, j, r;
     char gbuf[CBUFSIZE];
 
     memset (gbuf, 0, sizeof (gbuf));
-    cflag = (uptr == NULL) || (uptr == &i8080_unit);
+    /*cflag = (uptr == NULL) || (uptr == &i8080_unit);*/
     while (isspace (*cptr)) cptr++;                         /* absorb spaces */
     if ((sw & SWMASK ('A')) || ((*cptr == '\'') && cptr++)) { /* ASCII char? */
         if (cptr[0] == 0) return SCPE_ARG;                  /* must have 1 char */
