@@ -1795,9 +1795,10 @@ if (hst_lnt)                                            /* if history */
     inst_hist (IR, PC, H_ITRP);                         /* record inst */
 if ((acc || QCPU_S567)?                                 /* virt or S5-7? */
     (Ea (IR, &bva, acc, lnt) != 0):                     /* get eff addr */
-    (EaP20 (IR, &bva, lnt) != 0))                       /* get real addr */
+    (EaP20 (IR, &bva, lnt) != 0)) {                     /* get real addr */
     return TR_NESTED;
-
+    }
+    
     switch (lnt) {
     case BY:
         if (ReadB (bva, &wd, acc) != 0)                 /* read byte */
