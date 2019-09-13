@@ -334,8 +334,9 @@ void sim_debug_unit (uint32 dbits, DEVICE* dptr, const char *fmt, ...) GCC_FMT_A
 #else
 void _sim_debug_unit (uint32 dbits, UNIT *uptr, const char* fmt, ...) GCC_FMT_ATTR(3, 4);
 void _sim_debug_device (uint32 dbits, DEVICE* dptr, const char* fmt, ...) GCC_FMT_ATTR(3, 4);
-#define sim_debug(dbits, dptr, ...) do { if (sim_deb && dptr && ((dptr)->dctrl & (dbits))) _sim_debug_device (dbits, dptr, __VA_ARGS__);} while (0)
-#define sim_debug_unit(dbits, uptr, ...) do { if (sim_deb && uptr && (((uptr)->dctrl | (uptr)->dptr->dctrl) & (dbits))) _sim_debug_unit (dbits, uptr, __VA_ARGS__);} while (0)
+/* NOTE: sim_debug and sim_debug_unit are always called with a non-NULL object */
+#define sim_debug(dbits, dptr, ...) do { if (sim_deb && /*dptr &&*/ ((dptr)->dctrl & (dbits))) _sim_debug_device (dbits, dptr, __VA_ARGS__);} while (0)
+#define sim_debug_unit(dbits, uptr, ...) do { if (sim_deb && /*uptr &&*/ (((uptr)->dctrl | (uptr)->dptr->dctrl) & (dbits))) _sim_debug_unit (dbits, uptr, __VA_ARGS__);} while (0)
 #endif
 void sim_flush_buffered_files (void);
 
@@ -430,7 +431,7 @@ extern const char **sim_clock_precalibrate_commands;
 
 #define SIM_TEST_INIT                                           \
         int test_stat;                                          \
-        const char *sim_test;                                   \
+        const char *sim_test = "unspecified";                   \
         jmp_buf sim_test_env;                                   \
         if ((test_stat = setjmp (sim_test_env))) {              \
             sim_printf ("Error: %d - '%s' processing: %s\n",    \
