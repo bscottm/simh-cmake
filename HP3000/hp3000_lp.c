@@ -1565,8 +1565,9 @@ while (working_set) {
         case TOGGLESIOOK:
             TOGGLE (sio_busy);                          /* set or clear the SIO busy flip-flop */
 
-            if (sio_busy == CLEAR)
+            if (sio_busy == CLEAR) {
                 dprintf (lp_dev, DEB_CSRW, "Channel program ended\n");
+	    }
             break;
 
 
@@ -1997,8 +1998,8 @@ if (status_mask & ST_DEVIRQ_MASK) {                         /* if a status inter
         outbound_signals |= set_interrupt (ST_ST10_IRQ);    /*     then set the status 10 interrupt flip-flop */
     }
 
-dev_status_word = dev_status_word & ~status_mask            /* clear the old device status */
-                    | new_status_word & status_mask;        /*   and set the new status */
+dev_status_word = (dev_status_word & ~status_mask)          /* clear the old device status */
+                    | (new_status_word & status_mask);      /*   and set the new status */
 
 return outbound_signals;                                    /* return INTREQ if any interrupts were requested */
 }
@@ -2184,7 +2185,7 @@ do {                                                    /* run the sequencer as 
     if (sequencer < Device_Command_2                    /* if this is the first byte */
       && control_word & CN_BYTE_XFER                    /*   of a byte transfer */
       && (J2W7_INSTALLED || write_xfer))                /*     and W7 is installed or it's a write transfer */
-        data_out = write_word & ~D8_MASK                /*       then the upper 8 bits appear */
+        data_out = (write_word & ~D8_MASK)              /*       then the upper 8 bits appear */
                       | UPPER_BYTE (write_word);        /*         in both bytes */
     else                                                /* otherwise */
         data_out = write_word;                          /*   the full 16 bits appear */
@@ -2211,7 +2212,7 @@ do {                                                    /* run the sequencer as 
 
 
         case Device_Command_1:
-            if (device_end_in)                          /* if external device end asserts */
+            if (device_end_in) {                        /* if external device end asserts */
                 if (read_xfer || write_xfer) {          /*   then if a transfer is in progress */
                     device_end = SET;                   /*     then set the Device End flip-flop to abort */
 
@@ -2228,6 +2229,7 @@ do {                                                    /* run the sequencer as 
 
                 else                                    /* otherwise no transfer is in progress */
                     device_end_in = FALSE;              /*   so clear the signal */
+	    }
 
             if (device_flag == SET) {                   /* if the device flag has been set */
                 sequencer = Device_Flag_1;              /*   then proceed to the next state */
@@ -2248,7 +2250,7 @@ do {                                                    /* run the sequencer as 
 
 
         case Device_Flag_1:
-            if (device_flag == CLEAR)                   /* if the device flag has been cleared */
+            if (device_flag == CLEAR) {                 /* if the device flag has been cleared */
                 if (control_word & CN_BYTE_XFER) {      /*   then if this is a byte transfer */
                     sequencer = Device_Command_2;       /*     then proceed to the next state */
                     device_command = SET;               /*       and assert device command for the second byte */
@@ -2268,6 +2270,7 @@ do {                                                    /* run the sequencer as 
                     if (control_word & CN_XFR_IRQ_ENABLE)               /* if a transfer interrupt is requested */
                         outbound_signals |= set_interrupt (ST_XFR_IRQ); /*   then set the transfer interrupt flip-flop */
                     }
+	    }
             break;
 
 
@@ -2303,13 +2306,14 @@ do {                                                    /* run the sequencer as 
 while (sequencer != last_state);                        /* continue as long as the sequence is progressing */
 
 
-if (DPRINTING (lp_dev, DEB_STATE))
+if (DPRINTING (lp_dev, DEB_STATE)) {
     if (sequencer != entry_state)
         hp_debug (&lp_dev, DEB_STATE, "Sequencer transitioned from the %s state to the %s state\n",
                   state_name [entry_state], state_name [sequencer]);
 
     else if (reset && device_end)
         hp_debug (&lp_dev, DEB_STATE, "Sequencer reset by device end\n");
+}
 
 if (device_sr && sio_busy)                              /* if the interface has requested service */
     outbound_signals |= SRn;                            /*   then assert SRn to the channel */
@@ -2339,9 +2343,10 @@ return outbound_signals;                                /* return the accumulate
 
 static t_stat diag_service (UNIT *uptr)
 {
-if (uptr)                                               /* trace only if this is a handshake entry */
+if (uptr) {                                             /* trace only if this is a handshake entry */
     dprintf (lp_dev, DEB_SERV, "%s state transfer service entered\n",
              state_name [sequencer]);
+}
 
 if (dha_control_word & DHA_FLAG_SEL)                    /* if in "flag follows control 6" mode */
     device_flag_in = (control_word & CN_DHA_FLAG) != 0; /*   then set the flag from control word bit 6 */
@@ -2391,8 +2396,8 @@ if (programmed_clear) {                                 /* if this is a programm
     }
 
 else                                                        /* otherwise this is a commanded reset */
-    dha_control_word = dha_control_word & DHA_JUMPER_MASK   /*   so refresh the DHA control word */
-                         | jumper_set;                      /*     from the jumpers */
+    dha_control_word = (dha_control_word & DHA_JUMPER_MASK) /* so refresh the DHA control word */
+                         | jumper_set;                      /* from the jumpers */
 
 return SCPE_OK;
 }
@@ -2756,9 +2761,10 @@ else if (device_flag_in == FALSE) {                     /* otherwise if STROBE h
         if (overprint_index > buffer_index)             /* if the overprinted line is longer than the current line */
             buffer_index = overprint_index;             /*   then extend the current buffer index */
 
-        if (buffer_index > 0 && format_byte != FORMAT_SUPPRESS) /* if printing will occur, then trace it */
+        if (buffer_index > 0 && format_byte != FORMAT_SUPPRESS) { /* if printing will occur, then trace it */
             dprintf (lp_dev, DEB_CMD, "Printed %u character%s on line %u\n",
                      buffer_index, (buffer_index == 1 ? "" : "s"), current_line);
+	}
 
         if (format_byte == FORMAT_SUPPRESS              /* if this is a "suppress space" request */
           && print_props [model].overprints) {          /*   and the printer is capable of overprinting */
@@ -2868,10 +2874,11 @@ else if (device_flag_in == FALSE) {                     /* otherwise if STROBE h
 
         uptr->pos = (t_addr) ftell (uptr->fileref);     /* update the file position */
 
-        if (slew_count > 0)
+        if (slew_count > 0) {
             dprintf (lp_dev, DEB_CMD, "Printer advanced %u line%s to line %u\n",
                      slew_count, (slew_count == 1 ? "" : "s"), current_line);
-        }
+	}
+    }
 
     if (ferror (uptr->fileref)) {                       /* if a host file system error occurred */
         report_error (uptr->fileref);                   /*   then report the error to the console */
@@ -3744,7 +3751,7 @@ int32 len = 0;
 while (len == 0) {
     result = fgets (line, size, vf);                    /* get the next line from the file */
 
-    if (result == NULL)                                 /* if an error occurred */
+    if (result == NULL) {                               /* if an error occurred */
         if (feof (vf))                                  /*   then if the end of file was seen */
             return 0;                                   /*     then return an EOF indication */
 
@@ -3752,6 +3759,7 @@ while (len == 0) {
             report_error (vf);                          /*     report the error to the console */
             return -1;                                  /*       and return an error indication */
             }
+    }
 
     len = strlen (line);                                /* get the current line length */
 

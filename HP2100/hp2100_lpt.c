@@ -1013,260 +1013,251 @@ return stat_data;                                       /* return the outbound s
        NULL is not required.
 */
 
-static t_stat lp_service (UNIT *uptr)
+static t_stat
+lp_service(UNIT *uptr)
 {
-const PRINTER_TYPE model = GET_MODEL (uptr->flags);             /* the printer model number */
-const t_bool       printing = ((output_word & CN_FORMAT) != 0); /* TRUE if a print command was received */
-static uint32      overprint_index = 0;                         /* the "high-water" mark while overprinting */
-uint8              data_byte, format_byte;
-uint16             channel;
-uint32             line_count, slew_count;
+    const PRINTER_TYPE model           = GET_MODEL(uptr->flags);           /* the printer model number */
+    const t_bool       printing        = ((output_word & CN_FORMAT) != 0); /* TRUE if a print command was received */
+    static uint32      overprint_index = 0;                                /* the "high-water" mark while overprinting */
+    uint8              data_byte, format_byte;
+    uint16             channel;
+    uint32             line_count, slew_count;
 
-tprintf (lpt_dev, TRACE_SERV, "Printer service entered\n");
+    tprintf(lpt_dev, TRACE_SERV, "Printer service entered\n");
 
-if (uptr->flags & UNIT_POWEROFF)                        /* if the printer power is off */
-    return SCPE_OK;                                     /*   then no action is taken */
+    if (uptr->flags & UNIT_POWEROFF) { /* if the printer power is off */
+        return SCPE_OK;                /*   then no action is taken */
+    } else {
+        if (strobe == FALSE) {    /* otherwise if STROBE has denied */
+            if (printing) {       /*   then if printing occurred */
+                buffer_index = 0; /*     then clear the buffer */
 
-else if (strobe == FALSE) {                             /* otherwise if STROBE has denied */
-    if (printing) {                                     /*   then if printing occurred */
-        buffer_index = 0;                               /*     then clear the buffer */
+                if (paper_fault) {                      /* if an out-of-paper condition is pending */
+                    if (print_props[model].fault_at_eol /*   then if the printer faults at the end of a line */
+                        || current_line == 1)           /*     or the printer is at the top of the form */
+                        return lp_detach(uptr);         /*       then complete it now with the printer offline */
+                }
 
-        if (paper_fault) {                              /* if an out-of-paper condition is pending */
-            if (print_props [model].fault_at_eol        /*   then if the printer faults at the end of a line */
-              || current_line == 1)                     /*     or the printer is at the top of the form */
-                return lp_detach (uptr);                /*       then complete it now with the printer offline */
+                else if (tape_fault) { /* otherwise if a referenced VFU channel was not punched */
+                    tprintf(lpt_dev, TRACE_CMD, "Commanded VFU channel is not punched\n");
+                    lp_set_alarm(uptr); /*   then set an alarm condition that takes the printer offline */
+                    return SCPE_OK;
+                }
+
+                else if (offline_pending) {         /* otherwise if a non-alarm offline request is pending */
+                    lp_set_locality(uptr, Offline); /*   then take the printer offline now */
+                    return SCPE_OK;
+                }
             }
 
-        else if (tape_fault) {                          /* otherwise if a referenced VFU channel was not punched */
-            tprintf (lpt_dev, TRACE_CMD, "Commanded VFU channel is not punched\n");
-            lp_set_alarm (uptr);                        /*   then set an alarm condition that takes the printer offline */
-            return SCPE_OK;
-            }
+            demand     = TRUE; /* assert DEMAND to complete the handshake */
+            uptr->wait = 0;    /*   and request immediate entry when STROBE next asserts */
 
-        else if (offline_pending) {                     /* otherwise if a non-alarm offline request is pending */
-            lp_set_locality (uptr, Offline);            /*   then take the printer offline now */
-            return SCPE_OK;
+            lp_interface(&lpt_dib, ioENF, 0); /* the flag buffer flip-flop sets on DEMAND assertion */
+        } else {
+            if (demand == TRUE) { /* otherwise if STROBE has asserted while DEMAND is asserted */
+                demand = FALSE;   /*   then deny DEMAND */
+                strobe = FALSE;   /*     which resets STROBE */
+
+                data_byte = (uint8)(output_word & DATA_MASK); /* only the lower 7 bits are sent to the printer */
+
+                if (printing == FALSE) {                      /* if loading the print buffer */
+                    if (data_byte > '_'                       /*   then if the character is "lowercase" */
+                        && print_props[model].char_set == 64) /*     but the printer doesn't support it */
+                        data_byte = data_byte - 040;          /*       then shift it to "uppercase" */
+
+                    if ((data_byte < ' ' || data_byte == DEL)  /* if the character is a control character */
+                        && print_props[model].char_set != 128) /*   but the printer doesn't support it */
+                        data_byte = ' ';                       /*     then substitute a space */
+
+                    if (buffer_index < print_props[model].line_length) { /* if there is room in the buffer */
+                        if (overprint_index == 0                         /*   then if not overprinting */
+                            || buffer_index >= overprint_index           /*     or past the current buffer limit */
+                            || buffer[buffer_index] == ' ') {            /*     or overprinting a blank */
+                            buffer[buffer_index] = data_byte;            /*       then store the character */
+                        } else {
+                            if (data_byte != ' '                      /* otherwise if we're overprinting a character */
+                                && data_byte != buffer[buffer_index]) /*   with a different character */
+                                buffer[buffer_index] =
+                                    (uint8)overprint_char; /*     then substitute the overprint character */
+                        }
+
+                        buffer_index++; /* increment the buffer index */
+
+                        uptr->wait = dlyptr->buffer_load; /* schedule the buffer load delay */
+
+                        tprintf(lpt_dev, TRACE_XFER, "Character %s sent to printer\n", fmt_char(data_byte));
+                    } else {
+                        if (print_props[model].autoprints) { /* otherwise if a buffer overflow auto-prints */
+                            tprintf(lpt_dev, TRACE_CMD, "Buffer overflow printed %u characters on line %u\n", buffer_index,
+                                    current_line);
+
+                            buffer[buffer_index++] = CR; /*   then tie off */
+                            buffer[buffer_index++] = LF; /*     the current buffer */
+
+                            fwrite(buffer, sizeof buffer[0], /* write the buffer to the printer file */
+                                   buffer_index, uptr->fileref);
+
+                            uptr->pos = (t_addr)ftell(uptr->fileref); /* update the file position */
+
+                            current_line = current_line + 1; /* move the paper one line */
+
+                            if (current_line > form_length) /* if the current line is beyond the end of the form */
+                                current_line = 1;           /*   then reset to the top of the next form */
+
+                            tprintf(lpt_dev, TRACE_CMD, "Printer advanced 1 line to line %u\n", current_line);
+
+                            overprint_index = 0; /* clear any accumulated overprint index */
+
+                            buffer[0]    = data_byte; /* store the character */
+                            buffer_index = 1;         /*   in the empty buffer */
+
+                            uptr->wait = dlyptr->print          /* schedule the print delay */
+                                         + dlyptr->advance      /*   plus the paper advance delay */
+                                         + dlyptr->buffer_load; /*   plus the buffer load delay */
+
+                            tprintf(lpt_dev, TRACE_XFER, "Character %s sent to printer\n", fmt_char(data_byte));
+                        } else {                              /* otherwise the printer discards excess characters */
+                            uptr->wait = dlyptr->buffer_load; /*   so just schedule the load delay */
+
+                            tprintf(lpt_dev, TRACE_CMD, "Buffer overflow discards character %s\n", fmt_char(data_byte));
+                        }
+                    }
+                } else { /* otherwise this is a print format command */
+                    tprintf(lpt_dev, TRACE_XFER, "Format code %03o sent to printer\n", data_byte);
+
+                    format_byte = data_byte & FORMAT_MASK; /* format commands ignore bits 5-4 */
+
+                    if (overprint_index > buffer_index) /* if the overprinted line is longer than the current line */
+                        buffer_index = overprint_index; /*   then extend the current buffer index */
+
+                    if (buffer_index > 0 && format_byte != FORMAT_SUPPRESS) { /* if printing will occur, then trace it */
+                        tprintf(lpt_dev, TRACE_CMD, "Printed %u character%s on line %u\n", buffer_index,
+                                (buffer_index == 1 ? "" : "s"), current_line);
+                    }
+
+                    if (format_byte == FORMAT_SUPPRESS      /* if this is a "suppress space" request */
+                        && print_props[model].overprints) { /*   and the printer is capable of overprinting */
+                        slew_count = 0;                     /*     then do not slew after printing */
+
+                        if (uptr->flags & UNIT_EXPAND) { /* if the printer is in expanded mode */
+                            if (buffer_index >
+                                overprint_index) /*   then if the current length exceeds the overprinted length */
+                                overprint_index = buffer_index; /*     then extend the overprinted line */
+
+                            buffer_index = 0;            /* reset the buffer index to overprint the next line */
+                        } else                           /* otherwise the printer is in compact mode */
+                            buffer[buffer_index++] = CR; /*   so overprint by emitting a CR without a LF */
+
+                        tprintf(lpt_dev, TRACE_CMD, "Printer commanded to suppress spacing on line %u\n", current_line);
+                    } else {
+                        if (format_byte & FORMAT_VFU) {               /* otherwise if this is a VFU command */
+                            if (print_props[model].vfu_channels == 8) /*   then if it's an 8-channel VFU */
+                                format_byte &= FORMAT_VFU_8_MASK;     /*     then only three bits are significant */
+
+                            channel = VFU_CHANNEL_1 >> (format_byte - FORMAT_VFU_BIAS - 1); /* set the requested channel */
+
+                            tprintf(lpt_dev, TRACE_CMD, "Printer commanded to slew to VFU channel %u from line %u\n",
+                                    format_byte - FORMAT_VFU_BIAS, current_line);
+
+                            tape_fault =
+                                (channel & VFU[0]) == 0; /* a tape fault occurs if there is no punch in this channel */
+
+                            slew_count = 0; /* initialize the slew counter */
+
+                            do {                /* the VFU always slews at least one line */
+                                slew_count++;   /* increment the slew counter */
+                                current_line++; /*   and the line counter */
+
+                                if (current_line > form_length) /* if the current line is beyond the end of the form */
+                                    current_line = 1;           /*   then reset to the top of the next form */
+                            } while (!tape_fault &&
+                                     (channel & VFU[current_line]) == 0); /* continue until a punch is seen */
+                        } else {                                          /* otherwise it must be a slew command */
+                            slew_count = format_byte;                     /*   so get the number of lines to slew */
+
+                            if (format_byte == FORMAT_SUPPRESS) /* if the printer cannot overprint */
+                                slew_count = 1;                 /*   then the paper advances after printing */
+
+                            tprintf(lpt_dev, TRACE_CMD, "Printer commanded to slew %u line%s from line %u\n", slew_count,
+                                    (slew_count == 1 ? "" : "s"), current_line);
+
+                            current_line = current_line + slew_count; /* move the current line */
+
+                            if (current_line > form_length) /* if the current line is beyond the end of the form */
+                                current_line = current_line - form_length; /*   then it extends onto the next form */
+                        }
+                    }
+
+                    if (format_byte == FORMAT_VFU_CHAN_1 /* if a TOF was requested */
+                        && !(uptr->flags & UNIT_EXPAND)  /*   and the printer is in compact mode */
+                        && slew_count > 1) {             /*     and more than one line is needed to reach the TOF */
+                        if (buffer_index > 0) {          /*       then if the buffer not empty */
+                            buffer[buffer_index++] = CR; /*         then print */
+                            buffer[buffer_index++] = LF; /*           the current line */
+                        }
+
+                        buffer[buffer_index++] = FF; /* emit a FF to move to the TOF */
+                    } else {
+                        if (slew_count > 0) {            /* otherwise a slew is needed */
+                            buffer[buffer_index++] = CR; /*   then emit a CR LF */
+                            buffer[buffer_index++] = LF; /*     to print the current line */
+
+                            line_count = slew_count; /* get the number of lines to slew */
+
+                            while (--line_count > 0) {           /* while movement is needed */
+                                if (uptr->flags & UNIT_EXPAND)   /* if the printer is in expanded mode */
+                                    buffer[buffer_index++] = CR; /*   then blank lines are CR LF pairs */
+
+                                buffer[buffer_index++] = LF; /* otherwise just LFs are used */
+                            }
+                        }
+                    }
+
+                    if (buffer_index > 0) {              /* if the buffer is not empty */
+                        fwrite(buffer, sizeof buffer[0], /*   then write it to the printer file */
+                               buffer_index, uptr->fileref);
+
+                        overprint_index = 0; /* clear any existing overprint index */
+                    }
+
+                    status_word &= ~(ST_VFU_9 | ST_VFU_12); /* assume no punches for channels 9 and 12 */
+
+                    if (print_props[model].vfu_channels > 8) { /* if the printer VFU has more than 8 channels */
+                        if (VFU[current_line] & VFU_CHANNEL_9) /*   then if channel 9 is punched for this line */
+                            status_word |= ST_VFU_9;           /*     then report it in the device status */
+
+                        if (VFU[current_line] & VFU_CHANNEL_12) /* if channel 12 is punched for this line */
+                            status_word |= ST_VFU_12;           /*   then report it in the device status */
+                    }
+
+                    if (format_byte == FORMAT_VFU_CHAN_1) /* if a TOF request was performed */
+                        fflush(uptr->fileref);            /*   then flush the file buffer for inspection */
+
+                    uptr->wait = dlyptr->print                   /* schedule the print delay */
+                                 + slew_count * dlyptr->advance; /*   plus the paper advance delay */
+
+                    uptr->pos = (t_addr)ftell(uptr->fileref); /* update the file position */
+
+                    if (slew_count > 0) {
+                        tprintf(lpt_dev, TRACE_CMD, "Printer advanced %u line%s to line %u\n", slew_count,
+                                (slew_count == 1 ? "" : "s"), current_line);
+                    }
+                }
+
+                if (ferror(uptr->fileref)) {     /* if a host file system error occurred */
+                    report_error(uptr->fileref); /*   then report the error to the console */
+
+                    lp_set_alarm(uptr);      /* set an alarm condition */
+                    return SCPE_IOERR;       /*   and stop the simulator */
+                } else                       /* otherwise the write succeeded */
+                    activate_unit(lpt_unit); /*   so schedule the DEMAND reassertion */
             }
         }
-
-    demand = TRUE;                                      /* assert DEMAND to complete the handshake */
-    uptr->wait = 0;                                     /*   and request immediate entry when STROBE next asserts */
-
-    lp_interface (&lpt_dib, ioENF, 0);                  /* the flag buffer flip-flop sets on DEMAND assertion */
     }
 
-else if (demand == TRUE) {                              /* otherwise if STROBE has asserted while DEMAND is asserted */
-    demand = FALSE;                                     /*   then deny DEMAND */
-    strobe = FALSE;                                     /*     which resets STROBE */
-
-    data_byte = (uint8) (output_word & DATA_MASK);      /* only the lower 7 bits are sent to the printer */
-
-    if (printing == FALSE) {                            /* if loading the print buffer */
-        if (data_byte > '_'                             /*   then if the character is "lowercase" */
-          && print_props [model].char_set == 64)        /*     but the printer doesn't support it */
-            data_byte = data_byte - 040;                /*       then shift it to "uppercase" */
-
-        if ((data_byte < ' ' || data_byte == DEL)       /* if the character is a control character */
-          && print_props [model].char_set != 128)       /*   but the printer doesn't support it */
-            data_byte = ' ';                            /*     then substitute a space */
-
-        if (buffer_index < print_props [model].line_length) {   /* if there is room in the buffer */
-            if (overprint_index == 0                            /*   then if not overprinting */
-              || buffer_index >= overprint_index                /*     or past the current buffer limit */
-              || buffer [buffer_index] == ' ')                  /*     or overprinting a blank */
-                buffer [buffer_index] = data_byte;              /*       then store the character */
-
-            else if (data_byte != ' '                           /* otherwise if we're overprinting a character */
-              && data_byte != buffer [buffer_index])            /*   with a different character */
-                buffer [buffer_index] = (uint8) overprint_char; /*     then substitute the overprint character */
-
-            buffer_index++;                             /* increment the buffer index */
-
-            uptr->wait = dlyptr->buffer_load;           /* schedule the buffer load delay */
-
-            tprintf (lpt_dev, TRACE_XFER, "Character %s sent to printer\n",
-                     fmt_char (data_byte));
-            }
-
-        else if (print_props [model].autoprints) {      /* otherwise if a buffer overflow auto-prints */
-            tprintf (lpt_dev, TRACE_CMD, "Buffer overflow printed %u characters on line %u\n",
-                     buffer_index, current_line);
-
-            buffer [buffer_index++] = CR;               /*   then tie off */
-            buffer [buffer_index++] = LF;               /*     the current buffer */
-
-            fwrite (buffer, sizeof buffer [0],          /* write the buffer to the printer file */
-                    buffer_index, uptr->fileref);
-
-            uptr->pos = (t_addr) ftell (uptr->fileref); /* update the file position */
-
-            current_line = current_line + 1;            /* move the paper one line */
-
-            if (current_line > form_length)             /* if the current line is beyond the end of the form */
-                current_line = 1;                       /*   then reset to the top of the next form */
-
-            tprintf (lpt_dev, TRACE_CMD, "Printer advanced 1 line to line %u\n",
-                     current_line);
-
-            overprint_index = 0;                        /* clear any accumulated overprint index */
-
-            buffer [0] = data_byte;                     /* store the character */
-            buffer_index = 1;                           /*   in the empty buffer */
-
-            uptr->wait = dlyptr->print                  /* schedule the print delay */
-                           + dlyptr->advance            /*   plus the paper advance delay */
-                           + dlyptr->buffer_load;       /*   plus the buffer load delay */
-
-            tprintf (lpt_dev, TRACE_XFER, "Character %s sent to printer\n",
-                     fmt_char (data_byte));
-            }
-
-        else {                                          /* otherwise the printer discards excess characters */
-            uptr->wait = dlyptr->buffer_load;           /*   so just schedule the load delay */
-
-            tprintf (lpt_dev, TRACE_CMD, "Buffer overflow discards character %s\n",
-                     fmt_char (data_byte));
-            }
-        }
-
-    else {                                              /* otherwise this is a print format command */
-        tprintf (lpt_dev, TRACE_XFER, "Format code %03o sent to printer\n",
-                 data_byte);
-
-        format_byte = data_byte & FORMAT_MASK;          /* format commands ignore bits 5-4 */
-
-        if (overprint_index > buffer_index)             /* if the overprinted line is longer than the current line */
-            buffer_index = overprint_index;             /*   then extend the current buffer index */
-
-        if (buffer_index > 0 && format_byte != FORMAT_SUPPRESS) /* if printing will occur, then trace it */
-            tprintf (lpt_dev, TRACE_CMD, "Printed %u character%s on line %u\n",
-                     buffer_index, (buffer_index == 1 ? "" : "s"), current_line);
-
-        if (format_byte == FORMAT_SUPPRESS              /* if this is a "suppress space" request */
-          && print_props [model].overprints) {          /*   and the printer is capable of overprinting */
-            slew_count = 0;                             /*     then do not slew after printing */
-
-            if (uptr->flags & UNIT_EXPAND) {            /* if the printer is in expanded mode */
-                if (buffer_index > overprint_index)     /*   then if the current length exceeds the overprinted length */
-                    overprint_index = buffer_index;     /*     then extend the overprinted line */
-
-                buffer_index = 0;                       /* reset the buffer index to overprint the next line */
-                }
-
-            else                                        /* otherwise the printer is in compact mode */
-                buffer [buffer_index++] = CR;           /*   so overprint by emitting a CR without a LF */
-
-            tprintf (lpt_dev, TRACE_CMD, "Printer commanded to suppress spacing on line %u\n",
-                     current_line);
-            }
-
-        else if (format_byte & FORMAT_VFU) {            /* otherwise if this is a VFU command */
-            if (print_props [model].vfu_channels == 8)  /*   then if it's an 8-channel VFU */
-                format_byte &= FORMAT_VFU_8_MASK;       /*     then only three bits are significant */
-
-            channel = VFU_CHANNEL_1 >> (format_byte - FORMAT_VFU_BIAS - 1); /* set the requested channel */
-
-            tprintf (lpt_dev, TRACE_CMD, "Printer commanded to slew to VFU channel %u from line %u\n",
-                     format_byte - FORMAT_VFU_BIAS, current_line);
-
-            tape_fault = (channel & VFU [0]) == 0;      /* a tape fault occurs if there is no punch in this channel */
-
-            slew_count = 0;                             /* initialize the slew counter */
-
-            do {                                        /* the VFU always slews at least one line */
-                slew_count++;                           /* increment the slew counter */
-                current_line++;                         /*   and the line counter */
-
-                if (current_line > form_length)         /* if the current line is beyond the end of the form */
-                    current_line = 1;                   /*   then reset to the top of the next form */
-                }
-            while (!tape_fault && (channel & VFU [current_line]) == 0); /* continue until a punch is seen */
-            }
-
-        else {                                          /* otherwise it must be a slew command */
-            slew_count = format_byte;                   /*   so get the number of lines to slew */
-
-            if (format_byte == FORMAT_SUPPRESS)         /* if the printer cannot overprint */
-                slew_count = 1;                         /*   then the paper advances after printing */
-
-            tprintf (lpt_dev, TRACE_CMD, "Printer commanded to slew %u line%s from line %u\n",
-                     slew_count, (slew_count == 1 ? "" : "s"), current_line);
-
-            current_line = current_line + slew_count;   /* move the current line */
-
-            if (current_line > form_length)                 /* if the current line is beyond the end of the form */
-                current_line = current_line - form_length;  /*   then it extends onto the next form */
-            }
-
-        if (format_byte == FORMAT_VFU_CHAN_1            /* if a TOF was requested */
-          && !(uptr->flags & UNIT_EXPAND)               /*   and the printer is in compact mode */
-          && slew_count > 1) {                          /*     and more than one line is needed to reach the TOF */
-            if (buffer_index > 0) {                     /*       then if the buffer not empty */
-                buffer [buffer_index++] = CR;           /*         then print */
-                buffer [buffer_index++] = LF;           /*           the current line */
-                }
-
-            buffer [buffer_index++] = FF;               /* emit a FF to move to the TOF */
-            }
-
-        else if (slew_count > 0) {                      /* otherwise a slew is needed */
-            buffer [buffer_index++] = CR;               /*   then emit a CR LF */
-            buffer [buffer_index++] = LF;               /*     to print the current line */
-
-            line_count = slew_count;                    /* get the number of lines to slew */
-
-            while (--line_count > 0) {                  /* while movement is needed */
-                if (uptr->flags & UNIT_EXPAND)          /* if the printer is in expanded mode */
-                    buffer [buffer_index++] = CR;       /*   then blank lines are CR LF pairs */
-
-                buffer [buffer_index++] = LF;           /* otherwise just LFs are used */
-                }
-            }
-
-        if (buffer_index > 0) {                         /* if the buffer is not empty */
-            fwrite (buffer, sizeof buffer [0],          /*   then write it to the printer file */
-                    buffer_index, uptr->fileref);
-
-            overprint_index = 0;                        /* clear any existing overprint index */
-            }
-
-        status_word &= ~(ST_VFU_9 | ST_VFU_12);         /* assume no punches for channels 9 and 12 */
-
-        if (print_props [model].vfu_channels > 8) {     /* if the printer VFU has more than 8 channels */
-            if (VFU [current_line] & VFU_CHANNEL_9)     /*   then if channel 9 is punched for this line */
-                status_word |= ST_VFU_9;                /*     then report it in the device status */
-
-            if (VFU [current_line] & VFU_CHANNEL_12)    /* if channel 12 is punched for this line */
-                status_word |= ST_VFU_12;               /*   then report it in the device status */
-            }
-
-        if (format_byte == FORMAT_VFU_CHAN_1)           /* if a TOF request was performed */
-            fflush (uptr->fileref);                     /*   then flush the file buffer for inspection */
-
-        uptr->wait = dlyptr->print                      /* schedule the print delay */
-                       + slew_count * dlyptr->advance;  /*   plus the paper advance delay */
-
-        uptr->pos = (t_addr) ftell (uptr->fileref);     /* update the file position */
-
-        if (slew_count > 0)
-            tprintf (lpt_dev, TRACE_CMD, "Printer advanced %u line%s to line %u\n",
-                     slew_count, (slew_count == 1 ? "" : "s"), current_line);
-        }
-
-    if (ferror (uptr->fileref)) {                       /* if a host file system error occurred */
-        report_error (uptr->fileref);                   /*   then report the error to the console */
-
-        lp_set_alarm (uptr);                            /* set an alarm condition */
-        return SCPE_IOERR;                              /*   and stop the simulator */
-        }
-
-    else                                                /* otherwise the write succeeded */
-        activate_unit (lpt_unit);                       /*   so schedule the DEMAND reassertion */
-    }
-
-return SCPE_OK;                                         /* return event service success */
+    return SCPE_OK; /* return event service success */
 }
-
 
 /* Device reset routine.
 
@@ -1841,7 +1832,7 @@ else {                                                  /* otherwise the printer
     paper_fault = FALSE;                                /* clear any paper fault */
     tape_fault  = FALSE;                                /*   and any tape fault */
 
-    status_word = status_word & ~ST_NOT_READY | ST_ONLINE;  /* update the printer status */
+    status_word = (status_word & ~ST_NOT_READY) | ST_ONLINE;  /* update the printer status */
 
     demand = TRUE;                                      /* DEMAND asserts when the printer is online */
 
@@ -2125,35 +2116,36 @@ return SCPE_OK;                                         /* the VFU was successfu
        the end-of-line removal.
 */
 
-static int32 lp_read_line (FILE *vf, char *line, uint32 size)
+static int32
+lp_read_line(FILE *vf, char *line, uint32 size)
 {
-char  *result;
-int32 len = 0;
+    char *result;
+    int32 len = 0;
 
-while (len == 0) {
-    result = fgets (line, size, vf);                    /* get the next line from the file */
+    while (len == 0) {
+        result = fgets(line, size, vf); /* get the next line from the file */
 
-    if (result == NULL)                                 /* if an error occurred */
-        if (feof (vf))                                  /*   then if the end of file was seen */
-            return 0;                                   /*     then return an EOF indication */
-
-        else {                                          /*   otherwise */
-            report_error (vf);                          /*     report the error to the console */
-            return -1;                                  /*       and return an error indication */
+        if (result == NULL) {     /* if an error occurred */
+            if (feof(vf)) {       /*   then if the end of file was seen */
+                return 0;         /*     then return an EOF indication */
+            } else {              /*   otherwise */
+                report_error(vf); /*     report the error to the console */
+                return -1;        /*       and return an error indication */
             }
+        }
 
-    len = strlen (line);                                /* get the current line length */
+        len = strlen(line); /* get the current line length */
 
-    if (len > 0 && line [len - 1] == '\n')              /* if the last character is a newline */
-        line [--len] = '\0';                            /*   then remove it and decrease the length */
+        if (len > 0 && line[len - 1] == '\n') /* if the last character is a newline */
+            line[--len] = '\0';               /*   then remove it and decrease the length */
 
-    result = strchr (line, ';');                        /* search for a comment indicator */
+        result = strchr(line, ';'); /* search for a comment indicator */
 
-    if (result != NULL) {                               /* if one was found */
-        *result = '\0';                                 /*   then truncate the line at that point */
-        len = (int32) (result - line);                  /*     and recalculate the line length */
+        if (result != NULL) {                 /* if one was found */
+            *result = '\0';                   /*   then truncate the line at that point */
+            len     = (int32)(result - line); /*     and recalculate the line length */
         }
     }
 
-return len;
+    return len;
 }

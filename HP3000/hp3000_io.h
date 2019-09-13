@@ -225,12 +225,12 @@ typedef uint32              SIGNALS_DATA;       /* a combined outbound signal se
        and add to a single NEG instruction on x86 machines.
 */
 
-#define IOPRIORITY(P)       ((P) & ~(P) + 1)
+#define IOPRIORITY(P)       (((P) & ~(P)) + 1)
 
 #define IONEXTSIG(S)        ((INBOUND_SIGNAL) IOPRIORITY (S))
 #define IOCLEARSIG(S,L)     S = (INBOUND_SIGNAL) ((S) ^ (L))
 
-#define IORETURN(S,D)       ((SIGNALS_DATA) ((S) & ~D16_MASK | (D) & D16_MASK))
+#define IORETURN(S,D)       ((SIGNALS_DATA) (((S) & ~D16_MASK) | ((D) & D16_MASK)))
 #define IOSIGNALS(C)        ((OUTBOUND_SET) ((C) & ~D16_MASK))
 #define IODATA(C)           ((HP_WORD) ((C) & D16_MASK))
 

@@ -233,105 +233,93 @@ DEVICE pif_dev = {
    Note that PRL and IRQ are non-standard for the 12936A.
 */
 
-uint32 pif_io (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+uint32
+pif_io(DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-const t_bool is_rte_pif = (pif_dev.flags & DEV_12936) == 0;
-IOSIGNAL signal;
-IOCYCLE  working_set = IOADDSIR (signal_set);           /* add ioSIR if needed */
+    const t_bool is_rte_pif = (pif_dev.flags & DEV_12936) == 0;
+    IOSIGNAL     signal;
+    IOCYCLE      working_set = IOADDSIR(signal_set); /* add ioSIR if needed */
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate next signal */
+    while (working_set) {
+        signal = IONEXT(working_set);                /* isolate next signal */
 
-    switch (signal) {                                   /* dispatch I/O signal */
+        switch (signal) {                            /* dispatch I/O signal */
 
-        case ioCLF:                                     /* clear flag flip-flop */
-            pif.flag = pif.flagbuf = CLEAR;             /* clear flag buffer and flag */
+        case ioCLF:                                           /* clear flag flip-flop */
+            pif.flag = pif.flagbuf = CLEAR;                   /* clear flag buffer and flag */
             break;
 
-
-        case ioSTF:                                     /* set flag flip-flop */
-            if (is_rte_pif)                             /* RTE PIF? */
-                pif.flag = pif.flagbuf = SET;           /* set flag buffer and flag */
+        case ioSTF:                                           /* set flag flip-flop */
+            if (is_rte_pif)                                   /* RTE PIF? */
+                pif.flag = pif.flagbuf = SET;                 /* set flag buffer and flag */
 
             break;
 
-
-        case ioSFC:                                     /* skip if flag is clear */
-            if (is_rte_pif)                             /* RTE PIF? */
-                setstdSKF (pif);                        /* card responds to SFC */
+        case ioSFC:                                           /* skip if flag is clear */
+            if (is_rte_pif)                                   /* RTE PIF? */
+                setstdSKF(pif);                               /* card responds to SFC */
             break;
 
-
-        case ioSFS:                                     /* skip if flag is set */
-            if (is_rte_pif)                             /* RTE PIF? */
-                setstdSKF (pif);                        /* card responds to SFS */
+        case ioSFS:                                           /* skip if flag is set */
+            if (is_rte_pif)                                   /* RTE PIF? */
+                setstdSKF(pif);                               /* card responds to SFS */
             break;
 
-
-        case ioIOO:                                     /* I/O data output */
-            if (!is_rte_pif) {                          /* DOS PIF? */
-                pif.flag = pif.flagbuf = SET;           /* set flag buffer and flag */
-                working_set = working_set | ioSIR;      /* set SIR (not normally done for IOO) */
-                }
+        case ioIOO:                                           /* I/O data output */
+            if (!is_rte_pif) {                                /* DOS PIF? */
+                pif.flag = pif.flagbuf = SET;                 /* set flag buffer and flag */
+                working_set            = working_set | ioSIR; /* set SIR (not normally done for IOO) */
+            }
             break;
 
-
-        case ioPOPIO:                                   /* power-on preset to I/O */
-            pif.flag = pif.flagbuf =                    /* set or clear flag and flag buffer */
+        case ioPOPIO:                                         /* power-on preset to I/O */
+            pif.flag = pif.flagbuf =                          /* set or clear flag and flag buffer */
                 (is_rte_pif ? SET : CLEAR);
 
-            tprintf (pif_dev, TRACE_CMD, "Power-on reset\n");
+            tprintf(pif_dev, TRACE_CMD, "Power-on reset\n");
             break;
 
+        case ioCRS:                                           /* control reset */
+            tprintf(pif_dev, TRACE_CMD, "Control reset\n");
 
-        case ioCRS:                                     /* control reset */
-            tprintf (pif_dev, TRACE_CMD, "Control reset\n");
+            /* fall into ioCLC handler */
 
-        /* fall into ioCLC handler */
-
-        case ioCLC:                                     /* clear control flip-flop */
-            pif.control = CLEAR;                        /* clear control */
+        case ioCLC:                                                     /* clear control flip-flop */
+            pif.control = CLEAR;                                        /* clear control */
             break;
 
-
-        case ioSTC:                                     /* set control flip-flop */
-            pif.control = SET;                          /* set control */
+        case ioSTC:                                                     /* set control flip-flop */
+            pif.control = SET;                                          /* set control */
             break;
 
+        case ioSIR:                                                     /* set interrupt request */
+            if (is_rte_pif) {                                           /* RTE PIF? */
+                setstdPRL(pif);                                         /* set standard PRL signal */
+                setstdIRQ(pif);                                         /* set standard IRQ signal */
+                setstdSRQ(pif);                                         /* set standard SRQ signal */
+            } else {                                                    /* DOS PIF */
+                setPRL(dibptr->select_code, !(pif.control | pif.flag));
+                setIRQ(dibptr->select_code, !(pif.control & pif.flag & pif.flagbuf));
+            }
 
-        case ioSIR:                                         /* set interrupt request */
-            if (is_rte_pif) {                               /* RTE PIF? */
-                setstdPRL (pif);                            /* set standard PRL signal */
-                setstdIRQ (pif);                            /* set standard IRQ signal */
-                setstdSRQ (pif);                            /* set standard SRQ signal */
-                }
-
-            else {                                          /* DOS PIF */
-                setPRL (dibptr->select_code, !(pif.control | pif.flag));
-                setIRQ (dibptr->select_code, !pif.control & pif.flag & pif.flagbuf);
-                }
-
-            tprintf (pif_dev, TRACE_CMD, "Fence %s%s lower-priority interrupts\n",
-                     (IRQ (dibptr->select_code) ? "requests an interrupt and " : ""),
-                     (PRL (dibptr->select_code) ? "allows" : "inhibits"));
+            tprintf(pif_dev, TRACE_CMD, "Fence %s%s lower-priority interrupts\n",
+                    (IRQ(dibptr->select_code) ? "requests an interrupt and " : ""),
+                    (PRL(dibptr->select_code) ? "allows" : "inhibits"));
             break;
 
-
-        case ioIAK:                                     /* interrupt acknowledge */
+        case ioIAK: /* interrupt acknowledge */
             pif.flagbuf = CLEAR;
             break;
 
-
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+        default:   /* all other signals */
+            break; /*   are ignored */
         }
 
-    working_set = working_set & ~signal;                /* remove current signal from set */
+        working_set = working_set & ~signal; /* remove current signal from set */
     }
 
-return stat_data;
+    return stat_data;
 }
-
 
 /* Simulator reset routine */
 

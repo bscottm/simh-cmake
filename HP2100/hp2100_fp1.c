@@ -1115,50 +1115,51 @@ return;
        warning.
 */
 
-void fp_prec (uint16 opcode, OPSIZE *operand_l, OPSIZE *operand_r, OPSIZE *result)
+void
+fp_prec(uint16 opcode, OPSIZE *operand_l, OPSIZE *operand_r, OPSIZE *result)
 {
-OPSIZE fp_size, int_size;
+    OPSIZE fp_size, int_size;
 
-fp_size  = (OPSIZE) ((opcode & 0003) + 2);              /* fp_f, fp_x, fp_t, fp_e */
-int_size = (OPSIZE) ((opcode & 0004) >> 2);             /* in_s, in_d */
+    fp_size  = (OPSIZE)((opcode & 0003) + 2);  /* fp_f, fp_x, fp_t, fp_e */
+    int_size = (OPSIZE)((opcode & 0004) >> 2); /* in_s, in_d */
 
-if (operand_l && operand_r) {                           /* want operand precisions? */
-    switch (opcode & 0120) {                            /* mask out opcode bit 5 */
-        case 0000:                                      /* add/mpy */
-        case 0020:                                      /* sub/div */
-            *operand_l = fp_size;                       /* assume first op is fp */
+    if (operand_l && operand_r) { /* want operand precisions? */
+        switch (opcode & 0120) {  /* mask out opcode bit 5 */
+        case 0000:                /* add/mpy */
+        case 0020:                /* sub/div */
+            *operand_l = fp_size; /* assume first op is fp */
 
-            if (opcode & 0004)                          /* operand internal? */
-                *operand_r = fp_a;                      /* second op is accum */
+            if (opcode & 0004)     /* operand internal? */
+                *operand_r = fp_a; /* second op is accum */
             else
-                *operand_r = fp_size;                   /* second op is fp */
+                *operand_r = fp_size; /* second op is fp */
             break;
 
-        case 0100:                                      /* fix/accum as integer */
-            *operand_l = fp_size;                       /* first op is fp */
-            *operand_r = fp_a;                          /* second op is always null */
+        case 0100:                /* fix/accum as integer */
+            *operand_l = fp_size; /* first op is fp */
+            *operand_r = fp_a;    /* second op is always null */
             break;
 
-        case 0120:                                      /* flt/accum as float */
-        default:                                        /* keeps compiler quiet for uninit warning */
-            *operand_l = int_size;                      /* first op is integer */
-            *operand_r = fp_a;                          /* second op is always null */
+        case 0120:                 /* flt/accum as float */
+        default:                   /* keeps compiler quiet for uninit warning */
+            *operand_l = int_size; /* first op is integer */
+            *operand_r = fp_a;     /* second op is always null */
             break;
         }
 
-    if (opcode & 0010)                                  /* operand internal? */
-        *operand_l = fp_a;                              /* first op is accum */
+        if (opcode & 0010)     /* operand internal? */
+            *operand_l = fp_a; /* first op is accum */
     }
 
-if (result)                                             /* want result precision? */
-    if ((opcode & 0120) == 0100)                        /* fix? */
-        *result = int_size;                             /* result is integer */
-    else                                                /* all others */
-        *result = fp_size;                              /* result is fp */
+    if (result) {                    /* want result precision? */
+        if ((opcode & 0120) == 0100) /* fix? */
+            *result = int_size;      /* result is integer */
+        else                         /* all others */
+            *result = fp_size;       /* result is fp */
+    }
 
-return;
+    return;
 }
-
 
 /* Floating Point Processor executor.
 

@@ -1325,7 +1325,7 @@ t_stat fprint_sym (FILE *ofile, t_addr addr, t_value *val, UNIT *uptr, int32 sw)
 int32  formats, modes;
 uint32 radix;
 
-if ((sw & (SIM_SW_REG | ALL_SWITCHES)) == SIM_SW_REG)   /* if we are formatting a register without overrides */
+if ((sw & (SIM_SW_REG | ALL_SWITCHES)) == SIM_SW_REG) { /* if we are formatting a register without overrides */
     if (addr & REG_A)                                   /*   then if the default format is character */
         sw |= A_SWITCH;                                 /*     then set the -A switch */
 
@@ -1337,6 +1337,7 @@ if ((sw & (SIM_SW_REG | ALL_SWITCHES)) == SIM_SW_REG)   /* if we are formatting 
 
     else if (addr & REG_T)                              /*   otherwise if the default mode is status */
         sw |= T_SWITCH;                                 /*     then set the -T switch */
+}
 
 if ((sw & SYMBOLIC_SWITCHES) == 0)                      /* if there are no symbolic mode overrides */
     return SCPE_ARG;                                    /*   then return an error to use the standard formatter */
@@ -1476,7 +1477,7 @@ t_stat parse_sym (CONST char *cptr, t_addr addr, UNIT *uptr, t_value *val, int32
 while (isspace ((int) *cptr))                           /* skip over any leading spaces */
     cptr++;                                             /*   that are present in the line */
 
-if (sw & SWMASK ('A') || *cptr == '\'' && cptr++)       /* if an ASCII character parse is requested */
+if (sw & SWMASK ('A') || (*cptr == '\'' && cptr++))     /* if an ASCII character parse is requested */
     if (cptr [0] != '\0') {                             /*   then if a character is present */
         val [0] = (t_value) cptr [0];                   /*     then convert the character value */
         return SCPE_OK;                                 /*       and indicate success */
@@ -1485,7 +1486,7 @@ if (sw & SWMASK ('A') || *cptr == '\'' && cptr++)       /* if an ASCII character
     else                                                /* otherwise */
         return SCPE_ARG;                                /*   report that the line cannot be parsed */
 
-else if (sw & SWMASK ('C') || *cptr == '"' && cptr++)       /* otherwise if a character string parse is requested */
+else if (sw & SWMASK ('C') || (*cptr == '"' && cptr++))     /* otherwise if a character string parse is requested */
     if (cptr [0] != '\0') {                                 /*   then if characters are present */
         val [0] = (t_value) TO_WORD (cptr [0], cptr [1]);   /*     then convert the character value(s) */
         return SCPE_OK;                                     /*       and indicate success */
@@ -2320,10 +2321,10 @@ else                                                    /* otherwise use a prede
 bitmask = bitmask << bitfmt.offset;                     /* align the mask to the named bits */
 bitset = bitset & bitmask;                              /*   and mask to just the significant bits */
 
-if (bitfmt.direction == msb_first)                          /* if the examination is left-to-right */
-    test_bit = 1 << bitfmt.name_count + bitfmt.offset - 1;  /*   then create a test bit for the MSB */
-else                                                        /* otherwise */
-    test_bit = 1 << bitfmt.offset;                          /*   create a test bit for the LSB */
+if (bitfmt.direction == msb_first)                            /* if the examination is left-to-right */
+    test_bit = 1 << (bitfmt.name_count + bitfmt.offset - 1);  /*   then create a test bit for the MSB */
+else                                                          /* otherwise */
+    test_bit = 1 << bitfmt.offset;                            /*   create a test bit for the LSB */
 
 
 fmtptr = freeptr;                                       /* initialize the return pointer */
@@ -2334,7 +2335,7 @@ while ((bitfmt.alternate || bitset)                     /* while more bits */
   && index < bitfmt.name_count) {                       /*   and more names exist */
     bnptr = bitfmt.names [index];                       /*     point at the name for the current bit */
 
-    if (bnptr)                                          /* if the name is defined */
+    if (bnptr) {                                        /* if the name is defined */
         if (*bnptr == '\1' && bitfmt.alternate)         /*   then if this name has an alternate */
             if (bitset & test_bit)                      /*     then if the bit is asserted */
                 bnptr++;                                /*       then point at the name for the "1" state */
@@ -2344,6 +2345,7 @@ while ((bitfmt.alternate || bitset)                     /* while more bits */
         else                                            /*   otherwise the name is unilateral */
             if ((bitset & test_bit) == 0)               /*     so if the bit is denied */
                 bnptr = NULL;                           /*       then clear the name pointer */
+    }
 
     if (bnptr) {                                        /* if the name pointer is set */
         name_length = strlen (bnptr);                   /*   then get the length needed */
@@ -2431,50 +2433,52 @@ return fmtptr;                                          /* return a pointer to t
 #define FLAG_SIZE           32                          /* sufficiently large to accommodate all flag names */
 #define FORMAT_SIZE         1024                        /* sufficiently large to accommodate all format strings */
 
-void hp_debug (DEVICE *dptr, uint32 flag, ...)
+void
+hp_debug(DEVICE *dptr, uint32 flag, ...)
 {
-va_list argptr;
-DEBTAB  *debptr;
-char    *format, *fptr;
-const char *nptr;
-char    flag_name [FLAG_SIZE];                          /* desired size is [flag_size + 1] */
-char    header_fmt [FORMAT_SIZE];                       /* desired size is [device_size + flag_size + format_size + 6] */
+    va_list     argptr;
+    DEBTAB *    debptr;
+    char *      format, *fptr;
+    const char *nptr;
+    char        flag_name[FLAG_SIZE];      /* desired size is [flag_size + 1] */
+    char        header_fmt[FORMAT_SIZE];   /* desired size is [device_size + flag_size + format_size + 6] */
 
-if (sim_deb != NULL && dptr != NULL) {                  /* if the output stream and device pointer are valid */
-    debptr = dptr->debflags;                            /*   then get a pointer to the debug flags table */
+    if (sim_deb != NULL && dptr != NULL) { /* if the output stream and device pointer are valid */
+        debptr = dptr->debflags;           /* then get a pointer to the debug flags table */
 
-    if (debptr != NULL)                                 /* if the debug table exists */
-        while (debptr->name != NULL)                    /*   then search it for an entry with the supplied flag */
-            if (debptr->mask & flag) {                  /* if the flag matches this entry */
-                nptr = debptr->name;                    /*   then get a pointer to the flag name */
-                fptr = flag_name;                       /*     and the buffer */
+        if (debptr != NULL) {              /* if the debug table exists */
+            while (debptr->name != NULL) { /* then search it for an entry with the supplied flag */
+                if (debptr->mask & flag) { /* if the flag matches this entry */
+                    nptr = debptr->name;   /* then get a pointer to the flag name */
+                    fptr = flag_name;      /* and the buffer */
 
-                do
-                    *fptr++ = (char) tolower (*nptr);   /* copy and downshift the flag name */
-                while (*nptr++ != '\0');
+                    do
+                        *fptr++ = (char)tolower(*nptr);        /* copy and downshift the flag name */
+                    while (*nptr++ != '\0');
 
-                sprintf (header_fmt, ">>%-*s %*s: ",            /* format the prefix and store it */
-                         (int) device_size, sim_dname (dptr),   /*   while padding the device and flag names */
-                         (int) flag_size, flag_name);           /*     as needed for proper alignment */
+                    sprintf(header_fmt, ">>%-*s %*s: ",        /* format the prefix and store it */
+                            (int)device_size, sim_dname(dptr), /* while padding the device and flag names */
+                            (int)flag_size, flag_name);        /* as needed for proper alignment */
 
-                va_start (argptr, flag);                        /* set up the argument list */
+                    va_start(argptr, flag);                    /* set up the argument list */
 
-                format = va_arg (argptr, char *);               /* get the format string parameter */
-                strcat (header_fmt, format);                    /* append the supplied format */
+                    format = va_arg(argptr, char *);           /* get the format string parameter */
+                    strcat(header_fmt, format);                /* append the supplied format */
 
-                vfprintf (sim_deb, header_fmt, argptr);         /* format and print to the debug stream */
+                    vfprintf(sim_deb, header_fmt, argptr);     /* format and print to the debug stream */
 
-                va_end (argptr);                                /* clean up the argument list */
-                break;                                          /*   and exit with the job complete */
+                    va_end(argptr);                            /* clean up the argument list */
+                    break;                                     /* and exit with the job complete */
                 }
 
-            else                                        /* otherwise */
-                debptr++;                               /*   look at the next debug table entry */
+                else          /* otherwise */
+                    debptr++; /*   look at the next debug table entry */
+	    }
+        }
     }
 
-return;
+    return;
 }
-
 
 /* Check for device conflicts.
 
@@ -2599,12 +2603,12 @@ for (dev = 0; dev < DEVICE_COUNT; dev++) {              /* fill in the DIB value
         if (dptr->debflags)                             /* if the device has a debug flags table */
             for (tptr = dptr->debflags;                 /*   then scan the table */
                  tptr->name != NULL; tptr++)
-                if (dev == 0 && dptr->dctrl & DEB_EXEC  /* if the CPU device is tracing executions */
-                  || tptr->mask & dptr->dctrl) {        /*   or this debug option is active */
-                    flag_length = strlen (tptr->name);  /*     then get the flag name length */
+                if ((dev == 0 && dptr->dctrl & DEB_EXEC) /* if the CPU device is tracing executions */
+                  || tptr->mask & dptr->dctrl) {         /* or this debug option is active */
+                    flag_length = strlen (tptr->name);   /* then get the flag name length */
 
-                    if (flag_length > flag_size)        /* if it's greater than the current maximum */
-                        flag_size = flag_length;        /*   then reset the size */
+                    if (flag_length > flag_size)         /* if it's greater than the current maximum */
+                        flag_size = flag_length;         /* then reset the size */
                     }
         }
     }
@@ -2842,63 +2846,68 @@ return;
    only allows an implied offset from PBANK.
 */
 
-static t_addr parse_addr (DEVICE *dptr, CONST char *cptr, CONST char **tptr)
+static t_addr
+parse_addr(DEVICE *dptr, CONST char *cptr, CONST char **tptr)
 {
-CONST char *sptr;
-uint32     overrides;
-t_addr     bank;
-t_addr     address = 0;
+    CONST char *sptr;
+    uint32      overrides;
+    t_addr      bank;
+    t_addr      address = 0;
 
-if (dptr != &cpu_dev)                                   /* if this is not a CPU memory address */
-    return (t_addr) strtotv (cptr, tptr, dptr->aradix); /*   then parse a scalar and return the value */
+    if (dptr != &cpu_dev)                                 /* if this is not a CPU memory address */
+        return (t_addr)strtotv(cptr, tptr, dptr->aradix); /* then parse a scalar and return the value */
 
-overrides = sim_switches & (SWMASK ('P') | SWMASK ('S'));       /* mask to just the bank address overrides */
+    overrides = sim_switches & (SWMASK('P') | SWMASK('S')); /* mask to just the bank address overrides */
 
-if (overrides && !(parse_config & apcBank_Override)             /* if overrides are present but not allowed */
-  || overrides & ~SWMASK ('P') && overrides & ~SWMASK ('S'))    /*   or multiple overrides are specified */
-    *tptr = cptr;                                               /*     then report a parse error */
+    if ((overrides && !(parse_config & apcBank_Override))          /* if overrides are present but not allowed */
+        || (overrides & ~SWMASK('P') && overrides & ~SWMASK('S'))) /*   or multiple overrides are specified */
+        *tptr = cptr;                                              /*     then report a parse error */
+    else                                                           /* otherwise the switches are consistent */
+        address = strtotv(cptr, tptr, dptr->aradix);               /*   so parse the address */
 
-else                                                            /* otherwise the switches are consistent */
-    address = strtotv (cptr, tptr, dptr->aradix);               /*   so parse the address */
+    if (cptr != *tptr) {                                         /* if the parse succeeded */
+        if (**tptr == '.') {                                     /* then if this a banked address */
+            if (!(parse_config & apcBank_Offset)                 /* but it is not allowed */
+                || address > BA_MAX) {                           /* or the bank number is out of range */
+                *tptr = cptr;                                    /* then report a parse error */
+            } else {                                             /* otherwise the <bank>.<offset> form is allowed */
+                sptr    = *tptr + 1;                             /* point to the offset */
+                bank    = address;                               /* save the first part as the bank address */
+                address = strtotv(sptr, tptr, dptr->aradix);     /* parse the offset */
 
-if (cptr != *tptr)                                      /* if the parse succeeded */
-    if (**tptr == '.')                                  /*   then if this a banked address */
-        if (! (parse_config & apcBank_Offset)           /*     but it is not allowed */
-          || address > BA_MAX)                          /*       or the bank number is out of range */
-            *tptr = cptr;                               /*         then report a parse error */
-
-        else {                                              /* otherwise the <bank>.<offset> form is allowed */
-            sptr = *tptr + 1;                               /* point to the offset */
-            bank = address;                                 /* save the first part as the bank address */
-            address = strtotv (sptr, tptr, dptr->aradix);   /* parse the offset */
-
-            if (address > LA_MAX)                           /* if the offset is too large */
-                *tptr = cptr;                               /*   then report a parse error */
-            else                                            /* otherwise it is in range */
-                address = TO_PA (bank, address);            /*   so form the linear address */
+                if (address > LA_MAX)                            /* if the offset is too large */
+                    *tptr = cptr;                                /* then report a parse error */
+                else                                             /* otherwise it is in range */
+                    address = TO_PA(bank, address);              /* so form the linear address */
             }
+        } else {
+            if (address > LA_MAX) {                              /* otherwise if the non-banked offset is too large */
+                *tptr = cptr;                                    /* then report a parse error */
+            } else {
+                if (overrides & SWMASK('S')) {                   /* otherwise if the stack-bank override is specified */
+                    address = TO_PA(SBANK, address);             /* then base the address on SBANK */
+                } else {
+                    if (overrides & SWMASK('P')) {               /* otherwise if the program-bank override is specified */
+                        address = TO_PA(PBANK, address);         /* then base the address on PBANK */
+                    } else {
+                        if (parse_config & apcDefault_PBANK) {   /* otherwise if PBANK is the default */
+                            if (PB <= address && address <= PL)  /* then if the address lies within the segment limits */
+                                address = TO_PA(PBANK, address); /* then base the address on PBANK */
+                            else                                 /* otherwise it is outside of the segment */
+                                *tptr = cptr;                    /* so report a parse error */
 
-    else if (address > LA_MAX)                          /* otherwise if the non-banked offset is too large */
-        *tptr = cptr;                                   /*   then report a parse error */
+                        } else {
+                            if (parse_config & apcDefault_DBANK) /* otherwise if the default is DBANK */
+                                address = TO_PA(DBANK, address); /* then base the address on DBANK */
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-    else if (overrides & SWMASK ('S'))                  /* otherwise if the stack-bank override is specified */
-        address = TO_PA (SBANK, address);               /*   then base the address on SBANK */
-
-    else if (overrides & SWMASK ('P'))                  /* otherwise if the program-bank override is specified */
-        address = TO_PA (PBANK, address);               /*   then base the address on PBANK */
-
-    else if (parse_config & apcDefault_PBANK)           /* otherwise if PBANK is the default */
-        if (PB <= address && address <= PL)             /*   then if the address lies within the segment limits */
-            address = TO_PA (PBANK, address);           /*     then base the address on PBANK */
-        else                                            /*   otherwise it is outside of the segment */
-            *tptr = cptr;                               /*     so report a parse error */
-
-    else if (parse_config & apcDefault_DBANK)           /* otherwise if the default is DBANK */
-        address = TO_PA (DBANK, address);               /*   then base the address on DBANK */
-
-return address;                                         /* return the linear address */
+    return address; /* return the linear address */
 }
-
 
 /* Execute the EXAMINE, DEPOSIT, IEXAMINE, and IDEPOSIT commands.
 
@@ -3021,38 +3030,40 @@ return status;                                          /* return the handler st
    printed successfully, or SCPE_ARG if the value could not be printed.
 */
 
-static t_stat fprint_value (FILE *ofile, t_value val, uint32 radix, uint32 width, uint32 format)
+static t_stat
+fprint_value(FILE *ofile, t_value val, uint32 radix, uint32 width, uint32 format)
 {
-if (radix == 256)                                       /* if ASCII character display is requested */
-    if (val <= D8_SMAX) {                               /*   then if the value is a single character */
-        fputs (fmt_char ((uint32) val), ofile);         /*     then format and print it */
-        return SCPE_OK;                                 /*       and report success */
+    if (radix == 256) {                          /* if ASCII character display is requested */
+        if (val <= D8_SMAX) {                    /* then if the value is a single character */
+            fputs(fmt_char((uint32)val), ofile); /* then format and print it */
+            return SCPE_OK;                      /* and report success */
+        } else                                   /* otherwise */
+            return SCPE_ARG;                     /* report that it cannot be displayed */
+    } else {
+        if (radix != cpu_dev.dradix) {           /* otherwise if the requested radix is not the current data radix */
+            if (radix == 2) {                    /* then if the requested radix is binary */
+                fputc('@', ofile);               /* then print the binary indicator */
+	    } else {
+                if (radix == 8) {                /* otherwise if the requested radix is octal */
+                    fputc('%', ofile);           /* then print the octal indicator */
+		} else {
+                    if (radix == 10) {           /* otherwise if it is decimal */
+                        fputc('#', ofile);       /* then print the decimal indicator */
+		    } else {
+                        if (radix == 16)         /* otherwise if it is hexadecimal */
+                            fputc('!', ofile);   /* then print the hexadecimal indicator */
+                        else                     /* otherwise it must be some other radix */
+                            fputc('?', ofile);   /* with no defined indicator */
+                    }
+                }
+            }
         }
+    }
 
-    else                                                /* otherwise */
-        return SCPE_ARG;                                /*   report that it cannot be displayed */
+    fprint_val(ofile, val, radix, width, format); /* print the value in the radix specified */
 
-else if (radix != cpu_dev.dradix)                       /* otherwise if the requested radix is not the current data radix */
-    if (radix == 2)                                     /*   then if the requested radix is binary */
-        fputc ('@', ofile);                             /*     then print the binary indicator */
-
-    else if (radix == 8)                                /*   otherwise if the requested radix is octal */
-        fputc ('%', ofile);                             /*     then print the octal indicator */
-
-    else if (radix == 10)                               /*   otherwise if it is decimal */
-        fputc ('#', ofile);                             /*     then print the decimal indicator */
-
-    else if (radix == 16)                               /*   otherwise if it is hexadecimal */
-        fputc ('!', ofile);                             /*     then print the hexadecimal indicator */
-
-    else                                                /*   otherwise it must be some other radix */
-        fputc ('?', ofile);                             /*     with no defined indicator */
-
-fprint_val (ofile, val, radix, width, format);          /* print the value in the radix specified */
-
-return SCPE_OK;                                         /* return success */
+    return SCPE_OK; /* return success */
 }
-
 
 /* Print an I/O program instruction in symbolic format.
 
@@ -3410,10 +3421,10 @@ if (ops [op_index].mnemonic [0])                        /* if a primary entry is
 else {                                                  /* otherwise search through the secondary entries */
     for (op_index = (mask >> shift) + 1;                /*   in the table starting after the primary entries */
          ops [op_index].mnemonic != NULL;               /*     until the NULL entry at the end */
-         op_index++)
+         op_index++) {
         if (ops [op_index].opcode ==                    /* if the opcode in this table entry */
           (instruction & ops [op_index].rsvd_mask       /*   matches the instruction with the reserved bits */
-          & op_mask [ops [op_index].operand]))          /*     and operand bits masked off */
+          & op_mask [ops [op_index].operand])) {        /*     and operand bits masked off */
             if (ops [op_index].mnemonic [0]) {          /*       then if the entry is defined */
                 fputs (ops [op_index].mnemonic, ofile); /*         then print it */
                 break;                                  /*           and terminate the search */
@@ -3430,6 +3441,8 @@ else {                                                  /* otherwise search thro
 
                 return SCPE_OK_2_WORDS;                     /* return success to indicate printing is complete */
                 }
+	}
+    }
 
     if (ops [op_index].mnemonic == NULL)                /* if the opcode was not found */
         return SCPE_ARG;                                /*   then return error status to print it in octal */

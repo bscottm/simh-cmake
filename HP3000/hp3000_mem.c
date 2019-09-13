@@ -425,7 +425,7 @@ else {                                                  /* otherwise the access 
 
 
         case program_checked:
-            if (PB <= offset && offset <= PL || PRIV)   /* if the offset is within bounds or is privileged */
+            if ((PB <= offset && offset <= PL) || PRIV) /* if the offset is within bounds or is privileged */
                 *value = (HP_WORD) M [address];         /*   then the value comes from memory */
             else                                        /* otherwise */
                 MICRO_ABORT (trap_Bounds_Violation);    /*   trap for a bounds violation */
@@ -433,10 +433,10 @@ else {                                                  /* otherwise the access 
 
 
         case data_checked:
-            if (DL <= offset && offset <= SM + SR || PRIV)  /* if the offset is within bounds or is privileged */
-                *value = (HP_WORD) M [address];             /*   then the value comes from memory */
-            else                                            /* otherwise */
-                MICRO_ABORT (trap_Bounds_Violation);        /*   trap for a bounds violation */
+            if ((DL <= offset && offset <= SM + SR) || PRIV) /* if the offset is within bounds or is privileged */
+                *value = (HP_WORD) M [address];              /* then the value comes from memory */
+            else                                             /* otherwise */
+                MICRO_ABORT (trap_Bounds_Violation);         /* trap for a bounds violation */
             break;
 
 
@@ -444,7 +444,7 @@ else {                                                  /* otherwise the access 
         case stack_checked:
             if (offset > SM && offset <= SM + SR && bank == SBANK)  /* if the offset is within the TOS */
                 *value = TR [SM + SR - offset];                     /*   then the value comes from a TOS register */
-            else if (DL <= offset && offset <= SM + SR || PRIV)     /* if the offset is within bounds or is privileged */
+            else if ((DL <= offset && offset <= SM + SR) || PRIV)   /* if the offset is within bounds or is privileged */
                 *value = (HP_WORD) M [address];                     /*   then the value comes from memory */
             else                                                    /* otherwise */
                 MICRO_ABORT (trap_Bounds_Violation);                /*   trap for a bounds violation */
@@ -552,7 +552,7 @@ else {                                                  /* otherwise the access 
         /* fall into checked cases */
 
         case data_checked:
-            if (DL <= offset && offset <= SM + SR || PRIV)          /* if the offset is within bounds or is privileged */
+            if ((DL <= offset && offset <= SM + SR) || PRIV)        /* if the offset is within bounds or is privileged */
                 M [address] = (MEMORY_WORD) value;                  /*   then write the value to memory */
             else                                                    /* otherwise */
                 MICRO_ABORT (trap_Bounds_Violation);                /*   trap for a bounds violation */
@@ -695,7 +695,7 @@ bap->initial_byte_address = TO_PA (bank, bap->word_address) * 2 /* save the phys
                               + (bap->initial_byte_offset & 1);
 
 if ((bap->initial_byte_offset & 1) == 0)                    /* if the starting byte offset is even */
-    bap->word_address = bap->word_address - 1 & LA_MASK;    /*   then bias the address for the first read */
+    bap->word_address = (bap->word_address - 1) & LA_MASK;  /*   then bias the address for the first read */
 
 return;
 }
@@ -719,7 +719,7 @@ uint8 mem_lookup_byte (BYTE_ACCESS *bap, uint8 index)
 {
 uint32 byte_offset, word_address;
 
-byte_offset = *bap->byte_offset + (HP_WORD) index       /* get the offset to the indexed location */
+byte_offset = (*bap->byte_offset + (HP_WORD) index)     /* get the offset to the indexed location */
                 & LA_MASK;
 
 word_address = cpu_byte_ea (bap->class, byte_offset, 0);    /* convert to a word address and check the bounds */
@@ -773,13 +773,13 @@ else {                                                      /* otherwise */
                           bap->data_word);
         }
 
-    bap->word_address = bap->word_address + 1 & LA_MASK;    /* update the word address */
+    bap->word_address = (bap->word_address + 1) & LA_MASK;  /* update the word address */
     cpu_read_memory (bap->class, bap->word_address,         /* read the data word */
                      &bap->data_word);                      /*   containing the target byte */
     byte = UPPER_BYTE (bap->data_word);                     /*     and get the upper byte */
     }
 
-*bap->byte_offset = *bap->byte_offset + 1 & LA_MASK;    /* update the byte offset */
+*bap->byte_offset = (*bap->byte_offset + 1) & LA_MASK;  /* update the byte offset */
 bap->count = bap->count + 1;                            /*   and the access count */
 
 return byte;
@@ -817,12 +817,12 @@ if (*bap->byte_offset & 1) {                                /* if the byte offse
     }
 
 else {                                                      /* otherwise the offset is even */
-    bap->word_address = bap->word_address + 1 & LA_MASK;    /*   so update the word address */
+    bap->word_address = (bap->word_address + 1) & LA_MASK;  /*   so update the word address */
     bap->data_word = REPLACE_UPPER (bap->data_word, byte);  /* replace the upper byte */
     bap->write_needed = TRUE;                               /*   and set the occupancy flag */
     }
 
-*bap->byte_offset = *bap->byte_offset + 1 & LA_MASK;        /* update the byte offset */
+*bap->byte_offset = (*bap->byte_offset + 1) & LA_MASK;      /* update the byte offset */
 bap->count = bap->count + 1;                                /*   and the access count */
 
 return;
@@ -900,9 +900,9 @@ return;
 
 void mem_update_byte (BYTE_ACCESS *bap)
 {
-HP_WORD target_word;
-
 if (bap->write_needed) {                                /* if the buffer needs to be written */
+    HP_WORD target_word = 0;
+
     bap->write_needed = FALSE;                          /*   then clear the occupancy flag */
 
     cpu_read_memory (bap->class, bap->word_address, &target_word);      /* read the data word */

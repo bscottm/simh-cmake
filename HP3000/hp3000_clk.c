@@ -506,7 +506,7 @@ if (coscheduled) {                                      /* if the clock is cosch
     ticks = (elapsed * CLK_MULTIPLIER) / clk_unit [0].wait  /* the adjustment is the elapsed fraction of the multiplier */
               - (CLK_MULTIPLIER - increment);               /*   less the amount of any adjustment already made */
 
-    count_register = count_register + ticks & R_MASK;   /* update the clock counter with rollover */
+    count_register = (count_register + ticks) & R_MASK; /* update the clock counter with rollover */
     increment = increment - ticks;                      /*   and reduce the amount remaining to add at service */
     }
 
@@ -786,7 +786,7 @@ dprintf (clk_dev, DEB_PSERV, "Service entered with counter %u increment %u limit
 prescaler = prescaler - 1;                              /* decrement the prescaler count */
 
 if (prescaler == 0) {                                       /* if the prescaler count has expired */
-    count_register = count_register + increment & R_MASK;   /*   then the count register counts up */
+    count_register = (count_register + increment) & R_MASK; /*   then the count register counts up */
 
     if (count_register == limit_register) {             /* if the limit has been reached */
         if (limit_irq == SET)                           /*   then if the last limit interrupt wasn't serviced */

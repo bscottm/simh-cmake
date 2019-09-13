@@ -889,131 +889,115 @@
        timer is not called).
 */
 
-
-
 #include "hp2100_defs.h"
 #include "hp2100_cpu.h"
 #include "hp2100_cpu1.h"
 
-
-
 /* CPU program constants */
-
 
 /* Command line switches */
 
-#define ALL_MAPMODES    (SWMASK ('S') | SWMASK ('U') | SWMASK ('P') | SWMASK ('Q'))
-
+#define ALL_MAPMODES (SWMASK ('S') | SWMASK ('U') | SWMASK ('P') | SWMASK ('Q'))
 
 /* RTE base-page addresses */
 
-static const uint32 xeqt = 0001717;             /* XEQT address */
-static const uint32 tbg  = 0001674;             /* TBG address */
+static const uint32 xeqt = 0001717; /* XEQT address */
+static const uint32 tbg  = 0001674; /* TBG address */
 
 /* DOS base-page addresses */
 
-static const uint32 m64  = 0000040;             /* constant -64 address */
-static const uint32 p64  = 0000067;             /* constant +64 address */
-
+static const uint32 m64 = 0000040; /* constant -64 address */
+static const uint32 p64 = 0000067; /* constant +64 address */
 
 /* CPU global SCP data definitions */
 
-REG *sim_PC = NULL;                             /* the pointer to the P register */
-
+REG *sim_PC = NULL; /* the pointer to the P register */
 
 /* CPU global data structures */
 
-
 /* CPU registers */
 
-HP_WORD ABREG [2] = { 0, 0};                    /* A and B registers */
-HP_WORD PR = 0;                                 /* P register */
-HP_WORD SR = 0;                                 /* S register */
-HP_WORD MR = 0;                                 /* M register */
-HP_WORD TR = 0;                                 /* T register */
-HP_WORD XR = 0;                                 /* X register */
-HP_WORD YR = 0;                                 /* Y register */
-uint32  E  = 0;                                 /* E register */
-uint32  O  = 0;                                 /* O register */
+HP_WORD ABREG[2] = { 0, 0 }; /* A and B registers */
+HP_WORD PR       = 0;        /* P register */
+HP_WORD SR       = 0;        /* S register */
+HP_WORD MR       = 0;        /* M register */
+HP_WORD TR       = 0;        /* T register */
+HP_WORD XR       = 0;        /* X register */
+HP_WORD YR       = 0;        /* Y register */
+uint32  E        = 0;        /* E register */
+uint32  O        = 0;        /* O register */
 
-HP_WORD IR  = 0;                                /* Instruction Register */
-HP_WORD CIR = 0;                                /* Central Interrupt Register */
-
+HP_WORD IR  = 0; /* Instruction Register */
+HP_WORD CIR = 0; /* Central Interrupt Register */
 
 /* CPU global state */
 
-FLIP_FLOP ion = CLEAR;                          /* interrupt enable */
-t_bool    ion_defer = FALSE;                    /* interrupt defer */
+FLIP_FLOP ion       = CLEAR; /* interrupt enable */
+t_bool    ion_defer = FALSE; /* interrupt defer */
 
-t_stat    cpu_ss_unimpl   = SCPE_OK;            /* status return for unimplemented instruction execution */
-t_stat    cpu_ss_undef    = SCPE_OK;            /* status return for undefined instruction execution */
-t_stat    cpu_ss_unsc     = SCPE_OK;            /* status return for I/O to an unassigned select code */
-t_stat    cpu_ss_ioerr    = SCPE_OK;            /* status return for an unreported I/O error */
-t_stat    cpu_ss_inhibit  = SCPE_OK;            /* CPU stop inhibition mask */
-UNIT      *cpu_ioerr_uptr = NULL;               /* pointer to a unit with an unreported I/O error */
+t_stat cpu_ss_unimpl  = SCPE_OK; /* status return for unimplemented instruction execution */
+t_stat cpu_ss_undef   = SCPE_OK; /* status return for undefined instruction execution */
+t_stat cpu_ss_unsc    = SCPE_OK; /* status return for I/O to an unassigned select code */
+t_stat cpu_ss_ioerr   = SCPE_OK; /* status return for an unreported I/O error */
+t_stat cpu_ss_inhibit = SCPE_OK; /* CPU stop inhibition mask */
+UNIT * cpu_ioerr_uptr = NULL;    /* pointer to a unit with an unreported I/O error */
 
-uint16    pcq [PCQ_SIZE] = { 0 };               /* PC queue (must be 16-bits wide for REG array entry) */
-uint32    pcq_p = 0;                            /* PC queue ptr */
-REG       *pcq_r = NULL;                        /* PC queue reg ptr */
+uint16 pcq[PCQ_SIZE] = { 0 }; /* PC queue (must be 16-bits wide for REG array entry) */
+uint32 pcq_p         = 0;     /* PC queue ptr */
+REG *  pcq_r         = NULL;  /* PC queue reg ptr */
 
-uint32    cpu_configuration;                    /* the current CPU option set and model */
-uint32    cpu_speed = 1;                        /* the CPU speed, expressed as a multiplier of a real machine */
-t_bool    is_1000 = FALSE;                      /* TRUE if the CPU is a 1000 M/E/F-Series */
+uint32 cpu_configuration; /* the current CPU option set and model */
+uint32 cpu_speed = 1;     /* the CPU speed, expressed as a multiplier of a real machine */
+t_bool is_1000   = FALSE; /* TRUE if the CPU is a 1000 M/E/F-Series */
 
-uint32 dev_prl [2] = { ~0u, ~0u };              /* device priority low bit vector */
-uint32 dev_irq [2] = {  0u,  0u };              /* device interrupt request bit vector */
-uint32 dev_srq [2] = {  0u,  0u };              /* device service request bit vector */
-
+uint32 dev_prl[2] = { ~0u, ~0u }; /* device priority low bit vector */
+uint32 dev_irq[2] = { 0u, 0u };   /* device interrupt request bit vector */
+uint32 dev_srq[2] = { 0u, 0u };   /* device service request bit vector */
 
 /* Main memory global state */
 
-MEMORY_WORD *M = NULL;                          /* pointer to allocated memory */
-
+MEMORY_WORD *M = NULL; /* pointer to allocated memory */
 
 /* Memory Expansion Unit global state */
 
-uint32  dms_enb = 0;                            /* dms enable */
-uint32  dms_ump = 0;                            /* dms user map */
-HP_WORD dms_sr  = 0;                            /* dms status reg */
-
+uint32  dms_enb = 0; /* dms enable */
+uint32  dms_ump = 0; /* dms user map */
+HP_WORD dms_sr  = 0; /* dms status reg */
 
 /* CPU local state */
 
-static HP_WORD saved_MR = 0;                    /* M-register value between SCP commands */
-static uint32  fwanxm   = 0;                    /* first word addr of nx mem */
-static uint32  jsb_plb  = 2;                    /* protected lower bound for JSB */
+static HP_WORD saved_MR = 0; /* M-register value between SCP commands */
+static uint32  fwanxm   = 0; /* first word addr of nx mem */
+static uint32  jsb_plb  = 2; /* protected lower bound for JSB */
 
-static uint32  exec_mask        = 0;            /* the current instruction execution trace mask */
-static uint32  exec_match       = D16_UMAX;     /* the current instruction execution trace matching value */
-static uint32  indirect_limit   = 16;           /* the indirect chain length limit */
-static uint32  last_select_code = 0;            /* the last select code sent over the I/O backplane */
+static uint32 exec_mask        = 0;        /* the current instruction execution trace mask */
+static uint32 exec_match       = D16_UMAX; /* the current instruction execution trace matching value */
+static uint32 indirect_limit   = 16;       /* the indirect chain length limit */
+static uint32 last_select_code = 0;        /* the last select code sent over the I/O backplane */
 
-static uint32  tbg_select_code = 0;             /* the time-base generator select code (for RTE idle check) */
-static DEVICE  *loader_rom [4] = { NULL };      /* the four boot loader ROM sockets in a 1000 CPU */
-
+static uint32  tbg_select_code = 0;        /* the time-base generator select code (for RTE idle check) */
+static DEVICE *loader_rom[4]   = { NULL }; /* the four boot loader ROM sockets in a 1000 CPU */
 
 /* Memory Expansion Unit local state */
 
-static HP_WORD dms_vr = 0;                              /* dms violation reg */
-static uint16  dms_map [MAP_NUM * MAP_LNT] = { 0 };     /* dms maps (must be 16-bits wide for REG array entry) */
-
+static HP_WORD dms_vr                     = 0;     /* dms violation reg */
+static uint16  dms_map[MAP_NUM * MAP_LNT] = { 0 }; /* dms maps (must be 16-bits wide for REG array entry) */
 
 /* CPU local data structures */
 
-
 /* Interrupt deferral table (1000 version) */
 
-static t_bool defer_tab [] = {                  /* deferral table, indexed by I/O sub-opcode */
-    FALSE,                                      /*   soHLT */
-    TRUE,                                       /*   soFLG */
-    TRUE,                                       /*   soSFC */
-    TRUE,                                       /*   soSFS */
-    FALSE,                                      /*   soMIX */
-    FALSE,                                      /*   soLIX */
-    FALSE,                                      /*   soOTX */
-    TRUE                                        /*   soCTL */
-    };
-
+static t_bool defer_tab[] = {
+    /* deferral table, indexed by I/O sub-opcode */
+    FALSE, /*   soHLT */
+    TRUE,  /*   soFLG */
+    TRUE,  /*   soSFC */
+    TRUE,  /*   soSFS */
+    FALSE, /*   soMIX */
+    FALSE, /*   soLIX */
+    FALSE, /*   soOTX */
+    TRUE   /*   soCTL */
+};
 
 /* CPU features table.
 
@@ -1025,62 +1009,52 @@ static t_bool defer_tab [] = {                  /* deferral table, indexed by I/
    enabled or disabled as desired by the user.
 */
 
-struct FEATURE_TABLE {                          /* CPU model feature table: */
-    uint32      typ;                            /*  - typical features */
-    uint32      opt;                            /*  - optional features */
-    uint32      maxmem;                         /*  - maximum memory */
-    };
+struct FEATURE_TABLE
+{                  /* CPU model feature table: */
+    uint32 typ;    /*  - typical features */
+    uint32 opt;    /*  - optional features */
+    uint32 maxmem; /*  - maximum memory */
+};
 
-static struct FEATURE_TABLE cpu_features [] = {         /* features indexed by CPU model */
-  { UNIT_DMA | UNIT_MP,                                 /*   UNIT_2116 */
-    UNIT_PFAIL | UNIT_DMA | UNIT_MP | UNIT_EAU,
-    32 * 1024
-    },
+static struct FEATURE_TABLE cpu_features[]
+    = {                       /* features indexed by CPU model */
+        { UNIT_DMA | UNIT_MP, /*   UNIT_2116 */
+          UNIT_PFAIL | UNIT_DMA | UNIT_MP | UNIT_EAU, 32 * 1024 },
 
-  { UNIT_DMA,                                           /*   UNIT_2115 */
-    UNIT_PFAIL | UNIT_DMA | UNIT_EAU,
-    8 * 1024
-    },
+        { UNIT_DMA, /*   UNIT_2115 */
+          UNIT_PFAIL | UNIT_DMA | UNIT_EAU, 8 * 1024 },
 
-  { UNIT_DMA,                                           /*   UNIT_2114 */
-    UNIT_PFAIL | UNIT_DMA,
-    16 * 1024 },
+        { UNIT_DMA, /*   UNIT_2114 */
+          UNIT_PFAIL | UNIT_DMA, 16 * 1024 },
 
-  { 0, 0, 0                                             /*   unused model */
-    },
+        {
+            0, 0, 0 /*   unused model */
+        },
 
-  { UNIT_PFAIL | UNIT_MP | UNIT_DMA | UNIT_EAU,         /*   UNIT_2100 */
-    UNIT_DMA   | UNIT_FP | UNIT_IOP | UNIT_FFP,
-    32 * 1024
-    },
+        { UNIT_PFAIL | UNIT_MP | UNIT_DMA | UNIT_EAU, /*   UNIT_2100 */
+          UNIT_DMA | UNIT_FP | UNIT_IOP | UNIT_FFP, 32 * 1024 },
 
-  { 0, 0, 0                                             /*   unused model */
-    },
-  { 0, 0, 0                                             /*   unused model */
-    },
-  { 0, 0, 0                                             /*   unused model */
-    },
+        {
+            0, 0, 0 /*   unused model */
+        },
+        {
+            0, 0, 0 /*   unused model */
+        },
+        {
+            0, 0, 0 /*   unused model */
+        },
 
-  { UNIT_MP | UNIT_DMA | UNIT_EAU | UNIT_FP | UNIT_DMS, /*   UNIT_1000_M */
-    UNIT_PFAIL | UNIT_DMA | UNIT_MP | UNIT_DMS |
-    UNIT_IOP   | UNIT_FFP | UNIT_DS,
-    1024 * 1024
-    },
+        { UNIT_MP | UNIT_DMA | UNIT_EAU | UNIT_FP | UNIT_DMS, /*   UNIT_1000_M */
+          UNIT_PFAIL | UNIT_DMA | UNIT_MP | UNIT_DMS | UNIT_IOP | UNIT_FFP | UNIT_DS, 1024 * 1024 },
 
-  { UNIT_MP | UNIT_DMA | UNIT_EAU | UNIT_FP | UNIT_DMS, /*   UNIT_1000_E */
-    UNIT_PFAIL | UNIT_DMA | UNIT_MP  | UNIT_DMS |
-    UNIT_IOP   | UNIT_FFP | UNIT_DBI | UNIT_DS  | UNIT_EMA_VMA,
-    1024 * 1024
-    },
+        { UNIT_MP | UNIT_DMA | UNIT_EAU | UNIT_FP | UNIT_DMS, /*   UNIT_1000_E */
+          UNIT_PFAIL | UNIT_DMA | UNIT_MP | UNIT_DMS | UNIT_IOP | UNIT_FFP | UNIT_DBI | UNIT_DS | UNIT_EMA_VMA,
+          1024 * 1024 },
 
-  { UNIT_MP  | UNIT_DMA | UNIT_EAU | UNIT_FP |          /*   UNIT_1000_F */
-    UNIT_FFP | UNIT_DBI | UNIT_DMS,
-    UNIT_PFAIL | UNIT_DMA | UNIT_MP     | UNIT_DMS |
-    UNIT_VIS   | UNIT_DS  | UNIT_SIGNAL | UNIT_EMA_VMA,
-    1024 * 1024
-    }
-  };
-
+        { UNIT_MP | UNIT_DMA | UNIT_EAU | UNIT_FP | /*   UNIT_1000_F */
+              UNIT_FFP | UNIT_DBI | UNIT_DMS,
+          UNIT_PFAIL | UNIT_DMA | UNIT_MP | UNIT_DMS | UNIT_VIS | UNIT_DS | UNIT_SIGNAL | UNIT_EMA_VMA, 1024 * 1024 }
+      };
 
 /* CPU local SCP support routine declarations */
 
@@ -1092,63 +1066,61 @@ static t_stat cpu_examine (t_value *eval, t_addr address, UNIT *uptr, int32 swit
 static t_stat cpu_deposit (t_value value, t_addr address, UNIT *uptr, int32 switches);
 
 static t_stat cpu_reset (DEVICE *dptr);
-static t_stat cpu_boot  (int32  unitno, DEVICE *dptr);
+static t_stat cpu_boot (int32 unitno, DEVICE *dptr);
 
-static t_stat set_stops    (UNIT *uptr, int32 option,    CONST char *cptr, void *desc);
-static t_stat set_size     (UNIT *uptr, int32 new_size,  CONST char *cptr, void *desc);
-static t_stat set_model    (UNIT *uptr, int32 new_model, CONST char *cptr, void *desc);
-static t_stat set_option   (UNIT *uptr, int32 option,    CONST char *cptr, void *desc);
-static t_stat clear_option (UNIT *uptr, int32 option,    CONST char *cptr, void *desc);
-static t_stat set_loader   (UNIT *uptr, int32 enable,    CONST char *cptr, void *desc);
-static t_stat set_roms     (UNIT *uptr, int32 option,    CONST char *cptr, void *desc);
-static t_stat set_exec     (UNIT *uptr, int32 option,    CONST char *cptr, void *desc);
+static t_stat set_stops (UNIT *uptr, int32 option, CONST char *cptr, void *desc);
+static t_stat set_size (UNIT *uptr, int32 new_size, CONST char *cptr, void *desc);
+static t_stat set_model (UNIT *uptr, int32 new_model, CONST char *cptr, void *desc);
+static t_stat set_option (UNIT *uptr, int32 option, CONST char *cptr, void *desc);
+static t_stat clear_option (UNIT *uptr, int32 option, CONST char *cptr, void *desc);
+static t_stat set_loader (UNIT *uptr, int32 enable, CONST char *cptr, void *desc);
+static t_stat set_roms (UNIT *uptr, int32 option, CONST char *cptr, void *desc);
+static t_stat set_exec (UNIT *uptr, int32 option, CONST char *cptr, void *desc);
 
 static t_stat show_stops (FILE *st, UNIT *uptr, int32 val, CONST void *desc);
 static t_stat show_model (FILE *st, UNIT *uptr, int32 val, CONST void *desc);
-static t_stat show_roms  (FILE *st, UNIT *uptr, int32 val, CONST void *desc);
-static t_stat show_exec  (FILE *st, UNIT *uptr, int32 val, CONST void *desc);
+static t_stat show_roms (FILE *st, UNIT *uptr, int32 val, CONST void *desc);
+static t_stat show_exec (FILE *st, UNIT *uptr, int32 val, CONST void *desc);
 static t_stat show_speed (FILE *st, UNIT *uptr, int32 val, CONST void *desc);
-
 
 /* CPU local utility routine declarations */
 
-static t_stat  ea                  (HP_WORD IR, HP_WORD *address, uint32 irq);
-static HP_WORD srg_uop             (HP_WORD value, HP_WORD operation);
+static t_stat  ea (HP_WORD IR, HP_WORD *address, uint32 irq);
+static HP_WORD srg_uop (HP_WORD value, HP_WORD operation);
 static t_stat  machine_instruction (HP_WORD IR, t_bool iotrap, uint32 irq_pending, uint32 *idle_save);
-static t_bool  check_deferral      (uint32 irq_sc);
-static uint32  map_address         (HP_WORD logical, int32 switches);
-static t_bool  mem_is_empty        (uint32 starting_address);
-
+static t_bool  check_deferral (uint32 irq_sc);
+static uint32  map_address (HP_WORD logical, int32 switches);
+static t_bool  mem_is_empty (uint32 starting_address);
 
 /* Memory Expansion Unit local utility routine declarations */
 
 static t_bool is_mapped (uint32 address);
-static uint32 meu_map   (HP_WORD address, uint32 map, HP_WORD prot);
-
+static uint32 meu_map (HP_WORD address, uint32 map, HP_WORD prot);
 
 /* CPU SCP data structures */
 
-
 /* Device information blocks */
 
-static DIB cpu_dib = {                          /* CPU select code 0 */
-    &cpuio,                                     /*   device interface */
-    CPU,                                        /*   select code */
-    0                                           /*   card index */
-    };
+static DIB cpu_dib = {
+    /* CPU select code 0 */
+    &cpuio, /*   device interface */
+    CPU,    /*   select code */
+    0       /*   card index */
+};
 
-static DIB ovfl_dib = {                         /* Overflow select code 1 */
-    &ovflio,                                    /*   device interface */
-    OVF,                                        /*   select code */
-    0                                           /*   card index */
-    };
+static DIB ovfl_dib = {
+    /* Overflow select code 1 */
+    &ovflio, /*   device interface */
+    OVF,     /*   select code */
+    0        /*   card index */
+};
 
-static DIB pwrf_dib = {                         /* Power Fail select code 4 */
-    &pwrfio,                                    /*   device interface */
-    PWR,                                        /*   select code */
-    0                                           /*   card index */
-    };
-
+static DIB pwrf_dib = {
+    /* Power Fail select code 4 */
+    &pwrfio, /*   device interface */
+    PWR,     /*   select code */
+    0        /*   card index */
+};
 
 /* Unit list.
 
@@ -1163,7 +1135,6 @@ static DIB pwrf_dib = {                         /* Power Fail select code 4 */
 */
 
 UNIT cpu_unit = { UDATA (NULL, UNIT_FIX | UNIT_BINK, 0) };
-
 
 /* Register list.
 
@@ -1180,50 +1151,49 @@ UNIT cpu_unit = { UDATA (NULL, UNIT_FIX | UNIT_BINK, 0) };
        form.
 */
 
-static REG cpu_reg [] = {
-/*    Macro   Name       Location            Radix  Width   Offset       Depth                Flags       */
-/*    ------  ---------  ------------------  -----  -----  --------  -----------------  ----------------- */
-    { ORDATA (P,         PR,                         15)                                                  },
-    { ORDATA (A,         AR,                         16),                               REG_X             },
-    { ORDATA (B,         BR,                         16),                               REG_X             },
-    { ORDATA (M,         MR,                         15)                                                  },
-    { ORDATA (T,         TR,                         16),                               REG_RO | REG_X    },
-    { ORDATA (X,         XR,                         16),                               REG_X             },
-    { ORDATA (Y,         YR,                         16),                               REG_X             },
-    { ORDATA (S,         SR,                         16),                               REG_X             },
-    { FLDATA (E,         E,                                   0)                                          },
-    { FLDATA (O,         O,                                   0)                                          },
-    { ORDATA (CIR,       CIR,                         6)                                                  },
+static REG cpu_reg[] = {
+    /*    Macro   Name       Location            Radix  Width   Offset       Depth                Flags       */
+    /*    ------  ---------  ------------------  -----  -----  --------  -----------------  ----------------- */
+    { ORDATA (P, PR, 15) },
+    { ORDATA (A, AR, 16), REG_X },
+    { ORDATA (B, BR, 16), REG_X },
+    { ORDATA (M, MR, 15) },
+    { ORDATA (T, TR, 16), REG_RO | REG_X },
+    { ORDATA (X, XR, 16), REG_X },
+    { ORDATA (Y, YR, 16), REG_X },
+    { ORDATA (S, SR, 16), REG_X },
+    { FLDATA (E, E, 0) },
+    { FLDATA (O, O, 0) },
+    { ORDATA (CIR, CIR, 6) },
 
-    { FLDATA (ION,       ion,                                 0)                                          },
-    { FLDATA (ION_DEFER, ion_defer,                           0)                                          },
-    { FLDATA (DMSENB,    dms_enb,                             0)                                          },
-    { FLDATA (DMSCUR,    dms_ump,                          VA_N_PAG)                                      },
+    { FLDATA (ION, ion, 0) },
+    { FLDATA (ION_DEFER, ion_defer, 0) },
+    { FLDATA (DMSENB, dms_enb, 0) },
+    { FLDATA (DMSCUR, dms_ump, VA_N_PAG) },
 
-    { ORDATA (DMSSR,     dms_sr,                     16)                                                  },
-    { ORDATA (DMSVR,     dms_vr,                     16)                                                  },
-    { BRDATA (DMSMAP,    dms_map,              8,    16,             MAP_NUM * MAP_LNT)                   },
+    { ORDATA (DMSSR, dms_sr, 16) },
+    { ORDATA (DMSVR, dms_vr, 16) },
+    { BRDATA (DMSMAP, dms_map, 8, 16, MAP_NUM *MAP_LNT) },
 
-    { ORDATA (IOPSP,     iop_sp,                     16)                                                  },
-    { BRDATA (PCQ,       pcq,                  8,    15,             PCQ_SIZE),         REG_CIRC | REG_RO },
+    { ORDATA (IOPSP, iop_sp, 16) },
+    { BRDATA (PCQ, pcq, 8, 15, PCQ_SIZE), REG_CIRC | REG_RO },
 
-    { ORDATA (IR,        IR,                         16),                               REG_HRO           },
-    { ORDATA (PCQP,      pcq_p,                       6),                               REG_HRO           },
-    { ORDATA (JSBPLB,    jsb_plb,                    32),                               REG_HRO           },
-    { ORDATA (SAVEDMR,   saved_MR,                   32),                               REG_HRO           },
-    { ORDATA (FWANXM,    fwanxm,                     32),                               REG_HRO           },
-    { ORDATA (CONFIG,    cpu_configuration,          32),                               REG_HRO           },
+    { ORDATA (IR, IR, 16), REG_HRO },
+    { ORDATA (PCQP, pcq_p, 6), REG_HRO },
+    { ORDATA (JSBPLB, jsb_plb, 32), REG_HRO },
+    { ORDATA (SAVEDMR, saved_MR, 32), REG_HRO },
+    { ORDATA (FWANXM, fwanxm, 32), REG_HRO },
+    { ORDATA (CONFIG, cpu_configuration, 32), REG_HRO },
 
-    { ORDATA (WRU,       sim_int_char,                8),                               REG_HRO           },
-    { ORDATA (BRK,       sim_brk_char,                8),                               REG_HRO           },
-    { ORDATA (DEL,       sim_del_char,                8),                               REG_HRO           },
+    { ORDATA (WRU, sim_int_char, 8), REG_HRO },
+    { ORDATA (BRK, sim_brk_char, 8), REG_HRO },
+    { ORDATA (DEL, sim_del_char, 8), REG_HRO },
 
-    { BRDATA (PRL,       dev_prl,              8,    32,                 2),            REG_HRO           },
-    { BRDATA (IRQ,       dev_irq,              8,    32,                 2),            REG_HRO           },
-    { BRDATA (SRQ,       dev_srq,              8,    32,                 2),            REG_HRO           },
+    { BRDATA (PRL, dev_prl, 8, 32, 2), REG_HRO },
+    { BRDATA (IRQ, dev_irq, 8, 32, 2), REG_HRO },
+    { BRDATA (SRQ, dev_srq, 8, 32, 2), REG_HRO },
     { NULL }
-    };
-
+};
 
 /* Modifier list.
 
@@ -1241,119 +1211,115 @@ static REG cpu_reg [] = {
        option value must be passed to the validation routine.
 */
 
-static MTAB cpu_mod [] = {
-/*    Mask Value       Match Value  Print String  Match String  Validation     Display      Descriptor        */
-/*    ---------------  -----------  ------------  ------------  -------------  -----------  ----------------- */
-    { UNIT_MODEL_MASK, UNIT_2116,   "",           "2116",       &set_model,    &show_model, (void *) "2116"   },
-    { UNIT_MODEL_MASK, UNIT_2115,   "",           "2115",       &set_model,    &show_model, (void *) "2115"   },
-    { UNIT_MODEL_MASK, UNIT_2114,   "",           "2114",       &set_model,    &show_model, (void *) "2114"   },
-    { UNIT_MODEL_MASK, UNIT_2100,   "",           "2100",       &set_model,    &show_model, (void *) "2100"   },
-    { UNIT_MODEL_MASK, UNIT_1000_E, "",           "1000-E",     &set_model,    &show_model, (void *) "1000-E" },
-    { UNIT_MODEL_MASK, UNIT_1000_M, "",           "1000-M",     &set_model,    &show_model, (void *) "1000-M" },
+static MTAB cpu_mod[] = {
+    /*    Mask Value       Match Value  Print String  Match String  Validation     Display      Descriptor        */
+    /*    ---------------  -----------  ------------  ------------  -------------  -----------  ----------------- */
+    { UNIT_MODEL_MASK, UNIT_2116, "", "2116", &set_model, &show_model, (void *)"2116" },
+    { UNIT_MODEL_MASK, UNIT_2115, "", "2115", &set_model, &show_model, (void *)"2115" },
+    { UNIT_MODEL_MASK, UNIT_2114, "", "2114", &set_model, &show_model, (void *)"2114" },
+    { UNIT_MODEL_MASK, UNIT_2100, "", "2100", &set_model, &show_model, (void *)"2100" },
+    { UNIT_MODEL_MASK, UNIT_1000_E, "", "1000-E", &set_model, &show_model, (void *)"1000-E" },
+    { UNIT_MODEL_MASK, UNIT_1000_M, "", "1000-M", &set_model, &show_model, (void *)"1000-M" },
 
-#if defined (HAVE_INT64)
-    { UNIT_MODEL_MASK, UNIT_1000_F, "",           "1000-F",     &set_model,    &show_model, (void *) "1000-F" },
+#if defined(HAVE_INT64)
+    { UNIT_MODEL_MASK, UNIT_1000_F, "", "1000-F", &set_model, &show_model, (void *)"1000-F" },
 #endif
 
-    { UNIT_MODEL_MASK, UNIT_1000_M, NULL,         "21MX-M",     &set_model,    &show_model, (void *) "1000-M" },
-    { UNIT_MODEL_MASK, UNIT_1000_E, NULL,         "21MX-E",     &set_model,    &show_model, (void *) "1000-E" },
+    { UNIT_MODEL_MASK, UNIT_1000_M, NULL, "21MX-M", &set_model, &show_model, (void *)"1000-M" },
+    { UNIT_MODEL_MASK, UNIT_1000_E, NULL, "21MX-E", &set_model, &show_model, (void *)"1000-E" },
 
-    { UNIT_EAU,        UNIT_EAU,    "EAU",        "EAU",        &set_option,   NULL,        NULL              },
-    { UNIT_EAU,        0,           "no EAU",     NULL,         NULL,          NULL,        NULL              },
-    { MTAB_XDV,        UNIT_EAU,     NULL,        "NOEAU",      &clear_option, NULL,        NULL              },
+    { UNIT_EAU, UNIT_EAU, "EAU", "EAU", &set_option, NULL, NULL },
+    { UNIT_EAU, 0, "no EAU", NULL, NULL, NULL, NULL },
+    { MTAB_XDV, UNIT_EAU, NULL, "NOEAU", &clear_option, NULL, NULL },
 
-    { UNIT_FP,         UNIT_FP,     "FP",         "FP",         &set_option,   NULL,        NULL              },
-    { UNIT_FP,         0,           "no FP",      NULL,         NULL,          NULL,        NULL              },
-    { MTAB_XDV,        UNIT_FP,      NULL,        "NOFP",       &clear_option, NULL,        NULL              },
+    { UNIT_FP, UNIT_FP, "FP", "FP", &set_option, NULL, NULL },
+    { UNIT_FP, 0, "no FP", NULL, NULL, NULL, NULL },
+    { MTAB_XDV, UNIT_FP, NULL, "NOFP", &clear_option, NULL, NULL },
 
-    { UNIT_IOP,        UNIT_IOP,    "IOP",        "IOP",        &set_option,   NULL,        NULL              },
-    { UNIT_IOP,        0,           "no IOP",     NULL,         NULL,          NULL,        NULL              },
-    { MTAB_XDV,        UNIT_IOP,     NULL,        "NOIOP",      &clear_option, NULL,        NULL              },
+    { UNIT_IOP, UNIT_IOP, "IOP", "IOP", &set_option, NULL, NULL },
+    { UNIT_IOP, 0, "no IOP", NULL, NULL, NULL, NULL },
+    { MTAB_XDV, UNIT_IOP, NULL, "NOIOP", &clear_option, NULL, NULL },
 
-    { UNIT_DMS,        UNIT_DMS,    "DMS",        "DMS",        &set_option,   NULL,        NULL              },
-    { UNIT_DMS,        0,           "no DMS",     NULL,         NULL,          NULL,        NULL              },
-    { MTAB_XDV,        UNIT_DMS,     NULL,        "NODMS",      &clear_option, NULL,        NULL              },
+    { UNIT_DMS, UNIT_DMS, "DMS", "DMS", &set_option, NULL, NULL },
+    { UNIT_DMS, 0, "no DMS", NULL, NULL, NULL, NULL },
+    { MTAB_XDV, UNIT_DMS, NULL, "NODMS", &clear_option, NULL, NULL },
 
-    { UNIT_FFP,        UNIT_FFP,    "FFP",        "FFP",        &set_option,   NULL,        NULL              },
-    { UNIT_FFP,        0,           "no FFP",     NULL,         NULL,          NULL,        NULL              },
-    { MTAB_XDV,        UNIT_FFP,     NULL,        "NOFFP",      &clear_option, NULL,        NULL              },
+    { UNIT_FFP, UNIT_FFP, "FFP", "FFP", &set_option, NULL, NULL },
+    { UNIT_FFP, 0, "no FFP", NULL, NULL, NULL, NULL },
+    { MTAB_XDV, UNIT_FFP, NULL, "NOFFP", &clear_option, NULL, NULL },
 
-    { UNIT_DBI,        UNIT_DBI,    "DBI",        "DBI",        &set_option,   NULL,        NULL              },
-    { UNIT_DBI,        0,           "no DBI",     NULL,         NULL,          NULL,        NULL              },
-    { MTAB_XDV,        UNIT_DBI,     NULL,        "NODBI",      &clear_option, NULL,        NULL              },
+    { UNIT_DBI, UNIT_DBI, "DBI", "DBI", &set_option, NULL, NULL },
+    { UNIT_DBI, 0, "no DBI", NULL, NULL, NULL, NULL },
+    { MTAB_XDV, UNIT_DBI, NULL, "NODBI", &clear_option, NULL, NULL },
 
-    { UNIT_EMA_VMA,    UNIT_EMA,    "EMA",        "EMA",        &set_option,   NULL,        NULL              },
-    { MTAB_XDV,        UNIT_EMA,     NULL,        "NOEMA",      &clear_option, NULL,        NULL              },
+    { UNIT_EMA_VMA, UNIT_EMA, "EMA", "EMA", &set_option, NULL, NULL },
+    { MTAB_XDV, UNIT_EMA, NULL, "NOEMA", &clear_option, NULL, NULL },
 
-    { UNIT_EMA_VMA,    UNIT_VMAOS,  "VMA",        "VMA",        &set_option,   NULL,        NULL              },
-    { MTAB_XDV,        UNIT_VMAOS,   NULL,        "NOVMA",      &clear_option, NULL,        NULL              },
+    { UNIT_EMA_VMA, UNIT_VMAOS, "VMA", "VMA", &set_option, NULL, NULL },
+    { MTAB_XDV, UNIT_VMAOS, NULL, "NOVMA", &clear_option, NULL, NULL },
 
-    { UNIT_EMA_VMA,    0,           "no EMA/VMA", NULL,         &set_option,   NULL,        NULL              },
+    { UNIT_EMA_VMA, 0, "no EMA/VMA", NULL, &set_option, NULL, NULL },
 
-#if defined (HAVE_INT64)
-    { UNIT_VIS,        UNIT_VIS,    "VIS",        "VIS",        &set_option,   NULL,        NULL              },
-    { UNIT_VIS,        0,           "no VIS",     NULL,         NULL,          NULL,        NULL              },
-    { MTAB_XDV,        UNIT_VIS,     NULL,        "NOVIS",      &clear_option, NULL,        NULL              },
+#if defined(HAVE_INT64)
+    { UNIT_VIS, UNIT_VIS, "VIS", "VIS", &set_option, NULL, NULL },
+    { UNIT_VIS, 0, "no VIS", NULL, NULL, NULL, NULL },
+    { MTAB_XDV, UNIT_VIS, NULL, "NOVIS", &clear_option, NULL, NULL },
 
-    { UNIT_SIGNAL,     UNIT_SIGNAL, "SIGNAL",     "SIGNAL",     &set_option,   NULL,        NULL              },
-    { UNIT_SIGNAL,     0,           "no SIGNAL",  NULL,         NULL,          NULL,        NULL              },
-    { MTAB_XDV,        UNIT_SIGNAL,  NULL,        "NOSIGNAL",   &clear_option, NULL,        NULL              },
+    { UNIT_SIGNAL, UNIT_SIGNAL, "SIGNAL", "SIGNAL", &set_option, NULL, NULL },
+    { UNIT_SIGNAL, 0, "no SIGNAL", NULL, NULL, NULL, NULL },
+    { MTAB_XDV, UNIT_SIGNAL, NULL, "NOSIGNAL", &clear_option, NULL, NULL },
 #endif
 
-/* Future microcode support.
-    { UNIT_DS,         UNIT_DS,     "DS",         "DS",         &set_option,   NULL,        NULL              },
-    { UNIT_DS,         0,           "no DS",      NULL,         NULL,          NULL,        NULL              },
-    { MTAB_XDV,        UNIT_DS,      NULL,        "NODS",       &clear_option, NULL,        NULL              },
-*/
+    /* Future microcode support.
+        { UNIT_DS,         UNIT_DS,     "DS",         "DS",         &set_option,   NULL,        NULL              },
+        { UNIT_DS,         0,           "no DS",      NULL,         NULL,          NULL,        NULL              },
+        { MTAB_XDV,        UNIT_DS,      NULL,        "NODS",       &clear_option, NULL,        NULL              },
+    */
 
-/*    Entry Flags             Value     Print String  Match String     Validation     Display         Descriptor */
-/*    -------------------  -----------  ------------  ---------------  -------------  --------------  ---------- */
-    { MTAB_XDV,                 0,      "IDLE",       "IDLE",          &sim_set_idle, &sim_show_idle, NULL       },
-    { MTAB_XDV,                 0,      NULL,         "NOIDLE",        &sim_clr_idle, NULL,           NULL       },
+    /*    Entry Flags             Value     Print String  Match String     Validation     Display         Descriptor */
+    /*    -------------------  -----------  ------------  ---------------  -------------  --------------  ---------- */
+    { MTAB_XDV, 0, "IDLE", "IDLE", &sim_set_idle, &sim_show_idle, NULL },
+    { MTAB_XDV, 0, NULL, "NOIDLE", &sim_clr_idle, NULL, NULL },
 
-    { MTAB_XDV,                 1,      NULL,         "LOADERENABLE",  &set_loader,   NULL,           NULL       },
-    { MTAB_XDV,                 0,      NULL,         "LOADERDISABLE", &set_loader,   NULL,           NULL       },
+    { MTAB_XDV, 1, NULL, "LOADERENABLE", &set_loader, NULL, NULL },
+    { MTAB_XDV, 0, NULL, "LOADERDISABLE", &set_loader, NULL, NULL },
 
-    { MTAB_XDV,               4 * 1024, NULL,         "4K",            &set_size,     NULL,           NULL       },
-    { MTAB_XDV,               8 * 1024, NULL,         "8K",            &set_size,     NULL,           NULL       },
-    { MTAB_XDV,              12 * 1024, NULL,         "12K",           &set_size,     NULL,           NULL       },
-    { MTAB_XDV,              16 * 1024, NULL,         "16K",           &set_size,     NULL,           NULL       },
-    { MTAB_XDV,              24 * 1024, NULL,         "24K",           &set_size,     NULL,           NULL       },
-    { MTAB_XDV,              32 * 1024, NULL,         "32K",           &set_size,     NULL,           NULL       },
-    { MTAB_XDV,              64 * 1024, NULL,         "64K",           &set_size,     NULL,           NULL       },
-    { MTAB_XDV,             128 * 1024, NULL,         "128K",          &set_size,     NULL,           NULL       },
-    { MTAB_XDV,             256 * 1024, NULL,         "256K",          &set_size,     NULL,           NULL       },
-    { MTAB_XDV,             512 * 1024, NULL,         "512K",          &set_size,     NULL,           NULL       },
-    { MTAB_XDV,            1024 * 1024, NULL,         "1024K",         &set_size,     NULL,           NULL       },
+    { MTAB_XDV, 4 * 1024, NULL, "4K", &set_size, NULL, NULL },
+    { MTAB_XDV, 8 * 1024, NULL, "8K", &set_size, NULL, NULL },
+    { MTAB_XDV, 12 * 1024, NULL, "12K", &set_size, NULL, NULL },
+    { MTAB_XDV, 16 * 1024, NULL, "16K", &set_size, NULL, NULL },
+    { MTAB_XDV, 24 * 1024, NULL, "24K", &set_size, NULL, NULL },
+    { MTAB_XDV, 32 * 1024, NULL, "32K", &set_size, NULL, NULL },
+    { MTAB_XDV, 64 * 1024, NULL, "64K", &set_size, NULL, NULL },
+    { MTAB_XDV, 128 * 1024, NULL, "128K", &set_size, NULL, NULL },
+    { MTAB_XDV, 256 * 1024, NULL, "256K", &set_size, NULL, NULL },
+    { MTAB_XDV, 512 * 1024, NULL, "512K", &set_size, NULL, NULL },
+    { MTAB_XDV, 1024 * 1024, NULL, "1024K", &set_size, NULL, NULL },
 
-    { MTAB_XDV | MTAB_NMO,      0,      "ROMS",       "ROMS",          &set_roms,     &show_roms,     NULL       },
+    { MTAB_XDV | MTAB_NMO, 0, "ROMS", "ROMS", &set_roms, &show_roms, NULL },
 
-    { MTAB_XDV | MTAB_NMO,      1,      "STOPS",      "STOP",          &set_stops,    &show_stops,    NULL       },
-    { MTAB_XDV,                 0,      NULL,         "NOSTOP",        &set_stops,    NULL,           NULL       },
-    { MTAB_XDV | MTAB_NMO,      2,      "INDIR",      "INDIR",         &set_stops,    &show_stops,    NULL       },
+    { MTAB_XDV | MTAB_NMO, 1, "STOPS", "STOP", &set_stops, &show_stops, NULL },
+    { MTAB_XDV, 0, NULL, "NOSTOP", &set_stops, NULL, NULL },
+    { MTAB_XDV | MTAB_NMO, 2, "INDIR", "INDIR", &set_stops, &show_stops, NULL },
 
-    { MTAB_XDV | MTAB_NMO,      1,      "EXEC",       "EXEC",          &set_exec,     &show_exec,     NULL       },
-    { MTAB_XDV,                 0,      NULL,         "NOEXEC",        &set_exec,     NULL,           NULL       },
+    { MTAB_XDV | MTAB_NMO, 1, "EXEC", "EXEC", &set_exec, &show_exec, NULL },
+    { MTAB_XDV, 0, NULL, "NOEXEC", &set_exec, NULL, NULL },
 
-    { MTAB_XDV | MTAB_NMO,      0,      "SPEED",      NULL,            NULL,          &show_speed,    NULL       },
+    { MTAB_XDV | MTAB_NMO, 0, "SPEED", NULL, NULL, &show_speed, NULL },
 
     { 0 }
-    };
-
+};
 
 /* Debugging trace list */
 
-static DEBTAB cpu_deb [] = {
-    { "INSTR", TRACE_INSTR },                   /* trace instruction executions */
-    { "DATA",  TRACE_DATA  },                   /* trace memory data accesses */
-    { "FETCH", TRACE_FETCH },                   /* trace memory instruction fetches */
-    { "REG",   TRACE_REG   },                   /* trace register values */
-    { "OPND",  TRACE_OPND  },                   /* trace instruction operands */
-    { "EXEC",  TRACE_EXEC  },                   /* trace matching instruction execution states */
-    { "NOOS",  DEBUG_NOOS  },                   /* RTE-6/VM will not use OS firmware */
-    { NULL,    0 }
-    };
-
+static DEBTAB cpu_deb[] = { { "INSTR", TRACE_INSTR }, /* trace instruction executions */
+                            { "DATA", TRACE_DATA },   /* trace memory data accesses */
+                            { "FETCH", TRACE_FETCH }, /* trace memory instruction fetches */
+                            { "REG", TRACE_REG },     /* trace register values */
+                            { "OPND", TRACE_OPND },   /* trace instruction operands */
+                            { "EXEC", TRACE_EXEC },   /* trace matching instruction execution states */
+                            { "NOOS", DEBUG_NOOS },   /* RTE-6/VM will not use OS firmware */
+                            { NULL, 0 } };
 
 /* Simulation stop list.
 
@@ -1391,129 +1357,127 @@ static DEBTAB cpu_deb [] = {
        SCPE_OK being zero (which is guaranteed).
 */
 
-typedef struct {
-    const char  *name;                          /* stop name */
-    t_stat      *status;                        /* pointer to the stop status variable */
-    t_stat      value;                          /* stop status return value */
-    } STOPTAB;
+typedef struct
+{
+    const char *name;   /* stop name */
+    t_stat *    status; /* pointer to the stop status variable */
+    t_stat      value;  /* stop status return value */
+} STOPTAB;
 
-static STOPTAB cpu_stop [] = {
-    { "UNIMPL", &cpu_ss_unimpl, STOP_UNIMPL },  /* stop on an unimplemented instruction */
-    { "UNDEF",  &cpu_ss_undef,  STOP_UNDEF  },  /* stop on an undefined instruction */
-    { "UNSC",   &cpu_ss_unsc,   STOP_UNSC   },  /* stop on I/O to an unassigned select code */
-    { "IOERR",  &cpu_ss_ioerr,  SCPE_IOERR  },  /* stop on an unreported I/O error */
-    { NULL,     NULL,           0           }
-    };
-
+static STOPTAB cpu_stop[] = { { "UNIMPL", &cpu_ss_unimpl, STOP_UNIMPL }, /* stop on an unimplemented instruction */
+                              { "UNDEF", &cpu_ss_undef, STOP_UNDEF },    /* stop on an undefined instruction */
+                              { "UNSC", &cpu_ss_unsc, STOP_UNSC },       /* stop on I/O to an unassigned select code */
+                              { "IOERR", &cpu_ss_ioerr, SCPE_IOERR },    /* stop on an unreported I/O error */
+                              { NULL, NULL, 0 } };
 
 /* Device descriptor */
 
 DEVICE cpu_dev = {
-    "CPU",                                      /* device name */
-    &cpu_unit,                                  /* unit array */
-    cpu_reg,                                    /* register array */
-    cpu_mod,                                    /* modifier array */
-    1,                                          /* number of units */
-    8,                                          /* address radix */
-    PA_N_SIZE,                                  /* address width */
-    1,                                          /* address increment */
-    8,                                          /* data radix */
-    16,                                         /* data width */
-    &cpu_examine,                               /* examine routine */
-    &cpu_deposit,                               /* deposit routine */
-    &cpu_reset,                                 /* reset routine */
-    &cpu_boot,                                  /* boot routine */
-    NULL,                                       /* attach routine */
-    NULL,                                       /* detach routine */
-    &cpu_dib,                                   /* device information block pointer */
-    DEV_DEBUG,                                  /* device flags */
-    0,                                          /* debug control flags */
-    cpu_deb,                                    /* debug flag name table */
-    NULL,                                       /* memory size change routine */
-    NULL                                        /* logical device name */
-    };
-
-
+    "CPU",        /* device name */
+    &cpu_unit,    /* unit array */
+    cpu_reg,      /* register array */
+    cpu_mod,      /* modifier array */
+    1,            /* number of units */
+    8,            /* address radix */
+    PA_N_SIZE,    /* address width */
+    1,            /* address increment */
+    8,            /* data radix */
+    16,           /* data width */
+    &cpu_examine, /* examine routine */
+    &cpu_deposit, /* deposit routine */
+    &cpu_reset,   /* reset routine */
+    &cpu_boot,    /* boot routine */
+    NULL,         /* attach routine */
+    NULL,         /* detach routine */
+    &cpu_dib,     /* device information block pointer */
+    DEV_DEBUG,    /* device flags */
+    0,            /* debug control flags */
+    cpu_deb,      /* debug flag name table */
+    NULL,         /* memory size change routine */
+    NULL          /* logical device name */
+};
 
 /* Memory program constants */
 
-static const char map_indicator [] = {          /* MEU map indicator, indexed by map type */
-    'S',                                        /*   System */
-    'U',                                        /*   User   */
-    'A',                                        /*   Port_A */
-    'B'                                         /*   Port_B */
-    };
-
+static const char map_indicator[] = {
+    /* MEU map indicator, indexed by map type */
+    'S', /*   System */
+    'U', /*   User   */
+    'A', /*   Port_A */
+    'B'  /*   Port_B */
+};
 
 /* Memory global data structures */
 
-
 /* Memory access classification table */
 
-typedef struct {
-    uint32      debug_flag;                     /* the debug flag for tracing */
-    const char  *name;                          /* the classification name */
-    } ACCESS_PROPERTIES;
+typedef struct
+{
+    uint32      debug_flag; /* the debug flag for tracing */
+    const char *name;       /* the classification name */
+} ACCESS_PROPERTIES;
 
-static const ACCESS_PROPERTIES mem_access [] = {    /* indexed by ACCESS_CLASS */
-/*    debug_flag    name                */
-/*    ------------  ------------------- */
-    { TRACE_FETCH,  "instruction fetch" },          /*   instruction fetch */
-    { TRACE_DATA,   "data"              },          /*   data access */
-    { TRACE_DATA,   "data"              },          /*   data access, alternate map */
-    { TRACE_DATA,   "unprotected"       },          /*   data access, system map */
-    { TRACE_DATA,   "unprotected"       },          /*   data access, user map */
-    { TRACE_DATA,   "dma"               },          /*   DMA channel 1, port A map */
-    { TRACE_DATA,   "dma"               }           /*   DMA channel 2, port B map */
-    };
-
-
+static const ACCESS_PROPERTIES mem_access[] = {
+    /* indexed by ACCESS_CLASS */
+    /*    debug_flag    name                */
+    /*    ------------  ------------------- */
+    { TRACE_FETCH, "instruction fetch" }, /*   instruction fetch */
+    { TRACE_DATA, "data" },               /*   data access */
+    { TRACE_DATA, "data" },               /*   data access, alternate map */
+    { TRACE_DATA, "unprotected" },        /*   data access, system map */
+    { TRACE_DATA, "unprotected" },        /*   data access, user map */
+    { TRACE_DATA, "dma" },                /*   DMA channel 1, port A map */
+    { TRACE_DATA, "dma" }                 /*   DMA channel 2, port B map */
+};
 
 /* DMA program constants */
 
-#define DMA_CHAN_COUNT  2                       /* number of DMA channels */
+#define DMA_CHAN_COUNT 2 /* number of DMA channels */
 
-#define DMA_OE          020000000000u           /* byte packing odd/even flag */
-#define DMA1_STC        0100000u                /* DMA - issue STC */
-#define DMA1_PB         0040000u                /* DMA - pack bytes */
-#define DMA1_CLC        0020000u                /* DMA - issue CLC */
-#define DMA2_OI         0100000u                /* DMA - output/input */
+#define DMA_OE 020000000000u /* byte packing odd/even flag */
+#define DMA1_STC 0100000u    /* DMA - issue STC */
+#define DMA1_PB 0040000u     /* DMA - pack bytes */
+#define DMA1_CLC 0020000u    /* DMA - issue CLC */
+#define DMA2_OI 0100000u     /* DMA - output/input */
 
-typedef enum { ch1, ch2 } CHANNEL;              /* channel number */
+typedef enum
+{
+    ch1,
+    ch2
+} CHANNEL; /* channel number */
 
-#define DMA_1_REQ       (1 << ch1)              /* channel 1 request */
-#define DMA_2_REQ       (1 << ch2)              /* channel 2 request */
+#define DMA_1_REQ (1 << ch1) /* channel 1 request */
+#define DMA_2_REQ (1 << ch2) /* channel 2 request */
 
-typedef struct {
-    FLIP_FLOP control;                          /* control flip-flop */
-    FLIP_FLOP flag;                             /* flag flip-flop */
-    FLIP_FLOP flagbuf;                          /* flag buffer flip-flop */
-    FLIP_FLOP xferen;                           /* transfer enable flip-flop */
-    FLIP_FLOP select;                           /* register select flip-flop */
+typedef struct
+{
+    FLIP_FLOP control; /* control flip-flop */
+    FLIP_FLOP flag;    /* flag flip-flop */
+    FLIP_FLOP flagbuf; /* flag buffer flip-flop */
+    FLIP_FLOP xferen;  /* transfer enable flip-flop */
+    FLIP_FLOP select;  /* register select flip-flop */
 
-    HP_WORD   cw1;                              /* device select */
-    HP_WORD   cw2;                              /* direction, address */
-    HP_WORD   cw3;                              /* word count */
-    uint32    packer;                           /* byte-packer holding reg */
-    } DMA_STATE;
-
+    HP_WORD cw1;    /* device select */
+    HP_WORD cw2;    /* direction, address */
+    HP_WORD cw3;    /* word count */
+    uint32  packer; /* byte-packer holding reg */
+} DMA_STATE;
 
 /* DMA global state */
 
-DMA_STATE dma [DMA_CHAN_COUNT];                 /* per-channel state */
-
+DMA_STATE dma[DMA_CHAN_COUNT]; /* per-channel state */
 
 /* DMA local data structures */
 
-static const BITSET_NAME dma_cw1_names [] = {   /* DMA control word 1 names */
-    "STC",                                      /*   bit 15 */
-    "byte packing",                             /*   bit 14 */
-    "CLC"                                       /*   bit 13 */
-    };
+static const BITSET_NAME dma_cw1_names[] = {
+    /* DMA control word 1 names */
+    "STC",          /*   bit 15 */
+    "byte packing", /*   bit 14 */
+    "CLC"           /*   bit 13 */
+};
 
-static const BITSET_FORMAT dma_cw1_format =          /* names, offset, direction, alternates, bar */
+static const BITSET_FORMAT dma_cw1_format = /* names, offset, direction, alternates, bar */
     { FMT_INIT (dma_cw1_names, 13, msb_first, no_alt, append_bar) };
-
 
 /* DMA local SCP support routine declarations */
 
@@ -1521,42 +1485,38 @@ static IOHANDLER dmapio;
 static IOHANDLER dmasio;
 static t_stat    dma_reset (DEVICE *dptr);
 
-
 /* DMA local utility routine declarations */
 
 static t_stat dma_cycle (CHANNEL chan, ACCESS_CLASS class);
-static uint32 calc_dma  (void);
-
+static uint32 calc_dma (void);
 
 /* DMA SCP data structures */
-
 
 /* Device information blocks */
 
 static DIB dmap1_dib = {
-    &dmapio,                                    /* device interface */
-    DMA1,                                       /* select code */
-    ch1                                         /* card index */
-    };
+    &dmapio, /* device interface */
+    DMA1,    /* select code */
+    ch1      /* card index */
+};
 
 static DIB dmas1_dib = {
-    &dmasio,                                    /* device interface */
-    DMALT1,                                     /* select code */
-    ch1                                         /* card index */
-    };
+    &dmasio, /* device interface */
+    DMALT1,  /* select code */
+    ch1      /* card index */
+};
 
 static DIB dmap2_dib = {
-    &dmapio,                                    /* device interface */
-    DMA2,                                       /* select code */
-    ch2                                         /* card index */
-    };
+    &dmapio, /* device interface */
+    DMA2,    /* select code */
+    ch2      /* card index */
+};
 
 static DIB dmas2_dib = {
-    &dmasio,                                    /* device interface */
-    DMALT2,                                     /* select code */
-    ch2                                         /* card index */
-    };
-
+    &dmasio, /* device interface */
+    DMALT2,  /* select code */
+    ch2      /* card index */
+};
 
 /* Unit lists */
 
@@ -1564,164 +1524,148 @@ static UNIT dma1_unit = { UDATA (NULL, 0, 0) };
 
 static UNIT dma2_unit = { UDATA (NULL, 0, 0) };
 
-
 /* Register lists */
 
-static REG dma1_reg [] = {
-/*    Macro   Name     Location            Width  Flags */
-/*    ------  -------  ------------------  -----  ----- */
-    { FLDATA (XFR,     dma [ch1].xferen,     0)         },
-    { FLDATA (CTL,     dma [ch1].control,    0)         },
-    { FLDATA (FLG,     dma [ch1].flag,       0)         },
-    { FLDATA (FBF,     dma [ch1].flagbuf,    0)         },
-    { FLDATA (CTL2,    dma [ch1].select,     0)         },
-    { ORDATA (CW1,     dma [ch1].cw1,       16)         },
-    { ORDATA (CW2,     dma [ch1].cw2,       16)         },
-    { ORDATA (CW3,     dma [ch1].cw3,       16)         },
-    { FLDATA (BYTE,    dma [ch1].packer,    31)         },
-    { ORDATA (PACKER,  dma [ch1].packer,     8),  REG_A },
+static REG dma1_reg[] = {
+    /*    Macro   Name     Location            Width  Flags */
+    /*    ------  -------  ------------------  -----  ----- */
+    { FLDATA (XFR, dma[ch1].xferen, 0) },
+    { FLDATA (CTL, dma[ch1].control, 0) },
+    { FLDATA (FLG, dma[ch1].flag, 0) },
+    { FLDATA (FBF, dma[ch1].flagbuf, 0) },
+    { FLDATA (CTL2, dma[ch1].select, 0) },
+    { ORDATA (CW1, dma[ch1].cw1, 16) },
+    { ORDATA (CW2, dma[ch1].cw2, 16) },
+    { ORDATA (CW3, dma[ch1].cw3, 16) },
+    { FLDATA (BYTE, dma[ch1].packer, 31) },
+    { ORDATA (PACKER, dma[ch1].packer, 8), REG_A },
     { NULL }
-    };
+};
 
-static REG dma2_reg [] = {
-/*    Macro   Name     Location            Width  Flags */
-/*    ------  -------  ------------------  -----  ----- */
-    { FLDATA (XFR,     dma [ch2].xferen,     0)         },
-    { FLDATA (CTL,     dma [ch2].control,    0)         },
-    { FLDATA (FLG,     dma [ch2].flag,       0)         },
-    { FLDATA (FBF,     dma [ch2].flagbuf,    0)         },
-    { FLDATA (CTL2,    dma [ch2].select,     0)         },
-    { ORDATA (CW1,     dma [ch2].cw1,       16)         },
-    { ORDATA (CW2,     dma [ch2].cw2,       16)         },
-    { ORDATA (CW3,     dma [ch2].cw3,       16)         },
-    { FLDATA (BYTE,    dma [ch2].packer,    31)         },
-    { ORDATA (PACKER,  dma [ch2].packer,     8),  REG_A },
+static REG dma2_reg[] = {
+    /*    Macro   Name     Location            Width  Flags */
+    /*    ------  -------  ------------------  -----  ----- */
+    { FLDATA (XFR, dma[ch2].xferen, 0) },
+    { FLDATA (CTL, dma[ch2].control, 0) },
+    { FLDATA (FLG, dma[ch2].flag, 0) },
+    { FLDATA (FBF, dma[ch2].flagbuf, 0) },
+    { FLDATA (CTL2, dma[ch2].select, 0) },
+    { ORDATA (CW1, dma[ch2].cw1, 16) },
+    { ORDATA (CW2, dma[ch2].cw2, 16) },
+    { ORDATA (CW3, dma[ch2].cw3, 16) },
+    { FLDATA (BYTE, dma[ch2].packer, 31) },
+    { ORDATA (PACKER, dma[ch2].packer, 8), REG_A },
     { NULL }
-    };
-
+};
 
 /* Debugging trace list */
 
-static DEBTAB dma_deb [] = {
-    { "CMD",   TRACE_CMD   },                   /* trace interface or controller commands */
-    { "CSRW",  TRACE_CSRW  },                   /* trace interface control, status, read, and write actions */
-    { "SR",    TRACE_SR    },                   /* trace service requests received */
-    { "DATA",  TRACE_DATA  },                   /* trace memory data accesses */
-    { "IOBUS", TRACE_IOBUS },                   /* trace I/O bus signals and data words received and returned */
-    { NULL,    0 }
-    };
-
+static DEBTAB dma_deb[] = { { "CMD", TRACE_CMD },     /* trace interface or controller commands */
+                            { "CSRW", TRACE_CSRW },   /* trace interface control, status, read, and write actions */
+                            { "SR", TRACE_SR },       /* trace service requests received */
+                            { "DATA", TRACE_DATA },   /* trace memory data accesses */
+                            { "IOBUS", TRACE_IOBUS }, /* trace I/O bus signals and data words received and returned */
+                            { NULL, 0 } };
 
 /* Device descriptors */
 
 DEVICE dma1_dev = {
-    "DMA1",                                     /* device name */
-    &dma1_unit,                                 /* unit array */
-    dma1_reg,                                   /* register array */
-    NULL,                                       /* modifier array */
-    1,                                          /* number of units */
-    8,                                          /* address radix */
-    1,                                          /* address width */
-    1,                                          /* address increment */
-    8,                                          /* data radix */
-    16,                                         /* data width */
-    NULL,                                       /* examine routine */
-    NULL,                                       /* deposit routine */
-    &dma_reset,                                 /* reset routine */
-    NULL,                                       /* boot routine */
-    NULL,                                       /* attach routine */
-    NULL,                                       /* detach routine */
-    &dmap1_dib,                                 /* device information block pointer */
-    DEV_DISABLE | DEV_DEBUG,                    /* device flags */
-    0,                                          /* debug control flags */
-    dma_deb,                                    /* debug flag name table */
-    NULL,                                       /* memory size change routine */
-    NULL                                        /* logical device name */
-    };
+    "DMA1",                  /* device name */
+    &dma1_unit,              /* unit array */
+    dma1_reg,                /* register array */
+    NULL,                    /* modifier array */
+    1,                       /* number of units */
+    8,                       /* address radix */
+    1,                       /* address width */
+    1,                       /* address increment */
+    8,                       /* data radix */
+    16,                      /* data width */
+    NULL,                    /* examine routine */
+    NULL,                    /* deposit routine */
+    &dma_reset,              /* reset routine */
+    NULL,                    /* boot routine */
+    NULL,                    /* attach routine */
+    NULL,                    /* detach routine */
+    &dmap1_dib,              /* device information block pointer */
+    DEV_DISABLE | DEV_DEBUG, /* device flags */
+    0,                       /* debug control flags */
+    dma_deb,                 /* debug flag name table */
+    NULL,                    /* memory size change routine */
+    NULL                     /* logical device name */
+};
 
 DEVICE dma2_dev = {
-    "DMA2",                                     /* device name */
-    &dma2_unit,                                 /* unit array */
-    dma2_reg,                                   /* register array */
-    NULL,                                       /* modifier array */
-    1,                                          /* number of units */
-    8,                                          /* address radix */
-    1,                                          /* address width */
-    1,                                          /* address increment */
-    8,                                          /* data radix */
-    16,                                         /* data width */
-    NULL,                                       /* examine routine */
-    NULL,                                       /* deposit routine */
-    &dma_reset,                                 /* reset routine */
-    NULL,                                       /* boot routine */
-    NULL,                                       /* attach routine */
-    NULL,                                       /* detach routine */
-    &dmap2_dib,                                 /* device information block pointer */
-    DEV_DISABLE | DEV_DEBUG,                    /* device flags */
-    0,                                          /* debug control flags */
-    dma_deb,                                    /* debug flag name table */
-    NULL,                                       /* memory size change routine */
-    NULL                                        /* logical device name */
-    };
+    "DMA2",                  /* device name */
+    &dma2_unit,              /* unit array */
+    dma2_reg,                /* register array */
+    NULL,                    /* modifier array */
+    1,                       /* number of units */
+    8,                       /* address radix */
+    1,                       /* address width */
+    1,                       /* address increment */
+    8,                       /* data radix */
+    16,                      /* data width */
+    NULL,                    /* examine routine */
+    NULL,                    /* deposit routine */
+    &dma_reset,              /* reset routine */
+    NULL,                    /* boot routine */
+    NULL,                    /* attach routine */
+    NULL,                    /* detach routine */
+    &dmap2_dib,              /* device information block pointer */
+    DEV_DISABLE | DEV_DEBUG, /* device flags */
+    0,                       /* debug control flags */
+    dma_deb,                 /* debug flag name table */
+    NULL,                    /* memory size change routine */
+    NULL                     /* logical device name */
+};
 
-static DEVICE *dma_dptrs [] = {
-    &dma1_dev,
-    &dma2_dev
-    };
-
-
+static DEVICE *dma_dptrs[] = { &dma1_dev, &dma2_dev };
 
 /* Memory Protect program constants */
 
-#define UNIT_V_MP_JSB   (UNIT_V_UF + 0)         /* MP jumper W5 */
-#define UNIT_V_MP_INT   (UNIT_V_UF + 1)         /* MP jumper W6 */
-#define UNIT_V_MP_SEL1  (UNIT_V_UF + 2)         /* MP jumper W7 */
-#define UNIT_MP_JSB     (1 << UNIT_V_MP_JSB)    /* 1 = W5 is out */
-#define UNIT_MP_INT     (1 << UNIT_V_MP_INT)    /* 1 = W6 is out */
-#define UNIT_MP_SEL1    (1 << UNIT_V_MP_SEL1)   /* 1 = W7 is out */
+#define UNIT_V_MP_JSB (UNIT_V_UF + 0)      /* MP jumper W5 */
+#define UNIT_V_MP_INT (UNIT_V_UF + 1)      /* MP jumper W6 */
+#define UNIT_V_MP_SEL1 (UNIT_V_UF + 2)     /* MP jumper W7 */
+#define UNIT_MP_JSB (1 << UNIT_V_MP_JSB)   /* 1 = W5 is out */
+#define UNIT_MP_INT (1 << UNIT_V_MP_INT)   /* 1 = W6 is out */
+#define UNIT_MP_SEL1 (1 << UNIT_V_MP_SEL1) /* 1 = W7 is out */
 
-#define MP_TEST(va)     (mp_control && ((va) >= 2) && ((va) < mp_fence))
-
+#define MP_TEST(va) (mp_control && ((va) >= 2) && ((va) < mp_fence))
 
 /* Memory Protect global state */
 
-FLIP_FLOP mp_control = CLEAR;                   /* MP control flip-flop */
-FLIP_FLOP mp_mevff   = CLEAR;                   /* memory expansion violation flip-flop */
-HP_WORD   mp_fence   = 0;                       /* MP fence register  */
-HP_WORD   mp_viol    = 0;                       /* MP violation register */
-HP_WORD   iop_sp     = 0;                       /* iop stack reg */
-HP_WORD   err_PC     = 0;                       /* error PC */
+FLIP_FLOP mp_control = CLEAR; /* MP control flip-flop */
+FLIP_FLOP mp_mevff   = CLEAR; /* memory expansion violation flip-flop */
+HP_WORD   mp_fence   = 0;     /* MP fence register  */
+HP_WORD   mp_viol    = 0;     /* MP violation register */
+HP_WORD   iop_sp     = 0;     /* iop stack reg */
+HP_WORD   err_PC     = 0;     /* error PC */
 
-jmp_buf   save_env;                             /* MP abort handler */
-t_bool    mp_mem_changed;                       /* TRUE if the MP or MEM registers have been altered */
-
+jmp_buf save_env;       /* MP abort handler */
+t_bool  mp_mem_changed; /* TRUE if the MP or MEM registers have been altered */
 
 /* Memory Protect local state */
 
-static FLIP_FLOP mp_flag        = CLEAR;        /* MP flag flip-flop */
-static FLIP_FLOP mp_flagbuf     = CLEAR;        /* MP flag buffer flip-flop */
-static FLIP_FLOP mp_evrff       = SET;          /* enable violation register flip-flop */
-static char      meu_indicator;                 /* last map access indicator (S | U | A | B | -) */
-static uint32    meu_page;                      /* last physical page number accessed */
-
+static FLIP_FLOP mp_flag    = CLEAR; /* MP flag flip-flop */
+static FLIP_FLOP mp_flagbuf = CLEAR; /* MP flag buffer flip-flop */
+static FLIP_FLOP mp_evrff   = SET;   /* enable violation register flip-flop */
+static char      meu_indicator;      /* last map access indicator (S | U | A | B | -) */
+static uint32    meu_page;           /* last physical page number accessed */
 
 /* Memory Protect local SCP support routine declarations */
 
 static IOHANDLER protio;
 static t_stat    mp_reset (DEVICE *dptr);
 
-
 /* Memory Protect SCP data structures */
-
 
 /* Device information block */
 
 static DIB mp_dib = {
-    &protio,                                    /*   device interface */
-    PRO,                                        /*   select code */
-    0                                           /*   card index */
-    };
-
+    &protio, /*   device interface */
+    PRO,     /*   select code */
+    0        /*   card index */
+};
 
 /* Unit list.
 
@@ -1734,133 +1678,121 @@ static DIB mp_dib = {
 
 static UNIT mp_unit = { UDATA (NULL, UNIT_MP_SEL1, 0) };
 
-
 /* Register list */
 
-static REG mp_reg [] = {
-/*    Macro   Name  Location     Width */
-/*    ------  ----  -----------  ----- */
-    { FLDATA (CTL,  mp_control,    0)  },
-    { FLDATA (FLG,  mp_flag,       0)  },
-    { FLDATA (FBF,  mp_flagbuf,    0)  },
-    { ORDATA (FR,   mp_fence,     15)  },
-    { ORDATA (VR,   mp_viol,      16)  },
-    { FLDATA (EVR,  mp_evrff,      0)  },
-    { FLDATA (MEV,  mp_mevff,      0)  },
-    { NULL }
-    };
-
+static REG mp_reg[] = {
+    /*    Macro   Name  Location     Width */
+    /*    ------  ----  -----------  ----- */
+    { FLDATA (CTL, mp_control, 0) }, { FLDATA (FLG, mp_flag, 0) },
+    { FLDATA (FBF, mp_flagbuf, 0) }, { ORDATA (FR, mp_fence, 15) },
+    { ORDATA (VR, mp_viol, 16) },    { FLDATA (EVR, mp_evrff, 0) },
+    { FLDATA (MEV, mp_mevff, 0) },   { NULL }
+};
 
 /* Modifier list */
 
-static MTAB mp_mod [] = {
-/*    Mask Value     Match Value   Print String     Match String  Validation  Display  Descriptor */
-/*    -------------  ------------  ---------------  ------------  ----------  -------  ---------- */
-    { UNIT_MP_JSB,   UNIT_MP_JSB,  "JSB (W5) out",  "JSBOUT",     NULL,       NULL,    NULL       },
-    { UNIT_MP_JSB,   0,            "JSB (W5) in",   "JSBIN",      NULL,       NULL,    NULL       },
-    { UNIT_MP_INT,   UNIT_MP_INT,  "INT (W6) out",  "INTOUT",     NULL,       NULL,    NULL       },
-    { UNIT_MP_INT,   0,            "INT (W6) in",   "INTIN",      NULL,       NULL,    NULL       },
-    { UNIT_MP_SEL1,  UNIT_MP_SEL1, "SEL1 (W7) out", "SEL1OUT",    NULL,       NULL,    NULL       },
-    { UNIT_MP_SEL1,  0,            "SEL1 (W7) in",  "SEL1IN",     NULL,       NULL,    NULL       },
+static MTAB mp_mod[] = {
+    /*    Mask Value     Match Value   Print String     Match String  Validation  Display  Descriptor */
+    /*    -------------  ------------  ---------------  ------------  ----------  -------  ---------- */
+    { UNIT_MP_JSB, UNIT_MP_JSB, "JSB (W5) out", "JSBOUT", NULL, NULL, NULL },
+    { UNIT_MP_JSB, 0, "JSB (W5) in", "JSBIN", NULL, NULL, NULL },
+    { UNIT_MP_INT, UNIT_MP_INT, "INT (W6) out", "INTOUT", NULL, NULL, NULL },
+    { UNIT_MP_INT, 0, "INT (W6) in", "INTIN", NULL, NULL, NULL },
+    { UNIT_MP_SEL1, UNIT_MP_SEL1, "SEL1 (W7) out", "SEL1OUT", NULL, NULL, NULL },
+    { UNIT_MP_SEL1, 0, "SEL1 (W7) in", "SEL1IN", NULL, NULL, NULL },
     { 0 }
-    };
-
+};
 
 /* Device descriptor */
 
 DEVICE mp_dev = {
-    "MP",                                       /* device name */
-    &mp_unit,                                   /* unit array */
-    mp_reg,                                     /* register array */
-    mp_mod,                                     /* modifier array */
-    1,                                          /* number of units */
-    8,                                          /* address radix */
-    1,                                          /* address width */
-    1,                                          /* address increment */
-    8,                                          /* data radix */
-    16,                                         /* data width */
-    NULL,                                       /* examine routine */
-    NULL,                                       /* deposit routine */
-    &mp_reset,                                  /* reset routine */
-    NULL,                                       /* boot routine */
-    NULL,                                       /* attach routine */
-    NULL,                                       /* detach routine */
-    &mp_dib,                                    /* device information block pointer */
-    DEV_DISABLE | DEV_DIS,                      /* device flags */
-    0,                                          /* debug control flags */
-    NULL,                                       /* debug flag name table */
-    NULL,                                       /* memory size change routine */
-    NULL                                        /* logical device name */
-    };
-
-
+    "MP",                  /* device name */
+    &mp_unit,              /* unit array */
+    mp_reg,                /* register array */
+    mp_mod,                /* modifier array */
+    1,                     /* number of units */
+    8,                     /* address radix */
+    1,                     /* address width */
+    1,                     /* address increment */
+    8,                     /* data radix */
+    16,                    /* data width */
+    NULL,                  /* examine routine */
+    NULL,                  /* deposit routine */
+    &mp_reset,             /* reset routine */
+    NULL,                  /* boot routine */
+    NULL,                  /* attach routine */
+    NULL,                  /* detach routine */
+    &mp_dib,               /* device information block pointer */
+    DEV_DISABLE | DEV_DIS, /* device flags */
+    0,                     /* debug control flags */
+    NULL,                  /* debug flag name table */
+    NULL,                  /* memory size change routine */
+    NULL                   /* logical device name */
+};
 
 /* I/O system program constants */
 
-static const BITSET_NAME inbound_names [] = {   /* Inbound signal names, in IOSIGNAL order */
-    "PON",                                      /*   000000000001 */
-    "ENF",                                      /*   000000000002 */
-    "IOI",                                      /*   000000000004 */
-    "IOO",                                      /*   000000000010 */
-    "SFS",                                      /*   000000000020 */
-    "SFC",                                      /*   000000000040 */
-    "STC",                                      /*   000000000100 */
-    "CLC",                                      /*   000000000200 */
-    "STF",                                      /*   000000000400 */
-    "CLF",                                      /*   000000001000 */
-    "EDT",                                      /*   000000002000 */
-    "CRS",                                      /*   000000004000 */
-    "POPIO",                                    /*   000000010000 */
-    "IAK",                                      /*   000000020000 */
-    "SIR"                                       /*   000000040000 */
-    };
+static const BITSET_NAME inbound_names[] = {
+    /* Inbound signal names, in IOSIGNAL order */
+    "PON",   /*   000000000001 */
+    "ENF",   /*   000000000002 */
+    "IOI",   /*   000000000004 */
+    "IOO",   /*   000000000010 */
+    "SFS",   /*   000000000020 */
+    "SFC",   /*   000000000040 */
+    "STC",   /*   000000000100 */
+    "CLC",   /*   000000000200 */
+    "STF",   /*   000000000400 */
+    "CLF",   /*   000000001000 */
+    "EDT",   /*   000000002000 */
+    "CRS",   /*   000000004000 */
+    "POPIO", /*   000000010000 */
+    "IAK",   /*   000000020000 */
+    "SIR"    /*   000000040000 */
+};
 
-static const BITSET_FORMAT inbound_format =     /* names, offset, direction, alternates, bar */
+static const BITSET_FORMAT inbound_format = /* names, offset, direction, alternates, bar */
     { FMT_INIT (inbound_names, 0, lsb_first, no_alt, no_bar) };
 
+static const BITSET_NAME outbound_names[] = {
+    /* Outbound signal names, in IOSIGNAL order */
+    "SKF" /*   000000200000 */
+};
 
-static const BITSET_NAME outbound_names [] = {  /* Outbound signal names, in IOSIGNAL order */
-    "SKF"                                       /*   000000200000 */
-    };
-
-static const BITSET_FORMAT outbound_format =    /* names, offset, direction, alternates, bar */
+static const BITSET_FORMAT outbound_format = /* names, offset, direction, alternates, bar */
     { FMT_INIT (outbound_names, 16, lsb_first, no_alt, no_bar) };
-
 
 /* I/O instruction sub-opcodes */
 
-#define soHLT           0                       /* halt */
-#define soFLG           1                       /* set/clear flag */
-#define soSFC           2                       /* skip on flag clear */
-#define soSFS           3                       /* skip on flag set */
-#define soMIX           4                       /* merge into A/B */
-#define soLIX           5                       /* load into A/B */
-#define soOTX           6                       /* output from A/B */
-#define soCTL           7                       /* set/clear control */
-
+#define soHLT 0 /* halt */
+#define soFLG 1 /* set/clear flag */
+#define soSFC 2 /* skip on flag clear */
+#define soSFS 3 /* skip on flag set */
+#define soMIX 4 /* merge into A/B */
+#define soLIX 5 /* load into A/B */
+#define soOTX 6 /* output from A/B */
+#define soCTL 7 /* set/clear control */
 
 /* I/O system local data structures */
 
-static DIB *dibs [MAXDEV + 1] = {               /* index by select code for I/O instruction dispatch */
-    &cpu_dib,                                   /*   select code 00 = interrupt system */
-    &ovfl_dib                                   /*   select code 01 = overflow register */
-    };
+static DIB *dibs[MAXDEV + 1] = {
+    /* index by select code for I/O instruction dispatch */
+    &cpu_dib, /*   select code 00 = interrupt system */
+    &ovfl_dib /*   select code 01 = overflow register */
+};
 
-static DEVICE *devs [MAXDEV + 1] = {            /* index by select code for I/O dispatch tracing */
-    &cpu_dev,                                   /*   select code 00 = interrupt system */
-    &cpu_dev                                    /*   select code 01 = overflow register */
-    };
-
+static DEVICE *devs[MAXDEV + 1] = {
+    /* index by select code for I/O dispatch tracing */
+    &cpu_dev, /*   select code 00 = interrupt system */
+    &cpu_dev  /*   select code 01 = overflow register */
+};
 
 /* I/O system local utility routine declarations */
 
 static void   io_initialize (void);
-static uint32 io_dispatch   (uint32 select_code, IOCYCLE signal_set, HP_WORD data);
-
-
+static uint32 io_dispatch (uint32 select_code, IOCYCLE signal_set, HP_WORD data);
 
 /* CPU global SCP support routines */
-
 
 /* Execute CPU instructions.
 
@@ -2099,327 +2031,325 @@ static uint32 io_dispatch   (uint32 select_code, IOCYCLE signal_set, HP_WORD dat
        that is irrelevant, as execution will stop in this case.
 */
 
-t_stat sim_instr (void)
+t_stat
+sim_instr (void)
 {
-static const char *const register_values [] = {         /* register values, indexed by EOI concatenation */
-    "e o i",
-    "e o I",
-    "e O i",
-    "e O I",
-    "E o i",
-    "E o I",
-    "E O i",
-    "E O I"
+    static const char *const register_values[] = { /* register values, indexed by EOI concatenation */
+                                                   "e o i", "e o I", "e O i", "e O I", "E o i", "E o I", "E O i", "E O I"
     };
 
-static const char mp_value [] = {                       /* memory protection value, indexed by mp_control */
-    '-',
-    'P'
+    static const char mp_value[] = { /* memory protection value, indexed by mp_control */
+                                     '-', 'P'
     };
 
-static const char *const register_formats [] = {        /* CPU register formats, indexed by is_1000 */
-    REGA_FORMAT "  A %06o, B %06o, ",                   /*   is_1000 = FALSE format */
-    REGA_FORMAT "  A %06o, B %06o, X %06o, Y %06o, "    /*   is_1000 = TRUE  format */
+    static const char *const register_formats[] = {
+        /* CPU register formats, indexed by is_1000 */
+        REGA_FORMAT "  A %06o, B %06o, ",                /*   is_1000 = FALSE format */
+        REGA_FORMAT "  A %06o, B %06o, X %06o, Y %06o, " /*   is_1000 = TRUE  format */
     };
 
-static const char *const mp_mem_formats [] = {                  /* MP/MEM register formats, indexed by is_1000 */
-    REGB_FORMAT "  MPF %06o, MPV %06o\n",                       /*   is_1000 = FALSE format */
-    REGB_FORMAT "  MPF %06o, MPV %06o, MES %06o, MEV %06o\n"    /*   is_1000 = TRUE  format */
+    static const char *const mp_mem_formats[] = {
+        /* MP/MEM register formats, indexed by is_1000 */
+        REGB_FORMAT "  MPF %06o, MPV %06o\n",                    /*   is_1000 = FALSE format */
+        REGB_FORMAT "  MPF %06o, MPV %06o, MES %06o, MEV %06o\n" /*   is_1000 = TRUE  format */
     };
 
-static uint32 exec_save;                                /* the trace flag settings saved by an EXEC match */
-static uint32 idle_save;                                /* the trace flag settings saved by an idle match */
-DEVICE *tbg_dptr;
-int    abortval;
-uint32 intrq, dmarq;                                    /* set after setjmp */
-t_bool exec_test;                                       /* set after setjmp */
-t_bool iotrap;                                          /* set after setjmp */
-t_stat status;                                          /* set after setjmp */
+    static uint32 exec_save; /* the trace flag settings saved by an EXEC match */
+    static uint32 idle_save; /* the trace flag settings saved by an idle match */
+    DEVICE *      tbg_dptr;
+    int           abortval;
+    uint32        intrq, dmarq; /* set after setjmp */
+    t_bool        exec_test;    /* set after setjmp */
+    t_bool        iotrap;       /* set after setjmp */
+    t_stat        status;       /* set after setjmp */
 
+    /* Instruction prelude */
 
-/* Instruction prelude */
+    if (sim_switches & SWMASK ('B')) /* if a simulation stop bypass was requested */
+        cpu_ss_inhibit = SS_INHIBIT; /*   then inhibit stops for the first instruction */
+    else                             /* otherwise */
+        cpu_ss_inhibit = SCPE_OK;    /*   clear the inhibition mask */
 
-if (sim_switches & SWMASK ('B'))                        /* if a simulation stop bypass was requested */
-    cpu_ss_inhibit = SS_INHIBIT;                        /*   then inhibit stops for the first instruction */
-else                                                    /* otherwise */
-    cpu_ss_inhibit = SCPE_OK;                           /*   clear the inhibition mask */
+    sim_switches &= ~SWMASK ('P'); /* clear the power-on switch to prevent interference */
 
-sim_switches &= ~SWMASK ('P');                          /* clear the power-on switch to prevent interference */
+    if (hp_device_conflict ()) /* if device assignment is inconsistent */
+        return SCPE_STOP;      /*   then inhibit execution */
 
-if (hp_device_conflict ())                              /* if device assignment is inconsistent */
-    return SCPE_STOP;                                   /*   then inhibit execution */
+    tbg_dptr = find_dev ("CLK"); /* get a pointer to the time-base generator device */
 
-tbg_dptr = find_dev ("CLK");                            /* get a pointer to the time-base generator device */
+    if (tbg_dptr == NULL)                                       /* if the TBG device is not present */
+        return SCPE_IERR;                                       /*   then something is seriously wrong */
+    else                                                        /* otherwise */
+        tbg_select_code = ((DIB *)tbg_dptr->ctxt)->select_code; /*   get the select code from the device's DIB */
 
-if (tbg_dptr == NULL)                                           /* if the TBG device is not present */
-    return SCPE_IERR;                                           /*   then something is seriously wrong */
-else                                                            /* otherwise */
-    tbg_select_code = ((DIB *) tbg_dptr->ctxt)->select_code;    /*   get the select code from the device's DIB */
+    io_initialize ();      /* set up the I/O data structures */
+    cpu_ioerr_uptr = NULL; /*   and clear the I/O error unit pointer */
 
-io_initialize ();                                       /* set up the I/O data structures */
-cpu_ioerr_uptr = NULL;                                  /*   and clear the I/O error unit pointer */
+    exec_save = 0; /* clear the EXEC match */
+    idle_save = 0; /*   and idle match trace flags */
 
-exec_save = 0;                                          /* clear the EXEC match */
-idle_save = 0;                                          /*   and idle match trace flags */
+    jsb_plb = (mp_unit.flags & UNIT_MP_JSB) ? 0 : 2; /* set the protected lower bound for JSB */
 
-jsb_plb = (mp_unit.flags & UNIT_MP_JSB) ? 0 : 2;        /* set the protected lower bound for JSB */
+    mp_mem_changed = TRUE; /* request an initial MP/MEM trace */
 
-mp_mem_changed = TRUE;                                  /* request an initial MP/MEM trace */
+    /* Memory Protect abort processor */
 
+    abortval = setjmp (save_env); /* set abort hdlr */
 
-/* Memory Protect abort processor */
+    if (abortval)
+        {                          /* memory protect abort? */
+            dms_upd_vr (abortval); /* update violation register (if not MEV) */
 
-abortval = setjmp (save_env);                           /* set abort hdlr */
-
-if (abortval) {                                         /* memory protect abort? */
-    dms_upd_vr (abortval);                              /* update violation register (if not MEV) */
-
-    if (ion)                                            /* interrupt system on? */
-        protio (dibs [PRO], ioENF, 0);                  /* set flag */
-    }
-
-dmarq = calc_dma ();                                    /* initial recalc of DMA masks */
-intrq = calc_int ();                                    /* initial recalc of interrupts */
-
-status = SCPE_OK;                                       /* clear the status */
-exec_test = FALSE;                                      /*   and the execution test flag */
-
-
-/* Instruction execution loop */
-
-do {                                                    /* execute instructions until halted */
-    err_PC = PR;                                        /* save P for error recovery */
-
-    if (sim_interval <= 0) {                            /* event timeout? */
-        status = sim_process_event ();                  /* process event service */
-
-        if (status != SCPE_OK)                          /* service failed? */
-            break;                                      /* stop execution */
-
-        dmarq = calc_dma ();                            /* recalc DMA reqs */
-        intrq = calc_int ();                            /* recalc interrupts */
+            if (ion)                          /* interrupt system on? */
+                protio (dibs[PRO], ioENF, 0); /* set flag */
         }
 
+    dmarq = calc_dma (); /* initial recalc of DMA masks */
+    intrq = calc_int (); /* initial recalc of interrupts */
 
-    if (dmarq) {                                        /* if a DMA service request is pending */
-        if (dmarq & DMA_1_REQ) {                        /*   then if the request is for channel 1 */
-            status = dma_cycle (ch1, DMA_Channel_1);    /*     then do one DMA cycle using the port A map */
+    status    = SCPE_OK; /* clear the status */
+    exec_test = FALSE;   /*   and the execution test flag */
 
-            if (status == SCPE_OK)                      /* cycle OK? */
-                dmarq = calc_dma ();                    /* recalc DMA requests */
-            else
-                break;                                  /* cycle failed, so stop */
-            }
+    /* Instruction execution loop */
 
-        if ((dmarq & (DMA_1_REQ | DMA_2_REQ)) == DMA_2_REQ) {   /* DMA channel 1 idle and channel 2 request? */
-            status = dma_cycle (ch2, DMA_Channel_2);            /* do one DMA cycle using port B map */
+    do
+        {                /* execute instructions until halted */
+            err_PC = PR; /* save P for error recovery */
 
-            if (status == SCPE_OK)                      /* cycle OK? */
-                dmarq = calc_dma ();                    /* recalc DMA requests */
-            else
-                break;                                  /* cycle failed, so stop */
-            }
+            if (sim_interval <= 0)
+                {                                  /* event timeout? */
+                    status = sim_process_event (); /* process event service */
 
-        if (dmarq)                                      /* DMA request still pending? */
-            continue;                                   /* service it before instruction execution */
+                    if (status != SCPE_OK) /* service failed? */
+                        break;             /* stop execution */
 
-        intrq = calc_int ();                            /* recalc interrupts */
-        }
-
-    if (intrq && ion_defer)                             /* if an interrupt is pending but deferred */
-        ion_defer = check_deferral (intrq);             /*   then check that the deferral is applicable */
-
-
-    if (intrq && !ion_defer) {                          /* if an interrupt request is pending and not deferred */
-        if (sim_brk_summ &&                             /* any breakpoints? */
-            sim_brk_test (intrq, SWMASK ('E') |         /* unconditional or right type for DMS? */
-              (dms_enb ? SWMASK ('S') : SWMASK ('N')))) {
-            status = STOP_BRKPNT;                       /* stop simulation */
-            break;
-            }
-
-        CIR = (HP_WORD) intrq;                          /* save int addr in CIR */
-        intrq = 0;                                      /* clear request */
-        ion_defer = TRUE;                               /* defer interrupts */
-        iotrap = TRUE;                                  /* mark as I/O trap cell instr */
-
-        if (idle_save != 0) {                           /* if idle loop tracing is suppressed */
-            cpu_dev.dctrl = idle_save;                  /*   then restore the saved trace flag set */
-            idle_save = 0;                              /*     and indicate that we are out of the idle loop */
-            }
-
-        if (TRACING (cpu_dev, TRACE_INSTR)) {
-            meu_map (PR, dms_ump, NOPROT);              /* reset the indicator and page */
-
-            tprintf (cpu_dev, cpu_dev.dctrl,
-                     DMS_FORMAT "interrupt\n",
-                     meu_indicator, meu_page,
-                     PR, CIR);
-            }
-
-        if (dms_enb)                                    /* dms enabled? */
-            dms_sr = dms_sr | MST_ENBI;                 /* set in status */
-        else                                            /* not enabled */
-            dms_sr = dms_sr & ~MST_ENBI;                /* clear in status */
-
-        if (dms_ump) {                                  /* user map enabled at interrupt? */
-            dms_sr = dms_sr | MST_UMPI;                 /* set in status */
-            dms_ump = SMAP;                             /* switch to system map */
-            }
-        else                                            /* system map enabled at interrupt */
-            dms_sr = dms_sr & ~MST_UMPI;                /* clear in status */
-
-        mp_mem_changed = TRUE;                          /* set the MP/MEM registers changed flag */
-
-        IR = ReadF (CIR);                               /* get trap cell instruction */
-
-        io_dispatch (CIR, ioIAK, IR);                   /* acknowledge interrupt */
-
-        if (CIR != PRO)                                 /* not MP interrupt? */
-            protio (dibs [CIR], ioIAK, IR);             /* send IAK for device to MP too */
-        }
-
-    else {                                              /* normal instruction */
-        iotrap = FALSE;                                 /* not a trap cell instruction */
-
-        if (sim_brk_summ &&                             /* any breakpoints? */
-            sim_brk_test (PR, SWMASK ('E') |            /* unconditional or */
-                              (dms_enb ?                /*   correct type for DMS state? */
-                                (dms_ump ?
-                                  SWMASK ('U') : SWMASK ('S')) :
-                                SWMASK ('N')))) {
-            status = STOP_BRKPNT;                       /* stop simulation */
-            break;
-            }
-
-        if (mp_evrff)                                   /* violation register enabled */
-            mp_viol = PR;                               /* update with current P */
-
-        IR = ReadF (PR);                                /* fetch instr */
-        PR = (PR + 1) & VAMASK;
-        ion_defer = FALSE;
-        }
-
-
-    if (TRACING (cpu_dev, TRACE_EXEC | TRACE_REG)) {    /* if execution or register tracing is enabled */
-        if (cpu_dev.dctrl & TRACE_EXEC)                 /*   then if tracing execution */
-            exec_test = (IR & exec_mask) == exec_match; /*     then the execution test succeeds if */
-                                                        /*       the next instruction matches the test criteria */
-
-        if (cpu_dev.dctrl & TRACE_EXEC                  /* if execution tracing is enabled */
-          && exec_save == 0                             /*   and is currently inactive */
-          && exec_test) {                               /*     and the matching test succeeds */
-            exec_save = cpu_dev.dctrl;                  /*       then save the current trace flag set */
-            cpu_dev.dctrl |= TRACE_ALL;                 /*         and turn on full tracing */
-            }
-
-        if (cpu_dev.dctrl & TRACE_REG) {                /* if register tracing is enabled */
-            hp_trace (&cpu_dev, TRACE_REG,              /*   then output the working registers */
-                      register_formats [is_1000],
-                      mp_value [mp_control],
-                      dms_sr & MST_FENCE,
-                      SR, AR, BR, XR, YR);
-
-            fputs (register_values [E << 2 | O << 1 | ion], sim_deb);
-            fputc ('\n', sim_deb);
-
-            if (mp_mem_changed) {                       /* if the MP/MEM registers have been altered */
-                hp_trace (&cpu_dev, TRACE_REG,          /*   then output the register values */
-                          mp_mem_formats [is_1000],
-                          mp_value [mp_control],
-                          mp_fence, mp_viol, dms_sr, dms_vr);
-
-                mp_mem_changed = FALSE;                 /* clear the MP/MEM registers changed flag */
+                    dmarq = calc_dma (); /* recalc DMA reqs */
+                    intrq = calc_int (); /* recalc interrupts */
                 }
-            }
 
-        if (cpu_dev.dctrl & TRACE_EXEC                          /* if execution tracing is enabled */
-          && exec_save != 0                                     /*   and is currently active */
-          && ! exec_test) {                                     /*     and the matching test fails */
-            cpu_dev.dctrl = exec_save;                          /*       then restore the saved debug flag set */
-            exec_save = 0;                                      /*         and indicate that tracing is disabled */
+            if (dmarq)
+                { /* if a DMA service request is pending */
+                    if (dmarq & DMA_1_REQ)
+                        {                                            /*   then if the request is for channel 1 */
+                            status = dma_cycle (ch1, DMA_Channel_1); /*     then do one DMA cycle using the port A map */
 
-            hp_trace (&cpu_dev, TRACE_EXEC, EXEC_FORMAT "\n");  /* add a separator to the trace log */
-            }
+                            if (status == SCPE_OK)   /* cycle OK? */
+                                dmarq = calc_dma (); /* recalc DMA requests */
+                            else
+                                break; /* cycle failed, so stop */
+                        }
+
+                    if ((dmarq & (DMA_1_REQ | DMA_2_REQ)) == DMA_2_REQ)
+                        {                                            /* DMA channel 1 idle and channel 2 request? */
+                            status = dma_cycle (ch2, DMA_Channel_2); /* do one DMA cycle using port B map */
+
+                            if (status == SCPE_OK)   /* cycle OK? */
+                                dmarq = calc_dma (); /* recalc DMA requests */
+                            else
+                                break; /* cycle failed, so stop */
+                        }
+
+                    if (dmarq)    /* DMA request still pending? */
+                        continue; /* service it before instruction execution */
+
+                    intrq = calc_int (); /* recalc interrupts */
+                }
+
+            if (intrq && ion_defer)                 /* if an interrupt is pending but deferred */
+                ion_defer = check_deferral (intrq); /*   then check that the deferral is applicable */
+
+            if (intrq && !ion_defer)
+                {                                           /* if an interrupt request is pending and not deferred */
+                    if (sim_brk_summ &&                     /* any breakpoints? */
+                        sim_brk_test (intrq, SWMASK ('E') | /* unconditional or right type for DMS? */
+                                                 (dms_enb ? SWMASK ('S') : SWMASK ('N'))))
+                        {
+                            status = STOP_BRKPNT; /* stop simulation */
+                            break;
+                        }
+
+                    CIR       = (HP_WORD)intrq; /* save int addr in CIR */
+                    intrq     = 0;              /* clear request */
+                    ion_defer = TRUE;           /* defer interrupts */
+                    iotrap    = TRUE;           /* mark as I/O trap cell instr */
+
+                    if (idle_save != 0)
+                        {                              /* if idle loop tracing is suppressed */
+                            cpu_dev.dctrl = idle_save; /*   then restore the saved trace flag set */
+                            idle_save     = 0;         /*     and indicate that we are out of the idle loop */
+                        }
+
+                    if (TRACING (cpu_dev, TRACE_INSTR))
+                        {
+                            meu_map (PR, dms_ump, NOPROT); /* reset the indicator and page */
+
+                            tprintf (cpu_dev, cpu_dev.dctrl, DMS_FORMAT "interrupt\n", meu_indicator, meu_page, PR, CIR);
+                        }
+
+                    if (dms_enb)                     /* dms enabled? */
+                        dms_sr = dms_sr | MST_ENBI;  /* set in status */
+                    else                             /* not enabled */
+                        dms_sr = dms_sr & ~MST_ENBI; /* clear in status */
+
+                    if (dms_ump)
+                        {                                /* user map enabled at interrupt? */
+                            dms_sr  = dms_sr | MST_UMPI; /* set in status */
+                            dms_ump = SMAP;              /* switch to system map */
+                        }
+                    else                             /* system map enabled at interrupt */
+                        dms_sr = dms_sr & ~MST_UMPI; /* clear in status */
+
+                    mp_mem_changed = TRUE; /* set the MP/MEM registers changed flag */
+
+                    IR = ReadF (CIR); /* get trap cell instruction */
+
+                    io_dispatch (CIR, ioIAK, IR); /* acknowledge interrupt */
+
+                    if (CIR != PRO)                    /* not MP interrupt? */
+                        protio (dibs[CIR], ioIAK, IR); /* send IAK for device to MP too */
+                }
+
+            else
+                {                   /* normal instruction */
+                    iotrap = FALSE; /* not a trap cell instruction */
+
+                    if (sim_brk_summ &&                  /* any breakpoints? */
+                        sim_brk_test (PR, SWMASK ('E') | /* unconditional or */
+                                              (dms_enb ? /*   correct type for DMS state? */
+                                                   (dms_ump ? SWMASK ('U') : SWMASK ('S'))
+                                                       : SWMASK ('N'))))
+                        {
+                            status = STOP_BRKPNT; /* stop simulation */
+                            break;
+                        }
+
+                    if (mp_evrff)     /* violation register enabled */
+                        mp_viol = PR; /* update with current P */
+
+                    IR        = ReadF (PR); /* fetch instr */
+                    PR        = (PR + 1) & VAMASK;
+                    ion_defer = FALSE;
+                }
+
+            if (TRACING (cpu_dev, TRACE_EXEC | TRACE_REG))
+                {                                                   /* if execution or register tracing is enabled */
+                    if (cpu_dev.dctrl & TRACE_EXEC)                 /*   then if tracing execution */
+                        exec_test = (IR & exec_mask) == exec_match; /*     then the execution test succeeds if */
+                    /*       the next instruction matches the test criteria */
+
+                    if (cpu_dev.dctrl & TRACE_EXEC /* if execution tracing is enabled */
+                        && exec_save == 0          /*   and is currently inactive */
+                        && exec_test)
+                        {                               /*     and the matching test succeeds */
+                            exec_save = cpu_dev.dctrl;  /*       then save the current trace flag set */
+                            cpu_dev.dctrl |= TRACE_ALL; /*         and turn on full tracing */
+                        }
+
+                    if (cpu_dev.dctrl & TRACE_REG)
+                        {                                  /* if register tracing is enabled */
+                            hp_trace (&cpu_dev, TRACE_REG, /*   then output the working registers */
+                                      register_formats[is_1000], mp_value[mp_control], dms_sr & MST_FENCE, SR, AR, BR, XR,
+                                      YR);
+
+                            fputs (register_values[E << 2 | O << 1 | ion], sim_deb);
+                            fputc ('\n', sim_deb);
+
+                            if (mp_mem_changed)
+                                {                                  /* if the MP/MEM registers have been altered */
+                                    hp_trace (&cpu_dev, TRACE_REG, /*   then output the register values */
+                                              mp_mem_formats[is_1000], mp_value[mp_control], mp_fence, mp_viol, dms_sr,
+                                              dms_vr);
+
+                                    mp_mem_changed = FALSE; /* clear the MP/MEM registers changed flag */
+                                }
+                        }
+
+                    if (cpu_dev.dctrl & TRACE_EXEC /* if execution tracing is enabled */
+                        && exec_save != 0          /*   and is currently active */
+                        && !exec_test)
+                        {                              /*     and the matching test fails */
+                            cpu_dev.dctrl = exec_save; /*       then restore the saved debug flag set */
+                            exec_save     = 0;         /*         and indicate that tracing is disabled */
+
+                            hp_trace (&cpu_dev, TRACE_EXEC, EXEC_FORMAT "\n"); /* add a separator to the trace log */
+                        }
+                }
+
+            if (TRACING (cpu_dev, TRACE_INSTR))
+                {                                    /* if instruction tracing is enabled */
+                    hp_trace (&cpu_dev, TRACE_INSTR, /*   then output the address and opcode */
+                              DMS_FORMAT, meu_indicator, meu_page, MR, IR);
+
+                    sim_eval[0] = IR; /* save the (first) instruction word in the eval array */
+
+                    if (fprint_cpu (sim_deb, MR, sim_eval, 0, CPU_Trace)
+                        > SCPE_OK)                                        /* print the mnemonic; if that fails */
+                        fprint_val (sim_deb, sim_eval[0], cpu_dev.dradix, /*   then print the numeric */
+                                    cpu_dev.dwidth, PV_RZRO);             /*     value again */
+
+                    fputc ('\n', sim_deb); /* end the trace with a newline */
+                }
+
+            sim_interval = sim_interval - 1; /* count the instruction */
+
+            status = machine_instruction (IR, iotrap, intrq, /* execute one machine instruction */
+                                          &idle_save);
+
+            if (status == NOTE_IOG)
+                {                         /* I/O instr exec? */
+                    dmarq  = calc_dma (); /* recalc DMA masks */
+                    intrq  = calc_int (); /* recalc interrupts */
+                    status = SCPE_OK;     /* continue */
+                }
+
+            else if (status == NOTE_INDINT)
+                {                     /* intr pend during indir? */
+                    PR     = err_PC;  /* back out of inst */
+                    status = SCPE_OK; /* continue */
+                }
+
+            cpu_ss_inhibit = status; /* clear the simulation stop inhibition mask */
+        }
+    while (status == SCPE_OK); /* loop until halted */
+
+    /* Instruction postlude */
+
+    if (intrq && ion_defer)                 /* if an interrupt is pending but deferred */
+        ion_defer = check_deferral (intrq); /*   then check that the deferral is applicable */
+
+    if (exec_save != 0)
+        {                                                      /* if EXEC tracing is active */
+            cpu_dev.dctrl = exec_save;                         /*   then restore the saved trace flag set */
+            hp_trace (&cpu_dev, TRACE_EXEC, EXEC_FORMAT "\n"); /*     and add a separator to the trace log */
         }
 
-    if (TRACING (cpu_dev, TRACE_INSTR)) {               /* if instruction tracing is enabled */
-        hp_trace (&cpu_dev, TRACE_INSTR,                /*   then output the address and opcode */
-                  DMS_FORMAT,
-                  meu_indicator, meu_page,
-                  MR, IR);
+    else if (idle_save != 0)       /* otherwise if idle tracing is suppressed */
+        cpu_dev.dctrl = idle_save; /*   then restore the saved trace flag set */
 
-        sim_eval [0] = IR;                              /* save the (first) instruction word in the eval array */
+    saved_MR = MR; /* save for T cmd update */
 
-        if (fprint_cpu (sim_deb, MR, sim_eval, 0, CPU_Trace) > SCPE_OK) /* print the mnemonic; if that fails */
-            fprint_val (sim_deb, sim_eval [0], cpu_dev.dradix,          /*   then print the numeric */
-                        cpu_dev.dwidth, PV_RZRO);                       /*     value again */
+    if (status == STOP_HALT)                  /* programmed halt? */
+        set_loader (NULL, FALSE, NULL, NULL); /* disable loader (after T is read) */
+    else if (status <= STOP_RERUN)            /* simulation stop */
+        PR = err_PC;                          /* back out instruction */
 
-        fputc ('\n', sim_deb);                          /* end the trace with a newline */
-        }
+    dms_upd_sr ();       /* update dms_sr */
+    dms_upd_vr (MR);     /* update dms_vr */
+    pcq_r->qptr = pcq_p; /* update pc q ptr */
 
+    if (dms_enb)                         /* DMS enabled? */
+        if (dms_ump)                     /* set default */
+            sim_brk_dflt = SWMASK ('U'); /*   breakpoint type */
+        else                             /*     to current */
+            sim_brk_dflt = SWMASK ('S'); /*       map mode */
+    else                                 /* DMS disabled */
+        sim_brk_dflt = SWMASK ('N');     /* set breakpoint type to non-DMS */
 
-    sim_interval = sim_interval - 1;                    /* count the instruction */
+    tprintf (cpu_dev, cpu_dev.dctrl, DMS_FORMAT "simulation stop: %s\n", meu_indicator, meu_page, MR, TR,
+             sim_error_text (status));
 
-    status = machine_instruction (IR, iotrap, intrq,    /* execute one machine instruction */
-                                  &idle_save);
-
-    if (status == NOTE_IOG) {                           /* I/O instr exec? */
-        dmarq = calc_dma ();                            /* recalc DMA masks */
-        intrq = calc_int ();                            /* recalc interrupts */
-        status = SCPE_OK;                               /* continue */
-        }
-
-    else if (status == NOTE_INDINT) {                   /* intr pend during indir? */
-        PR = err_PC;                                    /* back out of inst */
-        status = SCPE_OK;                               /* continue */
-        }
-
-    cpu_ss_inhibit = status;                            /* clear the simulation stop inhibition mask */
-    }
-while (status == SCPE_OK);                              /* loop until halted */
-
-
-/* Instruction postlude */
-
-if (intrq && ion_defer)                                 /* if an interrupt is pending but deferred */
-    ion_defer = check_deferral (intrq);                 /*   then check that the deferral is applicable */
-
-if (exec_save != 0) {                                   /* if EXEC tracing is active */
-    cpu_dev.dctrl = exec_save;                          /*   then restore the saved trace flag set */
-    hp_trace (&cpu_dev, TRACE_EXEC, EXEC_FORMAT "\n");  /*     and add a separator to the trace log */
-    }
-
-else if (idle_save != 0)                                /* otherwise if idle tracing is suppressed */
-    cpu_dev.dctrl = idle_save;                          /*   then restore the saved trace flag set */
-
-saved_MR = MR;                                          /* save for T cmd update */
-
-if (status == STOP_HALT)                                /* programmed halt? */
-    set_loader (NULL, FALSE, NULL, NULL);               /* disable loader (after T is read) */
-else if (status <= STOP_RERUN)                          /* simulation stop */
-    PR = err_PC;                                        /* back out instruction */
-
-dms_upd_sr ();                                          /* update dms_sr */
-dms_upd_vr (MR);                                        /* update dms_vr */
-pcq_r->qptr = pcq_p;                                    /* update pc q ptr */
-
-if (dms_enb)                                            /* DMS enabled? */
-    if (dms_ump)                                        /* set default */
-        sim_brk_dflt = SWMASK ('U');                    /*   breakpoint type */
-    else                                                /*     to current */
-        sim_brk_dflt = SWMASK ('S');                    /*       map mode */
-else                                                    /* DMS disabled */
-    sim_brk_dflt = SWMASK ('N');                        /* set breakpoint type to non-DMS */
-
-tprintf (cpu_dev, cpu_dev.dctrl,
-         DMS_FORMAT "simulation stop: %s\n",
-         meu_indicator, meu_page,
-         MR, TR, sim_error_text (status));
-
-return status;                                          /* return status code */
+    return status; /* return status code */
 }
-
 
 /* VM command post-processor
 
@@ -2434,19 +2364,18 @@ return status;                                          /* return status code */
        instruction in the loader reenables loader protection.
 */
 
-void cpu_post_cmd (t_bool from_scp)
+void
+cpu_post_cmd (t_bool from_scp)
 {
-if (MR != saved_MR) {                                   /* M changed since last update? */
-    saved_MR = MR;
-    TR = mem_fast_read (MR, dms_ump);                   /* sync T with new M */
-    }
-return;
+    if (MR != saved_MR)
+        { /* M changed since last update? */
+            saved_MR = MR;
+            TR       = mem_fast_read (MR, dms_ump); /* sync T with new M */
+        }
+    return;
 }
 
-
-
 /* CPU global utility routines */
-
 
 /* Install a bootstrap loader into memory.
 
@@ -2537,62 +2466,67 @@ return;
        routine to accommodate select code reassignment by the user.
 */
 
-t_stat cpu_copy_loader (const LOADER_ARRAY boot, uint32 sc, HP_WORD sr_clear, HP_WORD sr_set)
+t_stat
+cpu_copy_loader (const LOADER_ARRAY boot, uint32 sc, HP_WORD sr_clear, HP_WORD sr_set)
 {
-uint32      index, base, ptr_sc;
-MEMORY_WORD word;
-DEVICE      *ptr_dptr;
+    uint32      index, base, ptr_sc;
+    MEMORY_WORD word;
+    DEVICE *    ptr_dptr;
 
-if (boot [is_1000].start_index == IBL_NA)               /* if the bootstrap is not defined for the current CPU */
-    return SCPE_NOFNC;                                  /*   then reject the command */
+    if (boot[is_1000].start_index == IBL_NA) /* if the bootstrap is not defined for the current CPU */
+        return SCPE_NOFNC;                   /*   then reject the command */
 
-else if (boot [is_1000].start_index > 0 && sc > 0) {    /* if this is a two-part loader with I/O reconfiguration */
-    ptr_dptr = find_dev ("PTR");                        /*   then get a pointer to the paper tape reader device */
+    else if (boot[is_1000].start_index > 0 && sc > 0)
+        {                                /* if this is a two-part loader with I/O reconfiguration */
+            ptr_dptr = find_dev ("PTR"); /*   then get a pointer to the paper tape reader device */
 
-    if (ptr_dptr == NULL)                               /* if the PTR device is not present */
-        return SCPE_IERR;                               /*   then something is seriously wrong */
-    else                                                /* otherwise */
-        ptr_sc = ((DIB *) ptr_dptr->ctxt)->select_code; /*   get the select code from the device's DIB */
+            if (ptr_dptr == NULL)                              /* if the PTR device is not present */
+                return SCPE_IERR;                              /*   then something is seriously wrong */
+            else                                               /* otherwise */
+                ptr_sc = ((DIB *)ptr_dptr->ctxt)->select_code; /*   get the select code from the device's DIB */
+        }
+
+    else            /* otherwise this is a single-part loader */
+        ptr_sc = 0; /*   or I/O reconfiguration is not requested */
+
+    base = (MEMSIZE - 1) & ~IBL_MASK & LA_MASK;         /* get the base memory address of the loader */
+    PR   = (base + boot[is_1000].start_index) & R_MASK; /*   and store the starting program address in P */
+
+    set_loader (NULL, TRUE, NULL, NULL); /* enable the loader (ignore errors if not 21xx) */
+
+    for (index = 0; index < IBL_SIZE; index++) { /* copy the bootstrap loader to memory */
+        word = boot[is_1000].loader[index];      /* get the next word */
+
+        if (sc == 0) {              /* if reconfiguration is not requested */
+            M[base + index] = word; /*   then copy the instruction verbatim */
+        } else {
+            if ((word & I_NMRMASK) == I_IO                                  /* otherwise if this is an I/O instruction */
+                && (word & I_DEVMASK) >= VARDEV                             /*   and the referenced select code is >= 10B */
+                && I_GETIOOP(word) != soHLT) {                              /*   and it's not a halt instruction */
+                if (index < boot[is_1000].start_index) {                    /*   then if this is a split loader */
+                    M[base + index] = (word + (ptr_sc - VARDEV)) & DV_MASK; /*     then reconfigure the paper tape reader */
+                } else {                                                    /*   otherwise */
+                    M[base + index] = (word + (sc - VARDEV)) & DV_MASK;     /*     reconfigure the target device */
+                }
+            } else {
+                if (index == boot[is_1000].dma_index) {               /* otherwise if this is the DMA configuration word */
+                    M[base + index] = (word + (sc - VARDEV)) & DV_MASK; /*   then reconfigure the target device */
+                } else {
+                    if (index == boot[is_1000].fwa_index) { /* otherwise if this is the starting address word */
+                        M[base + index] = NEG16(base);      /*   then set the negative starting address of the bootstrap */
+                    } else {                                /* otherwise the word is not a special one */
+                        M[base + index] = word;             /*   so simply copy it */
+                    }
+                }
+            }
+        }
     }
 
-else                                                    /* otherwise this is a single-part loader */
-    ptr_sc = 0;                                         /*   or I/O reconfiguration is not requested */
+    if (is_1000)                                      /* if the CPU is a 1000 */
+        SR = (SR & sr_clear) | sr_set | IBL_TO_SC (sc); /*   then modify the S register as indicated */
 
-base = MEMSIZE - 1 & ~IBL_MASK & LA_MASK;               /* get the base memory address of the loader */
-PR = base + boot [is_1000].start_index & R_MASK;        /*   and store the starting program address in P */
-
-set_loader (NULL, TRUE, NULL, NULL);                    /* enable the loader (ignore errors if not 21xx) */
-
-for (index = 0; index < IBL_SIZE; index++) {            /* copy the bootstrap loader to memory */
-    word = boot [is_1000].loader [index];               /* get the next word */
-
-    if (sc == 0)                                        /* if reconfiguration is not requested */
-        M [base + index] = word;                        /*   then copy the instruction verbatim */
-
-    else if ((word & I_NMRMASK) == I_IO                             /* otherwise if this is an I/O instruction */
-      && (word & I_DEVMASK) >= VARDEV                               /*   and the referenced select code is >= 10B */
-      && I_GETIOOP (word) != soHLT)                                 /*   and it's not a halt instruction */
-        if (index < boot [is_1000].start_index)                     /*   then if this is a split loader */
-            M [base + index] = word + (ptr_sc - VARDEV) & DV_MASK;  /*     then reconfigure the paper tape reader */
-        else                                                        /*   otherwise */
-            M [base + index] = word + (sc - VARDEV) & DV_MASK;      /*     reconfigure the target device */
-
-    else if (index == boot [is_1000].dma_index)             /* otherwise if this is the DMA configuration word */
-        M [base + index] = word + (sc - VARDEV) & DV_MASK;  /*   then reconfigure the target device */
-
-    else if (index == boot [is_1000].fwa_index)         /* otherwise if this is the starting address word */
-        M [base + index] = NEG16 (base);                /*   then set the negative starting address of the bootstrap */
-
-    else                                                /* otherwise the word is not a special one */
-        M [base + index] = word;                        /*   so simply copy it */
-    }
-
-if (is_1000)                                            /* if the CPU is a 1000 */
-    SR = SR & sr_clear | sr_set | IBL_TO_SC (sc);       /*   then modify the S register as indicated */
-
-return SCPE_OK;                                         /* return success with the loader copied to memory */
+    return SCPE_OK; /* return success with the loader copied to memory */
 }
-
 
 /* Execute an I/O instruction.
 
@@ -2641,70 +2575,71 @@ return SCPE_OK;                                         /* return success with t
        instruction included the CLF signal (e.g., SFS 0,C).
 */
 
-t_stat cpu_iog (HP_WORD IR, t_bool iotrap)
+t_stat
+cpu_iog(HP_WORD IR, t_bool iotrap)
 {
-/* Translation for I/O subopcodes:            soHLT, soFLG, soSFC, soSFS, soMIX, soLIX, soOTX, soCTL */
-static const IOSIGNAL generate_signal [] = { ioNONE, ioSTF, ioSFC, ioSFS, ioIOI, ioIOI, ioIOO, ioSTC };
+    /* Translation for I/O subopcodes:          soHLT, soFLG, soSFC, soSFS, soMIX, soLIX, soOTX, soCTL */
+    static const IOSIGNAL generate_signal[] = {ioNONE, ioSTF, ioSFC, ioSFS, ioIOI, ioIOI, ioIOO, ioSTC};
 
-const uint32 dev = IR & I_DEVMASK;                      /* device select code */
-const uint32 sop = I_GETIOOP (IR);                      /* I/O subopcode */
-const uint32 ab  = (IR & I_AB ? 1 : 0);                 /* A/B register selector */
-uint32  ioreturn;
-t_stat  iostat;
-IOCYCLE signal_set;
-HP_WORD iodata = (HP_WORD) ioNONE;                      /* initialize for SKF test */
+    const uint32 dev = IR & I_DEVMASK;      /* device select code */
+    const uint32 sop = I_GETIOOP(IR);       /* I/O subopcode */
+    const uint32 ab  = (IR & I_AB ? 1 : 0); /* A/B register selector */
+    uint32       ioreturn;
+    t_stat       iostat;
+    IOCYCLE      signal_set;
+    HP_WORD      iodata = (HP_WORD)ioNONE; /* initialize for SKF test */
 
-if (mp_control && !iotrap                               /* if MP is enabled and the instruction is not in trap cell */
-  && (sop == soHLT                                      /*   and it is a HLT */
-  || dev != OVF && (mp_unit.flags & UNIT_MP_SEL1))) {   /*   or does not address SC 01 and SEL1 is out */
-        if (sop == soLIX)                               /*     then an MP violation occurs; if it is an LIA/B */
-            ABREG [ab] = 0;                             /*       then the register is written before the abort */
+    if (mp_control && !iotrap /* if MP is enabled and the instruction is not in trap cell */
+        && (sop == soHLT      /*   and it is a HLT */
+            || (dev != OVF && (mp_unit.flags & UNIT_MP_SEL1)))) { /*   or does not address SC 01 and SEL1 is out */
+        if (sop == soLIX)                                         /*     then an MP violation occurs; if it is an LIA/B */
+            ABREG[ab] = 0;                                        /*       then the register is written before the abort */
 
-        MP_ABORT (err_PC);                              /* MP abort */
-        }
-
-signal_set = generate_signal [sop];                     /* generate I/O signal from instruction */
-ion_defer = defer_tab [sop];                            /* defer depending on instruction */
-
-if (sop == soOTX)                                       /* OTA/B instruction? */
-    iodata = ABREG [ab];                                /* pass A/B register value */
-
-else if (sop == soCTL && IR & I_CTL)                    /* CLC instruction? */
-    signal_set = ioCLC;                                 /* change STC to CLC signal */
-
-if (IR & I_HC)                                          /* if the H/C bit is set */
-    if (sop == soFLG)                                   /*   then if the instruction is STF or CLF */
-        signal_set = ioCLF;                             /*     then change the ioSTF signal to ioCLF */
-    else                                                /*   otherwise it's a non-flag instruction */
-        signal_set |= ioCLF;                            /*     so add ioCLF to the instruction-specific signal */
-
-ioreturn = io_dispatch (dev, signal_set, iodata);       /* dispatch the I/O signals */
-
-iostat = IOSTATUS (ioreturn);                           /* extract status */
-iodata = IODATA (ioreturn);                             /* extract return data value */
-
-if (iostat == NOTE_SKIP) {                              /* if the interface asserted SKF */
-    PR = PR + 1 & LA_MASK;                              /*   then bump P to skip then next instruction */
-    return (IR & I_HC ? NOTE_IOG : SCPE_OK);            /*     and request recalculation of interrupts if needed */
+        MP_ABORT(err_PC); /* MP abort */
     }
 
-else if (iostat == SCPE_OK) {                           /* otherwise if instruction execution succeeded */
-    if (sop == soLIX)                                   /*   then if is it an LIA or LIB */
-        ABREG [ab] = iodata;                            /*     then load the returned data */
+    signal_set = generate_signal[sop]; /* generate I/O signal from instruction */
+    ion_defer  = defer_tab[sop];       /* defer depending on instruction */
 
-    else if (sop == soMIX)                              /*   otherwise if it is an MIA or MIB */
-        ABREG [ab] = ABREG [ab] | iodata;               /*     then merge the returned data */
+    if (sop == soOTX)       /* OTA/B instruction? */
+        iodata = ABREG[ab]; /* pass A/B register value */
 
-    else if (sop == soHLT)                              /*   otherwise if it is a HLT */
-        return STOP_HALT;                               /*     then stop the simulator */
+    else if (sop == soCTL && IR & I_CTL) /* CLC instruction? */
+        signal_set = ioCLC;              /* change STC to CLC signal */
 
-    return NOTE_IOG;                                    /* request recalculation of interrupts */
+    if (IR & I_HC) {             /* if the H/C bit is set */
+        if (sop == soFLG)        /*   then if the instruction is STF or CLF */
+            signal_set = ioCLF;  /*     then change the ioSTF signal to ioCLF */
+        else                     /*   otherwise it's a non-flag instruction */
+            signal_set |= ioCLF; /*     so add ioCLF to the instruction-specific signal */
     }
 
-else                                                    /* otherwise the execution failed */
-    return iostat;                                      /*   so return the failure status */
+    ioreturn = io_dispatch(dev, signal_set, iodata); /* dispatch the I/O signals */
+
+    iostat = IOSTATUS(ioreturn); /* extract status */
+    iodata = IODATA(ioreturn);   /* extract return data value */
+
+    if (iostat == NOTE_SKIP) {                   /* if the interface asserted SKF */
+        PR = (PR + 1) & LA_MASK;                 /*   then bump P to skip then next instruction */
+        return (IR & I_HC ? NOTE_IOG : SCPE_OK); /*     and request recalculation of interrupts if needed */
+    }
+
+    else if (iostat == SCPE_OK) { /* otherwise if instruction execution succeeded */
+        if (sop == soLIX)         /*   then if is it an LIA or LIB */
+            ABREG[ab] = iodata;   /*     then load the returned data */
+
+        else if (sop == soMIX)              /*   otherwise if it is an MIA or MIB */
+            ABREG[ab] = ABREG[ab] | iodata; /*     then merge the returned data */
+
+        else if (sop == soHLT) /*   otherwise if it is a HLT */
+            return STOP_HALT;  /*     then stop the simulator */
+
+        return NOTE_IOG; /* request recalculation of interrupts */
+    }
+
+    else               /* otherwise the execution failed */
+        return iostat; /*   so return the failure status */
 }
-
 
 /* Calculate interrupt requests.
 
@@ -2762,44 +2697,46 @@ else                                                    /* otherwise the executi
    must be a parity error interrupt).
 */
 
-uint32 calc_int (void)
+uint32
+calc_int(void)
 {
-uint32 sc, pri_mask [2], req_grant [2];
+    uint32 sc, pri_mask[2], req_grant[2];
 
-pri_mask  [0] = ~dev_prl [0] & (dev_prl [0] + 1);       /* calculate lower priority mask */
-req_grant [0] = pri_mask [0] & dev_irq [0];             /* calculate lower request to grant */
+    pri_mask[0]  = ~dev_prl[0] & (dev_prl[0] + 1); /* calculate lower priority mask */
+    req_grant[0] = pri_mask[0] & dev_irq[0];       /* calculate lower request to grant */
 
-if (ion)                                                    /* interrupt system on? */
-    if ((req_grant [0] == 0) && (pri_mask [0] == 0)) {      /* no requests in lower set and PRL unbroken? */
-        pri_mask  [1] = ~dev_prl [1] & (dev_prl [1] + 1);   /* calculate upper priority mask */
-        req_grant [1] = pri_mask [1] & dev_irq [1];         /* calculate upper request to grant */
-        }
-    else                                                /* lower set has request */
-        req_grant [1] = 0;                              /* no grants to upper set */
+    if (ion) {                                             /* interrupt system on? */
+        if ((req_grant[0] == 0) && (pri_mask[0] == 0)) {   /* no requests in lower set and PRL unbroken? */
+            pri_mask[1]  = ~dev_prl[1] & (dev_prl[1] + 1); /* calculate upper priority mask */
+            req_grant[1] = pri_mask[1] & dev_irq[1];       /* calculate upper request to grant */
+        } else                                             /* lower set has request */
+            req_grant[1] = 0;                              /* no grants to upper set */
 
-else {                                                  /* interrupt system off */
-    req_grant [0] = req_grant [0] &                     /* only PF and PE can interrupt */
-                    (BIT_M (PWR) | BIT_M (PRO));
-    req_grant [1] = 0;
+    } else {                          /* interrupt system off */
+        req_grant[0] = req_grant[0] & /* only PF and PE can interrupt */
+                       (BIT_M(PWR) | BIT_M(PRO));
+        req_grant[1] = 0;
     }
 
-if (req_grant [0])                                      /* device in lower half? */
-    for (sc = 0; sc <= 31; sc++)                        /* determine interrupting select code */
-        if (req_grant [0] & LSB)                        /* grant this request? */
-            return sc;                                  /* return this select code */
-        else                                            /* not this one */
-            req_grant [0] = req_grant [0] >> 1;         /* position next request */
+    if (req_grant[0]) {                           /* device in lower half? */
+        for (sc = 0; sc <= 31; sc++) {            /* determine interrupting select code */
+            if (req_grant[0] & LSB)               /* grant this request? */
+                return sc;                        /* return this select code */
+            else                                  /* not this one */
+                req_grant[0] = req_grant[0] >> 1; /* position next request */
+        }
+    } else {
+        if (req_grant[1])                             /* device in upper half */
+            for (sc = 32; sc <= 63; sc++) {           /* determine interrupting select code */
+                if (req_grant[1] & LSB)               /* grant this request? */
+                    return sc;                        /* return this select code */
+                else                                  /* not this one */
+                    req_grant[1] = req_grant[1] >> 1; /* position next request */
+            }
+    }
 
-else if (req_grant [1])                                 /* device in upper half */
-    for (sc = 32; sc <= 63; sc++)                       /* determine interrupting select code */
-        if (req_grant [1] & LSB)                        /* grant this request? */
-            return sc;                                  /* return this select code */
-        else                                            /* not this one */
-            req_grant [1] = req_grant [1] >> 1;         /* position next request */
-
-return 0;                                               /* no interrupt granted */
+    return 0; /* no interrupt granted */
 }
-
 
 /* Resolve a indirect address.
 
@@ -2885,40 +2822,42 @@ return 0;                                               /* no interrupt granted 
        simulation equivalent of the CPU front panel HALT button).
 */
 
-t_stat resolve (HP_WORD MA, HP_WORD *address, uint32 irq)
+t_stat
+resolve(HP_WORD MA, HP_WORD *address, uint32 irq)
 {
-uint32 level;
-t_bool pending;
+    uint32 level;
+    t_bool pending;
 
-if (MA & I_IA) {                                        /* if the address is indirect */
-    MA = ReadW (MA & LA_MASK);                          /*   then follow the chain (first level) */
+    if (MA & I_IA) {              /* if the address is indirect */
+        MA = ReadW(MA & LA_MASK); /*   then follow the chain (first level) */
 
-    if (MA & I_IA) {                                    /* if the address is still indirect */
-        pending = (irq && !(mp_unit.flags & DEV_DIS));  /*   then permit a pending interrupt if MP is enabled */
+        if (MA & I_IA) {                                   /* if the address is still indirect */
+            pending = (irq && !(mp_unit.flags & DEV_DIS)); /*   then permit a pending interrupt if MP is enabled */
 
-        for (level = 2; MA & I_IA; level++) {           /* follow the chain from level 2 until the address resolves */
-            if (level > indirect_limit)                 /* if the limit is exceeded */
-                return STOP_INDIR;                      /*   then stop the simulator */
+            for (level = 2; MA & I_IA; level++) { /* follow the chain from level 2 until the address resolves */
+                if (level > indirect_limit) {     /* if the limit is exceeded */
+                    return STOP_INDIR;            /*   then stop the simulator */
+                } else {
+                    if (pending) {             /* otherwise if an interrupt is pending */
+                        if (level == 3) {      /*   then if this is the third level */
+                            ion_defer = FALSE; /*     then reenable interrupts */
+                        } else {
+                            if (level == 4)         /*   otherwise if this is the fourth level */
+                                return NOTE_INDINT; /*     then service the interrupt now */
+                        }
+                    }
+                }
 
-            else if (pending)                           /* otherwise if an interrupt is pending */
-                if (level == 3)                         /*   then if this is the third level */
-                    ion_defer = FALSE;                  /*     then reenable interrupts */
-                else if (level == 4)                    /*   otherwise if this is the fourth level */
-                    return NOTE_INDINT;                 /*     then service the interrupt now */
-
-            MA = ReadW (MA & LA_MASK);                  /* follow the address chain */
+                MA = ReadW(MA & LA_MASK); /* follow the address chain */
             }
         }
     }
 
-*address = MA;                                          /* return the direct address */
-return SCPE_OK;                                         /*   and success status */
+    *address = MA;  /* return the direct address */
+    return SCPE_OK; /*   and success status */
 }
 
-
-
 /* Memory global utility routines */
-
 
 /* Read a word from memory.
 
@@ -2957,63 +2896,61 @@ return SCPE_OK;                                         /*   and success status 
        instead of a normal return.
 */
 
-HP_WORD mem_read (DEVICE *dptr, ACCESS_CLASS classification, HP_WORD address)
+HP_WORD
+mem_read (DEVICE *dptr, ACCESS_CLASS classification, HP_WORD address)
 {
-uint32  index, map;
-HP_WORD protection;
+    uint32  index, map;
+    HP_WORD protection;
 
-switch (classification) {                               /* dispatch on the access classification */
+    switch (classification)
+        { /* dispatch on the access classification */
 
-    case Fetch:
-    case Data:
-    default:                                            /* needed to quiet the compiler's anxiety */
-        map = dms_ump;                                  /* use the currently selected map (user or system) */
-        protection = RDPROT;                            /*   and enable read protection */
-        break;
+        case Fetch:
+        case Data:
+        default:                  /* needed to quiet the compiler's anxiety */
+            map        = dms_ump; /* use the currently selected map (user or system) */
+            protection = RDPROT;  /*   and enable read protection */
+            break;
 
-    case Data_Alternate:
-        map = dms_ump ^ MAP_LNT;                        /* use the alternate map (user or system) */
-        protection = RDPROT;                            /*   and enable read protection */
-        break;
+        case Data_Alternate:
+            map        = dms_ump ^ MAP_LNT; /* use the alternate map (user or system) */
+            protection = RDPROT;            /*   and enable read protection */
+            break;
 
-    case Data_System:
-        map = SMAP;                                     /* use the system map explicitly */
-        protection = NOPROT;                            /*   without protection */
-        break;
+        case Data_System:
+            map        = SMAP;   /* use the system map explicitly */
+            protection = NOPROT; /*   without protection */
+            break;
 
-    case Data_User:
-        map = UMAP;                                     /* use the user map explicitly */
-        protection = NOPROT;                            /*   without protection */
-        break;
+        case Data_User:
+            map        = UMAP;   /* use the user map explicitly */
+            protection = NOPROT; /*   without protection */
+            break;
 
-    case DMA_Channel_1:
-        map = PAMAP;                                    /* use the DCPC port A map */
-        protection = NOPROT;                            /*   without protection */
-        break;
+        case DMA_Channel_1:
+            map        = PAMAP;  /* use the DCPC port A map */
+            protection = NOPROT; /*   without protection */
+            break;
 
-    case DMA_Channel_2:
-        map = PBMAP;                                    /* use the DCPC port B map */
-        protection = NOPROT;                            /*   without protection */
-        break;
-    }                                                   /* all cases are handled */
+        case DMA_Channel_2:
+            map        = PBMAP;  /* use the DCPC port B map */
+            protection = NOPROT; /*   without protection */
+            break;
+        } /* all cases are handled */
 
-MR = address;                                           /* save the logical memory address */
-index = meu_map (address, map, protection);             /*   and translate to a physical address */
+    MR    = address;                            /* save the logical memory address */
+    index = meu_map (address, map, protection); /*   and translate to a physical address */
 
-if (index <= 1 && map < PAMAP)                          /* if the A/B register is referenced */
-    TR = ABREG [index];                                 /*   then return the selected register value */
-else                                                    /* otherwise */
-    TR = (HP_WORD) M [index];                           /*   return the physical memory value */
+    if (index <= 1 && map < PAMAP) /* if the A/B register is referenced */
+        TR = ABREG[index];         /*   then return the selected register value */
+    else                           /* otherwise */
+        TR = (HP_WORD)M[index];    /*   return the physical memory value */
 
-tpprintf (dptr, mem_access [classification].debug_flag,
-          DMS_FORMAT "  %s%s\n",
-          meu_indicator, meu_page, MR, TR,
-          mem_access [classification].name,
-          mem_access [classification].debug_flag == TRACE_FETCH ? "" : " read");
+    tpprintf (dptr, mem_access[classification].debug_flag, DMS_FORMAT "  %s%s\n", meu_indicator, meu_page, MR, TR,
+              mem_access[classification].name, mem_access[classification].debug_flag == TRACE_FETCH ? "" : " read");
 
-return TR;
+    return TR;
 }
-
 
 /* Write a word to memory.
 
@@ -3075,74 +3012,72 @@ return TR;
        description of the write violation state that this is a potential cause.
 */
 
-void mem_write (DEVICE *dptr, ACCESS_CLASS classification, HP_WORD address, HP_WORD value)
+void
+mem_write(DEVICE *dptr, ACCESS_CLASS classification, HP_WORD address, HP_WORD value)
 {
-uint32  index, map;
-HP_WORD protection;
+    uint32  index, map;
+    HP_WORD protection;
 
-switch (classification) {                               /* dispatch on the access classification */
+    switch (classification) { /* dispatch on the access classification */
 
     case Data:
-    default:                                            /* needed to quiet the compiler's anxiety */
-        map = dms_ump;                                  /* use the currently selected map (user or system) */
-        protection = WRPROT;                            /*   and enable write protection */
+    default:                  /* needed to quiet the compiler's anxiety */
+        map        = dms_ump; /* use the currently selected map (user or system) */
+        protection = WRPROT;  /*   and enable write protection */
         break;
 
     case Data_Alternate:
-        map = dms_ump ^ MAP_LNT;                        /* use the alternate map (user or system) */
-        protection = WRPROT;                            /*   and enable write protection */
+        map        = dms_ump ^ MAP_LNT; /* use the alternate map (user or system) */
+        protection = WRPROT;            /*   and enable write protection */
 
-        if (dms_enb)                                    /* if the MEM is enabled */
-            dms_viol (address, MVI_WPR);                /*   then a violation always occurs if in protected mode */
+        if (dms_enb)                    /* if the MEM is enabled */
+            dms_viol(address, MVI_WPR); /*   then a violation always occurs if in protected mode */
         break;
 
     case Data_System:
-        map = SMAP;                                     /* use the system map explicitly */
-        protection = NOPROT;                            /*   without protection */
+        map        = SMAP;   /* use the system map explicitly */
+        protection = NOPROT; /*   without protection */
         break;
 
     case Data_User:
-        map = UMAP;                                     /* use the user map explicitly */
-        protection = NOPROT;                            /*   without protection */
+        map        = UMAP;   /* use the user map explicitly */
+        protection = NOPROT; /*   without protection */
         break;
 
     case DMA_Channel_1:
-        map = PAMAP;                                    /* use the DCPC port A map */
-        protection = NOPROT;                            /*   without protection */
+        map        = PAMAP;  /* use the DCPC port A map */
+        protection = NOPROT; /*   without protection */
         break;
 
     case DMA_Channel_2:
-        map = PBMAP;                                    /* use the DCPC port B map */
-        protection = NOPROT;                            /*   without protection */
+        map        = PBMAP;  /* use the DCPC port B map */
+        protection = NOPROT; /*   without protection */
         break;
 
-    case Fetch:                                         /* instruction fetches */
-        return;                                         /*   do not cause writes */
+    case Fetch: /* instruction fetches */
+        return; /*   do not cause writes */
 
-    }                                                   /* all cases are handled */
+    } /* all cases are handled */
 
-MR = address;                                           /* save the logical memory address */
-index = meu_map (address, map, protection);             /*   and translate to a physical address */
+    MR    = address;                           /* save the logical memory address */
+    index = meu_map(address, map, protection); /*   and translate to a physical address */
 
-if (protection != NOPROT && MP_TEST (address))          /* if protected and the MP check fails */
-    MP_ABORT (address);                                 /*   then abort with an MP violation */
+    if (protection != NOPROT && MP_TEST(address)) /* if protected and the MP check fails */
+        MP_ABORT(address);                        /*   then abort with an MP violation */
 
-if (index <= 1 && map < PAMAP)                          /* if the A/B register is referenced */
-    ABREG [index] = value;                              /*   then write the value to the selected register */
+    if (index <= 1 && map < PAMAP) /* if the A/B register is referenced */
+        ABREG[index] = value;      /*   then write the value to the selected register */
 
-else if (index < fwanxm)                                /* otherwise if the location is within defined memory */
-    M [index] = (MEMORY_WORD) value;                    /*   then write the value to memory */
+    else if (index < fwanxm)           /* otherwise if the location is within defined memory */
+        M[index] = (MEMORY_WORD)value; /*   then write the value to memory */
 
-TR = value;                                             /* save the value */
+    TR = value; /* save the value */
 
-tpprintf (dptr, mem_access [classification].debug_flag,
-          DMS_FORMAT "  %s write\n",
-          meu_indicator, meu_page, MR, TR,
-          mem_access [classification].name);
+    tpprintf(dptr, mem_access[classification].debug_flag, DMS_FORMAT "  %s write\n", meu_indicator, meu_page, MR, TR,
+             mem_access[classification].name);
 
-return;
+    return;
 }
-
 
 /* Read a byte from memory.
 
@@ -3163,19 +3098,19 @@ return;
        microcode does a full word read for each byte accessed.
 */
 
-uint8 mem_read_byte (DEVICE *dptr, ACCESS_CLASS classification, HP_WORD byte_address)
+uint8
+mem_read_byte(DEVICE *dptr, ACCESS_CLASS classification, HP_WORD byte_address)
 {
-const HP_WORD word_address = byte_address >> 1;         /* the address of the word containing the byte */
-HP_WORD word;
+    const HP_WORD word_address = byte_address >> 1; /* the address of the word containing the byte */
+    HP_WORD       word;
 
-word = mem_read (dptr, classification, word_address);   /* read the addressed word */
+    word = mem_read(dptr, classification, word_address); /* read the addressed word */
 
-if (byte_address & LSB)                                 /* if the byte address is odd */
-    return LOWER_BYTE (word);                           /*   then return the right-hand byte */
-else                                                    /* otherwise */
-    return UPPER_BYTE (word);                           /*   return the left-hand byte */
+    if (byte_address & LSB)      /* if the byte address is odd */
+        return LOWER_BYTE(word); /*   then return the right-hand byte */
+    else                         /* otherwise */
+        return UPPER_BYTE(word); /*   return the left-hand byte */
 }
-
 
 /* Write a byte to memory.
 
@@ -3199,23 +3134,23 @@ else                                                    /* otherwise */
        bytes, but that is to minimize the number of map switches.)
 */
 
-void mem_write_byte (DEVICE *dptr, ACCESS_CLASS classification, HP_WORD byte_address, uint8 value)
+void
+mem_write_byte (DEVICE *dptr, ACCESS_CLASS classification, HP_WORD byte_address, uint8 value)
 {
-const HP_WORD word_address = byte_address >> 1;         /* the address of the word containing the byte */
-HP_WORD word;
+    const HP_WORD word_address = byte_address >> 1; /* the address of the word containing the byte */
+    HP_WORD       word;
 
-word = mem_read (dptr, classification, word_address);   /* read the addressed word */
+    word = mem_read (dptr, classification, word_address); /* read the addressed word */
 
-if (byte_address & LSB)                                 /* if the byte address is odd */
-    word = REPLACE_LOWER (word, value);                 /*   then replace the right-hand byte */
-else                                                    /* otherwise */
-    word = REPLACE_UPPER (word, value);                 /*   replace the left-hand byte */
+    if (byte_address & LSB)                 /* if the byte address is odd */
+        word = REPLACE_LOWER (word, value); /*   then replace the right-hand byte */
+    else                                    /* otherwise */
+        word = REPLACE_UPPER (word, value); /*   replace the left-hand byte */
 
-mem_write (dptr, classification, word_address, word);   /* write the updated word back */
+    mem_write (dptr, classification, word_address, word); /* write the updated word back */
 
-return;
+    return;
 }
-
 
 /* Fast read from memory.
 
@@ -3227,11 +3162,11 @@ return;
    required.
 */
 
-HP_WORD mem_fast_read (HP_WORD address, uint32 map)
+HP_WORD
+mem_fast_read (HP_WORD address, uint32 map)
 {
-return mem_examine (meu_map (address, map, NOPROT));    /* return the value at the translated address */
+    return mem_examine (meu_map (address, map, NOPROT)); /* return the value at the translated address */
 }
-
 
 /* Examine a physical memory address.
 
@@ -3240,18 +3175,18 @@ return mem_examine (meu_map (address, map, NOPROT));    /* return the value at t
    returned.  There are no protections or error indications.
 */
 
-HP_WORD mem_examine (uint32 address)
+HP_WORD
+mem_examine (uint32 address)
 {
-if (address <= 1)                                       /* if the address is 0 or 1 */
-    return ABREG [address];                             /*   then return the A or B register value */
+    if (address <= 1)          /* if the address is 0 or 1 */
+        return ABREG[address]; /*   then return the A or B register value */
 
-else if (address < PASIZE)                              /* otherwise if the address is within allocated memory */
-    return (HP_WORD) M [address];                       /*   then return the memory value */
+    else if (address < PASIZE)      /* otherwise if the address is within allocated memory */
+        return (HP_WORD)M[address]; /*   then return the memory value */
 
-else                                                    /* otherwise the access is outside of memory */
-    return 0;                                           /*   which reads as zero */
+    else          /* otherwise the access is outside of memory */
+        return 0; /*   which reads as zero */
 }
-
 
 /* Deposit into a physical memory address.
 
@@ -3260,35 +3195,34 @@ else                                                    /* otherwise the access 
    no protections or error indications.
 */
 
-void mem_deposit (uint32 address, HP_WORD value)
+void
+mem_deposit (uint32 address, HP_WORD value)
 {
-if (address <= 1)                                       /* if the address is 0 or 1 */
-    ABREG [address] = value & DV_MASK;                  /*   then store into the A or B register */
+    if (address <= 1)                     /* if the address is 0 or 1 */
+        ABREG[address] = value & DV_MASK; /*   then store into the A or B register */
 
-else if (address < fwanxm)                              /* otherwise if the address is within defined memory */
-    M [address] = (MEMORY_WORD) value & DV_MASK;        /*   then store the value */
+    else if (address < fwanxm)                     /* otherwise if the address is within defined memory */
+        M[address] = (MEMORY_WORD)value & DV_MASK; /*   then store the value */
 
-return;
+    return;
 }
-
-
 
 /* Memory Expansion Unit global utility routines */
 
-
 /* DMS read and write map registers */
 
-uint16 dms_rmap (uint32 mapi)
+uint16
+dms_rmap (uint32 mapi)
 {
-return dms_map [mapi & MAP_MASK] & ~MAP_RSVD;
+    return dms_map[mapi & MAP_MASK] & ~MAP_RSVD;
 }
 
-void dms_wmap (uint32 mapi, uint32 dat)
+void
+dms_wmap (uint32 mapi, uint32 dat)
 {
-dms_map [mapi & MAP_MASK] = (uint16) (dat & ~MAP_RSVD);
-return;
+    dms_map[mapi & MAP_MASK] = (uint16) (dat & ~MAP_RSVD);
+    return;
 }
-
 
 /* Process a MEM violation.
 
@@ -3298,19 +3232,20 @@ return;
    we return to the caller.
 */
 
-void dms_viol (uint32 va, HP_WORD st)
+void
+dms_viol (uint32 va, HP_WORD st)
 {
-dms_vr = st | dms_upd_vr (va);                          /* set violation cause in register */
+    dms_vr = st | dms_upd_vr (va); /* set violation cause in register */
 
-if (mp_control) {                                       /* memory protect on? */
-    mp_mem_changed = TRUE;                              /* set the MP/MEM registers changed flag */
+    if (mp_control)
+        {                          /* memory protect on? */
+            mp_mem_changed = TRUE; /* set the MP/MEM registers changed flag */
 
-    mp_mevff = SET;                                     /* record memory expansion violation */
-    MP_ABORT (va);                                      /* abort */
-    }
-return;
+            mp_mevff = SET; /* record memory expansion violation */
+            MP_ABORT (va);  /* abort */
+        }
+    return;
 }
-
 
 /* Update the MEM violation register.
 
@@ -3333,45 +3268,44 @@ return;
      - before returning to SCP after a simulator stop (if not frozen)
 */
 
-HP_WORD dms_upd_vr (uint32 va)
+HP_WORD
+dms_upd_vr (uint32 va)
 {
-if (mp_control && (mp_mevff == CLEAR)) {                /* violation register unfrozen? */
-    dms_vr = VA_GETPAG (va) |                           /* set map address */
-             (dms_enb ? MVI_MEM : 0) |                  /*   and MEM enabled */
-             (dms_ump ? MVI_UMP : 0);                   /*   and user map enabled */
+    if (mp_control && (mp_mevff == CLEAR))
+        {                                      /* violation register unfrozen? */
+            dms_vr = VA_GETPAG (va) |          /* set map address */
+                     (dms_enb ? MVI_MEM : 0) | /*   and MEM enabled */
+                     (dms_ump ? MVI_UMP : 0);  /*   and user map enabled */
 
-    if (is_mapped (va))                                 /* is addressed mapped? */
-        dms_vr = dms_vr | MVI_MEB;                      /* ME bus is enabled */
+            if (is_mapped (va))            /* is addressed mapped? */
+                dms_vr = dms_vr | MVI_MEB; /* ME bus is enabled */
 
-    mp_mem_changed = TRUE;                              /* set the MP/MEM registers changed flag */
-    }
+            mp_mem_changed = TRUE; /* set the MP/MEM registers changed flag */
+        }
 
-return dms_vr;
+    return dms_vr;
 }
-
 
 /* Update the MEM status register */
 
-HP_WORD dms_upd_sr (void)
+HP_WORD
+dms_upd_sr (void)
 {
-dms_sr = dms_sr & ~(MST_ENB | MST_UMP | MST_PRO);
+    dms_sr = dms_sr & ~(MST_ENB | MST_UMP | MST_PRO);
 
-if (dms_enb)
-    dms_sr = dms_sr | MST_ENB;
+    if (dms_enb)
+        dms_sr = dms_sr | MST_ENB;
 
-if (dms_ump)
-    dms_sr = dms_sr | MST_UMP;
+    if (dms_ump)
+        dms_sr = dms_sr | MST_UMP;
 
-if (mp_control)
-    dms_sr = dms_sr | MST_PRO;
+    if (mp_control)
+        dms_sr = dms_sr | MST_PRO;
 
-return dms_sr;
+    return dms_sr;
 }
 
-
-
 /* Memory Protect global utility routines */
-
 
 /* Memory protect and DMS validation for jumps.
 
@@ -3402,34 +3336,34 @@ return dms_sr;
    MEM violations are inhibited if the MEM is disabled.
 */
 
-void mp_dms_jmp (uint32 va, uint32 plb)
+void
+mp_dms_jmp (uint32 va, uint32 plb)
 {
-HP_WORD violation = 0;
-uint32  pgn = VA_GETPAG (va);                           /* get page number */
+    HP_WORD violation = 0;
+    uint32  pgn       = VA_GETPAG (va); /* get page number */
 
-if (mp_control) {                                       /* MP on? */
-    if (dms_enb) {                                      /* MEM on? */
-        if (dms_map [dms_ump + pgn] & WRPROT)           /* page write protected? */
-            violation = MVI_WPR;                        /* write violation occurred */
+    if (mp_control)
+        { /* MP on? */
+            if (dms_enb)
+                {                                        /* MEM on? */
+                    if (dms_map[dms_ump + pgn] & WRPROT) /* page write protected? */
+                        violation = MVI_WPR;             /* write violation occurred */
 
-        if (!is_mapped (va) && (va >= plb))             /* base page target? */
-            violation = violation | MVI_BPG;            /* base page violation occurred */
+                    if (!is_mapped (va) && (va >= plb))  /* base page target? */
+                        violation = violation | MVI_BPG; /* base page violation occurred */
 
-        if (violation)                                  /* any violation? */
-            dms_viol (va, violation);                   /* signal MEM violation */
+                    if (violation)                /* any violation? */
+                        dms_viol (va, violation); /* signal MEM violation */
+                }
+
+            if ((va >= plb) && (va < mp_fence)) /* jump under fence? */
+                MP_ABORT (va);                  /* signal MP violation */
         }
 
-    if ((va >= plb) && (va < mp_fence))                 /* jump under fence? */
-        MP_ABORT (va);                                  /* signal MP violation */
-    }
-
-return;
+    return;
 }
 
-
-
 /* CPU local SCP support routine declarations */
-
 
 /* CPU (SC 0) I/O signal handler.
 
@@ -3484,90 +3418,94 @@ return;
        operation.
 */
 
-static uint32 cpuio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+static uint32
+cpuio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-static IOCYCLE last_signal_set = ioNONE;                /* the last set of I/O signals processed */
-uint32   sc;
-IOSIGNAL signal;
-IOCYCLE  working_set = signal_set;                      /* no SIR handler needed */
+    static IOCYCLE last_signal_set = ioNONE; /* the last set of I/O signals processed */
+    uint32         sc;
+    IOSIGNAL       signal;
+    IOCYCLE        working_set = signal_set; /* no SIR handler needed */
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate next signal */
+    while (working_set)
+        {
+            signal = IONEXT (working_set); /* isolate next signal */
 
-    switch (signal) {                                   /* dispatch I/O signal */
+            switch (signal)
+                { /* dispatch I/O signal */
 
-        case ioCLF:                                     /* clear flag flip-flop */
-            ion = CLEAR;                                /* turn interrupt system off */
-            break;
+                case ioCLF:      /* clear flag flip-flop */
+                    ion = CLEAR; /* turn interrupt system off */
+                    break;
 
-        case ioSTF:                                     /* set flag flip-flop */
-            ion = SET;                                  /* turn interrupt system on */
-            break;
+                case ioSTF:    /* set flag flip-flop */
+                    ion = SET; /* turn interrupt system on */
+                    break;
 
-        case ioSFC:                                     /* skip if flag is clear */
-            setSKF (!ion);                              /* skip if interrupt system is off */
-            break;
+                case ioSFC:        /* skip if flag is clear */
+                    setSKF (!ion); /* skip if interrupt system is off */
+                    break;
 
-        case ioSFS:                                     /* skip if flag is set */
-            setSKF (ion);                               /* skip if interrupt system is on */
-            break;
+                case ioSFS:       /* skip if flag is set */
+                    setSKF (ion); /* skip if interrupt system is on */
+                    break;
 
-        case ioIOI:                                     /* I/O input */
-            stat_data = IORETURN (SCPE_OK, 0);          /* returns 0 */
-            break;
+                case ioIOI:                            /* I/O input */
+                    stat_data = IORETURN (SCPE_OK, 0); /* returns 0 */
+                    break;
 
-        case ioPON:                                     /* power on normal */
-            AR = 0;                                     /* clear A register */
-            BR = 0;                                     /* clear B register */
-            SR = 0;                                     /* clear S register */
-            TR = 0;                                     /* clear T register */
-            E = 1;                                      /* set E register */
+                case ioPON: /* power on normal */
+                    AR = 0; /* clear A register */
+                    BR = 0; /* clear B register */
+                    SR = 0; /* clear S register */
+                    TR = 0; /* clear T register */
+                    E  = 1; /* set E register */
 
-            if (is_1000) {                              /* 1000 series? */
-                memset (M, 0, (uint32) MEMSIZE * 2);    /* zero allocated memory */
-                MR = 0077777;                           /* set M register */
-                PR = 0100000;                           /* set P register */
+                    if (is_1000)
+                        {                                       /* 1000 series? */
+                            memset (M, 0, (uint32)MEMSIZE * 2); /* zero allocated memory */
+                            MR = 0077777;                       /* set M register */
+                            PR = 0100000;                       /* set P register */
+                        }
+
+                    else
+                        {           /* 21xx series */
+                            MR = 0; /* clear M register */
+                            PR = 0; /* clear P register */
+                        }
+                    break;
+
+                case ioPOPIO:          /* power-on preset to I/O */
+                    O         = 0;     /* clear O register */
+                    ion       = CLEAR; /* turn off interrupt system */
+                    ion_defer = FALSE; /* clear interrupt deferral */
+
+                    dms_enb = 0; /* turn DMS off */
+                    dms_ump = 0; /* init to system map */
+                    dms_sr  = 0; /* clear status register and BP fence */
+                    dms_vr  = 0; /* clear violation register */
+
+                    mp_mem_changed = TRUE; /* set the MP/MEM registers changed flag */
+                    break;
+
+                case ioCLC:                                   /* clear control flip-flop */
+                    if (last_select_code != 0                 /* if the last I/O instruction */
+                        || (last_signal_set & ioCLC) == 0)    /*   was not a CLC 0 */
+                        for (sc = CRSDEV; sc <= MAXDEV; sc++) /*     then assert the CRS signal */
+                            if (devs[sc] != NULL)             /*       to all occupied I/O slots  */
+                                io_dispatch (sc, ioCRS, 0);   /*         from select code 6 and up */
+                    break;
+
+                default:   /* all other signals */
+                    break; /*   are ignored */
                 }
 
-            else {                                      /* 21xx series */
-                MR = 0;                                 /* clear M register */
-                PR = 0;                                 /* clear P register */
-                }
-            break;
-
-        case ioPOPIO:                                   /* power-on preset to I/O */
-            O = 0;                                      /* clear O register */
-            ion = CLEAR;                                /* turn off interrupt system */
-            ion_defer = FALSE;                          /* clear interrupt deferral */
-
-            dms_enb = 0;                                /* turn DMS off */
-            dms_ump = 0;                                /* init to system map */
-            dms_sr = 0;                                 /* clear status register and BP fence */
-            dms_vr = 0;                                 /* clear violation register */
-
-            mp_mem_changed = TRUE;                      /* set the MP/MEM registers changed flag */
-            break;
-
-        case ioCLC:                                     /* clear control flip-flop */
-            if (last_select_code != 0                   /* if the last I/O instruction */
-              || (last_signal_set & ioCLC) == 0)        /*   was not a CLC 0 */
-                for (sc = CRSDEV; sc <= MAXDEV; sc++)   /*     then assert the CRS signal */
-                    if (devs [sc] != NULL)              /*       to all occupied I/O slots  */
-                        io_dispatch (sc, ioCRS, 0);     /*         from select code 6 and up */
-            break;
-
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+            working_set = working_set & ~signal; /* remove current signal from set */
         }
 
-    working_set = working_set & ~signal;                /* remove current signal from set */
-    }
+    last_signal_set = signal_set; /* save the current signal set for the next call */
 
-last_signal_set = signal_set;                           /* save the current signal set for the next call */
-
-return stat_data;
+    return stat_data;
 }
-
 
 /* Overflow/S-register (SC 1) I/O signal handler.
 
@@ -3584,52 +3522,54 @@ return stat_data;
     1. Select code 1 cannot interrupt, so there is no SIR handler.
 */
 
-static uint32 ovflio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+static uint32
+ovflio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-IOSIGNAL signal;
-IOCYCLE  working_set = signal_set;                      /* no SIR handler needed */
+    IOSIGNAL signal;
+    IOCYCLE  working_set = signal_set; /* no SIR handler needed */
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate next signal */
+    while (working_set)
+        {
+            signal = IONEXT (working_set); /* isolate next signal */
 
-    switch (signal) {                                   /* dispatch I/O signal */
+            switch (signal)
+                { /* dispatch I/O signal */
 
-        case ioCLF:                                     /* clear flag flip-flop */
-            O = 0;                                      /* clear overflow */
-            break;
+                case ioCLF: /* clear flag flip-flop */
+                    O = 0;  /* clear overflow */
+                    break;
 
-        case ioSTF:                                     /* set flag flip-flop */
-            O = 1;                                      /* set overflow */
-            break;
+                case ioSTF: /* set flag flip-flop */
+                    O = 1;  /* set overflow */
+                    break;
 
-        case ioSFC:                                     /* skip if flag is clear */
-            setSKF (!O);                                /* skip if overflow is clear */
-            break;
+                case ioSFC:      /* skip if flag is clear */
+                    setSKF (!O); /* skip if overflow is clear */
+                    break;
 
-        case ioSFS:                                     /* skip if flag is set */
-            setSKF (O);                                 /* skip if overflow is set */
-            break;
+                case ioSFS:     /* skip if flag is set */
+                    setSKF (O); /* skip if overflow is set */
+                    break;
 
-        case ioIOI:                                     /* I/O input */
-            stat_data = IORETURN (SCPE_OK, SR);         /* read switch register value */
-            break;
+                case ioIOI:                             /* I/O input */
+                    stat_data = IORETURN (SCPE_OK, SR); /* read switch register value */
+                    break;
 
-        case ioIOO:                                     /* I/O output */
-            if ((UNIT_CPU_MODEL != UNIT_2116) &&        /* no S register display on */
-                (UNIT_CPU_MODEL != UNIT_2115))          /*   2116 and 2115 machines */
-                SR = IODATA (stat_data);                /* write S register value */
-            break;
+                case ioIOO:                              /* I/O output */
+                    if ((UNIT_CPU_MODEL != UNIT_2116) && /* no S register display on */
+                        (UNIT_CPU_MODEL != UNIT_2115))   /*   2116 and 2115 machines */
+                        SR = IODATA (stat_data);         /* write S register value */
+                    break;
 
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+                default:   /* all other signals */
+                    break; /*   are ignored */
+                }
+
+            working_set = working_set & ~signal; /* remove current signal from set */
         }
 
-    working_set = working_set & ~signal;                /* remove current signal from set */
-    }
-
-return stat_data;
+    return stat_data;
 }
-
 
 /* Power fail (SC 4) I/O signal handler.
 
@@ -3642,39 +3582,41 @@ return stat_data;
    interrupt register (CIR) is always read by an IOI directed to select code 4.
 */
 
-static uint32 pwrfio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+static uint32
+pwrfio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-IOSIGNAL signal;
-IOCYCLE  working_set = IOADDSIR (signal_set);           /* add ioSIR if needed */
+    IOSIGNAL signal;
+    IOCYCLE  working_set = IOADDSIR (signal_set); /* add ioSIR if needed */
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate next signal */
+    while (working_set)
+        {
+            signal = IONEXT (working_set); /* isolate next signal */
 
-    switch (signal) {                                   /* dispatch I/O signal */
+            switch (signal)
+                { /* dispatch I/O signal */
 
-        case ioSTC:                                     /* set control flip-flop */
-            break;                                      /* reinitializes power fail */
+                case ioSTC: /* set control flip-flop */
+                    break;  /* reinitializes power fail */
 
-        case ioCLC:                                     /* clear control flip-flop */
-            break;                                      /* reinitializes power fail */
+                case ioCLC: /* clear control flip-flop */
+                    break;  /* reinitializes power fail */
 
-        case ioSFC:                                     /* skip if flag is clear */
-            break;                                      /* skips if power fail occurred */
+                case ioSFC: /* skip if flag is clear */
+                    break;  /* skips if power fail occurred */
 
-        case ioIOI:                                     /* I/O input */
-            stat_data = IORETURN (SCPE_OK, CIR);        /* input CIR value */
-            break;
+                case ioIOI:                              /* I/O input */
+                    stat_data = IORETURN (SCPE_OK, CIR); /* input CIR value */
+                    break;
 
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+                default:   /* all other signals */
+                    break; /*   are ignored */
+                }
+
+            working_set = working_set & ~signal; /* remove current signal from set */
         }
 
-    working_set = working_set & ~signal;                /* remove current signal from set */
-    }
-
-return stat_data;
+    return stat_data;
 }
-
 
 /* Examine a CPU memory location.
 
@@ -3699,29 +3641,29 @@ return stat_data;
    in the first word of "eval_array."
 */
 
-static t_stat cpu_examine (t_value *eval_array, t_addr address, UNIT *uptr, int32 switches)
+static t_stat
+cpu_examine (t_value *eval_array, t_addr address, UNIT *uptr, int32 switches)
 {
-uint32 index;
+    uint32 index;
 
-index = map_address ((HP_WORD) address, switches);      /* map the supplied address as directed by the switches */
+    index = map_address ((HP_WORD)address, switches); /* map the supplied address as directed by the switches */
 
-if (dms_enb == 0 && switches & ALL_MAPMODES)            /* if the MEM is disabled but a mapping mode was given */
-    return SCPE_NOFNC;                                  /*   then the command is not allowed */
+    if (dms_enb == 0 && switches & ALL_MAPMODES) /* if the MEM is disabled but a mapping mode was given */
+        return SCPE_NOFNC;                       /*   then the command is not allowed */
 
-else if (index >= MEMSIZE)                              /* otherwise if the address is beyond the memory limit */
-    return SCPE_NXM;                                    /*   then return non-existent memory status */
+    else if (index >= MEMSIZE) /* otherwise if the address is beyond the memory limit */
+        return SCPE_NXM;       /*   then return non-existent memory status */
 
-else if (eval_array == NULL)                            /* otherwise if the value pointer was not supplied */
-    return SCPE_IERR;                                   /*   then return internal error status */
+    else if (eval_array == NULL) /* otherwise if the value pointer was not supplied */
+        return SCPE_IERR;        /*   then return internal error status */
 
-else if (switches & SIM_SW_REST || index >= 2)          /* otherwise if restoring or memory is being accessed */
-    *eval_array = (t_value) M [index];                  /*   then return the memory value */
-else                                                    /* otherwise */
-    *eval_array = (t_value) ABREG [index];              /*   return the A or B register value */
+    else if (switches & SIM_SW_REST || index >= 2) /* otherwise if restoring or memory is being accessed */
+        *eval_array = (t_value)M[index];           /*   then return the memory value */
+    else                                           /* otherwise */
+        *eval_array = (t_value)ABREG[index];       /*   return the A or B register value */
 
-return SCPE_OK;                                         /* return success status */
+    return SCPE_OK; /* return success status */
 }
-
 
 /* Deposit to a CPU memory location.
 
@@ -3744,27 +3686,27 @@ return SCPE_OK;                                         /* return success status
    Otherwise, the value is stored into memory or the A/B register.
 */
 
-static t_stat cpu_deposit (t_value value, t_addr address, UNIT *uptr, int32 switches)
+static t_stat
+cpu_deposit (t_value value, t_addr address, UNIT *uptr, int32 switches)
 {
-uint32 index;
+    uint32 index;
 
-index = map_address ((HP_WORD) address, switches);      /* map the supplied address as directed by the switches */
+    index = map_address ((HP_WORD)address, switches); /* map the supplied address as directed by the switches */
 
-if (dms_enb == 0 && switches & ALL_MAPMODES)            /* if the MEM is disabled but a mapping mode was given */
-    return SCPE_NOFNC;                                  /*   then the command is not allowed */
+    if (dms_enb == 0 && switches & ALL_MAPMODES) /* if the MEM is disabled but a mapping mode was given */
+        return SCPE_NOFNC;                       /*   then the command is not allowed */
 
-else if (index >= MEMSIZE)                              /* otherwise if the address is beyond the memory limit */
-    return SCPE_NXM;                                    /*   then return non-existent memory status */
+    else if (index >= MEMSIZE) /* otherwise if the address is beyond the memory limit */
+        return SCPE_NXM;       /*   then return non-existent memory status */
 
-else if (switches & SIM_SW_REST || index >= 2)          /* otherwise if restoring or memory is being accessed */
-    M [index] = (MEMORY_WORD) value & DV_MASK;          /*   then write the memory value */
+    else if (switches & SIM_SW_REST || index >= 2) /* otherwise if restoring or memory is being accessed */
+        M[index] = (MEMORY_WORD)value & DV_MASK;   /*   then write the memory value */
 
-else                                                    /* otherwise */
-    ABREG [index] = (HP_WORD) value & DV_MASK;          /*   write the A or B register value */
+    else                                         /* otherwise */
+        ABREG[index] = (HP_WORD)value & DV_MASK; /*   write the A or B register value */
 
-return SCPE_OK;                                         /* return success status */
+    return SCPE_OK; /* return success status */
 }
-
 
 /* Reset the CPU.
 
@@ -3799,54 +3741,56 @@ return SCPE_OK;                                         /* return success status
            3     12992B  7905/06/20/25 Disc Drive
 */
 
-static t_stat cpu_reset (DEVICE *dptr)
+static t_stat
+cpu_reset (DEVICE *dptr)
 {
-if (M == NULL) {                                        /* if this is the initial call after simulator startup */
-    pcq_r = find_reg ("PCQ", NULL, dptr);               /*   then get the PC queue pointer */
+    if (M == NULL)
+        {                                         /* if this is the initial call after simulator startup */
+            pcq_r = find_reg ("PCQ", NULL, dptr); /*   then get the PC queue pointer */
 
-    if (pcq_r == NULL)                                  /* if the PCQ register is not present */
-        return SCPE_IERR;                               /*   then something is seriously wrong */
-    else                                                /* otherwise */
-        pcq_r->qptr = 0;                                /*   initialize the register's queue pointer */
+            if (pcq_r == NULL)    /* if the PCQ register is not present */
+                return SCPE_IERR; /*   then something is seriously wrong */
+            else                  /* otherwise */
+                pcq_r->qptr = 0;  /*   initialize the register's queue pointer */
 
-    M = (MEMORY_WORD *) calloc (PASIZE,                 /* allocate and zero the main memory array */
-                                sizeof (MEMORY_WORD));  /*   to the maximum configurable size */
+            M = (MEMORY_WORD *)calloc (PASIZE,                /* allocate and zero the main memory array */
+                                       sizeof (MEMORY_WORD)); /*   to the maximum configurable size */
 
-    if (M == NULL)                                      /* if the allocation failed */
-        return SCPE_MEM;                                /*   then report a "Memory exhausted" error */
+            if (M == NULL)       /* if the allocation failed */
+                return SCPE_MEM; /*   then report a "Memory exhausted" error */
 
-    else {                                              /* otherwise perform one-time initialization */
-        for (sim_PC = dptr->registers;                  /* find the P register entry */
-             sim_PC->loc != &PR && sim_PC->loc != NULL; /*   in the register array */
-             sim_PC++);                                 /*     for the SCP interface */
+            else
+                {                                                   /* otherwise perform one-time initialization */
+                    for (sim_PC = dptr->registers;                  /* find the P register entry */
+                         sim_PC->loc != &PR && sim_PC->loc != NULL; /*   in the register array */
+                         sim_PC++)
+                        ; /*     for the SCP interface */
 
-        if (sim_PC == NULL)                             /* if the P register entry is not present */
-            return SCPE_NXREG;                          /*   then there is a serious problem! */
+                    if (sim_PC == NULL)    /* if the P register entry is not present */
+                        return SCPE_NXREG; /*   then there is a serious problem! */
 
-        MEMSIZE = 32768;                                /* set the initial memory size */
-        set_model (NULL, UNIT_2116, NULL, NULL);        /*   and the initial CPU model */
+                    MEMSIZE = 32768;                         /* set the initial memory size */
+                    set_model (NULL, UNIT_2116, NULL, NULL); /*   and the initial CPU model */
 
-        loader_rom [0] = find_dev ("PTR");              /* install the 12992K ROM in socket 0 */
-        loader_rom [1] = find_dev ("DQC");              /*   and the 12992A ROM in socket 1 */
-        loader_rom [2] = find_dev ("MSC");              /*   and the 12992D ROM in socket 2 */
-        loader_rom [3] = find_dev ("DS");               /*   and the 12992B ROM in socket 3 */
+                    loader_rom[0] = find_dev ("PTR"); /* install the 12992K ROM in socket 0 */
+                    loader_rom[1] = find_dev ("DQC"); /*   and the 12992A ROM in socket 1 */
+                    loader_rom[2] = find_dev ("MSC"); /*   and the 12992D ROM in socket 2 */
+                    loader_rom[3] = find_dev ("DS");  /*   and the 12992B ROM in socket 3 */
 
-        loader_rom [0]->boot (0, loader_rom [0]);       /* install the BBL via the paper tape reader boot routine */
-        set_loader (NULL, FALSE, NULL, NULL);           /*   and then disable the loader, which was enabled */
+                    loader_rom[0]->boot (0, loader_rom[0]); /* install the BBL via the paper tape reader boot routine */
+                    set_loader (NULL, FALSE, NULL, NULL);   /*   and then disable the loader, which was enabled */
+                }
         }
-    }
 
+    if (sim_switches & SWMASK ('P')) /* if this is a power-on reset */
+        IOPOWERON (&cpu_dib);        /*   then issue the PON signal to the CPU */
+    else                             /* otherwise */
+        IOPRESET (&cpu_dib);         /*   issue a PRESET */
 
-if (sim_switches & SWMASK ('P'))                        /* if this is a power-on reset */
-    IOPOWERON (&cpu_dib);                               /*   then issue the PON signal to the CPU */
-else                                                    /* otherwise */
-    IOPRESET (&cpu_dib);                                /*   issue a PRESET */
+    sim_brk_dflt = SWMASK ('N'); /* the default breakpoint type is "nomap" as MEM is disabled */
 
-sim_brk_dflt = SWMASK ('N');                            /* the default breakpoint type is "nomap" as MEM is disabled */
-
-return SCPE_OK;
+    return SCPE_OK;
 }
-
 
 /* Device boot routine.
 
@@ -3889,29 +3833,31 @@ return SCPE_OK;
        with "Command not allowed."
 */
 
-static t_stat cpu_boot (int32 unitno, DEVICE *dptr)
+static t_stat
+cpu_boot (int32 unitno, DEVICE *dptr)
 {
-const int32 select_code = IBL_SC  (SR);                 /* the select code from S register bits 11-6 */
-const int32 rom_socket  = IBL_ROM (SR);                 /* the ROM socket number from S register bits 15-14 */
+    const int32 select_code = IBL_SC (SR);  /* the select code from S register bits 11-6 */
+    const int32 rom_socket  = IBL_ROM (SR); /* the ROM socket number from S register bits 15-14 */
 
-if (is_1000)                                            /* if this is a 1000-series CPU */
-    if (select_code < VARDEV) {                         /*   then if the select code is invalid */
-        O = 1;                                          /*     then set the overflow register */
-        return SCPE_ARG;                                /*       and reject the IBL with "Invalid argument" */
-        }
+    if (is_1000) /* if this is a 1000-series CPU */
+        if (select_code < VARDEV)
+            {                    /*   then if the select code is invalid */
+                O = 1;           /*     then set the overflow register */
+                return SCPE_ARG; /*       and reject the IBL with "Invalid argument" */
+            }
 
-    else if (loader_rom [rom_socket] == NULL)           /*   otherwise if the ROM socket is empty */
-        return SCPE_NXDEV;                              /*     then reject with "Non-existent device" */
+        else if (loader_rom[rom_socket] == NULL) /*   otherwise if the ROM socket is empty */
+            return SCPE_NXDEV;                   /*     then reject with "Non-existent device" */
 
-    else {                                                          /*   otherwise */
-        O = 0;                                                      /*     clear overflow to indicate a good IBL */
-        return loader_rom [rom_socket]->boot (select_code, NULL);   /*       and copy the ROM into memory */
-        }
+        else
+            {                                                            /*   otherwise */
+                O = 0;                                                   /*     clear overflow to indicate a good IBL */
+                return loader_rom[rom_socket]->boot (select_code, NULL); /*       and copy the ROM into memory */
+            }
 
-else                                                    /* otherwise this is a 21xx machine */
-    return SCPE_NOFNC;                                  /*   and IBL isn't supported */
+    else                   /* otherwise this is a 21xx machine */
+        return SCPE_NOFNC; /*   and IBL isn't supported */
 }
-
 
 /* Set the CPU simulation stop conditions.
 
@@ -3939,57 +3885,60 @@ else                                                    /* otherwise this is a 2
        exceed the logical memory size without being in a loop.
 */
 
-static t_stat set_stops (UNIT *uptr, int32 option, CONST char *cptr, void *desc)
+static t_stat
+set_stops (UNIT *uptr, int32 option, CONST char *cptr, void *desc)
 {
-char gbuf [CBUFSIZE];
-t_stat status;
-uint32 stop;
+    char   gbuf[CBUFSIZE];
+    t_stat status;
+    uint32 stop;
 
-if (cptr == NULL)                                               /* if there are no arguments */
-    if (option == 0)                                            /*   then if we're clearing the stops */
-        for (stop = 0; cpu_stop [stop].name != NULL; stop++)    /*     then loop through the flags */
-            *cpu_stop [stop].status = SCPE_OK;                  /*       and clear each stop status */
+    if (cptr == NULL)                                           /* if there are no arguments */
+        if (option == 0)                                        /*   then if we're clearing the stops */
+            for (stop = 0; cpu_stop[stop].name != NULL; stop++) /*     then loop through the flags */
+                *cpu_stop[stop].status = SCPE_OK;               /*       and clear each stop status */
 
-    else if (option == 1)                                       /* otherwise if we're setting the stops */
-        for (stop = 0; cpu_stop [stop].name != NULL; stop++)    /*   then loop through the flags */
-            *cpu_stop [stop].status = cpu_stop [stop].value;    /*     and set each stop status */
+        else if (option == 1)                                   /* otherwise if we're setting the stops */
+            for (stop = 0; cpu_stop[stop].name != NULL; stop++) /*   then loop through the flags */
+                *cpu_stop[stop].status = cpu_stop[stop].value;  /*     and set each stop status */
 
-    else                                                        /* otherwise */
-        return SCPE_MISVAL;                                     /*   report the missing indirect limit value */
+        else                    /* otherwise */
+            return SCPE_MISVAL; /*   report the missing indirect limit value */
 
-else if (*cptr == '\0')                                 /* otherwise if the argument is empty */
-    return SCPE_MISVAL;                                 /*   then report the missing value */
+    else if (*cptr == '\0') /* otherwise if the argument is empty */
+        return SCPE_MISVAL; /*   then report the missing value */
 
-else if (option == 2) {                                         /* otherwise if we're setting the indirect limit */
-    stop = (uint32) get_uint (cptr, 10, LA_MAX + 1, &status);   /*   then parse the limit value */
+    else if (option == 2)
+        {                                                            /* otherwise if we're setting the indirect limit */
+            stop = (uint32)get_uint (cptr, 10, LA_MAX + 1, &status); /*   then parse the limit value */
 
-    if (status != SCPE_OK)                              /* if a parsing error occurred */
-        return status;                                  /*   then return the error status */
-    else                                                /* otherwise */
-        indirect_limit = stop;                          /*   set the indirect limit */
-    }
-
-else                                                    /* otherwise at least one stop argument is present */
-    while (*cptr) {                                     /* loop through the arguments */
-        cptr = get_glyph (cptr, gbuf, ';');             /* get the next argument */
-
-        for (stop = 0; cpu_stop [stop].name != NULL; stop++)            /* loop through the flags */
-            if (strcmp (cpu_stop [stop].name, gbuf) == 0) {             /*   and if the argument matches */
-                if (option == 1)                                        /*     then if it's a STOP argument */
-                    *cpu_stop [stop].status = cpu_stop [stop].value;    /*       then set the stop status */
-                else                                                    /*     otherwise it's a NOSTOP argument */
-                    *cpu_stop [stop].status = SCPE_OK;                  /*       so clear the stop status */
-
-                break;                                  /* this argument has been processed */
-                }
-
-        if (cpu_stop [stop].name == NULL)               /* if the argument was not found */
-            return SCPE_ARG;                            /*   then report it */
+            if (status != SCPE_OK)     /* if a parsing error occurred */
+                return status;         /*   then return the error status */
+            else                       /* otherwise */
+                indirect_limit = stop; /*   set the indirect limit */
         }
 
-return SCPE_OK;                                         /* the stops were successfully processed */
-}
+    else /* otherwise at least one stop argument is present */
+        while (*cptr)
+            {                                       /* loop through the arguments */
+                cptr = get_glyph (cptr, gbuf, ';'); /* get the next argument */
 
+                for (stop = 0; cpu_stop[stop].name != NULL; stop++) /* loop through the flags */
+                    if (strcmp (cpu_stop[stop].name, gbuf) == 0)
+                        {                                                      /*   and if the argument matches */
+                            if (option == 1)                                   /*     then if it's a STOP argument */
+                                *cpu_stop[stop].status = cpu_stop[stop].value; /*       then set the stop status */
+                            else                                               /*     otherwise it's a NOSTOP argument */
+                                *cpu_stop[stop].status = SCPE_OK;              /*       so clear the stop status */
+
+                            break; /* this argument has been processed */
+                        }
+
+                if (cpu_stop[stop].name == NULL) /* if the argument was not found */
+                    return SCPE_ARG;             /*   then report it */
+            }
+
+    return SCPE_OK; /* the stops were successfully processed */
+}
 
 /* Change the CPU memory size.
 
@@ -4032,37 +3981,38 @@ return SCPE_OK;                                         /* the stops were succes
        memory size by 64 words.
 */
 
-static t_stat set_size (UNIT *uptr, int32 new_size, CONST char *cptr, void *desc)
+static t_stat
+set_size (UNIT *uptr, int32 new_size, CONST char *cptr, void *desc)
 {
-static CONST char confirm [] = "Really truncate memory [N]?";
-uint32 i;
-uint32 old_size = (uint32) MEMSIZE;                     /* current memory size */
+    static CONST char confirm[] = "Really truncate memory [N]?";
+    uint32            i;
+    uint32            old_size = (uint32)MEMSIZE; /* current memory size */
 
-const uint32 model = CPU_MODEL_INDEX;                   /* the current CPU model index */
+    const uint32 model = CPU_MODEL_INDEX; /* the current CPU model index */
 
-if ((uint32) new_size > cpu_features [model].maxmem)    /* if the new memory size is not supported on current model */
-    return SCPE_NOFNC;                                  /*   then report the error */
+    if ((uint32)new_size > cpu_features[model].maxmem) /* if the new memory size is not supported on current model */
+        return SCPE_NOFNC;                             /*   then report the error */
 
-if (!(sim_switches & SWMASK ('F'))                      /* if truncation is not explicitly forced */
-  && ! mem_is_empty (new_size)                          /*   and the truncated part is not empty */
-  && get_yn (confirm, FALSE) == FALSE)                  /*     and the user denies confirmation */
-    return SCPE_INCOMP;                                 /*       then abort the command */
+    if (!(sim_switches & SWMASK ('F'))       /* if truncation is not explicitly forced */
+        && !mem_is_empty (new_size)          /*   and the truncated part is not empty */
+        && get_yn (confirm, FALSE) == FALSE) /*     and the user denies confirmation */
+        return SCPE_INCOMP;                  /*       then abort the command */
 
-if (is_1000)                                            /* loader unsupported */
-    MEMSIZE = fwanxm = new_size;                        /* set new memory size */
+    if (is_1000)                     /* loader unsupported */
+        MEMSIZE = fwanxm = new_size; /* set new memory size */
 
-else {                                                  /* 21xx CPU? */
-    set_loader (uptr, FALSE, NULL, NULL);               /* save loader to shadow RAM */
-    MEMSIZE = new_size;                                 /* set new memory size */
-    fwanxm = (uint32) MEMSIZE - IBL_SIZE;               /* reserve memory for loader */
-    }
+    else
+        {                                         /* 21xx CPU? */
+            set_loader (uptr, FALSE, NULL, NULL); /* save loader to shadow RAM */
+            MEMSIZE = new_size;                   /* set new memory size */
+            fwanxm  = (uint32)MEMSIZE - IBL_SIZE; /* reserve memory for loader */
+        }
 
-for (i = fwanxm; i < old_size; i++)                     /* zero non-existent memory */
-    M [i] = 0;
+    for (i = fwanxm; i < old_size; i++) /* zero non-existent memory */
+        M[i] = 0;
 
-return SCPE_OK;
+    return SCPE_OK;
 }
-
 
 /* Change CPU models.
 
@@ -4093,95 +4043,93 @@ return SCPE_OK;
        test to succeed, and the model bits are not otherwise used).
 */
 
-static t_stat set_model (UNIT *uptr, int32 new_model, CONST char *cptr, void *desc)
+static t_stat
+set_model(UNIT *uptr, int32 new_model, CONST char *cptr, void *desc)
 {
-const uint32 old_family = UNIT_CPU_FAMILY;              /* current CPU type */
-const uint32 new_family = new_model & UNIT_FAMILY_MASK; /* new CPU family */
-const uint32 new_index  = new_model >> UNIT_V_CPU;      /* new CPU model index */
-uint32 new_memsize;
-t_stat result;
+    const uint32 old_family = UNIT_CPU_FAMILY;              /* current CPU type */
+    const uint32 new_family = new_model & UNIT_FAMILY_MASK; /* new CPU family */
+    const uint32 new_index  = new_model >> UNIT_V_CPU;      /* new CPU model index */
+    uint32       new_memsize;
+    t_stat       result;
 
-if (MEMSIZE > cpu_features [new_index].maxmem)          /* if the current memory size is too large for the new model */
-    new_memsize = cpu_features [new_index].maxmem;      /*   then set it to the maximum size supported */
-else                                                    /* otherwise */
-    new_memsize = (uint32) MEMSIZE;                     /*   leave it unchanged */
+    if (MEMSIZE > cpu_features[new_index].maxmem)     /* if the current memory size is too large for the new model */
+        new_memsize = cpu_features[new_index].maxmem; /*   then set it to the maximum size supported */
+    else                                              /* otherwise */
+        new_memsize = (uint32)MEMSIZE;                /*   leave it unchanged */
 
-result = set_size (uptr, new_memsize, NULL, NULL);      /* set the new memory size */
+    result = set_size(uptr, new_memsize, NULL, NULL); /* set the new memory size */
 
-if (result == SCPE_OK) {                                            /* if the change succeeded */
-    cpu_configuration = cpu_features [new_index].typ & UNIT_OPTS    /*   then set the typical options */
-                          | UNIT_MODEL_MASK                         /*     and the base model bits */
-                          | 1u << new_index;                        /*       and the new CPU model flag */
+    if (result == SCPE_OK) {                                          /* if the change succeeded */
+        cpu_configuration = (cpu_features[new_index].typ & UNIT_OPTS) /*   then set the typical options */
+                            | UNIT_MODEL_MASK                         /*     and the base model bits */
+                            | 1u << new_index;                        /*       and the new CPU model flag */
 
-    cpu_unit.flags = cpu_unit.flags & ~UNIT_OPTS                    /* enable the typical features */
-                       | cpu_features [new_index].typ & UNIT_OPTS;  /*   for the new model */
+        cpu_unit.flags = (cpu_unit.flags & ~UNIT_OPTS)                /* enable the typical features */
+                         | (cpu_features[new_index].typ & UNIT_OPTS); /*   for the new model */
 
-    if (cpu_features [new_index].typ & UNIT_MP)         /* MP in typ config? */
-        mp_dev.flags &= ~DEV_DIS;                       /* enable it */
-    else
-        mp_dev.flags |= DEV_DIS;                        /* disable it */
+        if (cpu_features[new_index].typ & UNIT_MP) /* MP in typ config? */
+            mp_dev.flags &= ~DEV_DIS;              /* enable it */
+        else
+            mp_dev.flags |= DEV_DIS; /* disable it */
 
-    if (cpu_features[new_index].opt & UNIT_MP)          /* MP an option? */
-        mp_dev.flags |= DEV_DISABLE;                    /* make it alterable */
-    else
-        mp_dev.flags &= ~DEV_DISABLE;                   /* make it unalterable */
+        if (cpu_features[new_index].opt & UNIT_MP) /* MP an option? */
+            mp_dev.flags |= DEV_DISABLE;           /* make it alterable */
+        else
+            mp_dev.flags &= ~DEV_DISABLE; /* make it unalterable */
 
+        if (cpu_features[new_index].typ & UNIT_DMA) { /* DMA in typ config? */
+            dma1_dev.flags &= ~DEV_DIS;               /* enable DMA channel 1 */
 
-    if (cpu_features [new_index].typ & UNIT_DMA) {      /* DMA in typ config? */
-        dma1_dev.flags &= ~DEV_DIS;                     /* enable DMA channel 1 */
-
-        if (new_model == UNIT_2114)                     /* 2114 has only one channel */
-            dma2_dev.flags |= DEV_DIS;                  /* disable channel 2 */
-        else                                            /* all others have two channels */
-            dma2_dev.flags &= ~DEV_DIS;                 /* enable it */
+            if (new_model == UNIT_2114)     /* 2114 has only one channel */
+                dma2_dev.flags |= DEV_DIS;  /* disable channel 2 */
+            else                            /* all others have two channels */
+                dma2_dev.flags &= ~DEV_DIS; /* enable it */
         }
 
-    else {
-        dma1_dev.flags |= DEV_DIS;                      /* disable channel 1 */
-        dma2_dev.flags |= DEV_DIS;                      /* disable channel 2 */
+        else {
+            dma1_dev.flags |= DEV_DIS; /* disable channel 1 */
+            dma2_dev.flags |= DEV_DIS; /* disable channel 2 */
         }
 
-    if (cpu_features [new_index].opt & UNIT_DMA) {      /* DMA an option? */
-        dma1_dev.flags |= DEV_DISABLE;                  /* make it alterable */
+        if (cpu_features[new_index].opt & UNIT_DMA) { /* DMA an option? */
+            dma1_dev.flags |= DEV_DISABLE;            /* make it alterable */
 
-        if (new_model == UNIT_2114)                     /* 2114 has only one channel */
-            dma2_dev.flags &= ~DEV_DISABLE;             /* make it unalterable */
-        else                                            /* all others have two channels */
-            dma2_dev.flags |= DEV_DISABLE;              /* make it alterable */
+            if (new_model == UNIT_2114)         /* 2114 has only one channel */
+                dma2_dev.flags &= ~DEV_DISABLE; /* make it unalterable */
+            else                                /* all others have two channels */
+                dma2_dev.flags |= DEV_DISABLE;  /* make it alterable */
         }
 
-    else {                                              /* otherwise DMA is not available */
-        dma1_dev.flags &= ~DEV_DISABLE;                 /* make it unalterable */
-        dma2_dev.flags &= ~DEV_DISABLE;                 /* make it unalterable */
+        else {                              /* otherwise DMA is not available */
+            dma1_dev.flags &= ~DEV_DISABLE; /* make it unalterable */
+            dma2_dev.flags &= ~DEV_DISABLE; /* make it unalterable */
         }
 
-    if ((old_family == UNIT_FAMILY_1000) &&             /* if current family is 1000 */
-        (new_family == UNIT_FAMILY_21XX)) {             /* and new family is 21xx */
-        deassign_device (&dma1_dev);                    /* delete DCPC names */
-        deassign_device (&dma2_dev);
+        if ((old_family == UNIT_FAMILY_1000) && /* if current family is 1000 */
+            (new_family == UNIT_FAMILY_21XX)) { /* and new family is 21xx */
+            deassign_device(&dma1_dev);         /* delete DCPC names */
+            deassign_device(&dma2_dev);
         }
 
-    else if ((old_family == UNIT_FAMILY_21XX) &&        /* otherwise if current family is 21xx */
-             (new_family == UNIT_FAMILY_1000)) {        /* and new family is 1000 */
-        assign_device (&dma1_dev, "DCPC1");             /* change DMA device name */
-        assign_device (&dma2_dev, "DCPC2");             /* to DCPC for familiarity */
+        else if ((old_family == UNIT_FAMILY_21XX) && /* otherwise if current family is 21xx */
+                 (new_family == UNIT_FAMILY_1000)) { /* and new family is 1000 */
+            assign_device(&dma1_dev, "DCPC1");       /* change DMA device name */
+            assign_device(&dma2_dev, "DCPC2");       /* to DCPC for familiarity */
         }
 
+        if (!(cpu_features[new_index].typ & UNIT_DMS)) /* if DMS is not being enabled */
+            dms_enb = 0;                               /*   then disable MEM mapping */
 
-    if (!(cpu_features [new_index].typ & UNIT_DMS))     /* if DMS is not being enabled */
-        dms_enb = 0;                                    /*   then disable MEM mapping */
+        is_1000 = (new_family == UNIT_FAMILY_1000); /* set model */
 
-    is_1000 = (new_family == UNIT_FAMILY_1000);         /* set model */
-
-    if (is_1000)
-        fwanxm = (uint32) MEMSIZE;                      /* loader reserved only for 21xx */
-    else                                                /* 2100 or 211x */
-        fwanxm = (uint32) MEMSIZE - IBL_SIZE;           /* reserve memory for loader */
+        if (is_1000)
+            fwanxm = (uint32)MEMSIZE;            /* loader reserved only for 21xx */
+        else                                     /* 2100 or 211x */
+            fwanxm = (uint32)MEMSIZE - IBL_SIZE; /* reserve memory for loader */
     }
 
-return result;
+    return result;
 }
-
 
 /* Change a CPU option.
 
@@ -4209,34 +4157,35 @@ return result;
        otherwise be required.
 */
 
-static t_stat set_option (UNIT *uptr, int32 option, CONST char *cptr, void *desc)
+static t_stat
+set_option (UNIT *uptr, int32 option, CONST char *cptr, void *desc)
 {
-uint32 model = CPU_MODEL_INDEX;                         /* current CPU model index */
+    uint32 model = CPU_MODEL_INDEX; /* current CPU model index */
 
-if ((cpu_features [model].opt & option) == 0)           /* option supported? */
-    return SCPE_NOFNC;                                  /* no */
+    if ((cpu_features[model].opt & option) == 0) /* option supported? */
+        return SCPE_NOFNC;                       /* no */
 
-if (UNIT_CPU_TYPE == UNIT_TYPE_2100) {
-    if ((option == UNIT_FP) || (option == UNIT_FFP))    /* 2100 IOP and FP/FFP options */
-        uptr->flags &= ~UNIT_IOP;                       /*   are mutually exclusive */
-    else if (option == UNIT_IOP)
-        uptr->flags &= ~(UNIT_FP | UNIT_FFP);
+    if (UNIT_CPU_TYPE == UNIT_TYPE_2100)
+        {
+            if ((option == UNIT_FP) || (option == UNIT_FFP)) /* 2100 IOP and FP/FFP options */
+                uptr->flags &= ~UNIT_IOP;                    /*   are mutually exclusive */
+            else if (option == UNIT_IOP)
+                uptr->flags &= ~(UNIT_FP | UNIT_FFP);
 
-    if (option == UNIT_FFP)                             /* 2100 FFP option requires FP */
-        uptr->flags |= UNIT_FP;
-    }
+            if (option == UNIT_FFP) /* 2100 FFP option requires FP */
+                uptr->flags |= UNIT_FP;
+        }
 
-cpu_configuration = cpu_configuration & ~UNIT_OPTS      /* update the CPU configuration */
-                      | uptr->flags & UNIT_OPTS;        /*   with the revised option settings */
+    cpu_configuration = (cpu_configuration & ~UNIT_OPTS) /* update the CPU configuration */
+                        | (uptr->flags & UNIT_OPTS);     /*   with the revised option settings */
 
-if (option & UNIT_EMA_VMA)                              /* if EMA or VMA is being set */
-    cpu_configuration &= ~UNIT_EMA_VMA;                 /*   then remove both as they are mutually exclusive */
+    if (option & UNIT_EMA_VMA)              /* if EMA or VMA is being set */
+        cpu_configuration &= ~UNIT_EMA_VMA; /*   then remove both as they are mutually exclusive */
 
-cpu_configuration |= option;                            /* include the new setting */
+    cpu_configuration |= option; /* include the new setting */
 
-return SCPE_OK;
+    return SCPE_OK;
 }
-
 
 /* Clear a CPU option.
 
@@ -4258,28 +4207,28 @@ return SCPE_OK;
        otherwise be required.
 */
 
-t_bool clear_option (UNIT *uptr, int32 option, CONST char *cptr, void *desc)
+t_bool
+clear_option (UNIT *uptr, int32 option, CONST char *cptr, void *desc)
 {
-uint32 model = CPU_MODEL_INDEX;                         /* current CPU model index */
+    uint32 model = CPU_MODEL_INDEX; /* current CPU model index */
 
-if ((cpu_features[model].opt & option) == 0)            /* option supported? */
-    return SCPE_NOFNC;                                  /* no */
+    if ((cpu_features[model].opt & option) == 0) /* option supported? */
+        return SCPE_NOFNC;                       /* no */
 
-uptr->flags = uptr->flags & ~option;                    /* disable option */
+    uptr->flags = uptr->flags & ~option; /* disable option */
 
-if (option == UNIT_DMS)                                 /* if DMS is being disabled */
-    dms_enb = 0;                                        /*   then disable MEM mapping */
+    if (option == UNIT_DMS) /* if DMS is being disabled */
+        dms_enb = 0;        /*   then disable MEM mapping */
 
-if ((UNIT_CPU_TYPE == UNIT_TYPE_2100) &&                /* disabling 2100 FP? */
-    (option == UNIT_FP))
-    uptr->flags = uptr->flags & ~UNIT_FFP;              /* yes, so disable FFP too */
+    if ((UNIT_CPU_TYPE == UNIT_TYPE_2100) && /* disabling 2100 FP? */
+        (option == UNIT_FP))
+        uptr->flags = uptr->flags & ~UNIT_FFP; /* yes, so disable FFP too */
 
-cpu_configuration = cpu_configuration & ~UNIT_OPTS      /* update the CPU configuration */
-                      | uptr->flags & UNIT_OPTS;        /*   with the revised option settings */
+    cpu_configuration = (cpu_configuration & ~UNIT_OPTS) /* update the CPU configuration */
+                        | (uptr->flags & UNIT_OPTS);     /*   with the revised option settings */
 
-return SCPE_OK;
+    return SCPE_OK;
 }
-
 
 /* 21xx loader enable/disable function.
 
@@ -4310,32 +4259,35 @@ return SCPE_OK;
    breakpoints within and single-stepping through the loaders.
 */
 
-static t_stat set_loader (UNIT *uptr, int32 enable, CONST char *cptr, void *desc)
+static t_stat
+set_loader (UNIT *uptr, int32 enable, CONST char *cptr, void *desc)
 {
-static MEMORY_WORD loader [IBL_SIZE];
-uint32 i;
-t_bool is_enabled = (fwanxm == MEMSIZE);
+    static MEMORY_WORD loader[IBL_SIZE];
+    uint32             i;
+    t_bool             is_enabled = (fwanxm == MEMSIZE);
 
-if (is_1000 || MEMSIZE == 0)                            /* valid only for 21xx and for initialized memory */
-    return SCPE_NOFNC;
+    if (is_1000 || MEMSIZE == 0) /* valid only for 21xx and for initialized memory */
+        return SCPE_NOFNC;
 
-if (is_enabled && (enable == 0)) {                      /* disable loader? */
-    fwanxm = (uint32) MEMSIZE - IBL_SIZE;               /* decrease available memory */
-    for (i = 0; i < IBL_SIZE; i++) {                    /* copy loader */
-        loader [i] = M [fwanxm + i];                    /* from memory */
-        M [fwanxm + i] = 0;                             /* and zero location */
+    if (is_enabled && (enable == 0))
+        {                                        /* disable loader? */
+            fwanxm = (uint32)MEMSIZE - IBL_SIZE; /* decrease available memory */
+            for (i = 0; i < IBL_SIZE; i++)
+                {                                  /* copy loader */
+                    loader[i]     = M[fwanxm + i]; /* from memory */
+                    M[fwanxm + i] = 0;             /* and zero location */
+                }
         }
-    }
 
-else if ((!is_enabled) && (enable == 1)) {              /* enable loader? */
-    for (i = 0; i < IBL_SIZE; i++)                      /* copy loader */
-        M [fwanxm + i] = loader [i];                    /* to memory */
-    fwanxm = (uint32) MEMSIZE;                          /* increase available memory */
-    }
+    else if ((!is_enabled) && (enable == 1))
+        {                                  /* enable loader? */
+            for (i = 0; i < IBL_SIZE; i++) /* copy loader */
+                M[fwanxm + i] = loader[i]; /* to memory */
+            fwanxm = (uint32)MEMSIZE;      /* increase available memory */
+        }
 
-return SCPE_OK;
+    return SCPE_OK;
 }
-
 
 /* Change the set of installed loader ROMs.
 
@@ -4377,59 +4329,63 @@ return SCPE_OK;
        when "SHOW CPU ROMS" was intended.
 */
 
-static t_stat set_roms (UNIT *uptr, int32 option, CONST char *cptr, void *desc)
+static t_stat
+set_roms (UNIT *uptr, int32 option, CONST char *cptr, void *desc)
 {
-DEVICE *dptr;
-char   gbuf [CBUFSIZE];
-uint32 socket = 0;
-DEVICE *rom [4] = { NULL };
+    DEVICE *dptr;
+    char    gbuf[CBUFSIZE];
+    uint32  socket = 0;
+    DEVICE *rom[4] = { NULL };
 
-if (is_1000 == FALSE)                                   /* if the CPU is not a 1000-series unit */
-    return SCPE_NOFNC;                                  /*   then reject the command */
+    if (is_1000 == FALSE)  /* if the CPU is not a 1000-series unit */
+        return SCPE_NOFNC; /*   then reject the command */
 
-else if (cptr == NULL)                                  /* otherwise if the list is not specified */
-    return SCPE_MISVAL;                                 /*   then report that the list is missing */
+    else if (cptr == NULL)  /* otherwise if the list is not specified */
+        return SCPE_MISVAL; /*   then report that the list is missing */
 
-else if (*cptr == '\0') {                               /* otherwise if the list is null */
-    loader_rom [0] = NULL;                              /*   then empty */
-    loader_rom [1] = NULL;                              /*     all of the */
-    loader_rom [2] = NULL;                              /*       ROM sockets */
-    loader_rom [3] = NULL;
-    }
-
-else {                                                  /* otherwise */
-    while (*cptr) {                                     /*   loop through the arguments */
-        cptr = get_glyph (cptr, gbuf, ';');             /* get the next argument */
-
-        if (socket == 4)                                /* if all four sockets have been set */
-            return SCPE_2MARG;                          /*   then reject the command */
-
-        else if (gbuf [0] == '\0')                      /* otherwise if the device name is omitted */
-            rom [socket++] = NULL;                      /*   then empty the corresponding socket */
-
-        else {                                          /* otherwise we have a device name */
-            dptr = find_dev (gbuf);                     /*   so find the associated DEVICE pointer */
-
-            if (dptr == NULL)                           /* if the device name is not valid */
-                return SCPE_NXDEV;                      /*   then reject the command */
-
-            else if (dptr->boot == NULL)                /* otherwise if it's valid but not bootable */
-                return SCPE_NOFNC;                      /*   then reject the command */
-
-            else                                        /* otherwise */
-                rom [socket++] = dptr;                  /*   install the boot loader ROM */
-            }
+    else if (*cptr == '\0')
+        {                         /* otherwise if the list is null */
+            loader_rom[0] = NULL; /*   then empty */
+            loader_rom[1] = NULL; /*     all of the */
+            loader_rom[2] = NULL; /*       ROM sockets */
+            loader_rom[3] = NULL;
         }
 
-    loader_rom [0] = rom [0];                           /* install the ROM set */
-    loader_rom [1] = rom [1];                           /*   now that we have */
-    loader_rom [2] = rom [2];                           /*     a valid */
-    loader_rom [3] = rom [3];                           /*       device list */
-    }
+    else
+        { /* otherwise */
+            while (*cptr)
+                {                                       /*   loop through the arguments */
+                    cptr = get_glyph (cptr, gbuf, ';'); /* get the next argument */
 
-return SCPE_OK;                                         /* report that the command succeeded */
+                    if (socket == 4)       /* if all four sockets have been set */
+                        return SCPE_2MARG; /*   then reject the command */
+
+                    else if (gbuf[0] == '\0') /* otherwise if the device name is omitted */
+                        rom[socket++] = NULL; /*   then empty the corresponding socket */
+
+                    else
+                        {                           /* otherwise we have a device name */
+                            dptr = find_dev (gbuf); /*   so find the associated DEVICE pointer */
+
+                            if (dptr == NULL)      /* if the device name is not valid */
+                                return SCPE_NXDEV; /*   then reject the command */
+
+                            else if (dptr->boot == NULL) /* otherwise if it's valid but not bootable */
+                                return SCPE_NOFNC;       /*   then reject the command */
+
+                            else                      /* otherwise */
+                                rom[socket++] = dptr; /*   install the boot loader ROM */
+                        }
+                }
+
+            loader_rom[0] = rom[0]; /* install the ROM set */
+            loader_rom[1] = rom[1]; /*   now that we have */
+            loader_rom[2] = rom[2]; /*     a valid */
+            loader_rom[3] = rom[3]; /*       device list */
+        }
+
+    return SCPE_OK; /* report that the command succeeded */
 }
-
 
 /* Change the instruction execution trace criteria.
 
@@ -4448,72 +4404,77 @@ return SCPE_OK;                                         /* report that the comma
    unless an override switch is present on the command line.
 */
 
-static t_stat set_exec (UNIT *uptr, int32 option, CONST char *cptr, void *desc)
+static t_stat
+set_exec (UNIT *uptr, int32 option, CONST char *cptr, void *desc)
 {
-char   gbuf [CBUFSIZE];
-uint32 match, mask, radix;
-t_stat status;
+    char   gbuf[CBUFSIZE];
+    uint32 match, mask, radix;
+    t_stat status;
 
-if (option == 0)                                        /* if this is a NOEXEC request */
-    if (cptr == NULL) {                                 /*   then if there are no arguments */
-        exec_match = D16_UMAX;                          /*     then set the match and mask values */
-        exec_mask  = 0;                                 /*       to prevent matching */
-        return SCPE_OK;                                 /*         and return success */
-        }
+    if (option == 0) /* if this is a NOEXEC request */
+        if (cptr == NULL)
+            {                          /*   then if there are no arguments */
+                exec_match = D16_UMAX; /*     then set the match and mask values */
+                exec_mask  = 0;        /*       to prevent matching */
+                return SCPE_OK;        /*         and return success */
+            }
 
-    else                                                /*   otherwise there are extraneous characters */
-        return SCPE_2MARG;                              /*     so report that there are too many arguments */
+        else                   /*   otherwise there are extraneous characters */
+            return SCPE_2MARG; /*     so report that there are too many arguments */
 
-else if (cptr == NULL || *cptr == '\0')                 /* otherwise if the EXEC request supplies no arguments */
-    return SCPE_MISVAL;                                 /*   then report a missing value */
+    else if (cptr == NULL || *cptr == '\0') /* otherwise if the EXEC request supplies no arguments */
+        return SCPE_MISVAL;                 /*   then report a missing value */
 
-else {                                                  /* otherwise at least one argument is present */
-    cptr = get_glyph (cptr, gbuf, ';');                 /*   so get the match argument */
+    else
+        {                                       /* otherwise at least one argument is present */
+            cptr = get_glyph (cptr, gbuf, ';'); /*   so get the match argument */
 
-    if (sim_switches & SWMASK ('O'))                    /* if an octal override is present */
-        radix = 8;                                      /*   then parse the value in base 8 */
-    else if (sim_switches & SWMASK ('D'))               /* otherwise if a decimal override is present */
-        radix = 10;                                     /*   then parse the value in base 10 */
-    else if (sim_switches & SWMASK ('H'))               /* otherwise if a hex override is present */
-        radix = 16;                                     /*   then parse the value in base 16 */
-    else                                                /* otherwise */
-        radix = cpu_dev.dradix;                         /*   use the current CPU data radix */
+            if (sim_switches & SWMASK ('O'))      /* if an octal override is present */
+                radix = 8;                        /*   then parse the value in base 8 */
+            else if (sim_switches & SWMASK ('D')) /* otherwise if a decimal override is present */
+                radix = 10;                       /*   then parse the value in base 10 */
+            else if (sim_switches & SWMASK ('H')) /* otherwise if a hex override is present */
+                radix = 16;                       /*   then parse the value in base 16 */
+            else                                  /* otherwise */
+                radix = cpu_dev.dradix;           /*   use the current CPU data radix */
 
-    match = (uint32) get_uint (gbuf, radix, D16_UMAX, &status); /* parse the match value */
+            match = (uint32)get_uint (gbuf, radix, D16_UMAX, &status); /* parse the match value */
 
-    if (status != SCPE_OK)                              /* if a parsing error occurred */
-        return status;                                  /*   then return the error status */
+            if (status != SCPE_OK) /* if a parsing error occurred */
+                return status;     /*   then return the error status */
 
-    else if (*cptr == '\0') {                           /* otherwise if no more characters are present */
-        exec_match = match;                             /*   then set the match value */
-        exec_mask  = D16_MASK;                          /*     and default the mask value */
-        return SCPE_OK;                                 /*       and return success */
-        }
-
-    else {                                              /* otherwise another argument is present */
-        cptr = get_glyph (cptr, gbuf, ';');             /*   so get the mask argument */
-
-        mask = (uint32) get_uint (gbuf, radix, D16_UMAX, &status);  /* parse the mask value */
-
-        if (status != SCPE_OK)                          /* if a parsing error occurred */
-            return status;                              /*   then return the error status */
-
-        else if (*cptr == '\0')                         /* if no more characters are present */
-            if (mask == 0)                              /*   then if the mask value is zero */
-                return SCPE_ARG;                        /*     then the match will never succeed */
-
-            else {                                      /*   otherwise */
-                exec_match = match;                     /*     set the match value */
-                exec_mask  = mask;                      /*       and the mask value */
-                return SCPE_OK;                         /*         and return success */
+            else if (*cptr == '\0')
+                {                          /* otherwise if no more characters are present */
+                    exec_match = match;    /*   then set the match value */
+                    exec_mask  = D16_MASK; /*     and default the mask value */
+                    return SCPE_OK;        /*       and return success */
                 }
 
-        else                                            /* otherwise extraneous characters are present */
-            return SCPE_2MARG;                          /*   so report that there are too many arguments */
-        }
-    }
-}
+            else
+                {                                       /* otherwise another argument is present */
+                    cptr = get_glyph (cptr, gbuf, ';'); /*   so get the mask argument */
 
+                    mask = (uint32)get_uint (gbuf, radix, D16_UMAX, &status); /* parse the mask value */
+
+                    if (status != SCPE_OK) /* if a parsing error occurred */
+                        return status;     /*   then return the error status */
+
+                    else if (*cptr == '\0')  /* if no more characters are present */
+                        if (mask == 0)       /*   then if the mask value is zero */
+                            return SCPE_ARG; /*     then the match will never succeed */
+
+                        else
+                            {                       /*   otherwise */
+                                exec_match = match; /*     set the match value */
+                                exec_mask  = mask;  /*       and the mask value */
+                                return SCPE_OK;     /*         and return success */
+                            }
+
+                    else                   /* otherwise extraneous characters are present */
+                        return SCPE_2MARG; /*   so report that there are too many arguments */
+                }
+        }
+}
 
 /* Show the CPU simulation stop conditions.
 
@@ -4531,55 +4492,58 @@ else {                                                  /* otherwise at least on
    newline to the output before returning.
 */
 
-static t_stat show_stops (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
+static t_stat
+show_stops (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-uint32 stop;
-t_bool need_spacer = FALSE;
+    uint32 stop;
+    t_bool need_spacer = FALSE;
 
-if (val == 2)                                           /* if the indirect limit is requested */
-    fprintf (st, "Limit=%d\n", indirect_limit);         /*   then show it */
+    if (val == 2)                                   /* if the indirect limit is requested */
+        fprintf (st, "Limit=%d\n", indirect_limit); /*   then show it */
 
-else {                                                      /* otherwise show the enabled stops */
-    for (stop = 0; cpu_stop [stop].name != NULL; stop++)    /* loop through the set of stops in the table */
-        if (*cpu_stop [stop].status != SCPE_OK) {           /* if the current stop is enabled */
-            if (need_spacer)                                /*   then if a spacer is needed */
-                fputc (';', st);                            /*     then add it first */
-            else                                            /* otherwise this is the first one reported */
-                fputs ("Stop=", st);                        /*   so print the report label */
+    else
+        {                                                       /* otherwise show the enabled stops */
+            for (stop = 0; cpu_stop[stop].name != NULL; stop++) /* loop through the set of stops in the table */
+                if (*cpu_stop[stop].status != SCPE_OK)
+                    {                            /* if the current stop is enabled */
+                        if (need_spacer)         /*   then if a spacer is needed */
+                            fputc (';', st);     /*     then add it first */
+                        else                     /* otherwise this is the first one reported */
+                            fputs ("Stop=", st); /*   so print the report label */
 
-            fputs (cpu_stop [stop].name, st);               /* report the stop name */
+                        fputs (cpu_stop[stop].name, st); /* report the stop name */
 
-            need_spacer = TRUE;                             /* a spacer will be needed next time */
-            }
+                        need_spacer = TRUE; /* a spacer will be needed next time */
+                    }
 
-    if (need_spacer)                                    /* if at least one simulation stop was enabled */
-        fputc ('\n', st);                               /*   then add the required trailing newline */
-    else                                                /* otherwise no enabled stops were found */
-        fputs ("Stops disabled\n", st);                 /*   so report that all are disabled */
-    }
+            if (need_spacer)                    /* if at least one simulation stop was enabled */
+                fputc ('\n', st);               /*   then add the required trailing newline */
+            else                                /* otherwise no enabled stops were found */
+                fputs ("Stops disabled\n", st); /*   so report that all are disabled */
+        }
 
-return SCPE_OK;                                         /* report the success of the display */
+    return SCPE_OK; /* report the success of the display */
 }
-
 
 /* Display the CPU model and optional loader status.
 
    Loader status is displayed for 21xx models and suppressed for 1000 models.
 */
 
-static t_stat show_model (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
+static t_stat
+show_model (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-fputs ((const char *) desc, st);                        /* write model name */
+    fputs ((const char *)desc, st); /* write model name */
 
-if (! is_1000)                                          /* valid only for 21xx */
-    if (fwanxm < MEMSIZE)                               /* loader area non-existent? */
-        fputs (", loader disabled", st);                /* yes, so access disabled */
-    else
-        fputs (", loader enabled", st);                 /* no, so access enabled */
+    if (!is_1000) {                          /* valid only for 21xx */
+        if (fwanxm < MEMSIZE)                /* loader area non-existent? */
+            fputs (", loader disabled", st); /* yes, so access disabled */
+        else
+            fputs (", loader enabled", st); /* no, so access enabled */
+    }
 
-return SCPE_OK;
+    return SCPE_OK;
 }
-
 
 /* Show the set of installed loader ROMs.
 
@@ -4603,52 +4567,55 @@ return SCPE_OK;
    newline to the output before returning.
 */
 
-static t_stat show_roms (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
+static t_stat
+show_roms (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-struct LOOKUP_TABLE {
-    char    *name;                              /* device name */
-    char     suffix;                            /* ROM part number suffix */
+    struct LOOKUP_TABLE
+    {
+        char *name;   /* device name */
+        char  suffix; /* ROM part number suffix */
     };
 
-static const struct LOOKUP_TABLE lookup [] = {  /* table of device names and ROM part numbers */
-    { "DQC",  'A' },                            /*   12992A 7900/7901/2883 Disc Loader */
-    { "DS",   'B' },                            /*   12992B 7905/7906/7920/7925 Disc Loader */
-    { "MSC",  'D' },                            /*   12992D 7970 Magnetic Tape Loader */
-    { "DPC",  'F' },                            /*   12992F 7900/7901 Disc Loader */
-    { "DA",   'H' },                            /*   12992H 7906H/7920H/7925H/9885 Disc Loader */
-    { "IPLI", 'K' },                            /*   12992K Paper Tape Loader */
-    { "PTR",  'K' },                            /*   12992K Paper Tape Loader */
-    { NULL,   '?' }
+    static const struct LOOKUP_TABLE lookup[] = {                  /* table of device names and ROM part numbers */
+                                                  { "DQC", 'A' },  /*   12992A 7900/7901/2883 Disc Loader */
+                                                  { "DS", 'B' },   /*   12992B 7905/7906/7920/7925 Disc Loader */
+                                                  { "MSC", 'D' },  /*   12992D 7970 Magnetic Tape Loader */
+                                                  { "DPC", 'F' },  /*   12992F 7900/7901 Disc Loader */
+                                                  { "DA", 'H' },   /*   12992H 7906H/7920H/7925H/9885 Disc Loader */
+                                                  { "IPLI", 'K' }, /*   12992K Paper Tape Loader */
+                                                  { "PTR", 'K' },  /*   12992K Paper Tape Loader */
+                                                  { NULL, '?' }
     };
 
-CONST char *dname;
-uint32 socket, index;
-char   letter = '?';
+    CONST char *dname;
+    uint32      socket, index;
+    char        letter = '?';
 
-fputc ('\n', st);                                       /* skip a line */
-fputs ("Socket  Device    ROM\n", st);                  /*   and print */
-fputs ("------  -------  ------\n", st);                /*     the table header */
+    fputc ('\n', st);                        /* skip a line */
+    fputs ("Socket  Device    ROM\n", st);   /*   and print */
+    fputs ("------  -------  ------\n", st); /*     the table header */
 
-for (socket = 0; socket < 4; socket++)                  /* loop through the sockets */
-    if (loader_rom [socket] == NULL)                    /* if the socket is empty */
-        fprintf (st, "  %u     <empty>\n", socket);     /*   then report it as such */
+    for (socket = 0; socket < 4; socket++)              /* loop through the sockets */
+        if (loader_rom[socket] == NULL)                 /* if the socket is empty */
+            fprintf (st, "  %u     <empty>\n", socket); /*   then report it as such */
 
-    else {                                              /* otherwise the socket is occupied */
-        dname = loader_rom [socket]->name;              /*   so get the device name */
+        else
+            {                                     /* otherwise the socket is occupied */
+                dname = loader_rom[socket]->name; /*   so get the device name */
 
-        for (index = 0; lookup [index].name; index++)       /* search the lookup table */
-            if (strcmp (lookup [index].name, dname) == 0) { /*   for a match to the device name */
-                letter = lookup [index].suffix;             /*     and get the part number suffix */
-                break;
-                }
+                for (index = 0; lookup[index].name; index++) /* search the lookup table */
+                    if (strcmp (lookup[index].name, dname) == 0)
+                        {                                  /*   for a match to the device name */
+                            letter = lookup[index].suffix; /*     and get the part number suffix */
+                            break;
+                        }
 
-        fprintf (st, "  %u       %-4s   12992%c\n",     /* print the ROM information */
-                 socket, dname, letter);
-        }
+                fprintf (st, "  %u       %-4s   12992%c\n", /* print the ROM information */
+                         socket, dname, letter);
+            }
 
-return SCPE_OK;                                         /* return success status */
+    return SCPE_OK; /* return success status */
 }
-
 
 /* Show the instruction execution trace criteria.
 
@@ -4660,35 +4627,36 @@ return SCPE_OK;                                         /* return success status
    newline to the output before returning.
 */
 
-static t_stat show_exec (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
+static t_stat
+show_exec (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-uint32 radix;
+    uint32 radix;
 
-if (exec_mask == 0)                                     /* if the instruction is entirely masked */
-    fputs ("Execution trace disabled\n", st);           /*   then report that matching is disabled */
+    if (exec_mask == 0)                           /* if the instruction is entirely masked */
+        fputs ("Execution trace disabled\n", st); /*   then report that matching is disabled */
 
-else {                                                  /* otherwise */
-    if (sim_switches & SWMASK ('O'))                    /*   if an octal override is present */
-        radix = 8;                                      /*     then print the value in base 8 */
-    else if (sim_switches & SWMASK ('D'))               /*   otherwise if a decimal override is present */
-        radix = 10;                                     /*     then print the value in base 10 */
-    else if (sim_switches & SWMASK ('H'))               /*   otherwise if a hex override is present */
-        radix = 16;                                     /*     then print the value in base 16 */
-    else                                                /*   otherwise */
-        radix = cpu_dev.dradix;                         /*     use the current CPU data radix */
+    else
+        {                                         /* otherwise */
+            if (sim_switches & SWMASK ('O'))      /*   if an octal override is present */
+                radix = 8;                        /*     then print the value in base 8 */
+            else if (sim_switches & SWMASK ('D')) /*   otherwise if a decimal override is present */
+                radix = 10;                       /*     then print the value in base 10 */
+            else if (sim_switches & SWMASK ('H')) /*   otherwise if a hex override is present */
+                radix = 16;                       /*     then print the value in base 16 */
+            else                                  /*   otherwise */
+                radix = cpu_dev.dradix;           /*     use the current CPU data radix */
 
-    fputs ("Execution trace match = ", st);                         /* print the label */
-    fprint_val (st, exec_match, radix, cpu_dev.dwidth, PV_RZRO);    /*   and the match value */
+            fputs ("Execution trace match = ", st);                      /* print the label */
+            fprint_val (st, exec_match, radix, cpu_dev.dwidth, PV_RZRO); /*   and the match value */
 
-    fputs (", mask = ", st);                                        /* print a separator */
-    fprint_val (st, exec_mask, radix, cpu_dev.dwidth, PV_RZRO);     /*   and the mask value */
+            fputs (", mask = ", st);                                    /* print a separator */
+            fprint_val (st, exec_mask, radix, cpu_dev.dwidth, PV_RZRO); /*   and the mask value */
 
-    fputc ('\n', st);                                               /* tie off the line */
-    }
+            fputc ('\n', st); /* tie off the line */
+        }
 
-return SCPE_OK;                                         /* report the success of the display */
+    return SCPE_OK; /* report the success of the display */
 }
-
 
 /* Show the current CPU simulation speed.
 
@@ -4700,37 +4668,36 @@ return SCPE_OK;                                         /* report the success of
    the TBG is calibrated, and the CPU is not idling.
 */
 
-static t_stat show_speed (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
+static t_stat
+show_speed (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-fprintf (st, "Simulation speed = %ux\n", cpu_speed);    /* display the current CPU speed */
-return SCPE_OK;                                         /*   and report success */
+    fprintf (st, "Simulation speed = %ux\n", cpu_speed); /* display the current CPU speed */
+    return SCPE_OK;                                      /*   and report success */
 }
-
-
 
 /* CPU local utility routine declarations */
 
-
 /* Get effective address from IR */
 
-static t_stat ea (HP_WORD IR, HP_WORD *address, uint32 irq)
+static t_stat
+ea (HP_WORD IR, HP_WORD *address, uint32 irq)
 {
-HP_WORD MA;
+    HP_WORD MA;
 
-MA = IR & (I_IA | I_DISP);                              /* ind + disp */
+    MA = IR & (I_IA | I_DISP); /* ind + disp */
 
-if (IR & I_CP)                                          /* current page? */
-    MA = ((PR - 1) & I_PAGENO) | MA;                    /* merge in page from P */
+    if (IR & I_CP)                       /* current page? */
+        MA = ((PR - 1) & I_PAGENO) | MA; /* merge in page from P */
 
-if (IR & I_IA)                                          /* if the address is indirect */
-    return resolve (MA, address, irq);                  /*   then resolve it to a direct address */
+    if (IR & I_IA)                         /* if the address is indirect */
+        return resolve (MA, address, irq); /*   then resolve it to a direct address */
 
-else {                                                  /* otherwise the address is direct */
-    *address = MA;                                      /*   so use it as is */
-    return SCPE_OK;                                     /*     and return success */
-    }
+    else
+        {                   /* otherwise the address is direct */
+            *address = MA;  /*   so use it as is */
+            return SCPE_OK; /*     and return success */
+        }
 }
-
 
 /* Execute a Shift/Rotate Group micro-operation.
 
@@ -4759,61 +4726,62 @@ else {                                                  /* otherwise the address
        the jump table for the "switch" statement is simply somewhat larger.
 */
 
-static HP_WORD srg_uop (HP_WORD value, HP_WORD operation)
+static HP_WORD
+srg_uop (HP_WORD value, HP_WORD operation)
 {
-uint32 extend;
+    uint32 extend;
 
-switch (operation) {                                       /* dispatch on the micro operation */
+    switch (operation)
+        { /* dispatch on the micro operation */
 
-    case SRG1_EN | I_xLS:
-    case SRG2_EN | I_xLS:                                   /* ALS/BLS */
-        return value & D16_SIGN | value << 1 & D16_SMAX;    /* arithmetic left shift */
+        case SRG1_EN | I_xLS:
+        case SRG2_EN | I_xLS:                                /* ALS/BLS */
+            return (value & D16_SIGN) | ((value << 1) & D16_SMAX); /* arithmetic left shift */
 
-    case SRG1_EN | I_xRS:
-    case SRG2_EN | I_xRS:                                   /* ARS/BRS */
-        return value & D16_SIGN | value >> 1;               /* arithmetic right shift */
+        case SRG1_EN | I_xRS:
+        case SRG2_EN | I_xRS:                     /* ARS/BRS */
+            return (value & D16_SIGN) | (value >> 1); /* arithmetic right shift */
 
-    case SRG1_EN | I_RxL:
-    case SRG2_EN | I_RxL:                                   /* RAL/RBL */
-        return (value << 1 | value >> 15) & D16_MASK;       /* rotate left */
+        case SRG1_EN | I_RxL:
+        case SRG2_EN | I_RxL:                             /* RAL/RBL */
+            return (value << 1 | value >> 15) & D16_MASK; /* rotate left */
 
-    case SRG1_EN | I_RxR:
-    case SRG2_EN | I_RxR:                                   /* RAR/RBR */
-        return (value >> 1 | value << 15) & D16_MASK;       /* rotate right */
+        case SRG1_EN | I_RxR:
+        case SRG2_EN | I_RxR:                             /* RAR/RBR */
+            return (value >> 1 | value << 15) & D16_MASK; /* rotate right */
 
-    case SRG1_EN | I_xLR:
-    case SRG2_EN | I_xLR:                                   /* ALR/BLR */
-        return value << 1 & D16_SMAX;                       /* arithmetic left shift, clear sign */
+        case SRG1_EN | I_xLR:
+        case SRG2_EN | I_xLR:             /* ALR/BLR */
+            return value << 1 & D16_SMAX; /* arithmetic left shift, clear sign */
 
-    case SRG_DIS | I_ERx:                                   /* disabled ERA/ERB */
-        E = value & LSB;                                    /* rotate the LSB right into E */
-        return value;                                       /*   and return the original value */
+        case SRG_DIS | I_ERx: /* disabled ERA/ERB */
+            E = value & LSB;  /* rotate the LSB right into E */
+            return value;     /*   and return the original value */
 
-    case SRG1_EN | I_ERx:
-    case SRG2_EN | I_ERx:                                   /* ERA/ERB */
-        extend = E;                                         /* save the original E value */
-        E = value & LSB;                                    /* rotate the LSB right into E */
-        return value >> 1 | (HP_WORD) extend << 15;         /*   and rotate right with E filling the MSB */
+        case SRG1_EN | I_ERx:
+        case SRG2_EN | I_ERx:                          /* ERA/ERB */
+            extend = E;                                /* save the original E value */
+            E      = value & LSB;                      /* rotate the LSB right into E */
+            return value >> 1 | (HP_WORD)extend << 15; /*   and rotate right with E filling the MSB */
 
-    case SRG_DIS | I_ELx:                                   /* disabled ELA/ELB */
-        E = value >> 15 & LSB;                              /* rotate the MSB left into E */
-        return value;                                       /*   and return the original value */
+        case SRG_DIS | I_ELx:      /* disabled ELA/ELB */
+            E = value >> 15 & LSB; /* rotate the MSB left into E */
+            return value;          /*   and return the original value */
 
-    case SRG1_EN | I_ELx:
-    case SRG2_EN | I_ELx:                                   /* ELA/ELB */
-        extend = E;                                         /* save the original E value */
-        E = value >> 15 & LSB;                              /* rotate the MSB left into E */
-        return (value << 1 | (HP_WORD) extend) & D16_MASK;  /*   and rotate left with E filling the LSB */
+        case SRG1_EN | I_ELx:
+        case SRG2_EN | I_ELx:                                 /* ELA/ELB */
+            extend = E;                                       /* save the original E value */
+            E      = value >> 15 & LSB;                       /* rotate the MSB left into E */
+            return (value << 1 | (HP_WORD)extend) & D16_MASK; /*   and rotate left with E filling the LSB */
 
-    case SRG1_EN | I_xLF:
-    case SRG2_EN | I_xLF:                                   /* ALF/BLF */
-        return (value << 4 | value >> 12) & D16_MASK;       /* rotate left four */
+        case SRG1_EN | I_xLF:
+        case SRG2_EN | I_xLF:                             /* ALF/BLF */
+            return (value << 4 | value >> 12) & D16_MASK; /* rotate left four */
 
-    default:                                                /* all other (disabled) cases */
-        return value;                                       /*   return the original value */
-    }
+        default:          /* all other (disabled) cases */
+            return value; /*   return the original value */
+        }
 }
-
 
 /* Execute one machine instruction.
 
@@ -4931,358 +4899,522 @@ switch (operation) {                                       /* dispatch on the mi
        and SZA,RSS/SZB,RSS) are independent.
 */
 
-static t_stat machine_instruction (HP_WORD IR, t_bool iotrap, uint32 irq_pending, uint32 *idle_save)
+static t_stat
+machine_instruction(HP_WORD IR, t_bool iotrap, uint32 irq_pending, uint32 *idle_save)
 {
-uint32  ab_selector, result, skip;
-HP_WORD data, MA;
-t_bool  rss;
-t_stat  status = SCPE_OK;
+    uint32  ab_selector, result, skip;
+    HP_WORD data, MA;
+    t_bool  rss;
+    t_stat  status = SCPE_OK;
 
-switch (UPPER_BYTE (IR)) {                              /* dispatch on bits 15-8 of the instruction */
+    switch (UPPER_BYTE(IR)) { /* dispatch on bits 15-8 of the instruction */
 
-/* Memory Reference Group */
+        /* Memory Reference Group */
 
-    case 0020: case 0021: case 0022: case 0023:
-    case 0024: case 0025: case 0026: case 0027:         /* AND */
-    case 0220: case 0221: case 0222: case 0223:
-    case 0224: case 0225: case 0226: case 0227:         /* AND,I */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
+    case 0020:
+    case 0021:
+    case 0022:
+    case 0023:
+    case 0024:
+    case 0025:
+    case 0026:
+    case 0027: /* AND */
+    case 0220:
+    case 0221:
+    case 0222:
+    case 0223:
+    case 0224:
+    case 0225:
+    case 0226:
+    case 0227:                             /* AND,I */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
 
-        if (status == SCPE_OK)                          /* if the address resolved */
-            AR = AR & ReadW (MA);                       /*   then AND the accumulator and memory */
+        if (status == SCPE_OK)   /* if the address resolved */
+            AR = AR & ReadW(MA); /*   then AND the accumulator and memory */
         break;
 
+    case 0230:
+    case 0231:
+    case 0232:
+    case 0233:
+    case 0234:
+    case 0235:
+    case 0236:
+    case 0237:            /* JSB,I */
+        ion_defer = TRUE; /* defer interrupts */
 
-    case 0230: case 0231: case 0232: case 0233:
-    case 0234: case 0235: case 0236: case 0237:         /* JSB,I */
-        ion_defer = TRUE;                               /* defer interrupts */
+        /* fall into the JSB case */
 
-    /* fall into the JSB case */
+    case 0030:
+    case 0031:
+    case 0032:
+    case 0033:
+    case 0034:
+    case 0035:
+    case 0036:
+    case 0037:                             /* JSB */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
 
-    case 0030: case 0031: case 0032: case 0033:
-    case 0034: case 0035: case 0036: case 0037:         /* JSB */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
+        if (status == SCPE_OK) {     /* if the address resolved */
+            mp_dms_jmp(MA, jsb_plb); /*   then validate the jump address */
 
-        if (status == SCPE_OK) {                        /* if the address resolved */
-            mp_dms_jmp (MA, jsb_plb);                   /*   then validate the jump address */
+            WriteW(MA, PR); /* store P into the target memory address */
 
-            WriteW (MA, PR);                            /* store P into the target memory address */
+            PCQ_ENTRY;               /* save P in the queue */
+            PR = (MA + 1) & LA_MASK; /*   and jump to the word after the target address */
+        }
+        break;
 
-            PCQ_ENTRY;                                  /* save P in the queue */
-            PR = MA + 1 & LA_MASK;                      /*   and jump to the word after the target address */
+    case 0040:
+    case 0041:
+    case 0042:
+    case 0043:
+    case 0044:
+    case 0045:
+    case 0046:
+    case 0047: /* XOR */
+    case 0240:
+    case 0241:
+    case 0242:
+    case 0243:
+    case 0244:
+    case 0245:
+    case 0246:
+    case 0247:                             /* XOR,I */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
+
+        if (status == SCPE_OK)   /* if the address resolved */
+            AR = AR ^ ReadW(MA); /*   then XOR the accumulator and memory */
+        break;
+
+    case 0250:
+    case 0251:
+    case 0252:
+    case 0253:
+    case 0254:
+    case 0255:
+    case 0256:
+    case 0257:            /* JMP,I */
+        ion_defer = TRUE; /* defer interrupts */
+
+        /* fall into the JMP case */
+
+    case 0050:
+    case 0051:
+    case 0052:
+    case 0053:
+    case 0054:
+    case 0055:
+    case 0056:
+    case 0057:                             /* JMP */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
+
+        if (status != SCPE_OK) /* if the address failed to resolve */
+            break;             /*   then abort execution */
+
+        mp_dms_jmp(MA, 0); /* validate the jump address */
+
+        PCQ_ENTRY; /* save P in the queue */
+        PR = MA;   /*   and jump to the target address */
+
+        if ((sim_idle_enab && irq_pending == 0 /* if idle is enabled and no interrupt is pending */
+             && ((PR == err_PC                 /*   and the jump target is * (RTE through RTE-IVB) */
+                  || (PR == err_PC - 1         /*   or the target is *-1 (RTE-6/VM) */
+                      && (mem_fast_read(PR, dms_ump) & I_MRG) == I_ISZ)) /*     and *-1 is ISZ <n> */
+                 && mp_fence == 0                                        /*   and the MP fence is zero */
+                 && M[xeqt] == 0                                         /*   and no program is executing */
+                 && M[tbg] == tbg_select_code))                          /*   and the TBG select code is set */
+            || (PR == err_PC - 3         /*   or the jump target is *-3 (DOS through DOS-III) */
+                && M[PR] == I_STF        /*   and *-3 is STF 0 */
+                && AR == 0177777         /*   and the A and B registers */
+                && BR == 0177777         /*     are both set to -1 */
+                && M[m64] == 0177700     /*   and the -64 and +64 base-page constants */
+                && M[p64] == 0000100)) { /*     are set as expected */
+            tprintf(cpu_dev, cpu_dev.dctrl, DMS_FORMAT "idle loop execution omitted\n", meu_indicator, meu_page, MR, IR);
+
+            if (cpu_dev.dctrl != 0) {          /* if tracing is enabled */
+                *idle_save    = cpu_dev.dctrl; /*   then save the current trace flag set */
+                cpu_dev.dctrl = 0;             /*     and turn off tracing for the idle loop */
             }
+
+            sim_idle(TMR_POLL, FALSE); /* idle the simulator */
+        }
         break;
 
+    case 0060:
+    case 0061:
+    case 0062:
+    case 0063:
+    case 0064:
+    case 0065:
+    case 0066:
+    case 0067: /* IOR */
+    case 0260:
+    case 0261:
+    case 0262:
+    case 0263:
+    case 0264:
+    case 0265:
+    case 0266:
+    case 0267:                             /* IOR,I */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
 
-    case 0040: case 0041: case 0042: case 0043:
-    case 0044: case 0045: case 0046: case 0047:         /* XOR */
-    case 0240: case 0241: case 0242: case 0243:
-    case 0244: case 0245: case 0246: case 0247:         /* XOR,I */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
-
-        if (status == SCPE_OK)                          /* if the address resolved */
-            AR = AR ^ ReadW (MA);                       /*   then XOR the accumulator and memory */
+        if (status == SCPE_OK)   /* if the address resolved */
+            AR = AR | ReadW(MA); /*   then OR the accumulator and memory */
         break;
 
+    case 0070:
+    case 0071:
+    case 0072:
+    case 0073:
+    case 0074:
+    case 0075:
+    case 0076:
+    case 0077: /* ISZ */
+    case 0270:
+    case 0271:
+    case 0272:
+    case 0273:
+    case 0274:
+    case 0275:
+    case 0276:
+    case 0277:                             /* ISZ,I */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
 
-    case 0250: case 0251: case 0252: case 0253:
-    case 0254: case 0255: case 0256: case 0257:         /* JMP,I */
-        ion_defer = TRUE;                               /* defer interrupts */
+        if (status == SCPE_OK) {               /* if the address resolved */
+            data = ReadW((MA) + 1) & D16_MASK; /*   then increment the memory word */
+            WriteW(MA, data);                  /*     and write it back */
 
-    /* fall into the JMP case */
-
-    case 0050: case 0051: case 0052: case 0053:
-    case 0054: case 0055: case 0056: case 0057:         /* JMP */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
-
-        if (status != SCPE_OK)                          /* if the address failed to resolve */
-            break;                                      /*   then abort execution */
-
-        mp_dms_jmp (MA, 0);                             /* validate the jump address */
-
-        PCQ_ENTRY;                                      /* save P in the queue */
-        PR = MA;                                        /*   and jump to the target address */
-
-        if (sim_idle_enab && irq_pending == 0                   /* if idle is enabled and no interrupt is pending */
-          && ((PR == err_PC                                     /*   and the jump target is * (RTE through RTE-IVB) */
-            || PR == err_PC - 1                                 /*   or the target is *-1 (RTE-6/VM) */
-            && (mem_fast_read (PR, dms_ump) & I_MRG) == I_ISZ)  /*     and *-1 is ISZ <n> */
-          && mp_fence == 0                                      /*   and the MP fence is zero */
-          && M [xeqt] == 0                                      /*   and no program is executing */
-          && M [tbg] == tbg_select_code)                        /*   and the TBG select code is set */
-
-          || PR == err_PC - 3                                   /*   or the jump target is *-3 (DOS through DOS-III) */
-          && M [PR] == I_STF                                    /*   and *-3 is STF 0 */
-          && AR == 0177777                                      /*   and the A and B registers */
-          && BR == 0177777                                      /*     are both set to -1 */
-          && M [m64] == 0177700                                 /*   and the -64 and +64 base-page constants */
-          && M [p64] == 0000100) {                              /*     are set as expected */
-            tprintf (cpu_dev, cpu_dev.dctrl,
-                     DMS_FORMAT "idle loop execution omitted\n",
-                     meu_indicator, meu_page, MR, IR);
-
-            if (cpu_dev.dctrl != 0) {                   /* if tracing is enabled */
-                *idle_save = cpu_dev.dctrl;             /*   then save the current trace flag set */
-                cpu_dev.dctrl = 0;                      /*     and turn off tracing for the idle loop */
-                }
-
-            sim_idle (TMR_POLL, FALSE);                 /* idle the simulator */
-            }
+            if (data == 0)               /* if the value rolled over to zero */
+                PR = (PR + 1) & LA_MASK; /*   then increment P */
+        }
         break;
 
+    case 0100:
+    case 0101:
+    case 0102:
+    case 0103:
+    case 0104:
+    case 0105:
+    case 0106:
+    case 0107: /* ADA */
+    case 0300:
+    case 0301:
+    case 0302:
+    case 0303:
+    case 0304:
+    case 0305:
+    case 0306:
+    case 0307:                             /* ADA,I */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
 
-    case 0060: case 0061: case 0062: case 0063:
-    case 0064: case 0065: case 0066: case 0067:         /* IOR */
-    case 0260: case 0261: case 0262: case 0263:
-    case 0264: case 0265: case 0266: case 0267:         /* IOR,I */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
+        if (status == SCPE_OK) { /* if the address resolved */
+            data   = ReadW(MA);  /*   then get the target word */
+            result = AR + data;  /*     and add the accumulator to memory */
 
-        if (status == SCPE_OK)                          /* if the address resolved */
-            AR = AR | ReadW (MA);                       /*   then OR the accumulator and memory */
+            if (result > D16_UMAX) /* if the result overflowed */
+                E = 1;             /*   then set the Extend register */
+
+            if (~(AR ^ data) & (AR ^ result) & D16_SIGN) /* if the sign of the result differs from the signs */
+                O = 1;                                   /*   of the operands, then set the Overflow register */
+
+            AR = result & R_MASK; /* store the sum into the accumulator */
+        }
         break;
 
+    case 0110:
+    case 0111:
+    case 0112:
+    case 0113:
+    case 0114:
+    case 0115:
+    case 0116:
+    case 0117: /* ADB */
+    case 0310:
+    case 0311:
+    case 0312:
+    case 0313:
+    case 0314:
+    case 0315:
+    case 0316:
+    case 0317:                             /* ADB,I */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
 
-    case 0070: case 0071: case 0072: case 0073:
-    case 0074: case 0075: case 0076: case 0077:         /* ISZ */
-    case 0270: case 0271: case 0272: case 0273:
-    case 0274: case 0275: case 0276: case 0277:         /* ISZ,I */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
+        if (status == SCPE_OK) { /* if the address resolved */
+            data   = ReadW(MA);  /*   then get the target word */
+            result = BR + data;  /*     and add the accumulator to memory */
 
-        if (status == SCPE_OK) {                        /* if the address resolved */
-            data = ReadW (MA) + 1 & D16_MASK;           /*   then increment the memory word */
-            WriteW (MA, data);                          /*     and write it back */
+            if (result > D16_UMAX) /* if the result overflowed */
+                E = 1;             /*   then set the Extend register */
 
-            if (data == 0)                              /* if the value rolled over to zero */
-                PR = PR + 1 & LA_MASK;                  /*   then increment P */
-            }
+            if (~(BR ^ data) & (BR ^ result) & D16_SIGN) /* if the sign of the result differs from the signs */
+                O = 1;                                   /*   of the operands, then set the Overflow register */
+
+            BR = result & R_MASK; /* store the sum into the accumulator */
+        }
         break;
 
+    case 0120:
+    case 0121:
+    case 0122:
+    case 0123:
+    case 0124:
+    case 0125:
+    case 0126:
+    case 0127: /* CPA */
+    case 0320:
+    case 0321:
+    case 0322:
+    case 0323:
+    case 0324:
+    case 0325:
+    case 0326:
+    case 0327:                             /* CPA,I */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
 
-    case 0100: case 0101: case 0102: case 0103:
-    case 0104: case 0105: case 0106: case 0107:         /* ADA */
-    case 0300: case 0301: case 0302: case 0303:
-    case 0304: case 0305: case 0306: case 0307:         /* ADA,I */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
-
-        if (status == SCPE_OK) {                        /* if the address resolved */
-            data = ReadW (MA);                          /*   then get the target word */
-            result = AR + data;                         /*     and add the accumulator to memory */
-
-            if (result > D16_UMAX)                      /* if the result overflowed */
-                E = 1;                                  /*   then set the Extend register */
-
-            if (~(AR ^ data) & (AR ^ result) & D16_SIGN)    /* if the sign of the result differs from the signs */
-                O = 1;                                      /*   of the operands, then set the Overflow register */
-
-            AR = result & R_MASK;                       /* store the sum into the accumulator */
-            }
+        if (status == SCPE_OK)           /* if the address resolved */
+            if (AR != ReadW(MA))         /*   then if the accumulator and memory differ */
+                PR = (PR + 1) & LA_MASK; /*     then increment P */
         break;
 
+    case 0130:
+    case 0131:
+    case 0132:
+    case 0133:
+    case 0134:
+    case 0135:
+    case 0136:
+    case 0137: /* CPB */
+    case 0330:
+    case 0331:
+    case 0332:
+    case 0333:
+    case 0334:
+    case 0335:
+    case 0336:
+    case 0337:                             /* CPB,I */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
 
-    case 0110: case 0111: case 0112: case 0113:
-    case 0114: case 0115: case 0116: case 0117:         /* ADB */
-    case 0310: case 0311: case 0312: case 0313:
-    case 0314: case 0315: case 0316: case 0317:         /* ADB,I */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
-
-        if (status == SCPE_OK) {                        /* if the address resolved */
-            data = ReadW (MA);                          /*   then get the target word */
-            result = BR + data;                         /*     and add the accumulator to memory */
-
-            if (result > D16_UMAX)                      /* if the result overflowed */
-                E = 1;                                  /*   then set the Extend register */
-
-            if (~(BR ^ data) & (BR ^ result) & D16_SIGN)    /* if the sign of the result differs from the signs */
-                O = 1;                                      /*   of the operands, then set the Overflow register */
-
-            BR = result & R_MASK;                       /* store the sum into the accumulator */
-            }
+        if (status == SCPE_OK)           /* if the address resolved */
+            if (BR != ReadW(MA))         /*   then if the accumulator and memory differ */
+                PR = (PR + 1) & LA_MASK; /*     then increment P */
         break;
 
+    case 0140:
+    case 0141:
+    case 0142:
+    case 0143:
+    case 0144:
+    case 0145:
+    case 0146:
+    case 0147: /* LDA */
+    case 0340:
+    case 0341:
+    case 0342:
+    case 0343:
+    case 0344:
+    case 0345:
+    case 0346:
+    case 0347:                             /* LDA,I */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
 
-    case 0120: case 0121: case 0122: case 0123:
-    case 0124: case 0125: case 0126: case 0127:         /* CPA */
-    case 0320: case 0321: case 0322: case 0323:
-    case 0324: case 0325: case 0326: case 0327:         /* CPA,I */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
-
-        if (status == SCPE_OK)                          /* if the address resolved */
-            if (AR != ReadW (MA))                       /*   then if the accumulator and memory differ */
-                PR = PR + 1 & LA_MASK;                  /*     then increment P */
+        if (status == SCPE_OK) /* if the address resolved */
+            AR = ReadW(MA);    /*   then load the accumulator from memory */
         break;
 
+    case 0150:
+    case 0151:
+    case 0152:
+    case 0153:
+    case 0154:
+    case 0155:
+    case 0156:
+    case 0157: /* LDB */
+    case 0350:
+    case 0351:
+    case 0352:
+    case 0353:
+    case 0354:
+    case 0355:
+    case 0356:
+    case 0357:                             /* LDB,I */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
 
-    case 0130: case 0131: case 0132: case 0133:
-    case 0134: case 0135: case 0136: case 0137:         /* CPB */
-    case 0330: case 0331: case 0332: case 0333:
-    case 0334: case 0335: case 0336: case 0337:         /* CPB,I */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
-
-        if (status == SCPE_OK)                          /* if the address resolved */
-            if (BR != ReadW (MA))                       /*   then if the accumulator and memory differ */
-                PR = PR + 1 & LA_MASK;                  /*     then increment P */
+        if (status == SCPE_OK) /* if the address resolved */
+            BR = ReadW(MA);    /*   then load the accumulator from memory */
         break;
 
+    case 0160:
+    case 0161:
+    case 0162:
+    case 0163:
+    case 0164:
+    case 0165:
+    case 0166:
+    case 0167: /* STA */
+    case 0360:
+    case 0361:
+    case 0362:
+    case 0363:
+    case 0364:
+    case 0365:
+    case 0366:
+    case 0367:                             /* STA,I */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
 
-    case 0140: case 0141: case 0142: case 0143:
-    case 0144: case 0145: case 0146: case 0147:         /* LDA */
-    case 0340: case 0341: case 0342: case 0343:
-    case 0344: case 0345: case 0346: case 0347:         /* LDA,I */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
-
-        if (status == SCPE_OK)                          /* if the address resolved */
-            AR = ReadW (MA);                            /*   then load the accumulator from memory */
+        if (status == SCPE_OK) /* if the address resolved */
+            WriteW(MA, AR);    /*   then write the accumulator to memory */
         break;
 
+    case 0170:
+    case 0171:
+    case 0172:
+    case 0173:
+    case 0174:
+    case 0175:
+    case 0176:
+    case 0177: /* STB */
+    case 0370:
+    case 0371:
+    case 0372:
+    case 0373:
+    case 0374:
+    case 0375:
+    case 0376:
+    case 0377:                             /* STB,I */
+        status = ea(IR, &MA, irq_pending); /* get the effective address */
 
-    case 0150: case 0151: case 0152: case 0153:
-    case 0154: case 0155: case 0156: case 0157:         /* LDB */
-    case 0350: case 0351: case 0352: case 0353:
-    case 0354: case 0355: case 0356: case 0357:         /* LDB,I */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
-
-        if (status == SCPE_OK)                          /* if the address resolved */
-            BR = ReadW (MA);                            /*   then load the accumulator from memory */
+        if (status == SCPE_OK) /* if the address resolved */
+            WriteW(MA, BR);    /*   then write the accumulator to memory */
         break;
 
+        /* Alter/Skip Group */
 
-    case 0160: case 0161: case 0162: case 0163:
-    case 0164: case 0165: case 0166: case 0167:         /* STA */
-    case 0360: case 0361: case 0362: case 0363:
-    case 0364: case 0365: case 0366: case 0367:         /* STA,I */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
+    case 0004:
+    case 0005:
+    case 0006:
+    case 0007:
+    case 0014:
+    case 0015:
+    case 0016:
+    case 0017:    /* ASG */
+        skip = 0; /* assume that no skip is needed */
 
-        if (status == SCPE_OK)                          /* if the address resolved */
-            WriteW (MA, AR);                            /*   then write the accumulator to memory */
-        break;
+        rss = (IR & I_RSS) != 0; /* get the Reverse Skip Sense flag */
 
+        ab_selector = (IR & I_AB ? 1 : 0); /* get the A/B register selector */
+        data        = ABREG[ab_selector];  /*   and the register data */
 
-    case 0170: case 0171: case 0172: case 0173:
-    case 0174: case 0175: case 0176: case 0177:         /* STB */
-    case 0370: case 0371: case 0372: case 0373:
-    case 0374: case 0375: case 0376: case 0377:         /* STB,I */
-        status = ea (IR, &MA, irq_pending);             /* get the effective address */
+        if (IR & I_CLx) /* if the CLA/CLB micro-op is enabled */
+            data = 0;   /*   then clear the value */
 
-        if (status == SCPE_OK)                          /* if the address resolved */
-            WriteW (MA, BR);                            /*   then write the accumulator to memory */
-        break;
+        if (IR & I_CMx)             /* if the CMA/CMB micro-op is enabled */
+            data = data ^ D16_MASK; /*   then complement the value */
 
+        if (IR & I_SEZ && (E == 0) ^ rss) /* if SEZ[,RSS] is enabled and E is clear [set] */
+            skip = 1;                     /*   then skip the next instruction */
 
-/* Alter/Skip Group */
+        if (IR & I_CLE) /* if the CLE micro-op is enabled */
+            E = 0;      /*   then clear E */
 
-    case 0004: case 0005: case 0006: case 0007:
-    case 0014: case 0015: case 0016: case 0017:         /* ASG */
-        skip = 0;                                       /* assume that no skip is needed */
+        if (IR & I_CME)  /* if the CME micro-op is enabled */
+            E = E ^ LSB; /*   then complement E */
 
-        rss = (IR & I_RSS) != 0;                        /* get the Reverse Skip Sense flag */
-
-        ab_selector = (IR & I_AB ? 1 : 0);              /* get the A/B register selector */
-        data = ABREG [ab_selector];                     /*   and the register data */
-
-        if (IR & I_CLx)                                 /* if the CLA/CLB micro-op is enabled */
-            data = 0;                                   /*   then clear the value */
-
-        if (IR & I_CMx)                                 /* if the CMA/CMB micro-op is enabled */
-            data = data ^ D16_MASK;                     /*   then complement the value */
-
-        if (IR & I_SEZ && (E == 0) ^ rss)               /* if SEZ[,RSS] is enabled and E is clear [set] */
-            skip = 1;                                   /*   then skip the next instruction */
-
-        if (IR & I_CLE)                                 /* if the CLE micro-op is enabled */
-            E = 0;                                      /*   then clear E */
-
-        if (IR & I_CME)                                 /* if the CME micro-op is enabled */
-            E = E ^ LSB;                                /*   then complement E */
-
-        if ((IR & I_SSx_SLx_RSS) == I_SSx_SLx_RSS) {    /* if the SSx, SLx, and RSS micro-ops are enabled together */
-            if ((data & D16_SIGN_LSB) == D16_SIGN_LSB)  /*   then if both sign and least-significant bits are set */
-                skip = 1;                               /*     then skip the next instruction */
-            }
+        if ((IR & I_SSx_SLx_RSS) == I_SSx_SLx_RSS) {   /* if the SSx, SLx, and RSS micro-ops are enabled together */
+            if ((data & D16_SIGN_LSB) == D16_SIGN_LSB) /*   then if both sign and least-significant bits are set */
+                skip = 1;                              /*     then skip the next instruction */
+        }
 
         else {                                          /* otherwise */
             if (IR & I_SSx && !(data & D16_SIGN) ^ rss) /*   if SSx[,RSS] is enabled and the MSB is clear [set] */
                 skip = 1;                               /*     then skip the next instruction */
 
-            if (IR & I_SLx && !(data & LSB) ^ rss)      /*   if SLx[,RSS] is enabled and the LSB is clear [set] */
-                skip = 1;                               /*     then skip the next instruction */
-            }
+            if (IR & I_SLx && !(data & LSB) ^ rss) /*   if SLx[,RSS] is enabled and the LSB is clear [set] */
+                skip = 1;                          /*     then skip the next instruction */
+        }
 
-        if (IR & I_INx) {                               /* if the INA/INB micro-op is enabled */
-            data = data + 1 & D16_MASK;                 /*   then increment the value */
+        if (IR & I_INx) {                 /* if the INA/INB micro-op is enabled */
+            data = (data + 1) & D16_MASK; /*   then increment the value */
 
-            if (data == 0)                              /* if the value wrapped around to zero */
-                E = 1;                                  /*   then set the Extend register */
+            if (data == 0) /* if the value wrapped around to zero */
+                E = 1;     /*   then set the Extend register */
 
-            else if (data == D16_SIGN)                  /* otherwise if the value overflowed into the sign bit */
-                O = 1;                                  /*   then set the Overflow register */
-            }
+            else if (data == D16_SIGN) /* otherwise if the value overflowed into the sign bit */
+                O = 1;                 /*   then set the Overflow register */
+        }
 
-        if (IR & I_SZx && (data == 0) ^ rss)            /* if SZx[,RSS] is enabled and the value is zero [non-zero] */
-            skip = 1;                                   /*   then skip the next instruction */
+        if (IR & I_SZx && (data == 0) ^ rss) /* if SZx[,RSS] is enabled and the value is zero [non-zero] */
+            skip = 1;                        /*   then skip the next instruction */
 
-        if ((IR & I_ALL_SKIPS) == I_RSS)                /* if RSS is present without any other skip micro-ops */
-            skip = 1;                                   /*   then skip the next instruction unconditionally */
+        if ((IR & I_ALL_SKIPS) == I_RSS) /* if RSS is present without any other skip micro-ops */
+            skip = 1;                    /*   then skip the next instruction unconditionally */
 
-        ABREG [ab_selector] = data;                     /* store the result in the selected register */
-        PR = PR + skip & LA_MASK;                       /*   and skip the next instruction if indicated */
+        ABREG[ab_selector] = data;                  /* store the result in the selected register */
+        PR                 = (PR + skip) & LA_MASK; /*   and skip the next instruction if indicated */
         break;
 
+        /* Shift/Rotate Group */
 
-/* Shift/Rotate Group */
+    case 0000:
+    case 0001:
+    case 0002:
+    case 0003:
+    case 0010:
+    case 0011:
+    case 0012:
+    case 0013:                             /* SRG */
+        ab_selector = (IR & I_AB ? 1 : 0); /* get the A/B register selector */
+        data        = ABREG[ab_selector];  /*   and the register data */
 
-    case 0000: case 0001: case 0002: case 0003:
-    case 0010: case 0011: case 0012: case 0013:         /* SRG */
-        ab_selector = (IR & I_AB ? 1 : 0);              /* get the A/B register selector */
-        data = ABREG [ab_selector];                     /*   and the register data */
+        data = srg_uop(data, SRG1(IR)); /* do the first shift */
 
-        data = srg_uop (data, SRG1 (IR));               /* do the first shift */
+        if (IR & SRG_CLE) /* if the CLE micro-op is enabled */
+            E = 0;        /*   then clear E */
 
-        if (IR & SRG_CLE)                               /* if the CLE micro-op is enabled */
-            E = 0;                                      /*   then clear E */
+        if (IR & SRG_SLx && (data & LSB) == 0) /* if SLx is enabled and the LSB is clear */
+            PR = (PR + 1) & LA_MASK;           /*   then skip the next instruction */
 
-        if (IR & SRG_SLx && (data & LSB) == 0)          /* if SLx is enabled and the LSB is clear */
-            PR = PR + 1 & LA_MASK;                      /*   then skip the next instruction */
-
-        ABREG [ab_selector] = srg_uop (data, SRG2 (IR));    /* do the second shift and set the accumulator */
+        ABREG[ab_selector] = srg_uop(data, SRG2(IR)); /* do the second shift and set the accumulator */
         break;
 
+        /* I/O Group */
 
-/* I/O Group */
-
-    case 0204: case 0205: case 0206: case 0207:
-    case 0214: case 0215: case 0216: case 0217:         /* IOG */
-        status = cpu_iog (IR, iotrap);                  /* execute the I/O instruction */
+    case 0204:
+    case 0205:
+    case 0206:
+    case 0207:
+    case 0214:
+    case 0215:
+    case 0216:
+    case 0217:                        /* IOG */
+        status = cpu_iog(IR, iotrap); /* execute the I/O instruction */
         break;
 
+        /* Extended Arithmetic Group */
 
-/* Extended Arithmetic Group */
-
-    case 0200:                                          /* EAU group 0 */
-    case 0201:                                          /* DIV */
-    case 0202:                                          /* EAU group 2 */
-    case 0210:                                          /* DLD */
-    case 0211:                                          /* DST */
-        status = cpu_eau (IR, irq_pending);             /* execute the extended arithmetic instruction */
+    case 0200:                             /* EAU group 0 */
+    case 0201:                             /* DIV */
+    case 0202:                             /* EAU group 2 */
+    case 0210:                             /* DLD */
+    case 0211:                             /* DST */
+        status = cpu_eau(IR, irq_pending); /* execute the extended arithmetic instruction */
         break;
 
+        /* User Instruction Group */
 
-/* User Instruction Group */
-
-    case 0212:                                          /* UIG 0 */
-        status = cpu_uig_0 (IR, irq_pending, iotrap);   /* execute the user instruction opcode */
+    case 0212:                                       /* UIG 0 */
+        status = cpu_uig_0(IR, irq_pending, iotrap); /* execute the user instruction opcode */
         break;
 
     case 0203:
-    case 0213:                                          /* UIG 1 */
-        status = cpu_uig_1 (IR, irq_pending, iotrap);   /* execute the user instruction opcode */
+    case 0213:                                       /* UIG 1 */
+        status = cpu_uig_1(IR, irq_pending, iotrap); /* execute the user instruction opcode */
         break;
 
-    }                                                   /* all cases are handled */
+    } /* all cases are handled */
 
-
-return status;                                          /* return the execution status */
+    return status; /* return the execution status */
 }
-
 
 /* Determine whether a pending interrupt deferral should be inhibited.
 
@@ -5305,26 +5437,27 @@ return status;                                          /* return the execution 
    the Model 2100A Computer Installation and Maintenance Manual for details.
 */
 
-static t_bool check_deferral (uint32 irq_sc)
+static t_bool
+check_deferral (uint32 irq_sc)
 {
-HP_WORD next_instruction;
+    HP_WORD next_instruction;
 
-if (! is_1000) {                                        /* if the CPU is a 21xx model */
-    next_instruction = mem_fast_read (PR, dms_ump);     /*   then prefetch the next instruction */
+    if (!is_1000)
+        {                                                   /* if the CPU is a 21xx model */
+            next_instruction = mem_fast_read (PR, dms_ump); /*   then prefetch the next instruction */
 
-    if (MRGOP (next_instruction)                        /* if it is an MRG instruction */
-      && (next_instruction & I_MRG_I) != I_JSB_I        /*   but not JSB,I? */
-      && (next_instruction & I_MRG)   != I_JMP)         /*   and not JMP or JMP,I */
-        return FALSE;                                   /*     then inhibit deferral */
-    }
+            if (MRGOP (next_instruction)                   /* if it is an MRG instruction */
+                && (next_instruction & I_MRG_I) != I_JSB_I /*   but not JSB,I? */
+                && (next_instruction & I_MRG) != I_JMP)    /*   and not JMP or JMP,I */
+                return FALSE;                              /*     then inhibit deferral */
+        }
 
-if (irq_sc == PRO                                       /* if memory protect is interrupting */
-  || mp_unit.flags & UNIT_MP_INT && mp_control)         /*   or the INT jumper is out for the 12892B card */
-    return FALSE;                                       /*     then inhibit deferral */
-else                                                    /* otherwise */
-    return TRUE;                                        /*   deferral is permitted */
+    if (irq_sc == PRO                                 /* if memory protect is interrupting */
+        || (mp_unit.flags & UNIT_MP_INT && mp_control)) /*   or the INT jumper is out for the 12892B card */
+        return FALSE;                                 /*     then inhibit deferral */
+    else                                              /* otherwise */
+        return TRUE;                                  /*   deferral is permitted */
 }
-
 
 /* Logical-to-physical address translation for console access.
 
@@ -5352,35 +5485,35 @@ else                                                    /* otherwise */
    size is returned.
 */
 
-static uint32 map_address (HP_WORD logical, int32 switches)
+static uint32
+map_address (HP_WORD logical, int32 switches)
 {
-uint32 map;
+    uint32 map;
 
-if (switches & (SWMASK ('N') | SIM_SW_REST))            /* if no mapping is requested */
-    return logical;                                     /*   then the address is already a physical address */
+    if (switches & (SWMASK ('N') | SIM_SW_REST)) /* if no mapping is requested */
+        return logical;                          /*   then the address is already a physical address */
 
-else if ((dms_enb || switches & ALL_MAPMODES)           /* otherwise if mapping is enabled or requested */
-  && logical > LA_MAX)                                  /*   and the address is not a logical address */
-    return (uint32) MEMSIZE;                            /*     then report a memory overflow */
+    else if ((dms_enb || switches & ALL_MAPMODES) /* otherwise if mapping is enabled or requested */
+             && logical > LA_MAX)                 /*   and the address is not a logical address */
+        return (uint32)MEMSIZE;                   /*     then report a memory overflow */
 
-else if (switches & SWMASK ('S'))                       /* otherwise if the -S switch is specified */
-    map = SMAP;                                         /*   then use the system map */
+    else if (switches & SWMASK ('S')) /* otherwise if the -S switch is specified */
+        map = SMAP;                   /*   then use the system map */
 
-else if (switches & SWMASK ('U'))                       /* otherwise if the -U switch is specified */
-    map = UMAP;                                         /*   then use the user map */
+    else if (switches & SWMASK ('U')) /* otherwise if the -U switch is specified */
+        map = UMAP;                   /*   then use the user map */
 
-else if (switches & SWMASK ('P'))                       /* otherwise if the -P switch is specified */
-    map = PAMAP;                                        /*   then use the DCPC port A map */
+    else if (switches & SWMASK ('P')) /* otherwise if the -P switch is specified */
+        map = PAMAP;                  /*   then use the DCPC port A map */
 
-else if (switches & SWMASK ('Q'))                       /* otherwise if the -Q switch is specified */
-    map = PBMAP;                                        /*   then use the DCPC port B map */
+    else if (switches & SWMASK ('Q')) /* otherwise if the -Q switch is specified */
+        map = PBMAP;                  /*   then use the DCPC port B map */
 
-else                                                    /* otherwise */
-    map = dms_ump;                                      /*   use the current map (system or user) */
+    else               /* otherwise */
+        map = dms_ump; /*   use the current map (system or user) */
 
-return meu_map (logical, map, NOPROT);                  /* translate the address without protection */
+    return meu_map (logical, map, NOPROT); /* translate the address without protection */
 }
-
 
 /* Check for non-zero value in a memory address range.
 
@@ -5390,44 +5523,43 @@ return meu_map (logical, map, NOPROT);                  /* translate the address
    range was empty (i.e., contained only zero values) and FALSE otherwise.
 */
 
-static t_bool mem_is_empty (uint32 starting_address)
+static t_bool
+mem_is_empty (uint32 starting_address)
 {
-uint32 address;
+    uint32 address;
 
-for (address = starting_address; address < MEMSIZE; address++)  /* loop through the specified address range */
-    if (M [address] != 0)                                       /* if this location is non-zero */
-        return FALSE;                                           /*   then indicate that memory is not empty */
+    for (address = starting_address; address < MEMSIZE; address++) /* loop through the specified address range */
+        if (M[address] != 0)                                       /* if this location is non-zero */
+            return FALSE;                                          /*   then indicate that memory is not empty */
 
-return TRUE;                                            /* return TRUE if all locations contain zero values */
+    return TRUE; /* return TRUE if all locations contain zero values */
 }
 
-
-
 /* Memory Expansion Unit local utility routine declarations */
-
 
 /* Mapped access check.
 
    Return TRUE if the address will be mapped (presuming MEM is enabled).
 */
 
-static t_bool is_mapped (uint32 address)
+static t_bool
+is_mapped (uint32 address)
 {
-uint32 dms_fence;
+    uint32 dms_fence;
 
-if (address >= 02000u)                                  /* if the address is not on the base page */
-    return TRUE;                                        /*   then it is always mapped */
+    if (address >= 02000u) /* if the address is not on the base page */
+        return TRUE;       /*   then it is always mapped */
 
-else {                                                  /* otherwise */
-    dms_fence = dms_sr & MST_FENCE;                     /*   get the base-page fence value */
+    else
+        {                                   /* otherwise */
+            dms_fence = dms_sr & MST_FENCE; /*   get the base-page fence value */
 
-    if (dms_sr & MST_FLT)                               /* if the lower portion is mapped */
-        return (address < dms_fence);                   /*   then return TRUE if the address is below the fence */
-    else                                                /* otherwise the upper portion is mapped */
-        return (address >= dms_fence);                  /*   so return TRUE if the address is at or above the fence */
-    }
+            if (dms_sr & MST_FLT)              /* if the lower portion is mapped */
+                return (address < dms_fence);  /*   then return TRUE if the address is below the fence */
+            else                               /* otherwise the upper portion is mapped */
+                return (address >= dms_fence); /*   so return TRUE if the address is at or above the fence */
+        }
 }
-
 
 /* Map a logical address to a physical address..
 
@@ -5446,50 +5578,55 @@ else {                                                  /* otherwise */
    or will return if protection is off.
 */
 
-static uint32 meu_map (HP_WORD address, uint32 map, HP_WORD prot)
+static uint32
+meu_map (HP_WORD address, uint32 map, HP_WORD prot)
 {
-uint32 map_register;
+    uint32 map_register;
 
-if (dms_enb) {                                          /* if the Memory Expansion Unit is enabled */
-    if (address <= 1 && map < PAMAP) {                  /*   then if the reference is to the A or B register */
-        meu_page = 0;                                   /*     then the physical page is page 0 */
-        return address;                                 /*       and the address is already physical */
+    if (dms_enb)
+        { /* if the Memory Expansion Unit is enabled */
+            if (address <= 1 && map < PAMAP)
+                {                   /*   then if the reference is to the A or B register */
+                    meu_page = 0;   /*     then the physical page is page 0 */
+                    return address; /*       and the address is already physical */
+                }
+
+            else if (is_mapped (address) == FALSE)
+                {                 /* otherwise if a base-page address is not mapped */
+                    meu_page = 0; /*   then the physical page is page 0 */
+
+                    if (address > 1 && prot == WRPROT) /* a write to the unmapped part of the base page */
+                        dms_viol (address, MVI_BPG);   /*   causes a base-page violation if protection is enabled */
+
+                    return address; /* the address is already physical */
+                }
+
+            else
+                { /* otherwise the address is mapped */
+                    map_register
+                        = dms_map[map + VA_GETPAG (address)]; /*   so get the map register for the logical page */
+
+                    meu_page      = MAP_PAGE (map_register);      /* save the physical page number */
+                    meu_indicator = map_indicator[map / MAP_LNT]; /*   and set the map indicator the the applied map */
+
+                    if (map_register & prot)      /* if the desired access is not allowed */
+                        dms_viol (address, prot); /*   then a read or write protection violation occurs */
+
+                    return TO_PAGE (meu_page)
+                           | VA_GETOFF (address); /* form the physical address from the mapped page and offset */
+                }
         }
 
-    else if (is_mapped (address) == FALSE) {            /* otherwise if a base-page address is not mapped */
-        meu_page = 0;                                   /*   then the physical page is page 0 */
+    else
+        {                                        /* otherwise the MEU is disabled */
+            meu_page      = VA_GETPAG (address); /*   so the physical page is the logical page */
+            meu_indicator = '-';                 /* set the map indicator to indicate no mapping */
 
-        if (address > 1 && prot == WRPROT)              /* a write to the unmapped part of the base page */
-            dms_viol (address, MVI_BPG);                /*   causes a base-page violation if protection is enabled */
-
-        return address;                                 /* the address is already physical */
+            return address; /* the physical address is the logical address */
         }
-
-    else {                                                  /* otherwise the address is mapped */
-        map_register = dms_map [map + VA_GETPAG (address)]; /*   so get the map register for the logical page */
-
-        meu_page = MAP_PAGE (map_register);                 /* save the physical page number */
-        meu_indicator = map_indicator [map / MAP_LNT];      /*   and set the map indicator the the applied map */
-
-        if (map_register & prot)                            /* if the desired access is not allowed */
-            dms_viol (address, prot);                       /*   then a read or write protection violation occurs */
-
-        return TO_PAGE (meu_page) | VA_GETOFF (address);    /* form the physical address from the mapped page and offset */
-        }
-    }
-
-else {                                                  /* otherwise the MEU is disabled */
-    meu_page = VA_GETPAG (address);                     /*   so the physical page is the logical page */
-    meu_indicator = '-';                                /* set the map indicator to indicate no mapping */
-
-    return address;                                     /* the physical address is the logical address */
-    }
 }
 
-
-
 /* DMA local SCP support routine declarations */
-
 
 /* DMA/DCPC primary (SC 6/7) I/O signal handler.
 
@@ -5522,110 +5659,112 @@ else {                                                  /* otherwise the MEU is 
         byte while the other is read or written during the DMA cycle.
 */
 
-static uint32 dmapio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+static uint32
+dmapio(DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-const CHANNEL ch = (CHANNEL) dibptr->card_index;        /* DMA channel number */
-uint16 data;
-IOSIGNAL signal;
-IOCYCLE  working_set = IOADDSIR (signal_set);           /* add ioSIR if needed */
+    const CHANNEL ch = (CHANNEL)dibptr->card_index; /* DMA channel number */
+    uint16        data;
+    IOSIGNAL      signal;
+    IOCYCLE       working_set = IOADDSIR(signal_set); /* add ioSIR if needed */
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate next signal */
+    while (working_set) {
+        signal = IONEXT(working_set); /* isolate next signal */
 
-    switch (signal) {                                   /* dispatch I/O signal */
+        switch (signal) { /* dispatch I/O signal */
 
-        case ioCLF:                                     /* clear flag flip-flop */
-            dma [ch].flag = dma [ch].flagbuf = CLEAR;   /* clear flag and flag buffer */
+        case ioCLF:                                 /* clear flag flip-flop */
+            dma[ch].flag = dma[ch].flagbuf = CLEAR; /* clear flag and flag buffer */
             break;
 
-        case ioSTF:                                     /* set flag flip-flop */
-        case ioENF:                                     /* enable flag */
-            if (dma [ch].xferen == SET)
-                tpprintf (dma_dptrs [ch], TRACE_CMD, "Channel transfer %s\n",
-                          (dma [ch].cw3 == 0 ? "completed" : "aborted"));
+        case ioSTF: /* set flag flip-flop */
+        case ioENF: /* enable flag */
+            if (dma[ch].xferen == SET) {
+                tpprintf(dma_dptrs[ch], TRACE_CMD, "Channel transfer %s\n", (dma[ch].cw3 == 0 ? "completed" : "aborted"));
+            }
 
-            dma [ch].flag = dma [ch].flagbuf = SET;     /* set flag and flag buffer */
-            dma [ch].xferen = CLEAR;                    /* clear transfer enable to abort transfer */
+            dma[ch].flag = dma[ch].flagbuf = SET;   /* set flag and flag buffer */
+            dma[ch].xferen                 = CLEAR; /* clear transfer enable to abort transfer */
             break;
 
-        case ioSFC:                                     /* skip if flag is clear */
-            setstdSKF (dma [ch]);                       /* skip if transfer in progress */
+        case ioSFC:             /* skip if flag is clear */
+            setstdSKF(dma[ch]); /* skip if transfer in progress */
             break;
 
-        case ioSFS:                                     /* skip if flag is set */
-            setstdSKF (dma [ch]);                       /* skip if transfer is complete */
+        case ioSFS:             /* skip if flag is set */
+            setstdSKF(dma[ch]); /* skip if transfer is complete */
             break;
 
-        case ioIOI:                                     /* I/O data input */
-            if (is_1000)                                /* 1000? */
-                stat_data = IORETURN (SCPE_OK, DMASK);  /* return all ones */
-            else                                        /* other models */
-                stat_data = IORETURN (SCPE_OK, 0);      /* return all zeros */
+        case ioIOI:                                   /* I/O data input */
+            if (is_1000)                              /* 1000? */
+                stat_data = IORETURN(SCPE_OK, DMASK); /* return all ones */
+            else                                      /* other models */
+                stat_data = IORETURN(SCPE_OK, 0);     /* return all zeros */
             break;
 
-        case ioIOO:                                     /* I/O data output */
-            data = IODATA (stat_data);                  /* clear supplied status */
+        case ioIOO:                   /* I/O data output */
+            data = IODATA(stat_data); /* clear supplied status */
 
-            if (UNIT_CPU_MODEL == UNIT_2114)            /* 12607? */
-                dma [ch].cw1 = (data & 0137707) | 010;  /* mask SC, convert to 10-17 */
-            else if (UNIT_CPU_TYPE == UNIT_TYPE_211X)   /* 12578? */
-                dma [ch].cw1 = data;                    /* store full select code, flags */
-            else                                        /* 12895, 12897 */
-                dma [ch].cw1 = data & ~DMA1_PB;         /* clip byte-packing flag */
+            if (UNIT_CPU_MODEL == UNIT_2114)          /* 12607? */
+                dma[ch].cw1 = (data & 0137707) | 010; /* mask SC, convert to 10-17 */
+            else if (UNIT_CPU_TYPE == UNIT_TYPE_211X) /* 12578? */
+                dma[ch].cw1 = data;                   /* store full select code, flags */
+            else                                      /* 12895, 12897 */
+                dma[ch].cw1 = data & ~DMA1_PB;        /* clip byte-packing flag */
 
-            tpprintf (dma_dptrs [ch], TRACE_CSRW, "Control word 1 is %sselect code %02o\n",
-                      fmt_bitset (data, dma_cw1_format), data & I_DEVMASK);
+            tpprintf(dma_dptrs[ch], TRACE_CSRW, "Control word 1 is %sselect code %02o\n", fmt_bitset(data, dma_cw1_format),
+                     data & I_DEVMASK);
             break;
 
-       case ioPOPIO:                                    /* power-on preset to I/O */
-            dma [ch].flag = dma [ch].flagbuf = SET;     /* set flag and flag buffer */
+        case ioPOPIO:                             /* power-on preset to I/O */
+            dma[ch].flag = dma[ch].flagbuf = SET; /* set flag and flag buffer */
             break;
 
-        case ioCRS:                                     /* control reset */
-            dma [ch].xferen = CLEAR;                    /* clear transfer enable */
-            dma [ch].select = CLEAR;                    /* set secondary for word count access */
-                                                        /* fall into CLC handler */
+        case ioCRS:                 /* control reset */
+            dma[ch].xferen = CLEAR; /* clear transfer enable */
+            dma[ch].select = CLEAR; /* set secondary for word count access */
+                                    /* fall into CLC handler */
 
-        case ioCLC:                                     /* clear control flip-flop */
-            dma [ch].control = CLEAR;                   /* clear control */
+        case ioCLC:                  /* clear control flip-flop */
+            dma[ch].control = CLEAR; /* clear control */
 
-            if (dma [ch].xferen == SET)
-                tpprintf (dma_dptrs [ch], TRACE_CMD, "Channel completion interrupt is inhibited\n");
+            if (dma[ch].xferen == SET) {
+                tpprintf(dma_dptrs[ch], TRACE_CMD, "Channel completion interrupt is inhibited\n");
+            }
             break;
 
-        case ioSTC:                                     /* set control flip-flop */
-            dma [ch].packer = 0;                        /* clear packing register */
-            dma [ch].xferen = dma [ch].control = SET;   /* set transfer enable and control */
+        case ioSTC:                                 /* set control flip-flop */
+            dma[ch].packer = 0;                     /* clear packing register */
+            dma[ch].xferen = dma[ch].control = SET; /* set transfer enable and control */
 
-            if (dma [ch].cw2 & DMA2_OI)
-                tpprintf (dma_dptrs [ch], TRACE_CMD,
-                          "Channel transfer of %u words from select code %02o to address %05o started\n",
-                          NEG16 (dma [ch].cw3), dma [ch].cw1 & I_DEVMASK, dma [ch].cw2 & VAMASK);
-            else
-                tpprintf (dma_dptrs [ch], TRACE_CMD,
-                          "Channel transfer of %u words from address %05o to select code %02o started\n",
-                          NEG16 (dma [ch].cw3), dma [ch].cw2 & VAMASK, dma [ch].cw1 & I_DEVMASK);
+            if (dma[ch].cw2 & DMA2_OI) {
+                tpprintf(dma_dptrs[ch], TRACE_CMD,
+                         "Channel transfer of %u words from select code %02o to address %05o started\n", NEG16(dma[ch].cw3),
+                         dma[ch].cw1 & I_DEVMASK, dma[ch].cw2 & VAMASK);
+            } else {
+                tpprintf(dma_dptrs[ch], TRACE_CMD,
+                         "Channel transfer of %u words from address %05o to select code %02o started\n", NEG16(dma[ch].cw3),
+                         dma[ch].cw2 & VAMASK, dma[ch].cw1 & I_DEVMASK);
+            }
             break;
 
-        case ioSIR:                                     /* set interrupt request */
-            setstdPRL (dma [ch]);
-            setstdIRQ (dma [ch]);
+        case ioSIR: /* set interrupt request */
+            setstdPRL(dma[ch]);
+            setstdIRQ(dma[ch]);
             break;
 
-        case ioIAK:                                     /* interrupt acknowledge */
-            dma [ch].flagbuf = CLEAR;                   /* clear flag buffer */
+        case ioIAK:                  /* interrupt acknowledge */
+            dma[ch].flagbuf = CLEAR; /* clear flag buffer */
             break;
 
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+        default:   /* all other signals */
+            break; /*   are ignored */
         }
 
-    working_set = working_set & ~signal;                /* remove current signal from set */
+        working_set = working_set & ~signal; /* remove current signal from set */
     }
 
-return stat_data;
+    return stat_data;
 }
-
 
 /* DMA/DCPC secondary (SC 2/3) I/O signal handler.
 
@@ -5652,99 +5791,95 @@ return stat_data;
     2. Select codes 2 and 3 cannot interrupt, so there is no SIR handler.
 */
 
-static uint32 dmasio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+static uint32
+dmasio(DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-const CHANNEL ch = (CHANNEL) dibptr->card_index;        /* DMA channel number */
-uint16 data;
-IOSIGNAL signal;
-IOCYCLE  working_set = signal_set;                      /* no SIR handler needed */
+    const CHANNEL ch = (CHANNEL)dibptr->card_index; /* DMA channel number */
+    uint16        data;
+    IOSIGNAL      signal;
+    IOCYCLE       working_set = signal_set; /* no SIR handler needed */
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate next signal */
+    while (working_set) {
+        signal = IONEXT(working_set); /* isolate next signal */
 
-    switch (signal) {                                   /* dispatch I/O signal */
+        switch (signal) { /* dispatch I/O signal */
 
-        case ioIOI:                                     /* I/O data input */
-            if (UNIT_CPU_MODEL == UNIT_2114)            /* 2114? */
-                data = dma [ch].cw3 & 0017777;          /* only 13-bit count */
-            else if (UNIT_CPU_TYPE == UNIT_TYPE_211X)   /* 2115/2116? */
-                data = dma [ch].cw3 & 0037777;          /* only 14-bit count */
-            else                                        /* other models */
-                data = (uint16) dma [ch].cw3;           /* rest use full value */
+        case ioIOI:                                   /* I/O data input */
+            if (UNIT_CPU_MODEL == UNIT_2114)          /* 2114? */
+                data = dma[ch].cw3 & 0017777;         /* only 13-bit count */
+            else if (UNIT_CPU_TYPE == UNIT_TYPE_211X) /* 2115/2116? */
+                data = dma[ch].cw3 & 0037777;         /* only 14-bit count */
+            else                                      /* other models */
+                data = (uint16)dma[ch].cw3;           /* rest use full value */
 
-            stat_data = IORETURN (SCPE_OK, data);       /* merge status and remaining word count */
+            stat_data = IORETURN(SCPE_OK, data); /* merge status and remaining word count */
 
-            tpprintf (dma_dptrs [ch], TRACE_CSRW, "Remaining word count is %u\n",
-                      NEG16 (dma [ch].cw3));
+            tpprintf(dma_dptrs[ch], TRACE_CSRW, "Remaining word count is %u\n", NEG16(dma[ch].cw3));
             break;
 
-        case ioIOO:                                                 /* I/O data output */
-            if (dma [ch].select) {                                  /* word count selected? */
-                dma [ch].cw3 = IODATA (stat_data);                  /* save count */
+        case ioIOO:                              /* I/O data output */
+            if (dma[ch].select) {                /* word count selected? */
+                dma[ch].cw3 = IODATA(stat_data); /* save count */
 
-                tpprintf (dma_dptrs [ch], TRACE_CSRW, "Control word 3 is word count %u\n",
-                          NEG16 (dma [ch].cw3));
-                }
+                tpprintf(dma_dptrs[ch], TRACE_CSRW, "Control word 3 is word count %u\n", NEG16(dma[ch].cw3));
+            }
 
-            else {                                                  /* memory address selected */
-                if (UNIT_CPU_MODEL == UNIT_2114)                    /* 2114? */
-                    dma [ch].cw2 = IODATA (stat_data) & 0137777;    /* only 14-bit address */
-                else                                                /* other models */
-                    dma [ch].cw2 = IODATA (stat_data);              /* full address stored */
+            else {                                             /* memory address selected */
+                if (UNIT_CPU_MODEL == UNIT_2114)               /* 2114? */
+                    dma[ch].cw2 = IODATA(stat_data) & 0137777; /* only 14-bit address */
+                else                                           /* other models */
+                    dma[ch].cw2 = IODATA(stat_data);           /* full address stored */
 
-                tpprintf (dma_dptrs [ch], TRACE_CSRW, "Control word 2 is %s address %05o\n",
-                          (dma [ch].cw2 & DMA2_OI ? "input to" : "output from"),
-                          dma [ch].cw2 & VAMASK);
-                }
+                tpprintf(dma_dptrs[ch], TRACE_CSRW, "Control word 2 is %s address %05o\n",
+                         (dma[ch].cw2 & DMA2_OI ? "input to" : "output from"), dma[ch].cw2 & VAMASK);
+            }
             break;
 
-        case ioCLC:                                     /* clear control flip-flop */
-            dma [ch].select = CLEAR;                    /* set for word count access */
+        case ioCLC:                 /* clear control flip-flop */
+            dma[ch].select = CLEAR; /* set for word count access */
             break;
 
-        case ioSTC:                                     /* set control flip-flop */
-            dma [ch].select = SET;                      /* set for memory address access */
+        case ioSTC:               /* set control flip-flop */
+            dma[ch].select = SET; /* set for memory address access */
             break;
 
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+        default:   /* all other signals */
+            break; /*   are ignored */
         }
 
-    working_set = working_set & ~signal;                /* remove current signal from set */
+        working_set = working_set & ~signal; /* remove current signal from set */
     }
 
-return stat_data;
+    return stat_data;
 }
-
 
 /* DMA reset */
 
-static t_stat dma_reset (DEVICE *dptr)
+static t_stat
+dma_reset (DEVICE *dptr)
 {
-DIB *dibptr = (DIB *) dptr->ctxt;                       /* DIB pointer */
-const CHANNEL ch = (CHANNEL) dibptr->card_index;        /* DMA channel number */
+    DIB *         dibptr = (DIB *)dptr->ctxt;           /* DIB pointer */
+    const CHANNEL ch     = (CHANNEL)dibptr->card_index; /* DMA channel number */
 
-if (UNIT_CPU_MODEL != UNIT_2114)                        /* 2114 has only one channel */
-    hp_enbdis_pair (dma_dptrs [ch],                     /* make specified channel */
-                    dma_dptrs [ch ^ 1]);                /*   consistent with other channel */
+    if (UNIT_CPU_MODEL != UNIT_2114)        /* 2114 has only one channel */
+        hp_enbdis_pair (dma_dptrs[ch],      /* make specified channel */
+                        dma_dptrs[ch ^ 1]); /*   consistent with other channel */
 
-if (sim_switches & SWMASK ('P')) {                      /* power-on reset? */
-    dma [ch].cw1 = 0;                                   /* clear control word registers */
-    dma [ch].cw2 = 0;
-    dma [ch].cw3 = 0;
-    }
+    if (sim_switches & SWMASK ('P'))
+        {                    /* power-on reset? */
+            dma[ch].cw1 = 0; /* clear control word registers */
+            dma[ch].cw2 = 0;
+            dma[ch].cw3 = 0;
+        }
 
-IOPRESET (dibptr);                                      /* PRESET device (does not use PON) */
+    IOPRESET (dibptr); /* PRESET device (does not use PON) */
 
-dma [ch].packer = 0;                                    /* clear byte packer */
+    dma[ch].packer = 0; /* clear byte packer */
 
-return SCPE_OK;
+    return SCPE_OK;
 }
 
-
-
 /* DMA local utility routine declarations */
-
 
 /* DMA cycle routine.
 
@@ -5791,127 +5926,116 @@ return SCPE_OK;
        retried after correcting the I/O error.
 */
 
-static t_stat dma_cycle (CHANNEL ch, ACCESS_CLASS class)
+static t_stat
+dma_cycle(CHANNEL ch, ACCESS_CLASS class)
 {
-const uint32  dev   = dma [ch].cw1 & I_DEVMASK;          /* device select code */
-const uint32  stc   = dma [ch].cw1 & DMA1_STC;           /* STC enable flag */
-const uint32  bytes = dma [ch].cw1 & DMA1_PB;            /* pack bytes flag */
-const uint32  clc   = dma [ch].cw1 & DMA1_CLC;           /* CLC enable flag */
-const HP_WORD MA    = dma [ch].cw2 & VAMASK;             /* memory address */
-const HP_WORD input = dma [ch].cw2 & DMA2_OI;            /* input flag */
-const uint32  even  = dma [ch].packer & DMA_OE;          /* odd/even packed byte flag */
-HP_WORD data;
-t_stat status;
-uint32 ioresult;
-IOCYCLE signals;
+    const uint32  dev   = dma[ch].cw1 & I_DEVMASK; /* device select code */
+    const uint32  stc   = dma[ch].cw1 & DMA1_STC;  /* STC enable flag */
+    const uint32  bytes = dma[ch].cw1 & DMA1_PB;   /* pack bytes flag */
+    const uint32  clc   = dma[ch].cw1 & DMA1_CLC;  /* CLC enable flag */
+    const HP_WORD MA    = dma[ch].cw2 & VAMASK;    /* memory address */
+    const HP_WORD input = dma[ch].cw2 & DMA2_OI;   /* input flag */
+    const uint32  even  = dma[ch].packer & DMA_OE; /* odd/even packed byte flag */
+    HP_WORD       data;
+    t_stat        status;
+    uint32        ioresult;
+    IOCYCLE       signals;
 
-if (bytes && !even || dma [ch].cw3 != DMASK) {          /* normal cycle? */
-    if (input)                                          /* input cycle? */
-        signals = ioIOI | ioCLF;                        /* assert IOI and CLF */
-    else                                                /* output cycle */
-        signals = ioIOO | ioCLF;                        /* assert IOO and CLF */
+    if ((bytes && !even) || dma[ch].cw3 != DMASK) { /* normal cycle? */
+        if (input)                                  /* input cycle? */
+            signals = ioIOI | ioCLF;                /* assert IOI and CLF */
+        else                                        /* output cycle */
+            signals = ioIOO | ioCLF;                /* assert IOO and CLF */
 
-    if (stc)                                            /* STC wanted? */
-        signals = signals | ioSTC;                      /* assert STC */
-    }
+        if (stc)                       /* STC wanted? */
+            signals = signals | ioSTC; /* assert STC */
+    } else {                                 /* last cycle */
+        if (input) {                         /* input cycle? */
+            signals = ioIOI | ioEDT;         /* assert IOI and EDT */
+	} else {                             /* output cycle */
+            signals = ioIOO | ioCLF | ioEDT; /* assert IOO and CLF and EDT */
 
-else {                                                  /* last cycle */
-    if (input)                                          /* input cycle? */
-        signals = ioIOI | ioEDT;                        /* assert IOI and EDT */
-    else {                                              /* output cycle */
-        signals = ioIOO | ioCLF | ioEDT;                /* assert IOO and CLF and EDT */
-
-        if (stc)                                        /* STC wanted? */
-            signals = signals | ioSTC;                  /* assert STC */
+            if (stc)                       /* STC wanted? */
+                signals = signals | ioSTC; /* assert STC */
         }
 
-    if (clc)                                            /* CLC wanted? */
-        signals = signals | ioCLC;                      /* assert CLC */
+        if (clc)                       /* CLC wanted? */
+            signals = signals | ioCLC; /* assert CLC */
     }
 
-if (input) {                                            /* input cycle? */
-    ioresult = io_dispatch (dev, signals, 0);           /* do I/O input */
+    if (input) {                                 /* input cycle? */
+        ioresult = io_dispatch(dev, signals, 0); /* do I/O input */
 
-    status = IOSTATUS (ioresult);                       /* get cycle status */
+        status = IOSTATUS(ioresult); /* get cycle status */
 
-    if (status == SCPE_OK) {                            /* good I/O cycle? */
-        data = IODATA (ioresult);                       /* extract return data value */
+        if (status == SCPE_OK) {     /* good I/O cycle? */
+            data = IODATA(ioresult); /* extract return data value */
 
-        if (bytes) {                                    /* byte packing? */
-            if (even) {                                 /* second byte? */
-                data = (uint16) (dma [ch].packer << 8)  /* merge stored byte */
-                         | (data & DMASK8);
-                mem_write (dma_dptrs [ch], class, MA, data);    /* store word data */
-                }
-            else                                        /* first byte */
-                dma [ch].packer = (data & DMASK8);      /* save it */
+            if (bytes) {                                 /* byte packing? */
+                if (even) {                              /* second byte? */
+                    data = (uint16)(dma[ch].packer << 8) /* merge stored byte */
+                           | (data & DMASK8);
+                    mem_write(dma_dptrs[ch], class, MA, data); /* store word data */
+                } else                                         /* first byte */
+                    dma[ch].packer = (data & DMASK8);          /* save it */
 
-            dma [ch].packer = dma [ch].packer ^ DMA_OE; /* flip odd/even bit */
-            }
-        else                                            /* no byte packing */
-            mem_write (dma_dptrs [ch], class, MA, data);    /* store word data */
+                dma[ch].packer = dma[ch].packer ^ DMA_OE;  /* flip odd/even bit */
+            } else                                         /* no byte packing */
+                mem_write(dma_dptrs[ch], class, MA, data); /* store word data */
         }
-    }
+    } else {                                    /* output cycle */
+        if (bytes) {                            /* byte packing? */
+            if (even)                           /* second byte? */
+                data = dma[ch].packer & DMASK8; /* retrieve it */
 
-else {                                                  /* output cycle */
-    if (bytes) {                                        /* byte packing? */
-        if (even)                                       /* second byte? */
-            data = dma [ch].packer & DMASK8;            /* retrieve it */
-
-        else {                                          /* first byte */
-            dma [ch].packer = mem_read (dma_dptrs [ch], class, MA);         /* read word data */
-            data = (dma [ch].packer >> 8) & DMASK8;     /* get high byte */
+            else {                                                   /* first byte */
+                dma[ch].packer = mem_read(dma_dptrs[ch], class, MA); /* read word data */
+                data           = (dma[ch].packer >> 8) & DMASK8;     /* get high byte */
             }
 
-        dma [ch].packer = dma [ch].packer ^ DMA_OE;     /* flip odd/even bit */
-        }
-    else                                                /* no byte packing */
-        data = mem_read (dma_dptrs [ch], class, MA);    /* read word data */
+            dma[ch].packer = dma[ch].packer ^ DMA_OE;  /* flip odd/even bit */
+        } else                                         /* no byte packing */
+            data = mem_read(dma_dptrs[ch], class, MA); /* read word data */
 
-    ioresult = io_dispatch (dev, signals, data);        /* do I/O output */
+        ioresult = io_dispatch(dev, signals, data); /* do I/O output */
 
-    status = IOSTATUS (ioresult);                       /* get cycle status */
+        status = IOSTATUS(ioresult); /* get cycle status */
     }
 
-if ((even || !bytes) && (status == SCPE_OK)) {          /* new byte or no packing and good xfer? */
-    dma [ch].cw2 = input | (dma [ch].cw2 + 1) & VAMASK; /* increment address */
-    dma [ch].cw3 = (dma [ch].cw3 + 1) & DMASK;          /* increment word count */
+    if ((even || !bytes) && (status == SCPE_OK)) {        /* new byte or no packing and good xfer? */
+        dma[ch].cw2 = input | ((dma[ch].cw2 + 1) & VAMASK); /* increment address */
+        dma[ch].cw3 = (dma[ch].cw3 + 1) & DMASK;          /* increment word count */
 
-    if (dma [ch].cw3 == 0)                              /* end of transfer? */
-        dmapio (dibs [DMA1 + ch], ioENF, 0);            /* set DMA channel flag */
+        if (dma[ch].cw3 == 0)                  /* end of transfer? */
+            dmapio(dibs[DMA1 + ch], ioENF, 0); /* set DMA channel flag */
     }
 
-return status;                                          /* return I/O status */
+    return status; /* return I/O status */
 }
-
 
 /* Calculate DMA requests */
 
-static uint32 calc_dma (void)
+static uint32
+calc_dma(void)
 {
-uint32 r = 0;
+    uint32 r = 0;
 
-if (dma [ch1].xferen && SRQ (dma [ch1].cw1 & I_DEVMASK)) {  /* check DMA1 cycle */
-    r = r | DMA_1_REQ;
+    if (dma[ch1].xferen && SRQ(dma[ch1].cw1 & I_DEVMASK)) { /* check DMA1 cycle */
+        r = r | DMA_1_REQ;
 
-    tprintf (dma1_dev, TRACE_SR, "Select code %02o asserted SRQ\n",
-             dma [ch1].cw1 & I_DEVMASK);
+        tprintf(dma1_dev, TRACE_SR, "Select code %02o asserted SRQ\n", dma[ch1].cw1 & I_DEVMASK);
     }
 
-if (dma [ch2].xferen && SRQ (dma [ch2].cw1 & I_DEVMASK)) {  /* check DMA2 cycle */
-    r = r | DMA_2_REQ;
+    if (dma[ch2].xferen && SRQ(dma[ch2].cw1 & I_DEVMASK)) { /* check DMA2 cycle */
+        r = r | DMA_2_REQ;
 
-    tprintf (dma2_dev, TRACE_SR, "Select code %02o asserted SRQ\n",
-             dma [ch2].cw1 & I_DEVMASK);
+        tprintf(dma2_dev, TRACE_SR, "Select code %02o asserted SRQ\n", dma[ch2].cw1 & I_DEVMASK);
     }
 
-return r;
+    return r;
 }
 
-
-
 /* Memory Protect local SCP support routine declarations */
-
 
 /* Memory protect/parity error (SC 5) I/O signal handler.
 
@@ -5970,111 +6094,109 @@ return r;
     4. Parity error logic is not implemented.
 */
 
-static uint32 protio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+static uint32
+protio(DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-uint16   data;
-IOSIGNAL signal;
-IOCYCLE  working_set = IOADDSIR (signal_set);           /* add ioSIR if needed */
+    uint16   data;
+    IOSIGNAL signal;
+    IOCYCLE  working_set = IOADDSIR(signal_set); /* add ioSIR if needed */
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate next signal */
+    while (working_set) {
+        signal = IONEXT(working_set); /* isolate next signal */
 
-    switch (signal) {                                   /* dispatch I/O signal */
+        switch (signal) { /* dispatch I/O signal */
 
-        case ioCLF:                                     /* clear flag flip-flop */
-            break;                                      /* turns off PE interrupt */
+        case ioCLF: /* clear flag flip-flop */
+            break;  /* turns off PE interrupt */
 
-        case ioSTF:                                     /* set flag flip-flop */
-            break;                                      /* turns on PE interrupt */
+        case ioSTF: /* set flag flip-flop */
+            break;  /* turns on PE interrupt */
 
-        case ioENF:                                     /* enable flag */
-            mp_flag = mp_flagbuf = SET;                 /* set flag buffer and flag flip-flops */
-            mp_evrff = CLEAR;                           /* inhibit violation register updates */
+        case ioENF:                       /* enable flag */
+            mp_flag = mp_flagbuf = SET;   /* set flag buffer and flag flip-flops */
+            mp_evrff             = CLEAR; /* inhibit violation register updates */
             break;
 
-        case ioSFC:                                     /* skip if flag is clear */
-            setSKF (!mp_mevff);                         /* skip if MP interrupt */
+        case ioSFC:            /* skip if flag is clear */
+            setSKF(!mp_mevff); /* skip if MP interrupt */
             break;
 
-        case ioSFS:                                     /* skip if flag is set */
-            setSKF (mp_mevff);                          /* skip if DMS interrupt */
+        case ioSFS:           /* skip if flag is set */
+            setSKF(mp_mevff); /* skip if DMS interrupt */
             break;
 
-        case ioIOI:                                     /* I/O input */
-            stat_data = IORETURN (SCPE_OK, mp_viol);    /* read MP violation register */
+        case ioIOI:                                 /* I/O input */
+            stat_data = IORETURN(SCPE_OK, mp_viol); /* read MP violation register */
             break;
 
-        case ioIOO:                                     /* I/O output */
-            mp_fence = IODATA (stat_data) & VAMASK;     /* write to MP fence register */
+        case ioIOO:                                /* I/O output */
+            mp_fence = IODATA(stat_data) & VAMASK; /* write to MP fence register */
 
-            if (cpu_unit.flags & UNIT_2100)             /* 2100 IOP uses MP fence */
-                iop_sp = mp_fence;                      /*   as a stack pointer */
+            if (cpu_unit.flags & UNIT_2100) /* 2100 IOP uses MP fence */
+                iop_sp = mp_fence;          /*   as a stack pointer */
 
-            mp_mem_changed = TRUE;                      /* set the MP/MEM registers changed flag */
+            mp_mem_changed = TRUE; /* set the MP/MEM registers changed flag */
             break;
 
-        case ioPOPIO:                                   /* power-on preset to I/O */
-            mp_control = CLEAR;                         /* clear control flip-flop */
-            mp_flag = mp_flagbuf = CLEAR;               /* clear flag and flag buffer flip-flops */
-            mp_mevff = CLEAR;                           /* clear memory expansion violation flip-flop */
-            mp_evrff = SET;                             /* set enable violation register flip-flop */
+        case ioPOPIO:                     /* power-on preset to I/O */
+            mp_control = CLEAR;           /* clear control flip-flop */
+            mp_flag = mp_flagbuf = CLEAR; /* clear flag and flag buffer flip-flops */
+            mp_mevff             = CLEAR; /* clear memory expansion violation flip-flop */
+            mp_evrff             = SET;   /* set enable violation register flip-flop */
             break;
 
-        case ioSTC:                                     /* set control flip-flop */
-            mp_control = SET;                           /* turn on MP */
-            mp_mevff = CLEAR;                           /* clear memory expansion violation flip-flop */
-            mp_evrff = SET;                             /* set enable violation register flip-flop */
+        case ioSTC:             /* set control flip-flop */
+            mp_control = SET;   /* turn on MP */
+            mp_mevff   = CLEAR; /* clear memory expansion violation flip-flop */
+            mp_evrff   = SET;   /* set enable violation register flip-flop */
             break;
 
-        case ioSIR:                                     /* set interrupt request */
-            setPRL (PRO, !mp_flag);                     /* set PRL signal */
-            setIRQ (PRO, mp_flag);                      /* set IRQ signal */
+        case ioSIR:                /* set interrupt request */
+            setPRL(PRO, !mp_flag); /* set PRL signal */
+            setIRQ(PRO, mp_flag);  /* set IRQ signal */
             break;
 
-        case ioIAK:                                     /* interrupt acknowledge */
-            if (dibptr->select_code == PRO)             /* MP interrupt acknowledgement? */
-                mp_flag = mp_flagbuf = CLEAR;           /* clear flag and flag buffer */
+        case ioIAK:                           /* interrupt acknowledge */
+            if (dibptr->select_code == PRO)   /* MP interrupt acknowledgement? */
+                mp_flag = mp_flagbuf = CLEAR; /* clear flag and flag buffer */
 
-            data = IODATA (stat_data);                  /* get trap cell instruction */
+            data = IODATA(stat_data); /* get trap cell instruction */
 
-            if (((data & I_NMRMASK) != I_IO) ||         /* trap cell instruction not I/O */
-                (I_GETIOOP (data) == soHLT))            /*   or is halt? */
-                mp_control = CLEAR;                     /* turn protection off */
-            else {                                      /* non-HLT I/O instruction leaves MP on */
-                mp_mevff = CLEAR;                       /*   but clears MEV flip-flop */
-                mp_evrff = SET;                         /*   and reenables violation register flip-flop */
-                }
+            if (((data & I_NMRMASK) != I_IO) || /* trap cell instruction not I/O */
+                (I_GETIOOP(data) == soHLT))     /*   or is halt? */
+                mp_control = CLEAR;             /* turn protection off */
+            else {                              /* non-HLT I/O instruction leaves MP on */
+                mp_mevff = CLEAR;               /*   but clears MEV flip-flop */
+                mp_evrff = SET;                 /*   and reenables violation register flip-flop */
+            }
             break;
 
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+        default:   /* all other signals */
+            break; /*   are ignored */
         }
 
-    working_set = working_set & ~signal;                /* remove current signal from set */
+        working_set = working_set & ~signal; /* remove current signal from set */
     }
 
-return stat_data;
+    return stat_data;
 }
-
 
 /* Memory protect reset */
 
-static t_stat mp_reset (DEVICE *dptr)
+static t_stat
+mp_reset (DEVICE *dptr)
 {
-IOPRESET (&mp_dib);                                     /* PRESET device (does not use PON) */
+    IOPRESET (&mp_dib); /* PRESET device (does not use PON) */
 
-mp_fence = 0;                                           /* clear fence register */
-mp_viol = 0;                                            /* clear violation register */
+    mp_fence = 0; /* clear fence register */
+    mp_viol  = 0; /* clear violation register */
 
-mp_mem_changed = TRUE;                                  /* set the MP/MEM registers changed flag */
+    mp_mem_changed = TRUE; /* set the MP/MEM registers changed flag */
 
-return SCPE_OK;
+    return SCPE_OK;
 }
 
-
-
 /* I/O system local utility routine declarations */
-
 
 /* Initialize the I/O system.
 
@@ -6093,51 +6215,55 @@ return SCPE_OK;
    while the simulation was stopped.
 */
 
-static void io_initialize (void)
+static void
+io_initialize (void)
 {
-DEVICE *dptr;
-DIB    *dibptr;
-uint32 i;
+    DEVICE *dptr;
+    DIB *   dibptr;
+    uint32  i;
 
-dev_prl [0] = dev_prl [1] = ~0u;                        /* set all priority lows */
-dev_irq [0] = dev_irq [1] = 0;                          /* clear all interrupt requests */
-dev_srq [0] = dev_srq [1] = 0;                          /* clear all service requests */
+    dev_prl[0] = dev_prl[1] = ~0u; /* set all priority lows */
+    dev_irq[0] = dev_irq[1] = 0;   /* clear all interrupt requests */
+    dev_srq[0] = dev_srq[1] = 0;   /* clear all service requests */
 
-memset (&dibs [2], 0, sizeof dibs - 2 * sizeof dibs [0]);   /* clear the DIB pointer table */
-memset (&devs [2], 0, sizeof devs - 2 * sizeof devs [0]);   /*   and the device table */
+    memset (&dibs[2], 0, sizeof dibs - 2 * sizeof dibs[0]); /* clear the DIB pointer table */
+    memset (&devs[2], 0, sizeof devs - 2 * sizeof devs[0]); /*   and the device table */
 
-for (i = 0; sim_devices [i] != NULL; i++) {             /* loop through all of the devices */
-    dptr = sim_devices [i];                             /* get a pointer to the device */
-    dibptr = (DIB *) dptr->ctxt;                        /*   and to that device's DIB */
+    for (i = 0; sim_devices[i] != NULL; i++)
+        {                               /* loop through all of the devices */
+            dptr   = sim_devices[i];    /* get a pointer to the device */
+            dibptr = (DIB *)dptr->ctxt; /*   and to that device's DIB */
 
-    if (dibptr && !(dptr->flags & DEV_DIS)) {           /* if the DIB exists and the device is enabled */
-        devs [dibptr->select_code] = dptr;              /*   then set the device pointer into the device table */
-        dibs [dibptr->select_code] = dibptr;            /*     and set the DIB pointer into the dispatch table */
+            if (dibptr && !(dptr->flags & DEV_DIS))
+                {                                       /* if the DIB exists and the device is enabled */
+                    devs[dibptr->select_code] = dptr;   /*   then set the device pointer into the device table */
+                    dibs[dibptr->select_code] = dibptr; /*     and set the DIB pointer into the dispatch table */
 
-        if (dibptr->select_code >= SIRDEV)              /* if this device receives SIR */
-            dibptr->io_handler (dibptr, ioSIR, 0);      /*   then set the interrupt request state */
+                    if (dibptr->select_code >= SIRDEV)         /* if this device receives SIR */
+                        dibptr->io_handler (dibptr, ioSIR, 0); /*   then set the interrupt request state */
+                }
         }
-    }
 
-dibs [PWR] = &pwrf_dib;                                 /* for now, powerfail is always present */
-devs [PWR] = &cpu_dev;                                  /*   and is controlled by the CPU */
+    dibs[PWR] = &pwrf_dib; /* for now, powerfail is always present */
+    devs[PWR] = &cpu_dev;  /*   and is controlled by the CPU */
 
-if (dibs [DMA1]) {                                      /* if the first DMA channel is enabled */
-    dibs [DMALT1] = &dmas1_dib;                         /*   then set up  */
-    devs [DMALT1] = &dma1_dev;                          /*     the secondary device handler */
-    }
+    if (dibs[DMA1])
+        {                              /* if the first DMA channel is enabled */
+            dibs[DMALT1] = &dmas1_dib; /*   then set up  */
+            devs[DMALT1] = &dma1_dev;  /*     the secondary device handler */
+        }
 
-if (dibs [DMA2]) {                                      /* if the second DMA channel is enabled */
-    dibs [DMALT2] = &dmas2_dib;                         /*   then set up  */
-    devs [DMALT2] = &dma2_dev;                          /*     the secondary device handler */
-    }
+    if (dibs[DMA2])
+        {                              /* if the second DMA channel is enabled */
+            dibs[DMALT2] = &dmas2_dib; /*   then set up  */
+            devs[DMALT2] = &dma2_dev;  /*     the secondary device handler */
+        }
 
-defer_tab [soSFC] = is_1000;                            /* SFC and SFS defer */
-defer_tab [soSFS] = is_1000;                            /*   for 1000-Series CPUs only */
+    defer_tab[soSFC] = is_1000; /* SFC and SFS defer */
+    defer_tab[soSFS] = is_1000; /*   for 1000-Series CPUs only */
 
-return;
+    return;
 }
-
 
 /* Device I/O signal dispatcher.
 
@@ -6168,36 +6294,37 @@ return;
        detecting consecutive CLC 0 executions.
 */
 
-static uint32 io_dispatch (uint32 select_code, IOCYCLE signal_set, HP_WORD data)
+static uint32
+io_dispatch (uint32 select_code, IOCYCLE signal_set, HP_WORD data)
 {
-uint32 stat_data;
+    uint32 stat_data;
 
-if (dibs [select_code] != NULL) {                           /* if the I/O slot is occupied */
-    tpprintf (devs [select_code], TRACE_IOBUS, "Received data %06o with signals %s\n",
-              data, fmt_bitset (signal_set, inbound_format));
+    if (dibs[select_code] != NULL)
+        { /* if the I/O slot is occupied */
+            tpprintf (devs[select_code], TRACE_IOBUS, "Received data %06o with signals %s\n", data,
+                      fmt_bitset (signal_set, inbound_format));
 
-    stat_data =                                             /*   then call the device interface */
-      dibs [select_code]->io_handler (dibs [select_code],   /*     with the indicated signals and write value */
-                                      signal_set,
-                                      IORETURN (SCPE_OK, data));
+            stat_data =                                           /*   then call the device interface */
+                dibs[select_code]->io_handler (dibs[select_code], /*     with the indicated signals and write value */
+                                               signal_set, IORETURN (SCPE_OK, data));
 
-    tpprintf (devs [select_code], TRACE_IOBUS, "Returned data %06o with signals %s\n",
-              IODATA (stat_data), fmt_bitset (stat_data, outbound_format));
+            tpprintf (devs[select_code], TRACE_IOBUS, "Returned data %06o with signals %s\n", IODATA (stat_data),
+                      fmt_bitset (stat_data, outbound_format));
 
-    last_select_code = select_code;                         /* save the select code for CLC 0 detection */
+            last_select_code = select_code; /* save the select code for CLC 0 detection */
 
-    if (stat_data & ioSKF)                                  /* if the interface asserted SKF */
-        stat_data = IORETURN (NOTE_SKIP, 0);                /*   then notify the caller to increment P */
-    }
+            if (stat_data & ioSKF)                   /* if the interface asserted SKF */
+                stat_data = IORETURN (NOTE_SKIP, 0); /*   then notify the caller to increment P */
+        }
 
-else if (signal_set & ioIOI)                                /* otherwise if it is an input request */
-    if (select_code < VARDEV && is_1000)                    /*   then if it is an internal device of a 1000 CPU */
-        stat_data = IORETURN (STOP (cpu_ss_unsc), DMASK);   /*     then the empty slot reads as all ones */
-    else                                                    /*   otherwise */
-        stat_data = IORETURN (STOP (cpu_ss_unsc), 0);       /*     the empty slot reads as all zeros */
+    else if (signal_set & ioIOI)                              /* otherwise if it is an input request */
+        if (select_code < VARDEV && is_1000)                  /*   then if it is an internal device of a 1000 CPU */
+            stat_data = IORETURN (STOP (cpu_ss_unsc), DMASK); /*     then the empty slot reads as all ones */
+        else                                                  /*   otherwise */
+            stat_data = IORETURN (STOP (cpu_ss_unsc), 0);     /*     the empty slot reads as all zeros */
 
-else                                                        /* otherwise */
-    stat_data = IORETURN (STOP (cpu_ss_unsc), 0);           /*   the signal is ignored */
+    else                                              /* otherwise */
+        stat_data = IORETURN (STOP (cpu_ss_unsc), 0); /*   the signal is ignored */
 
-return stat_data;
+    return stat_data;
 }

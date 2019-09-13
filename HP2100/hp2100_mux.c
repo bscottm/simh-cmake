@@ -901,177 +901,179 @@ DEVICE muxc_dev = {
        reset the multiplexer.
 */
 
-uint32 muxlio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+uint32
+muxlio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-int32    ln;
-IOSIGNAL signal;
-IOCYCLE  working_set = IOADDSIR (signal_set);           /* add ioSIR if needed */
+    int32    ln;
+    IOSIGNAL signal;
+    IOCYCLE  working_set = IOADDSIR (signal_set); /* add ioSIR if needed */
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate next signal */
+    while (working_set)
+        {
+            signal = IONEXT (working_set); /* isolate next signal */
 
-    switch (signal) {                                   /* dispatch I/O signal */
+            switch (signal)
+                { /* dispatch I/O signal */
 
-        case ioCLF:                                     /* clear flag flip-flop */
-            muxl.flag = muxl.flagbuf = CLEAR;
-            mux_data_int ();                            /* look for new int */
-            break;
+                case ioCLF: /* clear flag flip-flop */
+                    muxl.flag = muxl.flagbuf = CLEAR;
+                    mux_data_int (); /* look for new int */
+                    break;
 
+                case ioSTF: /* set flag flip-flop */
+                case ioENF: /* enable flag */
+                    muxl.flag = muxl.flagbuf = SET;
+                    break;
 
-        case ioSTF:                                     /* set flag flip-flop */
-        case ioENF:                                     /* enable flag */
-            muxl.flag = muxl.flagbuf = SET;
-            break;
+                case ioSFC: /* skip if flag is clear */
+                    setstdSKF (muxl);
+                    break;
 
+                case ioSFS: /* skip if flag is set */
+                    setstdSKF (muxl);
+                    break;
 
-        case ioSFC:                                     /* skip if flag is clear */
-            setstdSKF (muxl);
-            break;
+                case ioIOI: /* I/O data input */
+                    tprintf (muxl_dev, TRACE_CSRW, "Input data is channel %u | %s%04o\n", MUX_CHAN (muxl_ibuf),
+                             fmt_bitset (muxl_ibuf, lower_input_format), muxl_ibuf & LIL_CHAR);
 
+                    stat_data = IORETURN (SCPE_OK, muxl_ibuf); /* merge in return status */
+                    break;
 
-        case ioSFS:                                     /* skip if flag is set */
-            setstdSKF (muxl);
-            break;
+                case ioIOO:                         /* I/O data output */
+                    muxl_obuf = IODATA (stat_data); /* store data */
 
+                    if (muxl_obuf & OTL_P)
+                        {
+                            tprintf (muxl_dev, TRACE_CSRW, "Parameter is %s%u bits | %u baud\n",
+                                     fmt_bitset (muxl_obuf, lower_parameter_format), bits_per_char[OTL_LNT (muxl_obuf)],
+                                     BAUD_RATE (muxl_obuf));
+                        }
+                    else
+                        {
+                            tprintf (muxl_dev, TRACE_CSRW, "Output data is %s%04o\n",
+                                     fmt_bitset (muxl_obuf, lower_data_format), muxl_obuf & OTL_CHAR);
+                        }
+                    break;
 
-        case ioIOI:                                     /* I/O data input */
-            tprintf (muxl_dev, TRACE_CSRW, "Input data is channel %u | %s%04o\n",
-                     MUX_CHAN (muxl_ibuf),
-                     fmt_bitset (muxl_ibuf, lower_input_format),
-                     muxl_ibuf & LIL_CHAR);
+                case ioPOPIO:                       /* power-on preset to I/O */
+                    muxl.flag = muxl.flagbuf = SET; /* set flag andflag buffer */
+                    break;
 
-            stat_data = IORETURN (SCPE_OK, muxl_ibuf);  /* merge in return status */
-            break;
+                case ioCRS:               /* control reset */
+                    muxl.control = CLEAR; /* clear control flip-flop */
 
-
-        case ioIOO:                                     /* I/O data output */
-            muxl_obuf = IODATA (stat_data);             /* store data */
-
-
-            if (muxl_obuf & OTL_P)
-                tprintf (muxl_dev, TRACE_CSRW, "Parameter is %s%u bits | %u baud\n",
-                         fmt_bitset (muxl_obuf, lower_parameter_format),
-                         bits_per_char [OTL_LNT (muxl_obuf)],
-                         BAUD_RATE (muxl_obuf));
-            else
-                tprintf (muxl_dev, TRACE_CSRW, "Output data is %s%04o\n",
-                         fmt_bitset (muxl_obuf, lower_data_format),
-                         muxl_obuf & OTL_CHAR);
-            break;
-
-
-        case ioPOPIO:                                   /* power-on preset to I/O */
-            muxl.flag = muxl.flagbuf = SET;             /* set flag andflag buffer */
-            break;
-
-
-        case ioCRS:                                     /* control reset */
-            muxl.control = CLEAR;                       /* clear control flip-flop */
-
-            for (ln = 0; ln < SEND_CHAN_COUNT; ln++) {  /* clear transmit info */
-                mux_xbuf[ln] = mux_xpar[ln] = 0;
-                muxc_ota[ln] = muxc_lia[ln] = mux_xdon[ln] = 0;
-                }
-
-            for (ln = 0; ln < RECV_CHAN_COUNT; ln++) {
-                mux_rbuf[ln] = mux_rpar[ln] = 0;        /* clear receive info */
-                mux_sta[ln] = mux_rchp[ln] = 0;
-                }
-
-            break;
-
-
-        case ioCLC:                                     /* clear control flip-flop */
-            muxl.control = CLEAR;
-            break;
-
-
-        case ioSTC:                                             /* set control flip-flop */
-            muxl.control = SET;                                 /* set control */
-
-            ln = MUX_CHAN (muxu_obuf);                          /* get chan # */
-
-            if (muxl_obuf & OTL_TX)                             /* if this is a send parameter or data */
-                if (ln >= SEND_CHAN_COUNT)                      /*   then report if the channel number is out of range */
-                    tprintf (muxl_dev, TRACE_CSRW, "Send channel %d invalid\n",
-                             ln);
-
-                else if (muxl_obuf & OTL_P) {                   /* otherwise if this is a parameter store */
-                    mux_xpar[ln] = (uint16) muxl_obuf;          /*   then save it */
-
-                    tprintf (muxl_dev, TRACE_CSRW, "Channel %d send parameter %06o stored\n",
-                             ln, muxl_obuf);
-                    }
-
-                else {                                          /* otherwise this is a data store */
-                    if (mux_xpar[ln] & OTL_TPAR)                /* if parity is enabled */
-                        muxl_obuf = muxl_obuf & ~OTL_PAR        /*   then replace the parity bit */
-                                      | XMT_PAR (muxl_obuf);    /*     with the calculated value */
-
-                    mux_xbuf[ln] = (uint16) muxl_obuf;          /* load buffer */
-
-                    if (sim_is_active (&muxl_unit[ln])) {       /* still working? */
-                        mux_sta[ln] = mux_sta[ln] | LIU_LOST;   /* char lost */
-
-                        tprintf (muxl_dev, TRACE_CSRW, "Channel %d send data overrun\n",
-                                 ln);
+                    for (ln = 0; ln < SEND_CHAN_COUNT; ln++)
+                        { /* clear transmit info */
+                            mux_xbuf[ln] = mux_xpar[ln] = 0;
+                            muxc_ota[ln] = muxc_lia[ln] = mux_xdon[ln] = 0;
                         }
 
-                    else {
-                        if (muxu_unit.flags & UNIT_DIAG)        /* loopback? */
-                            mux_ldsc[ln].conn = 1;              /* connect this line */
-
-                        sim_activate (&muxl_unit[ln], muxl_unit[ln].wait);
-
-                        tprintf (muxl_dev, TRACE_CSRW, "Channel %d send data %06o stored\n",
-                                 ln, muxl_obuf);
-
-                        tprintf (muxl_dev, TRACE_SERV, "Channel %d delay %d service scheduled\n",
-                                 ln, muxl_unit [ln].wait);
+                    for (ln = 0; ln < RECV_CHAN_COUNT; ln++)
+                        {
+                            mux_rbuf[ln] = mux_rpar[ln] = 0; /* clear receive info */
+                            mux_sta[ln] = mux_rchp[ln] = 0;
                         }
-                    }
 
-            else                                        /* otherwise this is a receive parameter */
-                if (ln >= RECV_CHAN_COUNT)              /* report if the channel number is out of range */
-                    tprintf (muxl_dev, TRACE_CSRW, "Receive channel %d invalid\n",
-                             ln);
+                    break;
 
-                else if (muxl_obuf & OTL_P) {           /* otherwise if this is a parameter store */
-                    mux_rpar[ln] = (uint16) muxl_obuf;  /*   then save it */
+                case ioCLC: /* clear control flip-flop */
+                    muxl.control = CLEAR;
+                    break;
 
-                    tprintf (muxl_dev, TRACE_CSRW, "Channel %d receive parameter %06o stored\n",
-                             ln, muxl_obuf);
-                    }
+                case ioSTC:             /* set control flip-flop */
+                    muxl.control = SET; /* set control */
 
-                else                                    /* otherwise a data store to a receive channel is invalid */
-                    tprintf (muxl_dev, TRACE_CSRW, "Channel %d receive output data word %06o invalid\n",
-                             ln, muxl_obuf);
+                    ln = MUX_CHAN (muxu_obuf); /* get chan # */
 
-            break;
+                    if (muxl_obuf & OTL_TX)
+                        { /* if this is a send parameter or data */
+                            if (ln >= SEND_CHAN_COUNT)
+                                { /*   then report if the channel number is out of range */
+                                    tprintf (muxl_dev, TRACE_CSRW, "Send channel %d invalid\n", ln);
+                                }
+                            else if (muxl_obuf & OTL_P)
+                                {                                     /* otherwise if this is a parameter store */
+                                    mux_xpar[ln] = (uint16)muxl_obuf; /*   then save it */
 
+                                    tprintf (muxl_dev, TRACE_CSRW, "Channel %d send parameter %06o stored\n", ln,
+                                             muxl_obuf);
+                                }
 
-        case ioSIR:                                     /* set interrupt request */
-            setstdPRL (muxl);                           /* set standard PRL signal */
-            setstdIRQ (muxl);                           /* set standard IRQ signal */
-            setstdSRQ (muxl);                           /* set standard SRQ signal */
-            break;
+                            else
+                                {                                          /* otherwise this is a data store */
+                                    if (mux_xpar[ln] & OTL_TPAR)           /* if parity is enabled */
+                                        muxl_obuf = (muxl_obuf & ~OTL_PAR) /*   then replace the parity bit */
+                                                    | XMT_PAR (muxl_obuf); /*     with the calculated value */
 
+                                    mux_xbuf[ln] = (uint16)muxl_obuf; /* load buffer */
 
-        case ioIAK:                                     /* interrupt acknowledge */
-            muxl.flagbuf = CLEAR;
-            break;
+                                    if (sim_is_active (&muxl_unit[ln]))
+                                        {                                         /* still working? */
+                                            mux_sta[ln] = mux_sta[ln] | LIU_LOST; /* char lost */
 
+                                            tprintf (muxl_dev, TRACE_CSRW, "Channel %d send data overrun\n", ln);
+                                        }
 
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+                                    else
+                                        {
+                                            if (muxu_unit.flags & UNIT_DIAG) /* loopback? */
+                                                mux_ldsc[ln].conn = 1;       /* connect this line */
+
+                                            sim_activate (&muxl_unit[ln], muxl_unit[ln].wait);
+
+                                            tprintf (muxl_dev, TRACE_CSRW, "Channel %d send data %06o stored\n", ln,
+                                                     muxl_obuf);
+
+                                            tprintf (muxl_dev, TRACE_SERV, "Channel %d delay %d service scheduled\n", ln,
+                                                     muxl_unit[ln].wait);
+                                        }
+                                }
+                        }
+                    else
+                        { /* otherwise this is a receive parameter */
+                            if (ln >= RECV_CHAN_COUNT)
+                                { /* report if the channel number is out of range */
+                                    tprintf (muxl_dev, TRACE_CSRW, "Receive channel %d invalid\n", ln);
+                                }
+                            else
+                                {
+                                    if (muxl_obuf & OTL_P)
+                                        {                                     /* otherwise if this is a parameter store */
+                                            mux_rpar[ln] = (uint16)muxl_obuf; /*   then save it */
+
+                                            tprintf (muxl_dev, TRACE_CSRW, "Channel %d receive parameter %06o stored\n",
+                                                     ln, muxl_obuf);
+                                        }
+
+                                    else
+                                        { /* otherwise a data store to a receive channel is invalid */
+                                            tprintf (muxl_dev, TRACE_CSRW,
+                                                     "Channel %d receive output data word %06o invalid\n", ln, muxl_obuf);
+                                        }
+                                }
+                        }
+                    break;
+
+                case ioSIR:           /* set interrupt request */
+                    setstdPRL (muxl); /* set standard PRL signal */
+                    setstdIRQ (muxl); /* set standard IRQ signal */
+                    setstdSRQ (muxl); /* set standard SRQ signal */
+                    break;
+
+                case ioIAK: /* interrupt acknowledge */
+                    muxl.flagbuf = CLEAR;
+                    break;
+
+                default:   /* all other signals */
+                    break; /*   are ignored */
+                }
+
+            working_set = working_set & ~signal; /* remove current signal from set */
         }
 
-    working_set = working_set & ~signal;                /* remove current signal from set */
-    }
-
-return stat_data;
+    return stat_data;
 }
-
 
 /* Upper data card I/O signal handler.
 
@@ -1348,127 +1350,124 @@ return SCPE_OK;
 
 /* Unit service - transmit side */
 
-t_stat muxo_svc (UNIT *uptr)
+t_stat
+muxo_svc (UNIT *uptr)
 {
-const int32 ln = uptr - muxl_unit;                      /* line # */
-const int32 altln = ln ^ 1;                             /* alt. line for diag mode */
-int32 c, fc;
-t_bool loopback;
-t_stat result = SCPE_OK;
+    const int32 ln    = uptr - muxl_unit; /* line # */
+    const int32 altln = ln ^ 1;           /* alt. line for diag mode */
+    int32       c, fc;
+    t_bool      loopback;
+    t_stat      result = SCPE_OK;
 
-tprintf (muxl_dev, TRACE_SERV, "Channel %d service entered\n",
-         ln);
+    tprintf (muxl_dev, TRACE_SERV, "Channel %d service entered\n", ln);
 
-fc = mux_xbuf[ln] & OTL_CHAR;                           /* full character data */
-c = fc & 0377;                                          /* line character data */
+    fc = mux_xbuf[ln] & OTL_CHAR; /* full character data */
+    c  = fc & 0377;               /* line character data */
 
-loopback = ((muxu_unit.flags & UNIT_DIAG) != 0);        /* diagnostic mode? */
+    loopback = ((muxu_unit.flags & UNIT_DIAG) != 0); /* diagnostic mode? */
 
-if (mux_ldsc[ln].xmte) {                                /* xmt enabled? */
-    if (loopback)                                       /* diagnostic mode? */
-        mux_ldsc[ln].conn = 0;                          /* clear connection */
-
-    else if (mux_defer[ln])                             /* break deferred? */
-        mux_receive (ln, SCPE_BREAK, loopback);         /* process it now */
-
-    if ((mux_xbuf[ln] & OTL_SYNC) == 0) {               /* start bit 0? */
-        TMLN *lp = &mux_ldsc[ln];                       /* get line */
-        c = sim_tt_outcvt (c, TT_GET_MODE (muxl_unit[ln].flags));
-
-        if (mux_xpar[ln] & OTL_DIAG)                    /* xmt diagnose? */
-            mux_diag (fc);                              /* before munge */
-
-        if (loopback) {                                 /* diagnostic mode? */
-            mux_ldsc[altln].conn = 1;                   /* set recv connection */
-            sim_activate (&muxu_unit, 1);               /* schedule receive */
-            }
-
-        else {                                          /* no loopback */
-            if (c >= 0)                                 /* valid? */
-                result = tmxr_putc_ln (lp, c);          /* output char */
-            tmxr_poll_tx (&mux_desc);                   /* poll xmt */
-            }
+    if (mux_ldsc[ln].xmte) {       /* xmt enabled? */
+        if (loopback) {            /* diagnostic mode? */
+            mux_ldsc[ln].conn = 0; /* clear connection */
+        } else {
+            if (mux_defer[ln])                          /* break deferred? */
+                mux_receive (ln, SCPE_BREAK, loopback); /* process it now */
         }
 
-    else if (mux_ldsc [ln].conn == 0)                   /* sync character isn't seen by receiver */
-        result = SCPE_LOST;                             /*   so report transfer success if connected */
+        if ((mux_xbuf[ln] & OTL_SYNC) == 0) { /* start bit 0? */
+            TMLN *lp = &mux_ldsc[ln];         /* get line */
+            c        = sim_tt_outcvt (c, TT_GET_MODE (muxl_unit[ln].flags));
 
-    mux_xdon[ln] = 1;                                   /* set for xmit irq */
+            if (mux_xpar[ln] & OTL_DIAG) /* xmt diagnose? */
+                mux_diag (fc);           /* before munge */
 
-    if (loopback || c >= 0)
-        if (result == SCPE_LOST)
-            tprintf (muxl_dev, TRACE_XFER, "Channel %d character %s discarded by connection loss\n",
-                     ln, fmt_char ((uint8) (loopback ? fc : c)));
-        else
-            tprintf (muxl_dev, TRACE_XFER, "Channel %d character %s sent\n",
-                     ln, fmt_char ((uint8) (loopback ? fc : c)));
+            if (loopback) {                   /* diagnostic mode? */
+                mux_ldsc[altln].conn = 1;     /* set recv connection */
+                sim_activate (&muxu_unit, 1); /* schedule receive */
+            }
+
+            else {                                 /* no loopback */
+                if (c >= 0)                        /* valid? */
+                    result = tmxr_putc_ln (lp, c); /* output char */
+                tmxr_poll_tx (&mux_desc);          /* poll xmt */
+            }
+        } else {
+            if (mux_ldsc[ln].conn == 0) /* sync character isn't seen by receiver */
+                result = SCPE_LOST;     /*   so report transfer success if connected */
+        }
+
+        mux_xdon[ln] = 1; /* set for xmit irq */
+
+        if (loopback || c >= 0) {
+            if (result == SCPE_LOST) {
+                tprintf (muxl_dev, TRACE_XFER, "Channel %d character %s discarded by connection loss\n", ln,
+                         fmt_char ((uint8) (loopback ? fc : c)));
+            } else {
+                tprintf (muxl_dev, TRACE_XFER, "Channel %d character %s sent\n", ln,
+                         fmt_char ((uint8) (loopback ? fc : c)));
+            }
+        }
+    } else {                                     /* buf full */
+        tmxr_poll_tx (&mux_desc);                /* poll xmt */
+        sim_activate (uptr, muxl_unit[ln].wait); /* wait */
+
+        tprintf (muxl_dev, TRACE_SERV, "Channel %d delay %d service rescheduled\n", ln, muxl_unit[ln].wait);
+
+        return SCPE_OK;
     }
 
-else {                                              /* buf full */
-    tmxr_poll_tx (&mux_desc);                       /* poll xmt */
-    sim_activate (uptr, muxl_unit[ln].wait);        /* wait */
-
-    tprintf (muxl_dev, TRACE_SERV, "Channel %d delay %d service rescheduled\n",
-             ln, muxl_unit [ln].wait);
-
+    if (!muxl.flag)
+        mux_data_int (); /* scan for int */
     return SCPE_OK;
-    }
-
-if (!muxl.flag) mux_data_int ();                        /* scan for int */
-return SCPE_OK;
 }
-
 
 /* Process a character received from a multiplexer port */
 
-void mux_receive (int32 ln, int32 c, t_bool diag)
+void
+mux_receive (int32 ln, int32 c, t_bool diag)
 {
-if (c & SCPE_BREAK) {                                   /* break? */
-    if (mux_defer[ln] || diag) {                        /* break deferred or diagnostic mode? */
-        mux_defer[ln] = 0;                              /* process now */
-        mux_rbuf[ln] = 0;                               /* break returns NUL */
-        mux_sta[ln] = mux_sta[ln] | LIU_BRK;            /* set break status */
+    if (c & SCPE_BREAK) {                          /* break? */
+        if (mux_defer[ln] || diag) {               /* break deferred or diagnostic mode? */
+            mux_defer[ln] = 0;                     /* process now */
+            mux_rbuf[ln]  = 0;                     /* break returns NUL */
+            mux_sta[ln]   = mux_sta[ln] | LIU_BRK; /* set break status */
 
-        if (diag)
-            tprintf (muxl_dev, TRACE_XFER, "Channel %d break detected\n", ln);
-        else
-            tprintf (muxl_dev, TRACE_XFER, "Channel %d deferred break processed\n", ln);
+            if (diag) {
+                tprintf (muxl_dev, TRACE_XFER, "Channel %d break detected\n", ln);
+            } else {
+                tprintf (muxl_dev, TRACE_XFER, "Channel %d deferred break processed\n", ln);
+            }
+        } else {
+            mux_defer[ln] = 1; /* defer break */
+
+            tprintf (muxl_dev, TRACE_XFER, "Channel %d break detected and deferred\n", ln);
+
+            return;
         }
+    } else {              /* normal */
+        if (mux_rchp[ln]) /* char already pending? */
+            mux_sta[ln] = mux_sta[ln] | LIU_LOST;
 
-    else {
-        mux_defer[ln] = 1;                              /* defer break */
-
-        tprintf (muxl_dev, TRACE_XFER, "Channel %d break detected and deferred\n", ln);
-
-        return;
-        }
-    }
-else {                                                  /* normal */
-    if (mux_rchp[ln])                                   /* char already pending? */
-        mux_sta[ln] = mux_sta[ln] | LIU_LOST;
-
-    if (!diag) {                                        /* terminal mode? */
-        c = sim_tt_inpcvt (c, TT_GET_MODE (muxl_unit[ln].flags));
-        if (mux_rpar[ln] & OTL_ECHO) {                  /* echo? */
-            TMLN *lp = &mux_ldsc[ln];                   /* get line */
-            tmxr_putc_ln (lp, c);                       /* output char */
-            tmxr_poll_tx (&mux_desc);                   /* poll xmt */
+        if (!diag) { /* terminal mode? */
+            c = sim_tt_inpcvt (c, TT_GET_MODE (muxl_unit[ln].flags));
+            if (mux_rpar[ln] & OTL_ECHO) { /* echo? */
+                TMLN *lp = &mux_ldsc[ln];  /* get line */
+                tmxr_putc_ln (lp, c);      /* output char */
+                tmxr_poll_tx (&mux_desc);  /* poll xmt */
             }
         }
-    mux_rbuf[ln] = (uint16) c;                          /* save char */
+        mux_rbuf[ln] = (uint16)c; /* save char */
     }
 
-mux_rchp[ln] = 1;                                       /* char pending */
+    mux_rchp[ln] = 1; /* char pending */
 
-tprintf (muxl_dev, TRACE_XFER, "Channel %d character %s received\n",
-         ln, fmt_char ((uint8) c));
+    tprintf (muxl_dev, TRACE_XFER, "Channel %d character %s received\n", ln, fmt_char ((uint8)c));
 
-if (mux_rpar[ln] & OTL_DIAG)                            /* diagnose this line? */
-    mux_diag (c);                                       /* do diagnosis */
+    if (mux_rpar[ln] & OTL_DIAG) /* diagnose this line? */
+        mux_diag (c);            /* do diagnosis */
 
-return;
+    return;
 }
-
 
 /* Look for data interrupt */
 
@@ -1479,7 +1478,7 @@ int32 i;
 for (i = FIRST_TERM; i <= LAST_TERM; i++) {             /* rcv lines */
     if ((mux_rpar[i] & OTL_ENB) && mux_rchp[i]) {       /* enabled, char? */
         muxl_ibuf = PUT_DCH (i) |                       /* lo buf = char */
-            mux_rbuf[i] & LIL_CHAR |
+            (mux_rbuf[i] & LIL_CHAR) |
             RCV_PAR (mux_rbuf[i]);
         muxu_ibuf = PUT_DCH (i) | mux_sta[i];           /* hi buf = stat */
         mux_rchp[i] = 0;                                /* clr char, stat */
@@ -1495,7 +1494,7 @@ for (i = FIRST_TERM; i <= LAST_TERM; i++) {             /* rcv lines */
 for (i = FIRST_TERM; i <= LAST_TERM; i++) {             /* xmt lines */
     if ((mux_xpar[i] & OTL_ENB) && mux_xdon[i]) {       /* enabled, done? */
         muxl_ibuf = PUT_DCH (i) |                       /* lo buf = last rcv char */
-            mux_rbuf[i] & LIL_CHAR |
+            (mux_rbuf[i] & LIL_CHAR) |
             RCV_PAR (mux_rbuf[i]);
         muxu_ibuf = PUT_DCH (i) | mux_sta[i] | LIU_TR;  /* hi buf = stat */
         mux_xdon[i] = 0;                                /* clr done, stat */
@@ -1511,7 +1510,7 @@ for (i = FIRST_TERM; i <= LAST_TERM; i++) {             /* xmt lines */
 for (i = FIRST_AUX; i <= LAST_AUX; i++) {               /* diag lines */
     if ((mux_rpar[i] & OTL_ENB) && mux_rchp[i]) {       /* enabled, char? */
         muxl_ibuf = PUT_DCH (i) |                       /* lo buf = char */
-            mux_rbuf[i] & LIL_CHAR |
+            (mux_rbuf[i] & LIL_CHAR) |
             RCV_PAR (mux_rbuf[i]);
         muxu_ibuf = PUT_DCH (i) | mux_sta[i] | LIU_DG;  /* hi buf = stat */
         mux_rchp[i] = 0;                                /* clr char, stat */

@@ -516,9 +516,9 @@ typedef enum {
    the codes for pattern D.
 */
 
-#define SET_CCG             STA = STA & ~STATUS_CC_MASK | STATUS_CCG
-#define SET_CCL             STA = STA & ~STATUS_CC_MASK | STATUS_CCL
-#define SET_CCE             STA = STA & ~STATUS_CC_MASK | STATUS_CCE
+#define SET_CCG             STA = (STA & ~STATUS_CC_MASK) | STATUS_CCG
+#define SET_CCL             STA = (STA & ~STATUS_CC_MASK) | STATUS_CCL
+#define SET_CCE             STA = (STA & ~STATUS_CC_MASK) | STATUS_CCE
 
 
 /* Condition code pattern CCA (arithmetic).
@@ -560,7 +560,7 @@ typedef enum {
        away.
 */
 
-#define SET_CCA(u,l)        STA = STA & ~STATUS_CC_MASK | \
+#define SET_CCA(u,l)        STA = (STA & ~STATUS_CC_MASK) | \
                               (((u) | (l)) == 0 \
                                 ? STATUS_CCE \
                                 : (u) & D16_SIGN \
@@ -602,8 +602,8 @@ typedef enum {
        values are disjoint for the MVBW and Bcc instructions.
 */
 
-#define SET_CCB(b)          STA = STA & ~STATUS_CC_MASK | \
-                              cpu_ccb_table [(b)] & STATUS_CC_MASK
+#define SET_CCB(b)          STA = (STA & ~STATUS_CC_MASK) | \
+                              (cpu_ccb_table [(b)] & STATUS_CC_MASK)
 
 
 /* Condition code pattern CCC (conditional).
@@ -650,7 +650,7 @@ typedef enum {
        to substitute for a signed comparison.
 */
 
-#define SET_CCC(u1,l1,u2,l2)  STA = STA & ~STATUS_CC_MASK | \
+#define SET_CCC(u1,l1,u2,l2)  STA = (STA & ~STATUS_CC_MASK) | \
                                 ((u1) == (u2) \
                                   ? ((l1) == (l2) \
                                       ? STATUS_CCE \

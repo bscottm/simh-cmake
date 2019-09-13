@@ -121,7 +121,7 @@ typedef enum {
 
 #define IOCW_CNTL(w)        (((w) & IOCW_CNTL_MASK) >> IOCW_CNTL_SHIFT)
 #define IOCW_WCNT(w)        (((w) & IOCW_WCNT_MASK) >> IOCW_WCNT_SHIFT)
-#define IOCW_COUNT(w)       ((w) | ~IOCW_WCNT_MASK & D16_MASK)
+#define IOCW_COUNT(w)       ((w) | (~IOCW_WCNT_MASK & D16_MASK))
 
 #define IOAW_BANK(w)        (((w) & IOAW_BANK_MASK) >> IOAW_BANK_SHIFT)
 

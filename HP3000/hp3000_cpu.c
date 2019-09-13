@@ -1442,7 +1442,7 @@ if (abortval) {                                         /* if a microcode abort 
     label = TO_LABEL (LABEL_IRQ, trap);                 /* form the label from the STT number */
 
     dprintf (cpu_dev, DEB_INSTR, BOV_FORMAT "%s trap%s\n",
-             PBANK, P - 1 & R_MASK, parameter, trap_name [trap],
+             PBANK, (P - 1) & R_MASK, parameter, trap_name [trap],
              (trap == trap_User && !(STA & STATUS_T) ? " (disabled)" : ""));
 
     switch (trap) {                                     /* dispatch on the trap classification */
@@ -1454,7 +1454,7 @@ if (abortval) {                                         /* if a microcode abort 
 
             RA = parameter;                             /* set RA to the parameter (system halt condition) */
 
-            CPX2 = CPX2 & ~cpx2_RUN | cpx2_SYSHALT;     /* halt the CPU and set the system halt flag */
+            CPX2 = (CPX2 & ~cpx2_RUN) | cpx2_SYSHALT;   /* halt the CPU and set the system halt flag */
             status = STOP_SYSHALT;                      /*   and report the system halt condition */
 
             label = 0;                                  /* there is no trap handler for a system halt */
@@ -1547,7 +1547,7 @@ if (abortval) {                                         /* if a microcode abort 
     if (label != 0) {                                   /* if the trap handler is to be called */
         STA = STATUS_M;                                 /*   then clear the status and enter privileged mode */
 
-        SM = SM + 1 & R_MASK;                           /* increment the stack pointer */
+        SM = (SM + 1) & R_MASK;                         /* increment the stack pointer */
         cpu_write_memory (stack, SM, parameter);        /*   and push the parameter on the stack */
 
         X = CIR;                                        /* save the current instruction for restarting */
@@ -1588,11 +1588,11 @@ while (status == SCPE_OK) {                             /* execute until simulat
           && cpu_power_state != power_failing)          /*     and power is not currently failing */
             cpu_run_mode_interrupt (device);            /*       then service it */
 
-        else if (sim_brk_summ                               /* otherwise if a breakpoint exists */
-          && sim_brk_test (TO_PA (PBANK, P - 1 & LA_MASK),  /*   at the next location */
-                           BP_EXEC)) {                      /*     to execute */
-            status = STOP_BRKPNT;                           /*       then stop the simulation */
-            sim_interval = sim_interval + 1;                /*         and don't count the cycle */
+        else if (sim_brk_summ                                /* otherwise if a breakpoint exists */
+          && sim_brk_test (TO_PA (PBANK, (P - 1) & LA_MASK), /* at the next location */
+                           BP_EXEC)) {                       /* to execute */
+            status = STOP_BRKPNT;                            /* then stop the simulation */
+            sim_interval = sim_interval + 1;                 /* and don't count the cycle */
             }
 
         else {                                              /* otherwise execute the next instruction */
@@ -1648,14 +1648,14 @@ while (status == SCPE_OK) {                             /* execute until simulat
                 cpu_read_memory (fetch, P, &NIR);       /*     and load the next instruction */
                 }
 
-            P = P + 1 & R_MASK;                         /* point to the following instruction */
+            P = (P + 1) & R_MASK;                       /* point to the following instruction */
 
             if (DPRINTING (cpu_dev, DEB_INSTR)) {           /* if instruction tracing is enabled */
                 sim_eval [0] = CIR;                         /*   then save the instruction that will be executed */
                 sim_eval [1] = NIR;                         /*     and the following word for evaluation */
 
                 hp_debug (&cpu_dev, DEB_INSTR, BOV_FORMAT,  /* print the address and the instruction opcode */
-                          PBANK, P - 2 & R_MASK, CIR);      /*   as an octal value */
+                          PBANK, (P - 2) & R_MASK, CIR);    /*   as an octal value */
 
                 if (fprint_cpu (sim_deb, sim_eval, 0, SIM_SW_STOP) == SCPE_ARG) /* print the mnemonic; if that fails */
                     fprint_val (sim_deb, sim_eval [0], cpu_dev.dradix,          /*   then print the numeric */
@@ -1692,14 +1692,16 @@ cpu_dev.dctrl = debug_save;                             /* restore the flag set 
 cpu_update_pclk ();                                     /* update the process clock */
 clk_update_counter ();                                  /*   and system clock counters */
 
-if (cpu_micro_state == paused)                          /* if the micromachine is paused */
-    P = P - 2 & R_MASK;                                 /*   then set P to point to the PAUS instruction */
-
-else if (cpu_micro_state == running)                    /* otherwise if it is running */
+if (cpu_micro_state == paused) {                        /* if the micromachine is paused */
+    P = (P - 2) & R_MASK;                               /*   then set P to point to the PAUS instruction */
+} else {
+  if (cpu_micro_state == running) {                  /* otherwise if it is running */
     if (status <= STOP_RERUN)                           /*   then if the instruction will be rerun when resumed */
-        P = P - 2 & R_MASK;                             /*     then set P to point to it */
+        P = (P - 2) & R_MASK;                           /*     then set P to point to it */
     else                                                /*   otherwise */
-        P = P - 1 & R_MASK;                             /*     set P to point to the next instruction */
+        P = (P - 1) & R_MASK;                           /*     set P to point to the next instruction */
+  }
+}
 
 cpu_micro_state = halted;                               /* halt the micromachine */
 
@@ -1987,7 +1989,7 @@ IRQ_CLASS class;
 
 if (cpu_micro_state == running                          /* if we are resuming from a sim stop */
   && (CIR & PAUS_MASK) == PAUS)                         /*   into a PAUS instruction */
-    P = P + 1 & R_MASK;                                 /*     then return is to the instruction following */
+    P = (P + 1) & R_MASK;                               /*     then return is to the instruction following */
 else                                                    /* otherwise the micromachine may be paused */
     cpu_micro_state = running;                          /*   but is no longer */
 
@@ -2034,7 +2036,7 @@ else {                                                  /* otherwise scan for th
 CPX1 &= ~request_set;                                   /* clear the associated CPX request bit */
 
 dprintf (cpu_dev, DEB_INSTR, BOV_FORMAT "%s interrupt\n",
-         PBANK, P - 1 & R_MASK, parameter, interrupt_name [class]);
+         PBANK, (P - 1) & R_MASK, parameter, interrupt_name [class]);
 
 cpu_setup_irq_handler (class, parameter);               /* set up the entry into the interrupt handler */
 
@@ -2103,7 +2105,7 @@ if (cpu_is_calibrated) {                                /* if the process clock 
        (elapsed * PCLK_MULTIPLIER) / cpu_unit [0].wait  /*   the elapsed fraction of the multiplier */
          - (PCLK_MULTIPLIER - pclk_increment);          /*     less the amount of any adjustment already made */
 
-    PCLK = PCLK + ticks & R_MASK;                       /* update the process clock counter with rollover */
+    PCLK = (PCLK + ticks) & R_MASK;                     /* update the process clock counter with rollover */
     pclk_increment = pclk_increment - ticks;            /*   and reduce the amount remaining to add at service */
     }
 
@@ -2160,7 +2162,7 @@ if (SR == 0) {                                          /* if the TOS registers 
     if (SM <= DB && NPRV)                               /*   then if SM isn't above DB and the mode is non-privileged */
         MICRO_ABORT (trap_Stack_Underflow);             /*     then trap with a Stack Underflow */
 
-    SM = SM - 1 & R_MASK;                               /* decrement the stack memory register */
+    SM = (SM - 1) & R_MASK;                             /* decrement the stack memory register */
     }
 
 else {                                                  /* otherwise at least one TOS register is occupied */
@@ -2205,7 +2207,7 @@ if (SM <= DB && NPRV)                                   /* if SM isn't above DB 
 else {                                                  /* otherwise */
     cpu_read_memory (stack, SM, &TR [SR]);              /*   read the value from memory into a TOS register */
 
-    SM = SM - 1 & R_MASK;                               /* decrement the stack memory register */
+    SM = (SM - 1) & R_MASK;                             /* decrement the stack memory register */
     SR = SR + 1;                                        /*   and increment the register-in-use count */
     }
 
@@ -2240,7 +2242,7 @@ void cpu_queue_down (void)
 if (SM >= Z)                                            /* if SM isn't below Z */
     MICRO_ABORT (trap_Stack_Overflow);                  /*   then trap with a Stack Overflow */
 
-SM = SM + 1 & R_MASK;                                   /* increment the stack memory register */
+SM = (SM + 1) & R_MASK;                                 /* increment the stack memory register */
 SR = SR - 1;                                            /*   and decrement the register-in-use count */
 
 cpu_write_memory (stack, SM, TR [SR]);                  /* write the value from a TOS register to memory */
@@ -2262,7 +2264,7 @@ return;
 void cpu_flush (void)
 {
 while (SR > 0) {                                        /* while one or more registers are in use */
-    SM = SM + 1 & R_MASK;                               /*   increment the stack memory register */
+    SM = (SM + 1) & R_MASK;                             /*   increment the stack memory register */
     SR = SR - 1;                                        /*     and decrement the register-in-use count */
 
     cpu_write_memory (stack, SM, TR [SR]);              /* write the value from a TOS register to memory */
@@ -2299,7 +2301,7 @@ void cpu_adjust_sr (uint32 target)
 do {
     cpu_read_memory (stack, SM, &TR [SR]);              /* read the value from memory into a TOS register */
 
-    SM = SM - 1 & R_MASK;                               /* decrement the stack memory register */
+    SM = (SM - 1) & R_MASK;                             /* decrement the stack memory register */
     SR = SR + 1;                                        /*   and increment the register-in-use count */
     }
 while (SR < target);                                    /* queue up until the requested number of registers are in use */
@@ -2342,12 +2344,12 @@ return;
 
 void cpu_mark_stack (void)
 {
-SM = SM + 4 & R_MASK;                                   /* adjust the stack pointer */
+SM = (SM + 4) & R_MASK;                                  /* adjust the stack pointer */
 
 cpu_write_memory (stack, SM - 3, X);                    /* push the index register */
-cpu_write_memory (stack, SM - 2, P - 1 - PB & LA_MASK); /*   and delta P */
+cpu_write_memory (stack, SM - 2, (P - 1 - PB) & LA_MASK); /*   and delta P */
 cpu_write_memory (stack, SM - 1, STA);                  /*     and the status register */
-cpu_write_memory (stack, SM - 0, SM - Q & LA_MASK);     /*       and delta Q */
+cpu_write_memory (stack, SM - 0, (SM - Q) & LA_MASK);   /*       and delta Q */
 
 Q = SM;                                                 /* set Q to point to the new stack marker */
 
@@ -2573,10 +2575,10 @@ else {                                                      /* otherwise the mod
 
 if ((CIR & LSDX_MASK) == LDD_X                          /* if the mode */
   || (CIR & LSDX_MASK) == STD_X)                        /*   is double-word indexed */
-    displacement = displacement + X * 2 & DV_MASK;      /*     then add the doubled index to the displacement */
+    displacement = (displacement + X * 2) & DV_MASK;    /*     then add the doubled index to the displacement */
 
 else if (mode_disp & X_FLAG)                            /* otherwise if the mode is indexed */
-    displacement = displacement + X & DV_MASK;          /*   then add the index to the displacement */
+    displacement = (displacement + X) & DV_MASK;        /*   then add the index to the displacement */
 
 if (selector == NULL)                                   /* if a word address is requested */
     base = base + displacement;                         /*   then add in the word displacement */
@@ -2590,7 +2592,7 @@ else {                                                  /* otherwise an indexed 
     else                                                /*   otherwise it is even */
         *selector = upper;                              /*     and the upper byte was requested */
 
-    base = base + (displacement >> 1) & LA_MASK;        /* convert the displacement from byte to word and add */
+    base = (base + (displacement >> 1)) & LA_MASK;      /* convert the displacement from byte to word and add */
 
     if (DBANK == SBANK && DL <= DB && DB <= Z           /* if not in split-stack mode */
      && (base < DL || base > SM + SR))                  /*   and the word address is out of range */
@@ -2653,24 +2655,24 @@ else                                                    /* otherwise */
     increment = 1;                                      /*   the increment is positive */
 
 if (class == program || class == program_checked) {     /* if this is a program access */
-    starting_word = PB + (byte_offset >> 1) & LA_MASK;  /*   then determine the starting word address */
+    starting_word = (PB + (byte_offset >> 1)) & LA_MASK; /*   then determine the starting word address */
 
-    if (class == program_checked                        /* if checking is requested */
-      && starting_word < PB || starting_word > PL)      /*   and the starting address is out of range */
+    if ((class == program_checked                        /* if checking is requested */
+      && starting_word < PB) || starting_word > PL)      /*   and the starting address is out of range */
         MICRO_ABORT (trap_Bounds_Violation);            /*     then trap for a bounds violation */
 
     if (block_length != 0) {                            /* if a block length was supplied */
         ending_word =                                   /*   then determine the ending address */
-           starting_word + ((block_length - increment + (byte_offset & 1)) >> 1) & LA_MASK;
+           (starting_word + ((block_length - increment + (byte_offset & 1)) >> 1)) & LA_MASK;
 
-        if (class == program_checked                    /* if checking is requested */
-          && ending_word < PB || ending_word > PL)      /*   and the ending address is out of range */
+        if ((class == program_checked                    /* if checking is requested */
+          && ending_word < PB) || ending_word > PL)      /*   and the ending address is out of range */
             MICRO_ABORT (trap_Bounds_Violation);        /*     then trap for a bounds violation */
         }
     }
 
 else {                                                  /* otherwise this is a data address */
-    starting_word = DB + (byte_offset >> 1) & LA_MASK;  /*   so determine the starting word address */
+    starting_word = (DB + (byte_offset >> 1)) & LA_MASK;  /*   so determine the starting word address */
 
     if (DBANK == SBANK && DL <= DB && DB <= Z           /* if not in split-stack mode */
       && (starting_word < DL || starting_word > SM)) {  /*   and the word address is out of range */
@@ -2683,7 +2685,7 @@ else {                                                  /* otherwise this is a d
 
     if (block_length != 0) {                            /* if a block length was supplied */
         ending_word =                                   /*   then determine the ending word address */
-           starting_word + ((block_length - increment + (byte_offset & 1)) >> 1) & LA_MASK;
+           (starting_word + ((block_length - increment + (byte_offset & 1)) >> 1)) & LA_MASK;
 
         if (class == data_checked && NPRV               /* if checking is requested and non-privileged */
           && (ending_word < DL || ending_word > SM))    /*   and the address is out of range */
@@ -2740,7 +2742,7 @@ if (class == irq_External || class == irq_IXIT) {       /* if entry is for an ex
     if (class == irq_External)                          /*   then if it was detected during normal execution */
         cpu_setup_ics_irq (class, 0);                   /*     then set it up on the ICS */
     else                                                /*   otherwise it was detected during IXIT */
-        SM = Q + 2 & R_MASK;                            /*     so the ICS is already set up */
+        SM = (Q + 2) & R_MASK;                          /*     so the ICS is already set up */
 
     DBANK = 0;                                          /* all handlers are in bank 0 */
     STA = STATUS_M | STATUS_I;                          /* enter privileged mode with interrupts enabled */
@@ -2770,7 +2772,7 @@ else {                                                  /* otherwise entry is fo
     STA = STATUS_M;                                     /* clear status and enter privileged mode */
     }
 
-SM = SM + 1 & R_MASK;                                   /* increment the stack pointer */
+SM = (SM + 1) & R_MASK;                                 /* increment the stack pointer */
 cpu_write_memory (stack, SM, parameter);                /*   and push the parameter on the stack */
 
 X = CIR;                                                /* save the CIR in the index register */
@@ -2846,12 +2848,12 @@ void cpu_setup_ics_irq (IRQ_CLASS class, TRAP_CLASS trap)
 HP_WORD delta_q, stack_db;
 
 if (class != irq_Trap                                   /* if this is not  */
-  || trap != trap_Cold_Load && trap != trap_Power_On) { /*   a cold load or power on trap entry */
+  || (trap != trap_Cold_Load && trap != trap_Power_On)) { /*   a cold load or power on trap entry */
     cpu_flush ();                                       /*     then flush the TOS registers to memory */
     cpu_mark_stack ();                                  /*       and write a four-word stack marker */
 
-    cpu_write_memory (stack, SM + 1 & LA_MASK, DBANK);  /* add DBANK and DB to the stack */
-    cpu_write_memory (stack, SM + 2 & LA_MASK, DB);     /*   to form a six-word ICS marker */
+    cpu_write_memory (stack, (SM + 1) & LA_MASK, DBANK);  /* add DBANK and DB to the stack */
+    cpu_write_memory (stack, (SM + 2) & LA_MASK, DB);     /*   to form a six-word ICS marker */
     }
 
 SBANK = 0;                                              /* the ICS is always located in bank 0 */
@@ -2871,17 +2873,17 @@ else {                                                  /* otherwise execution i
     cpu_read_memory (stack, ICS_Q, &Q);                 /* set Q = QI */
     cpu_read_memory (stack, ICS_Z, &Z);                 /* set Z = ZI */
 
-    cpu_read_memory (stack, Q - 4 & LA_MASK,            /* read the stack DB value */
+    cpu_read_memory (stack, (Q - 4) & LA_MASK,          /* read the stack DB value */
                      &stack_db);
 
-    cpu_write_memory (stack, Q - 6 & LA_MASK,           /* write the stack-DB-relative S value */
-                      SM + 2 - stack_db & DV_MASK);     /*   which is meaningless for a cold load or power on */
+    cpu_write_memory (stack, (Q - 6) & LA_MASK,         /* write the stack-DB-relative S value */
+                      (SM + 2 - stack_db) & DV_MASK);   /*   which is meaningless for a cold load or power on */
 
     SR = 0;                                             /* invalidate the stack registers for a cold load */
     DL = D16_UMAX;                                      /*   and set the data limit */
     }
 
-SM = Q + 2 & R_MASK;                                    /* set S above the stack marker */
+SM = (Q + 2) & R_MASK;                                  /* set S above the stack marker */
 
 return;
 }
@@ -2964,7 +2966,7 @@ cpu_read_memory (absolute, cst_entry + 3, &PB);         /* read the segment's ba
 
 PL = (*entry_0 & CST_SEGLEN_MASK) * 4 - 1;              /* set PL to the segment length - 1 */
 
-*status = STA & ~LABEL_SEGMENT_MASK | segment_number;   /* set the segment number in the new status word */
+*status = (STA & ~LABEL_SEGMENT_MASK) | segment_number; /* set the segment number in the new status word */
 
 if (*entry_0 & CST_M_BIT)                               /* if the segment executes in privileged mode */
     *status |= STATUS_M;                                /*   then set up to enter privileged mode */
@@ -3109,10 +3111,10 @@ if (label & LABEL_EXTERNAL) {                                   /* if the label 
     cpu_base_changed = TRUE;                            /* the program base registers have changed for tracing */
     }
 
-new_p = PB + (label + offset & LABEL_ADDRESS_MASK);     /* get the procedure starting address */
+new_p = PB + ((label + offset) & LABEL_ADDRESS_MASK);   /* get the procedure starting address */
 
 cpu_read_memory (fetch_checked, new_p, &NIR);           /* check the bounds and get the next instruction */
-P = new_p + 1 & R_MASK;                                 /* the bounds are valid, so set the new P value */
+P = (new_p + 1) & R_MASK;                               /* the bounds are valid, so set the new P value */
 
 STA = new_status;                                       /* set the new status value */
 
@@ -3219,7 +3221,7 @@ if (STATUS_CS (new_status) != STATUS_CS (STA)) {                    /* if return
 new_p = PB + (new_p & STMK_RTN_ADDR);                   /* convert the relative address to absolute */
 
 cpu_read_memory (fetch_checked, new_p, &NIR);           /* check the bounds and get the next instruction */
-P = new_p + 1 & R_MASK;                                 /* the bounds are valid, so set the new P value */
+P = (new_p + 1) & R_MASK;                               /* the bounds are valid, so set the new P value */
 
 STA = new_status;                                       /* set the new status value */
 Q   = new_q;                                            /*   and the stack marker */
@@ -3251,15 +3253,15 @@ return;
 void cpu_start_dispatcher (void)
 {
 dprintf (cpu_dev, DEB_INSTR, BOV_FORMAT "%s interrupt\n",
-         PBANK, P - 1 & R_MASK, 0, interrupt_name [irq_Dispatch]);
+         PBANK, (P - 1) & R_MASK, 0, interrupt_name [irq_Dispatch]);
 
 CPX1 |= cpx1_DISPFLAG;                                  /* set the "dispatcher is running" flag */
 
 cpu_read_memory (absolute, ICS_Q, &Q);                  /* set Q to point to the dispatcher's stack marker */
 cpu_write_memory (absolute, Q, 0);                      /*   and clear the stack marker delta Q value */
 
-cpu_read_memory (stack, Q + 1 & LA_MASK, &DBANK);       /* load the dispatcher's data bank */
-cpu_read_memory (stack, Q + 2 & LA_MASK, &DB);          /*   and data base registers */
+cpu_read_memory (stack, (Q + 1) & LA_MASK, &DBANK);     /* load the dispatcher's data bank */
+cpu_read_memory (stack, (Q + 2) & LA_MASK, &DB);        /*   and data base registers */
 
 cpu_exit_procedure (Q, Q + 2, 0);                       /* return to the dispatcher */
 
@@ -3321,7 +3323,7 @@ dprintf (cpu_dev, DEB_PSERV, "Process clock service entered on the %s\n",
          (ics_exec ? "ICS" : "user stack"));
 
 if (!ics_exec)                                          /* if the CPU is not executing on the ICS */
-    PCLK = PCLK + pclk_increment & R_MASK;              /*   then increment the process clock */
+    PCLK = (PCLK + pclk_increment) & R_MASK;            /*   then increment the process clock */
 
 cpu_is_calibrated = (uptr->flags & UNIT_CALTIME) != 0;  /* TRUE if the process clock is calibrated */
 
@@ -3588,38 +3590,38 @@ else {                                                  /* otherwise at least on
    rejected.
 */
 
-static t_stat set_dump (UNIT *uptr, int32 option, CONST char *cptr, void *desc)
+static t_stat
+set_dump(UNIT *uptr, int32 option, CONST char *cptr, void *desc)
 {
-t_value value;
-t_stat  status = SCPE_OK;
+    t_value value;
+    t_stat  status = SCPE_OK;
 
-if (cptr == NULL || *cptr == '\0')                      /* if the expected value is missing */
-    status = SCPE_MISVAL;                               /*   then report the error */
+    if (cptr == NULL || *cptr == '\0') {                         /* if the expected value is missing */
+        status = SCPE_MISVAL;                                    /* then report the error */
+    } else {
+        if (option == 0) {                                       /* otherwise if a device number is present */
+            value = get_uint(cptr, DEVNO_BASE,                   /* then parse the supplied value */
+                             DEVNO_MAX, &status);
 
-else if (option == 0) {                                 /* otherwise if a device number is present */
-    value = get_uint (cptr, DEVNO_BASE,                 /*   then parse the supplied value */
-                      DEVNO_MAX, &status);
+            if (status == SCPE_OK) {                             /* if it is valid */
+                if (value >= 3)                                  /* and in the proper range */
+                    dump_control = REPLACE_LOWER(dump_control,   /* then set the new device number */
+                                                 (uint32)value); /* into the dump control word */
+                else                                             /* otherwise the device number */
+                    status = SCPE_ARG;                           /* is invalid */
+	    }
+        } else {                                                 /* otherwise a control byte is present */
+            value = get_uint(cptr, CNTL_BASE,                    /* so parse the supplied value */
+                             CNTL_MAX, &status);
 
-    if (status == SCPE_OK)                                  /* if it is valid */
-        if (value >= 3)                                     /*   and in the proper range */
-            dump_control = REPLACE_LOWER (dump_control,     /*     then set the new device number */
-                                          (uint32) value);  /*       into the dump control word */
-        else                                                /*   otherwise the device number */
-            status = SCPE_ARG;                              /*     is invalid */
+            if (status == SCPE_OK)                               /* if it is valid */
+                dump_control = REPLACE_UPPER(dump_control,       /* then set the new control value */
+                                             (uint32)value);     /* into the dump control word */
+        }
     }
 
-else {                                                  /* otherwise a control byte is present */
-    value = get_uint (cptr, CNTL_BASE,                  /*   so parse the supplied value */
-                      CNTL_MAX, &status);
-
-    if (status == SCPE_OK)                              /* if it is valid */
-        dump_control = REPLACE_UPPER (dump_control,     /*   then set the new control value */
-                                      (uint32) value);  /*     into the dump control word */
-    }
-
-return status;                                          /* return the operation status */
+    return status;                                               /* return the operation status */
 }
-
 
 /* Change the CPU memory size.
 
@@ -3707,7 +3709,7 @@ else                                                    /* otherwise the current
 status = set_size (uptr, new_memsize, NULL, NULL);      /* set the new memory size */
 
 if (status == SCPE_OK)                                  /* if the change succeeded */
-    uptr->flags = uptr->flags & ~UNIT_OPTS              /*   then set the typical features */
+    uptr->flags = (uptr->flags & ~UNIT_OPTS)            /*   then set the typical features */
                     | cpu_features [new_index].typ;     /*     for the new model */
 
 return status;                                          /* return the validation result */
@@ -3986,276 +3988,271 @@ return SCPE_OK;                                         /*   and report success 
     4. Front panel diagnostics and direct I/O cold loading is not implemented.
 */
 
-static t_stat halt_mode_interrupt (HP_WORD device_number)
+static t_stat
+halt_mode_interrupt(HP_WORD device_number)
 {
-static HP_WORD cold_device, sio_pointer, status, offset, pointer;
-static uint32 address;
-static t_bool error_recovery;
+    static HP_WORD cold_device, sio_pointer, status, offset, pointer;
+    static uint32  address;
+    static t_bool  error_recovery;
 
-if (CPX2 & cpx2_RUNSWCH) {                              /* if the RUN switch is pressed */
-    if (CPX2 & cpx2_SYSHALT) {                          /*   then if the System Halt flip-flop is set */
-        CPX2 &= ~CPX2_IRQ_SET;                          /*     then clear all switches */
-        return STOP_SYSHALT;                            /*       as the CPU cannot run until it is reset */
+    if (CPX2 & cpx2_RUNSWCH) {     /* if the RUN switch is pressed */
+        if (CPX2 & cpx2_SYSHALT) { /* then if the System Halt flip-flop is set */
+            CPX2 &= ~CPX2_IRQ_SET; /* then clear all switches */
+            return STOP_SYSHALT;   /* as the CPU cannot run until it is reset */
         }
 
-    else                                                /*   otherwise */
-        CPX2 = CPX2 & ~cpx2_RUNSWCH | cpx2_RUN;         /*     clear the switch and set the Run flip-flop */
+        else                                          /* otherwise */
+            CPX2 = (CPX2 & ~cpx2_RUNSWCH) | cpx2_RUN; /* clear the switch and set the Run flip-flop */
 
-    cpu_read_memory (fetch, P, &NIR);                   /* load the next instruction to execute */
-    P = P + 1 & R_MASK;                                 /*   and point to the following instruction */
+        cpu_read_memory(fetch, P, &NIR); /* load the next instruction to execute */
+        P = (P + 1) & R_MASK;            /* and point to the following instruction */
 
-    if ((NIR & SUBOP_MASK) != 0)                        /* if the instruction is not a stack instruction */
-        STA &= ~STATUS_R;                               /*   then clear the R-bit in case it had been set */
+        if ((NIR & SUBOP_MASK) != 0) /* if the instruction is not a stack instruction */
+            STA &= ~STATUS_R;        /* then clear the R-bit in case it had been set */
 
-    else if (STA & STATUS_R) {                          /* otherwise if a right-hand stack op is pending */
-        CIR = NIR;                                      /*   then set the current instruction */
-        cpu_read_memory (fetch, P, &NIR);               /*     and load the next instruction */
+        else if (STA & STATUS_R) {           /* otherwise if a right-hand stack op is pending */
+            CIR = NIR;                       /* then set the current instruction */
+            cpu_read_memory(fetch, P, &NIR); /* and load the next instruction */
         }
 
-    cpu_micro_state = running;                          /* start the micromachine */
-    sim_interval = sim_interval + 1;                    /* don't count this cycle against a STEP count */
+        cpu_micro_state = running;          /* start the micromachine */
+        sim_interval    = sim_interval + 1; /* don't count this cycle against a STEP count */
 
-    if (cpu_power_state == power_returning) {           /* if power is returning after a failure */
-        if (CPX2 & cpx2_INHPFARS)                       /*   then if auto-restart is inhibited */
-            CPX2 &= ~cpx2_RUN;                          /*     then clear the Run flip-flop */
+        if (cpu_power_state == power_returning) { /* if power is returning after a failure */
+            if (CPX2 & cpx2_INHPFARS)             /* then if auto-restart is inhibited */
+                CPX2 &= ~cpx2_RUN;                /* then clear the Run flip-flop */
 
-        MICRO_ABORT (trap_Power_On);                    /* set up the trap to the power-on routine */
+            MICRO_ABORT(trap_Power_On); /* set up the trap to the power-on routine */
         }
-    }
+    } else {
+        if (CPX2 & cpx2_DUMPSWCH) {           /* otherwise if the DUMP switch is pressed */
+            if (cpu_micro_state != waiting) { /* then if the dump is not in progress */
+                reset_all(IO_RESET);          /* then reset all I/O devices */
 
+                cold_device = LOWER_BYTE(SWCH) & DEVNO_MASK; /* get the device number from the lower SWCH byte */
 
-else if (CPX2 & cpx2_DUMPSWCH) {                        /* otherwise if the DUMP switch is pressed */
-    if (cpu_micro_state != waiting) {                   /*   then if the dump is not in progress */
-        reset_all (IO_RESET);                           /*     then reset all I/O devices */
+                status = iop_direct_io(cold_device, ioTIO, 0); /* get the device status */
 
-        cold_device = LOWER_BYTE (SWCH) & DEVNO_MASK;   /* get the device number from the lower SWCH byte */
+                if ((status & MS_ST_MASK) != MS_ST_READY) { /* if the tape is not ready and unprotected */
+                    CPX2 &= ~cpx2_DUMPSWCH;                 /* then clear the dump switch */
 
-        status = iop_direct_io (cold_device, ioTIO, 0); /* get the device status */
-
-        if ((status & MS_ST_MASK) != MS_ST_READY) {     /* if the tape is not ready and unprotected */
-            CPX2 &= ~cpx2_DUMPSWCH;                     /*   then clear the dump switch */
-
-            CIR = 0;                                    /* clear CIR to indicate a failure */
-            return STOP_CDUMP;                          /*   and terminate the dump */
-            }
-
-        cpu_read_memory (absolute, cold_device * 4,     /* get the original DRT pointer */
-                         &sio_pointer);
-
-        cpu_write_memory (absolute, 01400, 1);              /* set the machine ID to 1 for the Series III */
-        cpu_write_memory (absolute, 01401, sio_pointer);    /* store the original DRT pointer */
-        cpu_write_memory (absolute, 01402, SM);             /* store the stack pointer */
-        cpu_write_memory (absolute, 01403, 0);              /* store zeros for the scratch pad 1 */
-        cpu_write_memory (absolute, 01404, 0);              /*   and scratch pad 2 register values */
-        cpu_write_memory (absolute, 01405, DB);             /* store the data base */
-        cpu_write_memory (absolute, 01406, DBANK << 12      /* store DBANK in 0:4 */
-                                             | PBANK << 8   /*   and PBANK in 4:4 */
-                                             | SBANK);      /*     and SBANK in 12:4 */
-        cpu_write_memory (absolute, 01407, Z);              /* store the stack limit */
-        cpu_write_memory (absolute, 01410, DL);             /*   and the data limit */
-        cpu_write_memory (absolute, 01411, X);              /*   and the index register */
-        cpu_write_memory (absolute, 01412, Q);              /*   and the frame pointer */
-        cpu_write_memory (absolute, 01413, CIR);            /*   and the current instruction */
-        cpu_write_memory (absolute, 01414, PB);             /*   and the program base */
-        cpu_write_memory (absolute, 01415, PL);             /*   and the program limit */
-        cpu_write_memory (absolute, 01416, P);              /*   and the program counter */
-        cpu_write_memory (absolute, 01417, CPX1);           /* store the CPX1 register */
-        cpu_write_memory (absolute, 01420, STA);            /*   and the status register */
-        cpu_write_memory (absolute, 01421,                  /* store the lower byte of the CPX2 register */
-                          LOWER_WORD (CPX2 << 8             /*   in the upper byte of memory */
-                            | MEMSIZE / 65536));            /*     and the memory bank count in the lower byte */
-
-        cpu_write_memory (absolute, 01422, SIO_CNTL);           /* CONTRL 0,BSR */
-        cpu_write_memory (absolute, 01423, MS_CN_BSR);
-        cpu_write_memory (absolute, 01424, SIO_CNTL);           /* CONTRL 0,GAP */
-        cpu_write_memory (absolute, 01425, MS_CN_GAP);
-        cpu_write_memory (absolute, 01426, SIO_JUMP);           /* JUMP   001436 */
-        cpu_write_memory (absolute, 01427, 001436);
-
-        cpu_write_memory (absolute, 01430, SIO_SBANK);          /* SETBNK 0 */
-        cpu_write_memory (absolute, 01431, 000000);
-        cpu_write_memory (absolute, 01432, SIO_CNTL);           /* CONTRL 0,<SWCH-upper> */
-        cpu_write_memory (absolute, 01433, UPPER_BYTE (SWCH));
-        cpu_write_memory (absolute, 01434, SIO_WRITE);          /* WRITE  #4096,000000 */
-        cpu_write_memory (absolute, 01435, 000000);
-        cpu_write_memory (absolute, 01436, SIO_ENDIN);          /* ENDINT */
-        cpu_write_memory (absolute, 01437, 000000);
-
-        address = 0;                                    /* clear the address */
-        offset = 0;                                     /*   and memory offset counters */
-
-        CIR = 0;                                        /* clear the memory bank counter */
-
-        cpu_write_memory (absolute, cold_device * 4, 01430);    /* point the DRT at the cold dump program */
-        error_recovery = FALSE;
-
-        iop_direct_io (cold_device, ioSIO, 0);          /* start the device */
-
-        if (CPX1 & cpx1_IOTIMER)                        /* if the device did not respond */
-            MICRO_ABORT (trap_SysHalt_IO_Timeout);      /*   then a System Halt occurs */
-
-        else {                                          /* otherwise the device has started */
-            status = STA;                               /*   so save the original status register value */
-
-            STA = STATUS_I | STATUS_O;                  /* enable interrupts and set overflow */
-            cpu_micro_state = waiting;                  /*   and set the load-in-progress state */
-            }
-        }
-
-    else if (CPX1 & cpx1_EXTINTR) {                     /* otherwise if an external interrupt is pending */
-        CPX1 &= ~cpx1_EXTINTR;                          /*   then clear it */
-
-        iop_direct_io (device_number, ioRIN, 0);        /* reset the device interrupt */
-
-        if (device_number == cold_device)               /* if the expected device interrupted */
-            if (address >= MEMSIZE) {                   /*   then if all of memory has been dumped */
-                CPX2 &= ~cpx2_DUMPSWCH;                 /*   then reset the DUMP switch */
-
-                STA = status;                           /* restore the original status register value */
-
-                cpu_write_memory (absolute,             /* restore the */
-                                  cold_device * 4,      /*   original SIO pointer */
-                                  sio_pointer);         /*     to the DRT */
-
-                cpu_micro_state = halted;               /* clear the dump-in-progress state */
-                return STOP_CDUMP;                      /*   and report dump completion */
+                    CIR = 0;           /* clear CIR to indicate a failure */
+                    return STOP_CDUMP; /* and terminate the dump */
                 }
 
-            else {                                      /* otherwise the dump continues */
-                cpu_read_memory (absolute,              /* read the */
-                                 cold_device * 4,       /*   current SIO pointer address */
-                                 &pointer);             /*     from the DRT */
+                cpu_read_memory(absolute, cold_device * 4, /* get the original DRT pointer */
+                                &sio_pointer);
 
-                if (pointer == 01440) {                 /* if the SIO program completed normally */
-                    cpu_write_memory (absolute,         /*   then reset the pointer */
-                                      cold_device * 4,  /*     to the start */
-                                      001430);          /*       of the program */
+                cpu_write_memory(absolute, 01400, 1);           /* set the machine ID to 1 for the Series III */
+                cpu_write_memory(absolute, 01401, sio_pointer); /* store the original DRT pointer */
+                cpu_write_memory(absolute, 01402, SM);          /* store the stack pointer */
+                cpu_write_memory(absolute, 01403, 0);           /* store zeros for the scratch pad 1 */
+                cpu_write_memory(absolute, 01404, 0);           /* and scratch pad 2 register values */
+                cpu_write_memory(absolute, 01405, DB);          /* store the data base */
+                cpu_write_memory(absolute, 01406,
+                                 DBANK << 12                     /* store DBANK in 0:4 */
+                                     | PBANK << 8                /* and PBANK in 4:4 */
+                                     | SBANK);                   /* and SBANK in 12:4 */
+                cpu_write_memory(absolute, 01407, Z);            /* store the stack limit */
+                cpu_write_memory(absolute, 01410, DL);           /* and the data limit */
+                cpu_write_memory(absolute, 01411, X);            /* and the index register */
+                cpu_write_memory(absolute, 01412, Q);            /* and the frame pointer */
+                cpu_write_memory(absolute, 01413, CIR);          /* and the current instruction */
+                cpu_write_memory(absolute, 01414, PB);           /* and the program base */
+                cpu_write_memory(absolute, 01415, PL);           /* and the program limit */
+                cpu_write_memory(absolute, 01416, P);            /* and the program counter */
+                cpu_write_memory(absolute, 01417, CPX1);         /* store the CPX1 register */
+                cpu_write_memory(absolute, 01420, STA);          /* and the status register */
+                cpu_write_memory(absolute, 01421,                /* store the lower byte of the CPX2 register */
+                                 LOWER_WORD(CPX2 << 8            /* in the upper byte of memory */
+                                            | MEMSIZE / 65536)); /* and the memory bank count in the lower byte */
 
-                    if (error_recovery)                 /* if this was a successful error recovery */
-                        error_recovery = FALSE;         /*   then clear the flag and keep the current address */
+                cpu_write_memory(absolute, 01422, SIO_CNTL); /* CONTRL 0,BSR */
+                cpu_write_memory(absolute, 01423, MS_CN_BSR);
+                cpu_write_memory(absolute, 01424, SIO_CNTL); /* CONTRL 0,GAP */
+                cpu_write_memory(absolute, 01425, MS_CN_GAP);
+                cpu_write_memory(absolute, 01426, SIO_JUMP); /* JUMP   001436 */
+                cpu_write_memory(absolute, 01427, 001436);
 
-                    else {                                  /* otherwise this was a successful write */
-                        address = address + 4096;           /*   so bump the memory address */
-                        offset = offset + 4096 & LA_MASK;   /*     and offset to the next 4K block */
+                cpu_write_memory(absolute, 01430, SIO_SBANK); /* SETBNK 0 */
+                cpu_write_memory(absolute, 01431, 000000);
+                cpu_write_memory(absolute, 01432, SIO_CNTL); /* CONTRL 0,<SWCH-upper> */
+                cpu_write_memory(absolute, 01433, UPPER_BYTE(SWCH));
+                cpu_write_memory(absolute, 01434, SIO_WRITE); /* WRITE  #4096,000000 */
+                cpu_write_memory(absolute, 01435, 000000);
+                cpu_write_memory(absolute, 01436, SIO_ENDIN); /* ENDINT */
+                cpu_write_memory(absolute, 01437, 000000);
 
-                        cpu_write_memory (absolute,         /* store the new write buffer address */
-                                          001435, offset);
+                address = 0; /* clear the address */
+                offset  = 0; /* and memory offset counters */
 
-                        if (offset == 0) {                  /* if the offset wrapped around */
-                            CIR = CIR + 1;                  /*   then increment the bank number */
-                            cpu_write_memory (absolute,     /*     and store it as the SET BANK target */
-                                              001431, CIR);
+                CIR = 0; /* clear the memory bank counter */
 
-                            if (address >= MEMSIZE) {               /* if all of memory has been dumped */
-                                cpu_write_memory (absolute, 001423, /*   then change the error recovery program */
-                                                  MS_CN_WFM);       /*     to write a file mark */
-                                cpu_write_memory (absolute, 001425, /*       followed by */
-                                                  MS_CN_RST);       /*         a rewind/offline request */
+                cpu_write_memory(absolute, cold_device * 4, 01430); /* point the DRT at the cold dump program */
+                error_recovery = FALSE;
 
-                                cpu_write_memory (absolute,         /* point at the recovery program */
-                                                  cold_device * 4,
-                                                  001422);
+                iop_direct_io(cold_device, ioSIO, 0); /* start the device */
+
+                if (CPX1 & cpx1_IOTIMER) {                /* if the device did not respond */
+                    MICRO_ABORT(trap_SysHalt_IO_Timeout); /*   then a System Halt occurs */
+                } else {                                  /* otherwise the device has started */
+                    status = STA;                         /*   so save the original status register value */
+
+                    STA             = STATUS_I | STATUS_O; /* enable interrupts and set overflow */
+                    cpu_micro_state = waiting;             /*   and set the load-in-progress state */
+                }
+            } else {
+                if (CPX1 & cpx1_EXTINTR) { /* otherwise if an external interrupt is pending */
+                    CPX1 &= ~cpx1_EXTINTR; /* then clear it */
+
+                    iop_direct_io(device_number, ioRIN, 0); /* reset the device interrupt */
+
+                    if (device_number == cold_device) { /* if the expected device interrupted */
+                        if (address >= MEMSIZE) {       /* then if all of memory has been dumped */
+                            CPX2 &= ~cpx2_DUMPSWCH;     /* then reset the DUMP switch */
+
+                            STA = status; /* restore the original status register value */
+
+                            cpu_write_memory(absolute,        /* restore the */
+                                             cold_device * 4, /* original SIO pointer */
+                                             sio_pointer);    /* to the DRT */
+
+                            cpu_micro_state = halted;        /* clear the dump-in-progress state */
+                            return STOP_CDUMP;               /* and report dump completion */
+                        } else {                             /* otherwise the dump continues */
+                            cpu_read_memory(absolute,        /* read the */
+                                            cold_device * 4, /* current SIO pointer address */
+                                            &pointer);       /* from the DRT */
+
+                            if (pointer == 01440) {               /* if the SIO program completed normally */
+                                cpu_write_memory(absolute,        /*   then reset the pointer */
+                                                 cold_device * 4, /*     to the start */
+                                                 001430);         /*       of the program */
+
+                                if (error_recovery)         /* if this was a successful error recovery */
+                                    error_recovery = FALSE; /*   then clear the flag and keep the current address */
+
+                                else {                                   /* otherwise this was a successful write */
+                                    address = address + 4096;            /*   so bump the memory address */
+                                    offset  = (offset + 4096) & LA_MASK; /*     and offset to the next 4K block */
+
+                                    cpu_write_memory(absolute, /* store the new write buffer address */
+                                                     001435, offset);
+
+                                    if (offset == 0) {             /* if the offset wrapped around */
+                                        CIR = CIR + 1;             /*   then increment the bank number */
+                                        cpu_write_memory(absolute, /*     and store it as the SET BANK target */
+                                                         001431, CIR);
+
+                                        if (address >= MEMSIZE) { /* if all of memory has been dumped */
+                                            cpu_write_memory(absolute,
+                                                             001423,     /*   then change the error recovery program */
+                                                             MS_CN_WFM); /*     to write a file mark */
+                                            cpu_write_memory(absolute, 001425, /*       followed by */
+                                                             MS_CN_RST);       /*         a rewind/offline request */
+
+                                            cpu_write_memory(absolute, /* point at the recovery program */
+                                                             cold_device * 4, 001422);
+                                        }
+                                    }
                                 }
+                            }
+
+                            else if (error_recovery) {  /* otherwise if the recover program failed */
+                                CPX2 &= ~cpx2_DUMPSWCH; /* then reset the DUMP switch */
+
+                                STA = status; /* restore the original status register value */
+
+                                cpu_write_memory(absolute,        /* restore the */
+                                                 cold_device * 4, /* original SIO pointer */
+                                                 sio_pointer);    /* to the DRT */
+
+                                cpu_micro_state = halted; /* clear the dump-in-progress state */
+                                return STOP_CDUMP;        /* and report dump failure */
+                            }
+
+                            else {                                /* otherwise attempt error recovery */
+                                cpu_write_memory(absolute,        /*   by setting the SIO pointer */
+                                                 cold_device * 4, /*     to the backspace/write gap */
+                                                 001422);         /*       program */
+
+                                error_recovery = TRUE; /* indicate that recovery is in progress */
+                            }
+
+                            iop_direct_io(cold_device, ioSIO, 0); /* start the device */
+                        }
+                    }
+                }
+            } /* otherwise wait for the cold dump device to interrupt */
+        } else {
+            if (CPX2 & cpx2_LOADSWCH) {           /* otherwise if the LOAD switch is pressed */
+                if (cpu_micro_state != waiting) { /*   then if the load is not in progress */
+                    reset_all(CPU_IO_RESET);      /*     then reset the CPU and all I/O devices */
+
+                    if ((SWCH & 000200) == 0) /* if switch register bit 8 is clear */
+                        mem_fill(0, HALT_10); /*   then fill all of memory with HALT 10 instructions */
+
+                    SBANK = 0; /* set the stack bank to bank 0 */
+
+                    cold_device = LOWER_BYTE(SWCH) & DEVNO_MASK; /* get the device number from the lower SWCH byte */
+
+                    if (cold_device < 3) {      /* if the device number is between 0 and 2 */
+                        CPX2 &= ~cpx2_LOADSWCH; /*   then reset the LOAD switch */
+                        return SCPE_INCOMP;     /*     and execute a front panel diagnostic */
+                    } else {
+                        if (cold_device > 63) {     /* otherwise if the device number is > 63 */
+                            CPX2 &= ~cpx2_LOADSWCH; /*   then reset the LOAD switch */
+                            return SCPE_INCOMP;     /*     and execute a direct I/O cold load */
+                        } else {                    /* otherwise the device number is in the channel I/O range */
+                            RA = 0;                 /* set the */
+                            RB = 0;                 /*   TOS registers */
+                            RC = 0;                 /*     to the same */
+                            RD = 0;                 /*       (random) value */
+
+                            SR  = 4; /* mark the TOS registers as valid */
+                            STA = 0; /*   and clear the status register */
+
+                            cpu_write_memory(absolute, 01430, SIO_SBANK); /* SETBNK 0 */
+                            cpu_write_memory(absolute, 01431, 000000);
+                            cpu_write_memory(absolute, 01432, SIO_CNTL); /* CONTRL 0,<SWCH-upper> */
+                            cpu_write_memory(absolute, 01433, UPPER_BYTE(SWCH));
+                            cpu_write_memory(absolute, 01434, SIO_READ); /* READ   #16,001400 */
+                            cpu_write_memory(absolute, 01435, 001400);
+                            cpu_write_memory(absolute, 01436, SIO_JUMP); /* JUMP   001400 */
+                            cpu_write_memory(absolute, 01437, 001400);
+
+                            cpu_write_memory(absolute, cold_device * 4, 01430); /* point the DRT to the cold load program */
+
+                            iop_direct_io(cold_device, ioSIO, 0); /* start the device */
+
+                            if (CPX1 & cpx1_IOTIMER) {                 /* if the device did not respond */
+                                MICRO_ABORT(trap_SysHalt_IO_Timeout);  /*   then a System Halt occurs */
+                            } else {                                   /* otherwise the device has started */
+                                STA             = STATUS_I | STATUS_O; /*   so enable interrupts and set overflow */
+                                cpu_micro_state = waiting;             /*     and set the load-in-progress state */
                             }
                         }
                     }
+                } else {                                        /* otherwise the load is in progress */
+                    if (CPX1 & cpx1_EXTINTR) {                  /* if an external interrupt is pending */
+			CPX1 &= ~cpx1_EXTINTR;                  /* then clear it */
 
-                else if (error_recovery) {              /* otherwise if the recover program failed */
-                    CPX2 &= ~cpx2_DUMPSWCH;             /*   then reset the DUMP switch */
+			iop_direct_io(device_number, ioRIN, 0); /* reset the device interrupt */
 
-                    STA = status;                       /* restore the original status register value */
+			if (device_number == cold_device) {     /* if the expected device interrupted */
+			    CPX2 &= ~cpx2_LOADSWCH;             /* then reset the LOAD switch */
 
-                    cpu_write_memory (absolute,         /* restore the */
-                                      cold_device * 4,  /*   original SIO pointer */
-                                      sio_pointer);     /*     to the DRT */
-
-                    cpu_micro_state = halted;           /* clear the dump-in-progress state */
-                    return STOP_CDUMP;                  /*   and report dump failure */
-                    }
-
-                else {                                  /* otherwise attempt error recovery */
-                    cpu_write_memory (absolute,         /*   by setting the SIO pointer */
-                                      cold_device * 4,  /*     to the backspace/write gap */
-                                      001422);          /*       program */
-
-                    error_recovery = TRUE;              /* indicate that recovery is in progress */
-                    }
-
-                iop_direct_io (cold_device, ioSIO, 0);  /* start the device */
-                }
-        }                                               /* otherwise wait for the cold dump device to interrupt */
-    }
-
-else if (CPX2 & cpx2_LOADSWCH)                          /* otherwise if the LOAD switch is pressed */
-    if (cpu_micro_state != waiting) {                   /*   then if the load is not in progress */
-        reset_all (CPU_IO_RESET);                       /*     then reset the CPU and all I/O devices */
-
-        if ((SWCH & 000200) == 0)                       /* if switch register bit 8 is clear */
-            mem_fill (0, HALT_10);                      /*   then fill all of memory with HALT 10 instructions */
-
-        SBANK = 0;                                      /* set the stack bank to bank 0 */
-
-        cold_device = LOWER_BYTE (SWCH) & DEVNO_MASK;   /* get the device number from the lower SWCH byte */
-
-        if (cold_device < 3) {                          /* if the device number is between 0 and 2 */
-            CPX2 &= ~cpx2_LOADSWCH;                     /*   then reset the LOAD switch */
-            return SCPE_INCOMP;                         /*     and execute a front panel diagnostic */
-            }
-
-        else if (cold_device > 63) {                    /* otherwise if the device number is > 63 */
-            CPX2 &= ~cpx2_LOADSWCH;                     /*   then reset the LOAD switch */
-            return SCPE_INCOMP;                         /*     and execute a direct I/O cold load */
-            }
-
-        else {                                          /* otherwise the device number is in the channel I/O range */
-            RA = 0;                                     /* set the */
-            RB = 0;                                     /*   TOS registers */
-            RC = 0;                                     /*     to the same */
-            RD = 0;                                     /*       (random) value */
-
-            SR = 4;                                     /* mark the TOS registers as valid */
-            STA = 0;                                    /*   and clear the status register */
-
-            cpu_write_memory (absolute, 01430, SIO_SBANK);          /* SETBNK 0 */
-            cpu_write_memory (absolute, 01431, 000000);
-            cpu_write_memory (absolute, 01432, SIO_CNTL);           /* CONTRL 0,<SWCH-upper> */
-            cpu_write_memory (absolute, 01433, UPPER_BYTE (SWCH));
-            cpu_write_memory (absolute, 01434, SIO_READ);           /* READ   #16,001400 */
-            cpu_write_memory (absolute, 01435, 001400);
-            cpu_write_memory (absolute, 01436, SIO_JUMP);           /* JUMP   001400 */
-            cpu_write_memory (absolute, 01437, 001400);
-
-            cpu_write_memory (absolute, cold_device * 4, 01430);    /* point the DRT to the cold load program */
-
-            iop_direct_io (cold_device, ioSIO, 0);      /* start the device */
-
-            if (CPX1 & cpx1_IOTIMER)                    /* if the device did not respond */
-                MICRO_ABORT (trap_SysHalt_IO_Timeout);  /*   then a System Halt occurs */
-
-            else {                                      /* otherwise the device has started */
-                STA = STATUS_I | STATUS_O;              /*   so enable interrupts and set overflow */
-                cpu_micro_state = waiting;              /*     and set the load-in-progress state */
-                }
+			    cpu_micro_state = running;          /* clear the load-in-progress state */
+			    MICRO_ABORT(trap_Cold_Load);        /* and execute the cold load trap handler */
+			  }
+		    } /* otherwise wait for the cold load device to interrupt */
+		}
             }
         }
+    }
 
-    else                                                /* otherwise the load is in progress */
-        if (CPX1 & cpx1_EXTINTR) {                      /* if an external interrupt is pending */
-            CPX1 &= ~cpx1_EXTINTR;                      /*   then clear it */
-
-            iop_direct_io (device_number, ioRIN, 0);    /* reset the device interrupt */
-
-            if (device_number == cold_device) {         /* if the expected device interrupted */
-                CPX2 &= ~cpx2_LOADSWCH;                 /*   then reset the LOAD switch */
-
-                cpu_micro_state = running;              /* clear the load-in-progress state */
-                MICRO_ABORT (trap_Cold_Load);           /*   and execute the cold load trap handler */
-                }
-            }                                           /* otherwise wait for the cold load device to interrupt */
-
-return SCPE_OK;
+    return SCPE_OK;
 }
-
 
 /* Execute one machine instruction.
 
@@ -4377,16 +4374,16 @@ switch (SUBOP (CIR)) {                                  /* dispatch on bits 0-3 
                 while (SR > 3)                          /* if more than three TOS register are loaded */
                     cpu_queue_down ();                  /*   queue them down until exactly three are left */
 
-                offset = DB + RC & LA_MASK;             /* get the address of the control value */
+                offset = (DB + RC) & LA_MASK;           /* get the address of the control value */
 
-                if (DL <= offset && offset <= SM || PRIV)       /* if the address is within the segment */
+                if ((DL <= offset && offset <= SM) || PRIV)     /* if the address is within the segment */
                     cpu_read_memory (data, offset, &operand);   /*   then read the value */
 
                 else                                            /* otherwise */
                     MICRO_ABORT (trap_Bounds_Violation);        /*   trap with a bounds violation if not privileged */
 
                 if (opcode == MTBA) {                           /* if the instruction is MTBA */
-                    operand = operand + RB & DV_MASK;           /*   then add the step size */
+                    operand = (operand + RB) & DV_MASK;         /*   then add the step size */
                     cpu_write_memory (data, offset, operand);   /*     to the control variable */
                     }
 
@@ -4397,7 +4394,7 @@ switch (SUBOP (CIR)) {                                  /* dispatch on bits 0-3 
                 PREADJUST_SR (2);                       /* ensure that at least two TOS registers are loaded */
 
                 if (opcode == MTBX)                     /* if the instruction is MTBX */
-                    X = X + RB & R_MASK;                /*   then add the step size to the control variable */
+                    X = (X + RB) & R_MASK;              /*   then add the step size to the control variable */
 
                 control = SEXT16 (X);                   /* sign-extend the control value */
                 }
@@ -4413,9 +4410,9 @@ switch (SUBOP (CIR)) {                                  /* dispatch on bits 0-3 
                 displacement = CIR & DISPL_255_MASK;            /*   then get the branch displacement */
 
                 if (CIR & DISPL_255_SIGN)                       /* if the displacement is negative */
-                    offset = P - 2 - displacement & LA_MASK;    /*   then subtract the displacement from the base */
+                    offset = (P - 2 - displacement) & LA_MASK;  /*   then subtract the displacement from the base */
                 else                                            /* otherwise */
-                    offset = P - 2 + displacement & LA_MASK;    /*   add the displacement to the base */
+                    offset = (P - 2 + displacement) & LA_MASK;  /*   add the displacement to the base */
 
                 if (cpu_stop_flags & SS_LOOP                    /* if the infinite loop stop is active */
                   && displacement == 0                          /*   and the target is the current instruction */
@@ -4425,7 +4422,7 @@ switch (SUBOP (CIR)) {                                  /* dispatch on bits 0-3 
                     status = SCPE_OK;                           /*   continue */
 
                 cpu_read_memory (fetch_checked, offset, &NIR);  /* load the next instruction register */
-                P = offset + 1 & R_MASK;                        /*   and increment the program counter */
+                P = (offset + 1) & R_MASK;                      /*   and increment the program counter */
                 }
 
             else {                                      /* otherwise the test failed */
@@ -4510,13 +4507,13 @@ switch (SUBOP (CIR)) {                                  /* dispatch on bits 0-3 
             cpu_ea (CIR, &class, &offset, NULL);        /*   then get the effective address of the branch */
 
             if (cpu_stop_flags & SS_LOOP                /* if the infinite loop stop is active */
-              && offset == (P - 2 & LA_MASK))           /*   and the target is the current instruction */
+              && offset == ((P - 2) & LA_MASK))         /*   and the target is the current instruction */
                 status = STOP_INFLOOP;                  /*     then stop the simulator */
             else                                        /* otherwise */
                 status = SCPE_OK;                       /*   continue */
 
             cpu_read_memory (fetch_checked, offset, &NIR);  /* load the next instruction register */
-            P = offset + 1 & R_MASK;                        /*   and increment the program counter */
+            P = (offset + 1) & R_MASK;                      /*   and increment the program counter */
             }
 
         else if (TO_CCF (STA) & CIR << BCC_CCF_SHIFT)   /* otherwise if the BCC test succeeds */
@@ -4528,8 +4525,8 @@ switch (SUBOP (CIR)) {                                  /* dispatch on bits 0-3 
         if (CIR & M_FLAG) {                             /* if the instruction is LDD */
             cpu_ea (CIR, &class, &offset, NULL);        /*   then get the effective address of the double-word */
 
-            cpu_read_memory (class, offset, &operand_1);                /* read the MSW */
-            cpu_read_memory (class, offset + 1 & LA_MASK, &operand_2);  /*   and the LSW of the operand */
+            cpu_read_memory (class, offset, &operand_1);                  /* read the MSW */
+            cpu_read_memory (class, (offset + 1) & LA_MASK, &operand_2);  /*   and the LSW of the operand */
 
             cpu_push ();                                /* push the MSW  */
             cpu_push ();                                /*   and the LSW  */
@@ -4561,8 +4558,8 @@ switch (SUBOP (CIR)) {                                  /* dispatch on bits 0-3 
 
             PREADJUST_SR (2);                           /* ensure that at least two TOS registers are loaded */
 
-            cpu_write_memory (class, offset + 1 & LA_MASK, RA); /* write the LSW first to follow the microcode */
-            cpu_write_memory (class, offset, RB);               /*   and then write the MSW */
+            cpu_write_memory (class, (offset + 1) & LA_MASK, RA); /* write the LSW first to follow the microcode */
+            cpu_write_memory (class, offset, RB);                 /*   and then write the MSW */
 
             cpu_pop ();                                 /* pop the TOS */
             cpu_pop ();                                 /*   and the NOS */

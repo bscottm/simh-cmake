@@ -1537,335 +1537,315 @@ return outbound;
        controller unit because it may be issued while the drive is seeking.
 */
 
-static CNTLR_IFN_IBUS start_command (CVPTR cvptr, CNTLR_FLAG_SET inbound_flags, CNTLR_IBUS inbound_data)
+static CNTLR_IFN_IBUS
+start_command (CVPTR cvptr, CNTLR_FLAG_SET inbound_flags, CNTLR_IBUS inbound_data)
 {
-UNIT *cuptr, *duptr, *rptr;
-uint32 unit;
-int32 seek_wait_time;
-PRPTR props;
-CNTLR_IFN_IBUS outbound;
-DIAG_ENTRY *dop = NULL;
+    UNIT *         cuptr, *duptr, *rptr;
+    uint32         unit;
+    int32          seek_wait_time;
+    PRPTR          props;
+    CNTLR_IFN_IBUS outbound;
+    DIAG_ENTRY *   dop = NULL;
 
-wait_timer (cvptr, CLEAR);                              /* stop the command wait timer */
+    wait_timer (cvptr, CLEAR); /* stop the command wait timer */
 
-cvptr->opcode = CM_OPCODE (inbound_data);               /* get the opcode from the command */
+    cvptr->opcode = CM_OPCODE (inbound_data); /* get the opcode from the command */
 
-if (cvptr->opcode > LAST_OPCODE                                 /* if the opcode is undefined */
-  || cvptr->type > LAST_CNTLR                                   /*   or the controller type is undefined */
-  || cmd_props [cvptr->opcode].valid [cvptr->type] == FALSE)    /*     or the opcode is not valid for this controller */
-    cvptr->opcode = Invalid_Opcode;                             /*       then replace it with the invalid opcode */
+    if (cvptr->opcode > LAST_OPCODE                              /* if the opcode is undefined */
+        || cvptr->type > LAST_CNTLR                              /*   or the controller type is undefined */
+        || cmd_props[cvptr->opcode].valid[cvptr->type] == FALSE) /*     or the opcode is not valid for this controller */
+        cvptr->opcode = Invalid_Opcode;                          /*       then replace it with the invalid opcode */
 
-props = &cmd_props [cvptr->opcode];                     /* get the properties associated with the opcode */
+    props = &cmd_props[cvptr->opcode]; /* get the properties associated with the opcode */
 
-if (cvptr->type == MAC) {                               /* if this a MAC controller */
-    if (props->unit_field)                              /*   then if the unit field is defined */
-        unit = CM_UNIT (inbound_data);                  /*     then get it from the command */
-    else                                                /*   otherwise the unit is not specified in the command */
-        unit = 0;                                       /*     so the unit is always unit 0 */
+    if (cvptr->type == MAC) {              /* if this a MAC controller */
+        if (props->unit_field)             /*   then if the unit field is defined */
+            unit = CM_UNIT (inbound_data); /*     then get it from the command */
+        else                               /*   otherwise the unit is not specified in the command */
+            unit = 0;                      /*     so the unit is always unit 0 */
 
-    cuptr = CNTLR_UPTR;                                 /* set the controller unit pointer */
+        cuptr = CNTLR_UPTR; /* set the controller unit pointer */
 
-    if (unit > DL_MAXDRIVE                              /* if the unit number is invalid */
-      || props->unit_access == FALSE)                   /*   or the command accesses the controller only */
-        duptr = NULL;                                   /*     then the drive pointer does not correspond to a unit */
-    else                                                /* otherwise the command accesses a valid drive unit */
-        duptr = cvptr->device->units + unit;            /*   so set the drive pointer to the unit */
+        if (unit > DL_MAXDRIVE                       /* if the unit number is invalid */
+            || props->unit_access == FALSE)          /*   or the command accesses the controller only */
+            duptr = NULL;                            /*     then the drive pointer does not correspond to a unit */
+        else                                         /* otherwise the command accesses a valid drive unit */
+            duptr = cvptr->device->units + unit;     /*   so set the drive pointer to the unit */
+    } else {                                         /* otherwise this is an ICD or CS/80 controller */
+        unit  = 0;                                   /*   so the unit value isn't used */
+        cuptr = duptr =                              /*     and the unit number was predefined */
+            cvptr->device->units + cvptr->poll_unit; /*       when the controller structure was initialized */
     }
 
-else {                                                  /* otherwise this is an ICD or CS/80 controller */
-    unit = 0;                                           /*   so the unit value isn't used */
-    cuptr = duptr =                                     /*     and the unit number was predefined */
-      cvptr->device->units + cvptr->poll_unit;          /*       when the controller structure was initialized */
+    dpprintf (cvptr->device, DL_DEB_INCO, "Unit %u %s command started\n", unit, opcode_name[cvptr->opcode]);
+
+    if (cvptr->dop_index >= 0) {                  /* if the diagnostic override table is defined */
+        dop = cvptr->dop_base + cvptr->dop_index; /*   then point at the current entry */
     }
 
-dpprintf (cvptr->device, DL_DEB_INCO, "Unit %u %s command started\n",
-          unit, opcode_name [cvptr->opcode]);
-
-if (cvptr->dop_index >= 0)                              /* if the diagnostic override table is defined */
-    dop = cvptr->dop_base + cvptr->dop_index;           /*   then point at the current entry */
-
-if (dop                                                 /* if the table entry exists */
-  && dop->cylinder == cvptr->cylinder                   /*   and the cylinder, */
-  && dop->head     == cvptr->head                       /*     head, */
-  && dop->sector   == cvptr->sector                     /*       sector, */
-  && dop->opcode   == cvptr->opcode)  {                 /*         and opcode values match the current values */
-    cvptr->spd_unit = dop->spd | unit;                  /*           then override the Spare/Protected/Defective */
-    cvptr->status   = dop->status;                      /*             and status values from the override entry */
-
-    cvptr->dop_index++;                                 /* point at the  */
-    dop++;                                              /*   next table entry */
-
-    dpprintf (cvptr->device, DL_DEB_INCO, "Unit %u cylinder %u head %u sector %u diagnostic override\n",
-              unit, cvptr->cylinder, cvptr->head, cvptr->sector);
-    }
-
-else if (props->clear_status) {                         /* otherwise if this command clears prior status */
-    cvptr->status = Normal_Completion;                  /*   then do it */
-    cvptr->spd_unit = unit;                             /*     and save the unit number for status requests */
-    }
-
-
-cvptr->state = Busy_State;                              /* the controller is now busy */
-cvptr->index = 0;                                       /* reset the buffer index */
-cvptr->count = 0;                                       /*   and the sector/word count */
-cvptr->verify = props->verify_address;                  /* set the address verification flag */
-
-cuptr->OPCODE = cvptr->opcode;                          /* set the controller unit opcode */
-cuptr->wait = NO_EVENT;                                 /*   and assume no controller scheduling */
-
-outbound = cmd_functions [cvptr->opcode] [Idle_Phase];  /* set up the initial function set and zero data */
-
-
-if (cvptr->opcode == Invalid_Opcode)                        /* if the opcode is invalid */
-    set_completion (cvptr, cuptr, Illegal_Opcode);          /*   then finish with an illegal opcode error */
-
-else if (props->unit_check && unit > MAX_UNIT)              /* otherwise if the unit number is checked and is illegal */
-    set_completion (cvptr, cuptr, Unit_Unavailable);        /*   then finish with a unit unavailable error */
-
-else if (props->unit_check && unit > DL_MAXDRIVE            /* otherwise if the unit number is checked and is invalid */
-  || props->seek_wait && (drive_status (duptr) & S2_STOPS)) /*   or if we're waiting for an offline drive */
-    set_completion (cvptr, cuptr, Status_2_Error);          /*     then finish with a Status-2 error */
-
-else {                                                  /* otherwise the command and unit are valid */
-    if (duptr) {                                        /* if the drive unit is accessed  */
-        duptr->OPCODE = cvptr->opcode;                  /*   then set the drive opcode for later reference */
-        duptr->wait = NO_EVENT;                         /* assume no drive scheduling */
-        duptr->STATUS &= ~S2_ATTENTION;                 /* clear any pending Attention status */
-        }
-
-    if (props->param_count != 0) {                      /* if the command takes or returns parameters */
-        cvptr->length = props->param_count;             /*   then set the parameter count */
-        cuptr->PHASE = Parameter_Phase;                 /* set up the parameter transfer on the controller */
-        wait_timer (cvptr, SET);                        /*   and start the timer to wait for the first parameter */
-        }
-
-    switch (cvptr->opcode) {                            /* dispatch the command for initiation */
-
-        case Cold_Load_Read:
-            cvptr->cylinder = 0;                                /* set the cylinder address to 0 */
-            cvptr->head = CM_HEAD (inbound_data);               /* set the head and */
-            cvptr->sector = CM_SECTOR (inbound_data);           /*   sector addresses from the command */
-
-            if (start_seek (cvptr, duptr) == FALSE)             /* start the seek; if it failed */
-                set_completion (cvptr, cuptr, Status_2_Error);  /*   then set up the completion status */
-
-            dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s from cylinder %u head %u sector %u\n",
-                      unit, opcode_name [Cold_Load_Read], cvptr->cylinder, cvptr->head, cvptr->sector);
-            break;                                              /* wait for seek completion */
-
-
-        case Recalibrate:
-            dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s to cylinder 0\n",
-                      unit, opcode_name [Recalibrate]);
-
-            if (duptr->PHASE == Seek_Phase) {                   /* if the unit is currently seeking */
-                seek_wait_time = sim_activate_time (duptr);     /*   then get the remaining event time */
-
-                sim_cancel (duptr);                             /* cancel the event to allow rescheduling */
-                duptr->PHASE = Idle_Phase;                      /*   and idle the drive so that the seek succeeds */
-
-                dpprintf (cvptr->device, DL_DEB_INCO, "Unit %u %s command waiting for seek completion\n",
-                          unit, opcode_name [Recalibrate]);
-                }
-
-            else                                                /* otherwise the drive is idle */
-                seek_wait_time = 0;                             /*   so there's no seek wait time */
-
-            if (start_seek (cvptr, duptr) == FALSE)                 /* start the seek; if it failed */
-                set_completion (cvptr, cuptr, Status_2_Error);      /*   then set up the completion status */
-
-            else if (cvptr->type == MAC)                            /* otherwise if this a MAC controller */
-                set_completion (cvptr, cuptr, Normal_Completion);   /*   then schedule seek completion */
-
-            duptr->wait = duptr->wait + seek_wait_time;             /* increase the delay by any remaining seek time */
-            break;                                                  /*   and wait for the recalibrate to complete */
-
-
-        case Request_Status:
-            cvptr->buffer [0] = (DL_BUFFER) (cvptr->spd_unit    /* set the Status-1 value */
-                                  | S1_STATUS (cvptr->status)); /*   into the buffer */
-
-            if (cvptr->type == MAC)                     /* if this a MAC controller */
-                if (unit > DL_MAXDRIVE)                 /*   then if the unit number is invalid */
-                    rptr = NULL;                        /*     then it does not correspond to a unit */
-                else                                    /*   otherwise the unit is valid */
-                    rptr = cvptr->device->units + unit; /*     so get the address of the referenced unit */
-            else                                        /* otherwise it is not a MAC controller */
-                rptr = duptr;                           /*   so the referenced unit is the current unit */
-
-            cvptr->buffer [1] = (DL_BUFFER) drive_status (rptr);    /* set the Status-2 value into the buffer */
-
-            dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s returns %sunit %u | %s and %s%s | %s\n",
-                      unit, opcode_name [Request_Status],
-                      fmt_bitset (cvptr->spd_unit, status_1_format),
-                      CM_UNIT (cvptr->spd_unit), dl_status_name (cvptr->status),
-                      (cvptr->buffer [1] & S2_ERROR ? "error | " : ""),
-                      drive_props [S2_TO_DRIVE_TYPE (cvptr->buffer [1])].name,
-                      fmt_bitset (cvptr->buffer [1], status_2_format));
-
-            if (rptr)                                   /* if the referenced unit is valid */
-                rptr->STATUS &= ~S2_FIRST_STATUS;       /*   then clear the First Status bit */
-
-            cvptr->spd_unit = S1_UNIT (unit);           /* save the unit number referenced in the command */
-
-            if (unit > MAX_UNIT)                        /* if the unit number is illegal */
-                cvptr->status = Unit_Unavailable;       /*   then the next status will be Unit Unavailable */
-            else                                        /* otherwise a legal unit */
-                cvptr->status = Normal_Completion;      /*   clears the controller status */
-            break;
-
-
-        case Request_Sector_Address:
-            if (drive_status (duptr) & S2_NOT_READY)            /* if the drive is not ready */
-                set_completion (cvptr, cuptr, Status_2_Error);  /*   then finish with Not Ready status */
-
-            else                                                /* otherwise the drive is ready */
-                cvptr->buffer [0] =                             /*   so calculate the current sector address */
-                  (DL_BUFFER) CURRENT_SECTOR (cvptr, duptr);
-
-            dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s returns sector %u\n",
-                      unit, opcode_name [Request_Sector_Address], cvptr->buffer [0]);
-            break;
-
-
-        case Clear:
-            clear_controller (cvptr, Soft_Clear);               /* clear the controller */
-            set_completion (cvptr, cuptr, Normal_Completion);   /*   and schedule the command completion */
-
-            dpprintf (cvptr->device, DL_DEB_CMD, "%s\n", opcode_name [Clear]);
-            break;
-
-
-        case Request_Syndrome:
-            if (cvptr->status == Correctable_Data_Error) {      /* if this is a correction override */
-                cvptr->buffer [3] = (DL_BUFFER) dop->spd;       /*   then load the displacement */
-                cvptr->buffer [4] = (DL_BUFFER) dop->cylinder;  /*     and three */
-                cvptr->buffer [5] = (DL_BUFFER) dop->head;      /*       syndrome words */
-                cvptr->buffer [6] = (DL_BUFFER) dop->sector;    /*         from the override entry */
-
-                cvptr->dop_index++;                             /* point at the  */
-                dop++;                                          /*   next table entry */
-                }
-
-            else {                                          /* otherwise no correction data was supplied */
-                cvptr->buffer [3] = 0;                      /*   so the displacement is always zero */
-                cvptr->buffer [4] = 0;                      /*     as are */
-                cvptr->buffer [5] = 0;                      /*       the three */
-                cvptr->buffer [6] = 0;                      /*         syndrome words */
-
-                if (cvptr->status == Normal_Completion)         /* if we've been called without an override */
-                    cvptr->status = Uncorrectable_Data_Error;   /*   then presume that an uncorrectable error occurred */
-                }
-
-            cvptr->buffer [0] = (DL_BUFFER) (cvptr->spd_unit    /* save the Status-1 value */
-                                  | S1_STATUS (cvptr->status)); /*   in the buffer */
-
-            set_address (cvptr, 1);                         /* save the CHS values in the buffer */
-
-            dpprintf (cvptr->device, DL_DEB_CMD, "%s returns %sunit %u | %s | cylinder %u head %u sector %u | "
-                                                 "syndrome %06o %06o %06o %06o\n",
-                      opcode_name [Request_Syndrome], fmt_bitset (cvptr->spd_unit, status_1_format),
-                      CM_UNIT (cvptr->spd_unit), dl_status_name (cvptr->status),
-                      cvptr->cylinder, cvptr->head, cvptr->sector,
-                      cvptr->buffer [3], cvptr->buffer [4], cvptr->buffer [5], cvptr->buffer [6]);
-
-            next_sector (cvptr, cvptr->device->units        /* address the next sector of the last unit used */
-                                  + S1_UNIT (cvptr->spd_unit));
-            break;
-
-
-        case Set_File_Mask:
-            cvptr->file_mask = CM_FILE_MASK (inbound_data);     /* save the supplied file mask */
-
-            outbound |= CM_RETRY (inbound_data);                /* return the retry count */
-
-            set_completion (cvptr, cuptr, Normal_Completion);   /* schedule the command completion */
-
-            dpprintf (cvptr->device, DL_DEB_CMD, "%s to %sretries %u\n",
-                      opcode_name [Set_File_Mask], fmt_bitset (cvptr->file_mask, file_mask_format),
-                      CM_RETRY (inbound_data));
-            break;
-
-
-        case Request_Disc_Address:
-            set_address (cvptr, 0);                     /* set the controller's CHS values into the buffer */
-
-            dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s returns cylinder %u head %u sector %u\n",
-                      unit, opcode_name [Request_Disc_Address], cvptr->cylinder, cvptr->head, cvptr->sector);
-            break;
-
-
-        case End:
-            dpprintf (cvptr->device, DL_DEB_CMD, "%s\n", opcode_name [End]);
-
-            end_command (cvptr, NULL, Normal_Completion);   /* end the command and idle the controller */
-            break;
-
-
-        case Wakeup:
-            set_completion (cvptr, cuptr, Unit_Available);  /* schedule the command completion */
-
-            dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s\n",
-                      unit, opcode_name [Wakeup]);
-            break;
-
-
-        /* these commands wait for seek completion before starting */
-
-        case Read_Without_Verify:
-            cvptr->verify = FALSE;                      /* do not verify until a track is crossed */
-            inbound_data &= ~CM_SPD_MASK;               /* clear the SPD bits to avoid changing the state */
-
-        /* fall into the Initialize case */
-
-        case Initialize:
-            cvptr->spd_unit |= CM_SPD (inbound_data);   /* merge the SPD flags with the unit */
-
-        /* fall into the read/write cases */
-
-        case Read:
-        case Read_Full_Sector:
-        case Write:
-        case Write_Full_Sector:
-            if (duptr->PHASE == Seek_Phase)                 /* if the unit is currently seeking */
-                dpprintf (cvptr->device, DL_DEB_INCO, "Unit %u %s command waiting for seek completion\n",
-                          unit, opcode_name [cvptr->opcode]);
-
-            else                                            /* otherwise the unit is idle */
-                set_rotation (cvptr, duptr);                /*   so set up the rotation phase and latency */
-            break;
-
-
-        /* these commands take parameters but otherwise require no preliminary work */
-
-        case Seek:
-        case Verify:
-        case Address_Record:
-        case Read_With_Offset:
-        case Load_TIO_Register:
-            break;
-
-
-        case Invalid_Opcode:                            /* for completeness; invalid commands are not dispatched */
-            break;
+    if (dop                                 /* if the table entry exists */
+        && dop->cylinder == cvptr->cylinder /*   and the cylinder, */
+        && dop->head == cvptr->head         /*     head, */
+        && dop->sector == cvptr->sector     /*       sector, */
+        && dop->opcode == cvptr->opcode) {  /*         and opcode values match the current values */
+        cvptr->spd_unit = dop->spd | unit;  /*           then override the Spare/Protected/Defective */
+        cvptr->status   = dop->status;      /*             and status values from the override entry */
+
+        cvptr->dop_index++; /* point at the  */
+        dop++;              /*   next table entry */
+
+        dpprintf (cvptr->device, DL_DEB_INCO, "Unit %u cylinder %u head %u sector %u diagnostic override\n", unit,
+                  cvptr->cylinder, cvptr->head, cvptr->sector);
+    } else {
+        if (props->clear_status) {               /* otherwise if this command clears prior status */
+            cvptr->status   = Normal_Completion; /*   then do it */
+            cvptr->spd_unit = unit;              /*     and save the unit number for status requests */
         }
     }
 
+    cvptr->state  = Busy_State;            /* the controller is now busy */
+    cvptr->index  = 0;                     /* reset the buffer index */
+    cvptr->count  = 0;                     /*   and the sector/word count */
+    cvptr->verify = props->verify_address; /* set the address verification flag */
 
-if (cvptr->state == Busy_State) {                       /* if the command has not completed immediately */
-    if (cuptr->wait != NO_EVENT && cvptr->type == MAC)  /*   then if the controller unit is scheduled */
-        activate_unit (cvptr, cuptr);                   /*      then activate it */
+    cuptr->OPCODE = cvptr->opcode; /* set the controller unit opcode */
+    cuptr->wait   = NO_EVENT;      /*   and assume no controller scheduling */
 
-    if (duptr && duptr->wait != NO_EVENT)               /*   and if the drive unit is valid and scheduled */
-        activate_unit (cvptr, duptr);                   /*      then activate it as well */
+    outbound = cmd_functions[cvptr->opcode][Idle_Phase]; /* set up the initial function set and zero data */
+
+    if (cvptr->opcode == Invalid_Opcode) {             /* if the opcode is invalid */
+        set_completion (cvptr, cuptr, Illegal_Opcode); /*   then finish with an illegal opcode error */
+    } else {
+        if (props->unit_check && unit > MAX_UNIT) {          /* otherwise if the unit number is checked and is illegal */
+            set_completion (cvptr, cuptr, Unit_Unavailable); /*   then finish with a unit unavailable error */
+
+        } else {
+            if ((props->unit_check && unit > DL_MAXDRIVE) /* otherwise if the unit number is checked and is invalid */
+                || (props->seek_wait
+                       && (drive_status (duptr) & S2_STOPS))) { /*   or if we're waiting for an offline drive */
+                set_completion (cvptr, cuptr, Status_2_Error); /*     then finish with a Status-2 error */
+            } else {                                /* otherwise the command and unit are valid */
+                if (duptr) {                        /* if the drive unit is accessed  */
+                    duptr->OPCODE = cvptr->opcode;  /*   then set the drive opcode for later reference */
+                    duptr->wait   = NO_EVENT;       /* assume no drive scheduling */
+                    duptr->STATUS &= ~S2_ATTENTION; /* clear any pending Attention status */
+                }
+
+                if (props->param_count != 0) {          /* if the command takes or returns parameters */
+                    cvptr->length = props->param_count; /*   then set the parameter count */
+                    cuptr->PHASE  = Parameter_Phase;    /* set up the parameter transfer on the controller */
+                    wait_timer (cvptr, SET);            /*   and start the timer to wait for the first parameter */
+                }
+
+                switch (cvptr->opcode) { /* dispatch the command for initiation */
+
+                case Cold_Load_Read:
+                    cvptr->cylinder = 0;                        /* set the cylinder address to 0 */
+                    cvptr->head     = CM_HEAD (inbound_data);   /* set the head and */
+                    cvptr->sector   = CM_SECTOR (inbound_data); /*   sector addresses from the command */
+
+                    if (start_seek (cvptr, duptr) == FALSE)            /* start the seek; if it failed */
+                        set_completion (cvptr, cuptr, Status_2_Error); /*   then set up the completion status */
+
+                    dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s from cylinder %u head %u sector %u\n", unit,
+                              opcode_name[Cold_Load_Read], cvptr->cylinder, cvptr->head, cvptr->sector);
+                    break; /* wait for seek completion */
+
+                case Recalibrate:
+                    dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s to cylinder 0\n", unit, opcode_name[Recalibrate]);
+
+                    if (duptr->PHASE == Seek_Phase) {               /* if the unit is currently seeking */
+                        seek_wait_time = sim_activate_time (duptr); /*   then get the remaining event time */
+
+                        sim_cancel (duptr);        /* cancel the event to allow rescheduling */
+                        duptr->PHASE = Idle_Phase; /*   and idle the drive so that the seek succeeds */
+
+                        dpprintf (cvptr->device, DL_DEB_INCO, "Unit %u %s command waiting for seek completion\n", unit,
+                                  opcode_name[Recalibrate]);
+                    }
+
+                    else                    /* otherwise the drive is idle */
+                        seek_wait_time = 0; /*   so there's no seek wait time */
+
+                    if (start_seek (cvptr, duptr) == FALSE) {          /* start the seek; if it failed */
+                        set_completion (cvptr, cuptr, Status_2_Error); /*   then set up the completion status */
+		    } else { if (cvptr->type == MAC)                          /* otherwise if this a MAC controller */
+                        set_completion (cvptr, cuptr, Normal_Completion); /*   then schedule seek completion */
+		    }
+
+                    duptr->wait = duptr->wait + seek_wait_time; /* increase the delay by any remaining seek time */
+                    break;                                      /*   and wait for the recalibrate to complete */
+
+                case Request_Status:
+                    cvptr->buffer[0] = (DL_BUFFER) (cvptr->spd_unit               /* set the Status-1 value */
+                                                    | S1_STATUS (cvptr->status)); /*   into the buffer */
+
+                    if (cvptr->type == MAC) {                   /* if this a MAC controller */
+                        if (unit > DL_MAXDRIVE)                 /*   then if the unit number is invalid */
+                            rptr = NULL;                        /*     then it does not correspond to a unit */
+                        else                                    /*   otherwise the unit is valid */
+                            rptr = cvptr->device->units + unit; /*     so get the address of the referenced unit */
+		    } else                                        /* otherwise it is not a MAC controller */
+                        rptr = duptr;                           /*   so the referenced unit is the current unit */
+
+                    cvptr->buffer[1] = (DL_BUFFER)drive_status (rptr); /* set the Status-2 value into the buffer */
+
+                    dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s returns %sunit %u | %s and %s%s | %s\n", unit,
+                              opcode_name[Request_Status], fmt_bitset (cvptr->spd_unit, status_1_format),
+                              CM_UNIT (cvptr->spd_unit), dl_status_name (cvptr->status),
+                              (cvptr->buffer[1] & S2_ERROR ? "error | " : ""),
+                              drive_props[S2_TO_DRIVE_TYPE (cvptr->buffer[1])].name,
+                              fmt_bitset (cvptr->buffer[1], status_2_format));
+
+                    if (rptr)                             /* if the referenced unit is valid */
+                        rptr->STATUS &= ~S2_FIRST_STATUS; /*   then clear the First Status bit */
+
+                    cvptr->spd_unit = S1_UNIT (unit); /* save the unit number referenced in the command */
+
+                    if (unit > MAX_UNIT)                   /* if the unit number is illegal */
+                        cvptr->status = Unit_Unavailable;  /*   then the next status will be Unit Unavailable */
+                    else                                   /* otherwise a legal unit */
+                        cvptr->status = Normal_Completion; /*   clears the controller status */
+                    break;
+
+                case Request_Sector_Address:
+                    if (drive_status (duptr) & S2_NOT_READY)           /* if the drive is not ready */
+                        set_completion (cvptr, cuptr, Status_2_Error); /*   then finish with Not Ready status */
+
+                    else                   /* otherwise the drive is ready */
+                        cvptr->buffer[0] = /*   so calculate the current sector address */
+                            (DL_BUFFER)CURRENT_SECTOR (cvptr, duptr);
+
+                    dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s returns sector %u\n", unit,
+                              opcode_name[Request_Sector_Address], cvptr->buffer[0]);
+                    break;
+
+                case Clear:
+                    clear_controller (cvptr, Soft_Clear);             /* clear the controller */
+                    set_completion (cvptr, cuptr, Normal_Completion); /*   and schedule the command completion */
+
+                    dpprintf (cvptr->device, DL_DEB_CMD, "%s\n", opcode_name[Clear]);
+                    break;
+
+                case Request_Syndrome:
+                    if (cvptr->status == Correctable_Data_Error) {   /* if this is a correction override */
+                        cvptr->buffer[3] = (DL_BUFFER)dop->spd;      /*   then load the displacement */
+                        cvptr->buffer[4] = (DL_BUFFER)dop->cylinder; /*     and three */
+                        cvptr->buffer[5] = (DL_BUFFER)dop->head;     /*       syndrome words */
+                        cvptr->buffer[6] = (DL_BUFFER)dop->sector;   /*         from the override entry */
+
+                        cvptr->dop_index++; /* point at the  */
+                        dop++;              /*   next table entry */
+                    } else {                    /* otherwise no correction data was supplied */
+                        cvptr->buffer[3] = 0; /*   so the displacement is always zero */
+                        cvptr->buffer[4] = 0; /*     as are */
+                        cvptr->buffer[5] = 0; /*       the three */
+                        cvptr->buffer[6] = 0; /*         syndrome words */
+
+                        if (cvptr->status == Normal_Completion) /* if we've been called without an override */
+                            cvptr->status
+                                = Uncorrectable_Data_Error; /*   then presume that an uncorrectable error occurred */
+                    }
+
+                    cvptr->buffer[0] = (DL_BUFFER) (cvptr->spd_unit               /* save the Status-1 value */
+                                                    | S1_STATUS (cvptr->status)); /*   in the buffer */
+
+                    set_address (cvptr, 1); /* save the CHS values in the buffer */
+
+                    dpprintf (cvptr->device, DL_DEB_CMD,
+                              "%s returns %sunit %u | %s | cylinder %u head %u sector %u | "
+                              "syndrome %06o %06o %06o %06o\n",
+                              opcode_name[Request_Syndrome], fmt_bitset (cvptr->spd_unit, status_1_format),
+                              CM_UNIT (cvptr->spd_unit), dl_status_name (cvptr->status), cvptr->cylinder, cvptr->head,
+                              cvptr->sector, cvptr->buffer[3], cvptr->buffer[4], cvptr->buffer[5], cvptr->buffer[6]);
+
+                    next_sector (cvptr, cvptr->device->units /* address the next sector of the last unit used */
+                                            + S1_UNIT (cvptr->spd_unit));
+                    break;
+
+                case Set_File_Mask:
+                    cvptr->file_mask = CM_FILE_MASK (inbound_data); /* save the supplied file mask */
+
+                    outbound |= CM_RETRY (inbound_data); /* return the retry count */
+
+                    set_completion (cvptr, cuptr, Normal_Completion); /* schedule the command completion */
+
+                    dpprintf (cvptr->device, DL_DEB_CMD, "%s to %sretries %u\n", opcode_name[Set_File_Mask],
+                              fmt_bitset (cvptr->file_mask, file_mask_format), CM_RETRY (inbound_data));
+                    break;
+
+                case Request_Disc_Address:
+                    set_address (cvptr, 0); /* set the controller's CHS values into the buffer */
+
+                    dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s returns cylinder %u head %u sector %u\n", unit,
+                              opcode_name[Request_Disc_Address], cvptr->cylinder, cvptr->head, cvptr->sector);
+                    break;
+
+                case End:
+                    dpprintf (cvptr->device, DL_DEB_CMD, "%s\n", opcode_name[End]);
+
+                    end_command (cvptr, NULL, Normal_Completion); /* end the command and idle the controller */
+                    break;
+
+                case Wakeup:
+                    set_completion (cvptr, cuptr, Unit_Available); /* schedule the command completion */
+
+                    dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s\n", unit, opcode_name[Wakeup]);
+                    break;
+
+                    /* these commands wait for seek completion before starting */
+
+                case Read_Without_Verify:
+                    cvptr->verify = FALSE;        /* do not verify until a track is crossed */
+                    inbound_data &= ~CM_SPD_MASK; /* clear the SPD bits to avoid changing the state */
+
+                    /* fall into the Initialize case */
+
+                case Initialize:
+                    cvptr->spd_unit |= CM_SPD (inbound_data); /* merge the SPD flags with the unit */
+
+                    /* fall into the read/write cases */
+
+                case Read:
+                case Read_Full_Sector:
+                case Write:
+                case Write_Full_Sector:
+                    if (duptr->PHASE == Seek_Phase) { /* if the unit is currently seeking */
+                        dpprintf (cvptr->device, DL_DEB_INCO, "Unit %u %s command waiting for seek completion\n", unit,
+                                  opcode_name[cvptr->opcode]);
+		    } else                             /* otherwise the unit is idle */
+                        set_rotation (cvptr, duptr); /*   so set up the rotation phase and latency */
+                    break;
+
+                    /* these commands take parameters but otherwise require no preliminary work */
+
+                case Seek:
+                case Verify:
+                case Address_Record:
+                case Read_With_Offset:
+                case Load_TIO_Register:
+                    break;
+
+                case Invalid_Opcode: /* for completeness; invalid commands are not dispatched */
+                    break;
+                }
+            }
+        }
     }
 
-if (outbound & WRTIO)                                           /* if status is expected immediately */
-    outbound |= S1_STATUS (cvptr->status) | cvptr->spd_unit;    /*   then return the Status-1 value */
+    if (cvptr->state == Busy_State) {                      /* if the command has not completed immediately */
+        if (cuptr->wait != NO_EVENT && cvptr->type == MAC) /*   then if the controller unit is scheduled */
+            activate_unit (cvptr, cuptr);                  /*      then activate it */
 
-return outbound;                                        /* return the data word and function set */
+        if (duptr && duptr->wait != NO_EVENT) /*   and if the drive unit is valid and scheduled */
+            activate_unit (cvptr, duptr);     /*      then activate it as well */
+    }
+
+    if (outbound & WRTIO)                                        /* if status is expected immediately */
+        outbound |= S1_STATUS (cvptr->status) | cvptr->spd_unit; /*   then return the Status-1 value */
+
+    return outbound; /* return the data word and function set */
 }
-
 
 /* Continue the current command.
 
@@ -2049,400 +2029,359 @@ return outbound;                                        /* return the data word 
        no action.
 */
 
-static CNTLR_IFN_IBUS continue_command (CVPTR cvptr, UNIT *uptr, CNTLR_FLAG_SET inbound_flags, CNTLR_IBUS inbound_data)
-{
-const t_bool service_entry = (uptr != NULL);            /* set TRUE if entered via unit service */
-CNTLR_OPCODE opcode;
-CNTLR_PHASE phase;
-CNTLR_IFN_IBUS outbound;
-t_bool controller_service, controller_was_busy;
-int32 unit;
-uint32 sector_count;
+static CNTLR_IFN_IBUS
+continue_command(CVPTR cvptr, UNIT *uptr, CNTLR_FLAG_SET inbound_flags, CNTLR_IBUS inbound_data) {
+    const t_bool   service_entry = (uptr != NULL); /* set TRUE if entered via unit service */
+    CNTLR_OPCODE   opcode;
+    CNTLR_PHASE    phase;
+    CNTLR_IFN_IBUS outbound;
+    t_bool         controller_service, controller_was_busy;
+    int32          unit;
+    uint32         sector_count;
 
-if (service_entry) {                                    /* if this is an event service entry */
-    unit = (int32) (uptr - cvptr->device->units);       /*   then get the unit number */
+    if (service_entry) {                             /* if this is an event service entry */
+        unit = (int32)(uptr - cvptr->device->units); /*   then get the unit number */
 
-    controller_service = (uptr == CNTLR_UPTR            /* set TRUE if the controller is being serviced */
-                            && cvptr->type == MAC);
+        controller_service = (uptr == CNTLR_UPTR /* set TRUE if the controller is being serviced */
+                              && cvptr->type == MAC);
+    } else { if (CNTLR_UPTR->PHASE == Idle_Phase) { /* otherwise if this interface entry isn't needed */
+        return NO_ACTION;                     /*   then quit as there's nothing to do */
+    } else {                               /* otherwise the controller is expecting the entry */
+        uptr               = CNTLR_UPTR; /* set up to use the controller unit */
+        unit               = CNTLR_UNIT; /*   and unit number */
+        controller_service = FALSE;      /*     but note that this isn't a service entry */
+    } }
+
+    opcode = (CNTLR_OPCODE)uptr->OPCODE; /* get the current opcode */
+    phase  = (CNTLR_PHASE)uptr->PHASE;   /*   and command phase */
+
+    if (controller_service == FALSE || phase == End_Phase) {
+        dpprintf(cvptr->device, DL_DEB_STATE,
+                 (unit == CNTLR_UNIT ? "Controller unit%.0d %s %s phase entered from %s\n"
+                                     : "Unit %d %s %s phase entered from %s\n"),
+                 (unit == CNTLR_UNIT ? 0 : unit), opcode_name[opcode], phase_name[phase],
+                 (service_entry ? "service" : "interface"));
     }
 
-else if (CNTLR_UPTR->PHASE == Idle_Phase)               /* otherwise if this interface entry isn't needed */
-    return NO_ACTION;                                   /*   then quit as there's nothing to do */
+    controller_was_busy = (cvptr->state == Busy_State); /* set TRUE if the controller was busy on entry */
 
-else {                                                  /* otherwise the controller is expecting the entry */
-    uptr = CNTLR_UPTR;                                  /* set up to use the controller unit */
-    unit = CNTLR_UNIT;                                  /*   and unit number */
-    controller_service = FALSE;                         /*     but note that this isn't a service entry */
-    }
+    outbound = cmd_functions[opcode][phase]; /* set up the initial function return set */
 
+    switch (phase) { /* dispatch the phase */
 
-opcode = (CNTLR_OPCODE) uptr->OPCODE;                   /* get the current opcode */
-phase  = (CNTLR_PHASE)  uptr->PHASE;                    /*   and command phase */
+    case Idle_Phase:                            /* the command wait timer has expired */
+        clear_controller(cvptr, Timeout_Clear); /*   so idle the controller and clear the file mask */
 
-if (controller_service == FALSE || phase == End_Phase)
-    dpprintf (cvptr->device, DL_DEB_STATE, (unit == CNTLR_UNIT
-                                              ? "Controller unit%.0d %s %s phase entered from %s\n"
-                                              : "Unit %d %s %s phase entered from %s\n"),
-              (unit == CNTLR_UNIT ? 0 : unit), opcode_name [opcode], phase_name [phase],
-              (service_entry ? "service" : "interface"));
+        outbound = NO_FUNCTIONS; /* clear the function set for an idle return */
 
-controller_was_busy = (cvptr->state == Busy_State);     /* set TRUE if the controller was busy on entry */
-
-outbound = cmd_functions [opcode] [phase];              /* set up the initial function return set */
-
-
-switch (phase) {                                        /* dispatch the phase */
-
-    case Idle_Phase:                                    /* the command wait timer has expired */
-        clear_controller (cvptr, Timeout_Clear);        /*   so idle the controller and clear the file mask */
-
-        outbound = NO_FUNCTIONS;                        /* clear the function set for an idle return */
-
-        dpprintf (cvptr->device, DL_DEB_INCO, "Controller command wait timed out\n");
+        dpprintf(cvptr->device, DL_DEB_INCO, "Controller command wait timed out\n");
         break;
 
-
     case Parameter_Phase:
-        if (controller_service) {                       /* if the parameter wait timer has expired */
-            clear_controller (cvptr, Timeout_Clear);    /*   then idle the controller and clear the file mask */
+        if (controller_service) {                   /* if the parameter wait timer has expired */
+            clear_controller(cvptr, Timeout_Clear); /*   then idle the controller and clear the file mask */
 
-            outbound = NO_FUNCTIONS;                    /* clear the function set for an idle return */
+            outbound = NO_FUNCTIONS; /* clear the function set for an idle return */
 
-            dpprintf (cvptr->device, DL_DEB_INCO, "Unit %u %s command aborted with parameter wait timeout\n",
-                      CM_UNIT (cvptr->spd_unit), opcode_name [opcode]);
-            }
+            dpprintf(cvptr->device, DL_DEB_INCO, "Unit %u %s command aborted with parameter wait timeout\n",
+                     CM_UNIT(cvptr->spd_unit), opcode_name[opcode]);
+        } else {
+            switch (opcode) { /* otherwise dispatch the command */
 
-        else switch (opcode) {                          /* otherwise dispatch the command */
-
-            case Request_Status:                        /* these commands */
-            case Request_Disc_Address:                  /*   return parameters */
-            case Request_Sector_Address:                /*     to the interface */
+            case Request_Status:         /* these commands */
+            case Request_Disc_Address:   /*   return parameters */
+            case Request_Sector_Address: /*     to the interface */
             case Request_Syndrome:
-                if (cvptr->length == 0)                         /* if the last parameter has been sent */
-                    end_command (cvptr, uptr, cvptr->status);   /*   then terminate the command with the preset status */
+                if (cvptr->length == 0) {                      /* if the last parameter has been sent */
+                    end_command(cvptr, uptr, cvptr->status); /*   then terminate the command with the preset status */
+		} else {                                         /* otherwise there are more to send */
+                    outbound |= cvptr->buffer[cvptr->index++]; /*   so return the next value from the buffer */
+                    cvptr->length = cvptr->length - 1;         /*     and drop the parameter count */
 
-                else {                                          /* otherwise there are more to send */
-                    outbound |= cvptr->buffer [cvptr->index++]; /*   so return the next value from the buffer */
-                    cvptr->length = cvptr->length - 1;          /*     and drop the parameter count */
-
-                    wait_timer (cvptr, SET);                    /* restart the parameter timer */
-                    }
+                    wait_timer(cvptr, SET); /* restart the parameter timer */
+                }
                 break;
 
+            case Seek:                          /* these commands receive parameters */
+            case Address_Record:                /*   from the interface */
+                cvptr->buffer[cvptr->index++] = /* save the current one in the buffer */
+                    (DL_BUFFER)inbound_data;
+                cvptr->length = cvptr->length - 1; /*   and drop the parameter count */
 
-            case Seek:                                          /* these commands receive parameters */
-            case Address_Record:                                /*   from the interface */
-                cvptr->buffer [cvptr->index++] =                /* save the current one in the buffer */
-                   (DL_BUFFER) inbound_data;
-                cvptr->length = cvptr->length - 1;              /*   and drop the parameter count */
+                if (cvptr->length > 0) {    /* if another parameter is expected */
+                    wait_timer(cvptr, SET); /*   then restart the parameter timer */
+		} else {                                             /* otherwise all parameters are in */
+                    cvptr->cylinder = cvptr->buffer[0];            /*   so fill in the supplied cylinder */
+                    cvptr->head     = PI_HEAD(cvptr->buffer[1]);   /*     and head */
+                    cvptr->sector   = PI_SECTOR(cvptr->buffer[1]); /*       and sector addresses */
 
-                if (cvptr->length > 0)                          /* if another parameter is expected */
-                    wait_timer (cvptr, SET);                    /*   then restart the parameter timer */
+                    if (opcode == Address_Record) { /* if this is an Address Record command */
+                        cvptr->eoc = CLEAR;         /*   then clear the end-of-cylinder flag */
 
-                else {                                              /* otherwise all parameters are in */
-                    cvptr->cylinder = cvptr->buffer [0];            /*   so fill in the supplied cylinder */
-                    cvptr->head = PI_HEAD (cvptr->buffer [1]);      /*     and head */
-                    cvptr->sector = PI_SECTOR (cvptr->buffer [1]);  /*       and sector addresses */
+                        dpprintf(cvptr->device, DL_DEB_CMD, "%s to cylinder %u head %u sector %u\n",
+                                 opcode_name[Address_Record], cvptr->cylinder, cvptr->head, cvptr->sector);
 
-                    if (opcode == Address_Record) {             /* if this is an Address Record command */
-                        cvptr->eoc = CLEAR;                     /*   then clear the end-of-cylinder flag */
+                        end_command(cvptr, uptr, /* the command is now complete */
+                                    Normal_Completion);
+                    } else { /* otherwise it's a Seek command */
+                        dpprintf(cvptr->device, DL_DEB_CMD, "Unit %u %s to cylinder %u head %u sector %u\n",
+                                 CM_UNIT(cvptr->spd_unit), opcode_name[Seek], cvptr->cylinder, cvptr->head, cvptr->sector);
 
-                        dpprintf (cvptr->device, DL_DEB_CMD, "%s to cylinder %u head %u sector %u\n",
-                                  opcode_name [Address_Record],
-                                  cvptr->cylinder, cvptr->head, cvptr->sector);
+                        uptr = cvptr->device->units /* get the target unit */
+                               + CM_UNIT(cvptr->spd_unit);
 
-                        end_command (cvptr, uptr,               /* the command is now complete */
-                                     Normal_Completion);
-                        }
+                        if (start_seek(cvptr, uptr) == FALSE) /* start the seek; if it failed, */
+                            end_command(cvptr, uptr,          /*   then report the error */
+                                        Status_2_Error);
 
-                    else {                                      /* otherwise it's a Seek command */
-                        dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s to cylinder %u head %u sector %u\n",
-                                  CM_UNIT (cvptr->spd_unit), opcode_name [Seek],
-                                  cvptr->cylinder, cvptr->head, cvptr->sector);
-
-                        uptr = cvptr->device->units             /* get the target unit */
-                                 + CM_UNIT (cvptr->spd_unit);
-
-                        if (start_seek (cvptr, uptr) == FALSE)  /* start the seek; if it failed, */
-                            end_command (cvptr, uptr,           /*   then report the error */
-                                         Status_2_Error);
-
-                        else if (cvptr->type == MAC)            /* otherwise if this a MAC controller */
-                            end_command (cvptr, uptr,           /*   then complete the command and idle the controller */
-                                         Normal_Completion);
-                        }                                       /* otherwise an ICD command ends when the seek completes */
-                    }
+                        else if (cvptr->type == MAC) /* otherwise if this a MAC controller */
+                            end_command(cvptr, uptr, /*   then complete the command and idle the controller */
+                                        Normal_Completion);
+                    } /* otherwise an ICD command ends when the seek completes */
+                }
                 break;
-
 
             case Verify:
-                if (inbound_data == 0)                  /* if the sector count is zero */
-                    sector_count = 65536;               /*   then use the rollover count */
-                else                                    /* otherwise */
-                    sector_count = inbound_data;        /*   use the count as is */
+                if (inbound_data == 0)           /* if the sector count is zero */
+                    sector_count = 65536;        /*   then use the rollover count */
+                else                             /* otherwise */
+                    sector_count = inbound_data; /*   use the count as is */
 
                 cvptr->count = sector_count * WORDS_PER_SECTOR; /* convert to the number of words to verify */
 
-                dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s %u sector%s\n",
-                          CM_UNIT (cvptr->spd_unit), opcode_name [Verify],
-                          sector_count, (sector_count == 1 ? "" : "s"));
+                dpprintf(cvptr->device, DL_DEB_CMD, "Unit %u %s %u sector%s\n", CM_UNIT(cvptr->spd_unit),
+                         opcode_name[Verify], sector_count, (sector_count == 1 ? "" : "s"));
 
-                wait_timer (cvptr, CLEAR);              /* stop the parameter timer */
+                wait_timer(cvptr, CLEAR); /* stop the parameter timer */
 
-                uptr = cvptr->device->units             /* get the target unit */
-                         + CM_UNIT (cvptr->spd_unit);
+                uptr = cvptr->device->units /* get the target unit */
+                       + CM_UNIT(cvptr->spd_unit);
 
-                if (uptr->PHASE == Seek_Phase) {        /* if a seek is in progress, */
-                    uptr->wait = NO_EVENT;              /*   then wait for it to complete */
+                if (uptr->PHASE == Seek_Phase) { /* if a seek is in progress, */
+                    uptr->wait = NO_EVENT;       /*   then wait for it to complete */
 
-                    dpprintf (cvptr->device, DL_DEB_INCO, "Unit %u %s command waiting for seek completion\n",
-                              CM_UNIT (cvptr->spd_unit), opcode_name [Verify]);
-                    }
-
-                else                                    /* otherwise the unit is idle */
-                    set_rotation (cvptr, uptr);         /*   so set up the rotation phase and latency */
+                    dpprintf(cvptr->device, DL_DEB_INCO, "Unit %u %s command waiting for seek completion\n",
+                             CM_UNIT(cvptr->spd_unit), opcode_name[Verify]);
+                } else                           /* otherwise the unit is idle */
+                    set_rotation(cvptr, uptr); /*   so set up the rotation phase and latency */
                 break;
-
 
             case Read_With_Offset:
-                dpprintf (cvptr->device, DL_DEB_CMD, "Unit %u %s using %soffset %+d\n",
-                          CM_UNIT (cvptr->spd_unit), opcode_name [Read_With_Offset],
-                          fmt_bitset (inbound_data, offset_format),
-                          (inbound_data & PI_NEG_OFFSET ? - (int) PI_OFFSET (inbound_data)
-                                                        :   (int) PI_OFFSET (inbound_data)));
+                dpprintf(cvptr->device, DL_DEB_CMD, "Unit %u %s using %soffset %+d\n", CM_UNIT(cvptr->spd_unit),
+                         opcode_name[Read_With_Offset], fmt_bitset(inbound_data, offset_format),
+                         (inbound_data & PI_NEG_OFFSET ? -(int)PI_OFFSET(inbound_data) : (int)PI_OFFSET(inbound_data)));
 
-                wait_timer (cvptr, CLEAR);                  /* stop the parameter timer */
+                wait_timer(cvptr, CLEAR); /* stop the parameter timer */
 
-                uptr = cvptr->device->units                 /* get the target unit */
-                         + CM_UNIT (cvptr->spd_unit);
+                uptr = cvptr->device->units /* get the target unit */
+                       + CM_UNIT(cvptr->spd_unit);
 
-                if (uptr->PHASE == Seek_Phase) {            /* if a seek is in progress, */
-                    uptr->wait = NO_EVENT;                  /*   then wait for it to complete */
+                if (uptr->PHASE == Seek_Phase) { /* if a seek is in progress, */
+                    uptr->wait = NO_EVENT;       /*   then wait for it to complete */
 
-                    dpprintf (cvptr->device, DL_DEB_INCO, "Unit %u %s command waiting for seek completion\n",
-                              CM_UNIT (cvptr->spd_unit), opcode_name [Read_With_Offset]);
-                    }
+                    dpprintf(cvptr->device, DL_DEB_INCO, "Unit %u %s command waiting for seek completion\n",
+                             CM_UNIT(cvptr->spd_unit), opcode_name[Read_With_Offset]);
+                }
 
-                else {                                      /* otherwise the unit is idle */
-                    uptr->PHASE = Seek_Phase;               /*   so schedule the seek phase */
-                    uptr->wait = cvptr->dlyptr->seek_one;   /*     with the offset positioning delay */
-                    }
+                else {                                     /* otherwise the unit is idle */
+                    uptr->PHASE = Seek_Phase;              /*   so schedule the seek phase */
+                    uptr->wait  = cvptr->dlyptr->seek_one; /*     with the offset positioning delay */
+                }
                 break;
-
 
             case Load_TIO_Register:
-                wait_timer (cvptr, CLEAR);                      /* stop the parameter timer */
+                wait_timer(cvptr, CLEAR); /* stop the parameter timer */
 
-                dpprintf (cvptr->device, DL_DEB_CMD, "%s with %06o\n",
-                          opcode_name [Load_TIO_Register], inbound_data);
+                dpprintf(cvptr->device, DL_DEB_CMD, "%s with %06o\n", opcode_name[Load_TIO_Register], inbound_data);
 
-                end_command (cvptr, uptr, Normal_Completion);   /* complete the command */
+                end_command(cvptr, uptr, Normal_Completion); /* complete the command */
 
-                return inbound_data                             /* return the supplied TIO value */
-                         | cmd_functions [Load_TIO_Register] [End_Phase];
+                return inbound_data /* return the supplied TIO value */
+                       | cmd_functions[Load_TIO_Register][End_Phase];
                 break;
 
-
-            default:                                    /* the remaining commands */
-                break;                                  /*   do not have a parameter phase */
+            default:   /* the remaining commands */
+                break; /*   do not have a parameter phase */
             }
-
+	}
         break;
 
-
     case Seek_Phase:
-        switch (opcode) {                               /* dispatch the command */
+        switch (opcode) { /* dispatch the command */
 
-            case Recalibrate:
-            case Seek:
-                if (cvptr->type == MAC) {               /* if this a MAC controller */
-                    uptr->STATUS |= S2_ATTENTION;       /*   set Attention in the unit status */
-                    uptr->PHASE = Idle_Phase;           /*     and idle the drive */
-                    }
+        case Recalibrate:
+        case Seek:
+            if (cvptr->type == MAC) {         /* if this a MAC controller */
+                uptr->STATUS |= S2_ATTENTION; /*   set Attention in the unit status */
+                uptr->PHASE = Idle_Phase;     /*     and idle the drive */
+            }
 
-                else                                            /* otherwise this is an ICD or CS/80 drive */
-                    end_command (cvptr, uptr, Drive_Attention); /*   so seeks end with Drive Attention status */
-                break;
+            else                                           /* otherwise this is an ICD or CS/80 drive */
+                end_command(cvptr, uptr, Drive_Attention); /*   so seeks end with Drive Attention status */
+            break;
 
-
-            case Cold_Load_Read:
-                cvptr->file_mask = CM_SPARE_EN;             /* enable sparing in surface mode without auto-seek */
+        case Cold_Load_Read:
+            cvptr->file_mask = CM_SPARE_EN; /* enable sparing in surface mode without auto-seek */
 
             /* fall into the default case */
 
-            default:                                        /* a command was waiting on seek completion */
-                set_rotation (cvptr, uptr);                 /*   so set up the rotation phase and latency */
-                break;
-            }
+        default:                       /* a command was waiting on seek completion */
+            set_rotation(cvptr, uptr); /*   so set up the rotation phase and latency */
+            break;
+        }
 
         break;
-
 
     case Rotate_Phase:
-        switch (opcode) {                               /* dispatch the command */
+        switch (opcode) { /* dispatch the command */
 
-            case Write:
-            case Write_Full_Sector:
-            case Initialize:
-                start_write (cvptr, uptr);              /* start the sector write */
-                break;
+        case Write:
+        case Write_Full_Sector:
+        case Initialize:
+            start_write(cvptr, uptr); /* start the sector write */
+            break;
 
+        case Read:
+        case Read_Full_Sector:
+        case Read_With_Offset:
+        case Read_Without_Verify:
+        case Cold_Load_Read:
+            start_read(cvptr, uptr, inbound_flags); /* start the sector read */
+            break;
 
-            case Read:
-            case Read_Full_Sector:
-            case Read_With_Offset:
-            case Read_Without_Verify:
-            case Cold_Load_Read:
-                start_read (cvptr, uptr, inbound_flags);    /* start the sector read */
-                break;
+        case Verify:
+            inbound_flags &= ~EOD; /* EOD is not relevant for Verify */
 
-
-            case Verify:
-                inbound_flags &= ~EOD;                          /* EOD is not relevant for Verify */
-
-                if (start_read (cvptr, uptr, inbound_flags)) {  /* if the sector read was set up successfully */
-                    uptr->PHASE = Intersector_Phase;            /*   then skip the data phase */
-                    uptr->wait = cvptr->dlyptr->sector_full;    /*     and reschedule for the sector read time */
-                    }
-                break;
-
-
-            default:                                    /* the remaining commands */
-                break;                                  /*   do not have a rotate phase */
+            if (start_read(cvptr, uptr, inbound_flags)) { /* if the sector read was set up successfully */
+                uptr->PHASE = Intersector_Phase;          /*   then skip the data phase */
+                uptr->wait  = cvptr->dlyptr->sector_full; /*     and reschedule for the sector read time */
             }
+            break;
+
+        default:   /* the remaining commands */
+            break; /*   do not have a rotate phase */
+        }
 
         break;
-
 
     case Data_Phase:
-        if (inbound_flags & EOD)                        /* if the transfer has ended */
-            outbound = NO_FUNCTIONS;                    /*   then don't assert IFIN/IFOUT on return */
+        if (inbound_flags & EOD)     /* if the transfer has ended */
+            outbound = NO_FUNCTIONS; /*   then don't assert IFIN/IFOUT on return */
 
-        switch (opcode) {                               /* dispatch the command */
+        switch (opcode) { /* dispatch the command */
 
-            case Read:
-            case Read_With_Offset:
-            case Read_Without_Verify:
-            case Read_Full_Sector:
-            case Cold_Load_Read:
-                if ((inbound_flags & EOD) == NO_FLAGS) {            /* if the transfer continues */
-                    outbound |= cvptr->buffer [cvptr->index++];     /*   then get the next word from the buffer */
+        case Read:
+        case Read_With_Offset:
+        case Read_Without_Verify:
+        case Read_Full_Sector:
+        case Cold_Load_Read:
+            if ((inbound_flags & EOD) == NO_FLAGS) {       /* if the transfer continues */
+                outbound |= cvptr->buffer[cvptr->index++]; /*   then get the next word from the buffer */
 
-                    cvptr->count  = cvptr->count  + 1;              /* count the */
-                    cvptr->length = cvptr->length - 1;              /*   transfer */
+                cvptr->count  = cvptr->count + 1;  /* count the */
+                cvptr->length = cvptr->length - 1; /*   transfer */
 
-                    dpprintf (cvptr->device, DL_DEB_XFER, "Unit %d %s word %u is %06o\n",
-                              unit, opcode_name [opcode],
-                              cvptr->count, DLIBUS (outbound));
-                    }
-
-                uptr->wait = cvptr->dlyptr->data_xfer;              /* set the transfer delay */
-
-                if (cvptr->length == 0 || inbound_flags & EOD) {    /* if the buffer is empty or the transfer is done */
-                      uptr->PHASE = Intersector_Phase;              /*   then set up the intersector phase */
-
-                      if (cvptr->device->flags & DEV_REALTIME)      /* if we're in realistic timing mode */
-                          uptr->wait = uptr->wait                   /*   then account for the actual delay */
-                                         * (cvptr->length + cmd_props [opcode].postamble_size);
-                      }
-                break;
-
-
-            case Write:
-            case Write_Full_Sector:
-            case Initialize:
-                if ((inbound_flags & EOD) == NO_FLAGS) {    /* if the transfer continues */
-                    cvptr->buffer [cvptr->index++] =        /*   then store the next word in the buffer */
-                       (DL_BUFFER) inbound_data;
-
-                    cvptr->count  = cvptr->count  + 1;      /* count the */
-                    cvptr->length = cvptr->length - 1;      /*   transfer */
-
-                    dpprintf (cvptr->device, DL_DEB_XFER, "Unit %d %s word %u is %06o\n",
-                              unit, opcode_name [opcode],
-                              cvptr->count, inbound_data);
-                    }
-
-                uptr->wait = cvptr->dlyptr->data_xfer;              /* set the transfer delay */
-
-                if (cvptr->length == 0 || inbound_flags & EOD) {    /* if the buffer is empty or the transfer is done */
-                      uptr->PHASE = Intersector_Phase;              /*   then set up the intersector phase */
-
-                      if (cvptr->device->flags & DEV_REALTIME)      /* if we're in realistic timing mode */
-                          uptr->wait = uptr->wait                   /*   then account for the actual delay */
-                                         * (cvptr->length + cmd_props [opcode].postamble_size);
-                      }
-                break;
-
-
-            default:                                    /* the remaining commands */
-                break;                                  /*   do not have a data phase */
+                dpprintf(cvptr->device, DL_DEB_XFER, "Unit %d %s word %u is %06o\n", unit, opcode_name[opcode],
+                         cvptr->count, DLIBUS(outbound));
             }
 
-        break;
+            uptr->wait = cvptr->dlyptr->data_xfer; /* set the transfer delay */
 
+            if (cvptr->length == 0 || inbound_flags & EOD) { /* if the buffer is empty or the transfer is done */
+                uptr->PHASE = Intersector_Phase;             /*   then set up the intersector phase */
+
+                if (cvptr->device->flags & DEV_REALTIME) /* if we're in realistic timing mode */
+                    uptr->wait = uptr->wait              /*   then account for the actual delay */
+                                 * (cvptr->length + cmd_props[opcode].postamble_size);
+            }
+            break;
+
+        case Write:
+        case Write_Full_Sector:
+        case Initialize:
+            if ((inbound_flags & EOD) == NO_FLAGS) { /* if the transfer continues */
+                cvptr->buffer[cvptr->index++] =      /*   then store the next word in the buffer */
+                    (DL_BUFFER)inbound_data;
+
+                cvptr->count  = cvptr->count + 1;  /* count the */
+                cvptr->length = cvptr->length - 1; /*   transfer */
+
+                dpprintf(cvptr->device, DL_DEB_XFER, "Unit %d %s word %u is %06o\n", unit, opcode_name[opcode],
+                         cvptr->count, inbound_data);
+            }
+
+            uptr->wait = cvptr->dlyptr->data_xfer; /* set the transfer delay */
+
+            if (cvptr->length == 0 || inbound_flags & EOD) { /* if the buffer is empty or the transfer is done */
+                uptr->PHASE = Intersector_Phase;             /*   then set up the intersector phase */
+
+                if (cvptr->device->flags & DEV_REALTIME) /* if we're in realistic timing mode */
+                    uptr->wait = uptr->wait              /*   then account for the actual delay */
+                                 * (cvptr->length + cmd_props[opcode].postamble_size);
+            }
+            break;
+
+        default:   /* the remaining commands */
+            break; /*   do not have a data phase */
+        }
+
+        break;
 
     case Intersector_Phase:
-        switch (opcode) {                               /* dispatch the command */
+        switch (opcode) { /* dispatch the command */
 
-            case Read:
-            case Read_With_Offset:
-            case Read_Without_Verify:
-            case Read_Full_Sector:
-            case Cold_Load_Read:
-                end_read (cvptr, uptr, inbound_flags);  /* end the sector read */
-                break;
+        case Read:
+        case Read_With_Offset:
+        case Read_Without_Verify:
+        case Read_Full_Sector:
+        case Cold_Load_Read:
+            end_read(cvptr, uptr, inbound_flags); /* end the sector read */
+            break;
 
+        case Write:
+        case Write_Full_Sector:
+        case Initialize:
+            end_write(cvptr, uptr, inbound_flags); /* end the sector write */
+            break;
 
-            case Write:
-            case Write_Full_Sector:
-            case Initialize:
-                end_write (cvptr, uptr, inbound_flags); /* end the sector write */
-                break;
+        case Verify:
+            cvptr->count = cvptr->count - WORDS_PER_SECTOR; /* decrement the word count */
 
+            if (cvptr->count > 0)      /* if there more sectors to verify */
+                inbound_flags &= ~EOD; /*   then this is not the end of data */
+            else                       /* otherwise the command is complete */
+                inbound_flags |= EOD;  /*   and this is the end of data */
 
-            case Verify:
-                cvptr->count = cvptr->count - WORDS_PER_SECTOR; /* decrement the word count */
+            end_read(cvptr, uptr, inbound_flags); /* end the sector read */
+            break;
 
-                if (cvptr->count > 0)                   /* if there more sectors to verify */
-                    inbound_flags &= ~EOD;              /*   then this is not the end of data */
-                else                                    /* otherwise the command is complete */
-                    inbound_flags |= EOD;               /*   and this is the end of data */
-
-                end_read (cvptr, uptr, inbound_flags);  /* end the sector read */
-                break;
-
-
-            default:                                    /* the remaining commands */
-                break;                                  /*   do not have an intersector phase */
-            }
+        default:   /* the remaining commands */
+            break; /*   do not have an intersector phase */
+        }
 
         break;
-
 
     case End_Phase:
-        end_command (cvptr, uptr, cvptr->status);       /* complete the command with the preset status */
+        end_command(cvptr, uptr, cvptr->status); /* complete the command with the preset status */
         break;
     }
 
+    if (uptr->wait != NO_EVENT)     /* if the unit has been scheduled */
+        activate_unit(cvptr, uptr); /*   then activate it */
 
-if (uptr->wait != NO_EVENT)                             /* if the unit has been scheduled */
-    activate_unit (cvptr, uptr);                        /*   then activate it */
+    if (controller_was_busy && cvptr->state != Busy_State) { /* if the command has just completed */
+        if (cvptr->status == Normal_Completion               /*   then if the command completed normally */
+            || opcode == Request_Syndrome)                   /*   or it was a Request Syndrome command */
+            outbound = cmd_functions[opcode][End_Phase];     /*     then use the normal exit function set */
+        else                                                 /*   otherwise */
+            outbound = status_functions[cvptr->status];      /*     the function set depends on the status */
 
-if (controller_was_busy && cvptr->state != Busy_State) {    /* if the command has just completed */
-    if (cvptr->status == Normal_Completion                  /*   then if the command completed normally */
-      || opcode == Request_Syndrome)                        /*   or it was a Request Syndrome command */
-        outbound = cmd_functions [opcode] [End_Phase];      /*     then use the normal exit function set */
-    else                                                    /*   otherwise */
-        outbound = status_functions [cvptr->status];        /*     the function set depends on the status */
-
-    if (outbound & WRTIO)                                           /* if the TIO register will be written */
-        outbound |= S1_STATUS (cvptr->status) | cvptr->spd_unit;    /*   then include the Status-1 value */
+        if (outbound & WRTIO)                                       /* if the TIO register will be written */
+            outbound |= S1_STATUS(cvptr->status) | cvptr->spd_unit; /*   then include the Status-1 value */
     }
 
-return outbound;                                        /* return the data word and function set */
+    return outbound; /* return the data word and function set */
 }
-
 
 /* Poll the drives for Attention status.
 
@@ -3329,19 +3268,17 @@ return SCPE_OK;
        pointer instead.
 */
 
-t_stat dl_show_timing (FILE *st, UNIT *uptr, int32 value, CONST void *desc)
-{
-const CNTLR_VARS *cvptr = (const CNTLR_VARS *) desc;    /* the controller pointer is supplied */
+t_stat
+dl_show_timing(FILE *st, UNIT *uptr, int32 value, CONST void *desc) {
+    const CNTLR_VARS *cvptr = (const CNTLR_VARS *)desc; /* the controller pointer is supplied */
 
-if (cvptr->device->flags & DEV_REALTIME)                /* if the real time flag is set */
-    fputs ("realistic timing", st);                     /*   then we're using realistic timing */
-else                                                    /* otherwise */
-    fputs ("fast timing", st);                          /*   we're using optimized timing */
+    if (cvptr->device->flags & DEV_REALTIME) /* if the real time flag is set */
+        fputs("realistic timing", st);       /*   then we're using realistic timing */
+    else                                     /* otherwise */
+        fputs("fast timing", st);            /*   we're using optimized timing */
 
-return SCPE_OK;
+    return SCPE_OK;
 }
-
-
 
 /* Disc library local controller routines */
 
@@ -3363,19 +3300,18 @@ return SCPE_OK;
        parameter word transfers.
 */
 
-static void wait_timer (CVPTR cvptr, FLIP_FLOP action)
-{
-if (cvptr->type == MAC)                                 /* if this a MAC controller */
-    if (action == SET)                                  /*  then if the timer is to be set */
-        sim_activate_abs (CNTLR_UPTR, CNTLR_TIMEOUT);   /*    then activate the controller unit */
-
-    else {                                              /*  otherwise the timer is to be stopped */
-        sim_cancel (CNTLR_UPTR);                        /*    so cancel the unit */
-        CNTLR_UPTR->PHASE = Idle_Phase;                 /*      and idle the controller unit */
+static void
+wait_timer(CVPTR cvptr, FLIP_FLOP action) {
+    if (cvptr->type == MAC) {                            /* if this a MAC controller */
+        if (action == SET) {                             /*  then if the timer is to be set */
+            sim_activate_abs(CNTLR_UPTR, CNTLR_TIMEOUT); /*    then activate the controller unit */
+        } else {                                         /*  otherwise the timer is to be stopped */
+            sim_cancel(CNTLR_UPTR);                      /*    so cancel the unit */
+            CNTLR_UPTR->PHASE = Idle_Phase;              /*      and idle the controller unit */
         }
-return;
+    }
+    return;
 }
-
 
 /* Idle the controller.
 
@@ -3403,46 +3339,41 @@ return;
    controller, the controller unit is idled as well.
 */
 
-static void end_command (CVPTR cvptr, UNIT *uptr, CNTLR_STATUS status)
-{
-cvptr->status = status;                                 /* set the command result status */
+static void
+end_command(CVPTR cvptr, UNIT *uptr, CNTLR_STATUS status) {
+    cvptr->status = status; /* set the command result status */
 
-if (status == Normal_Completion                         /* if the command completed normally */
-  && cmd_props [cvptr->opcode].idle_at_end) {           /*   and this command idles the controller */
-    cvptr->state = Idle_State;                          /*     then set idle status */
-    wait_timer (cvptr, CLEAR);                          /*       and stop the command wait timer */
+    if (status == Normal_Completion                /* if the command completed normally */
+        && cmd_props[cvptr->opcode].idle_at_end) { /*   and this command idles the controller */
+        cvptr->state = Idle_State;                 /*     then set idle status */
+        wait_timer(cvptr, CLEAR);                  /*       and stop the command wait timer */
+    } else {                                       /* otherwise */
+        cvptr->state = Wait_State;                 /*   the controller waits for a new command */
+        wait_timer(cvptr, SET);                    /*     so start the command wait timer */
+
+        if (uptr)                     /* if the command accessed a drive */
+            uptr->PHASE = Idle_Phase; /*   then idle it */
+
+        if (cvptr->type == MAC)             /* if this is a MAC controller */
+            CNTLR_UPTR->PHASE = Idle_Phase; /*   then idle the controller unit as well */
     }
 
-else {                                                  /* otherwise */
-    cvptr->state = Wait_State;                          /*   the controller waits for a new command */
-    wait_timer (cvptr, SET);                            /*     so start the command wait timer */
-
-    if (uptr)                                           /* if the command accessed a drive */
-        uptr->PHASE = Idle_Phase;                       /*   then idle it */
-
-    if (cvptr->type == MAC)                             /* if this is a MAC controller */
-        CNTLR_UPTR->PHASE = Idle_Phase;                 /*   then idle the controller unit as well */
+    if (cmd_props[cvptr->opcode].transfer_size > 0) {
+        dpprintf(
+            cvptr->device, DL_DEB_CMD,
+            (cvptr->opcode == Initialize ? "Unit %u Initialize %s for %u words (%u sector%s)\n"
+                                         : "Unit %u %s for %u words (%u sector%s)\n"),
+            CM_UNIT(cvptr->spd_unit),
+            (cvptr->opcode == Initialize ? fmt_bitset(cvptr->spd_unit, initialize_format) : opcode_name[cvptr->opcode]),
+            cvptr->count, cvptr->count / cmd_props[cvptr->opcode].transfer_size + (cvptr->length > 0),
+            (cvptr->count <= cmd_props[cvptr->opcode].transfer_size ? "" : "s"));
     }
 
-if (cmd_props [cvptr->opcode].transfer_size > 0)
-    dpprintf (cvptr->device, DL_DEB_CMD, (cvptr->opcode == Initialize
-                                            ? "Unit %u Initialize %s for %u words (%u sector%s)\n"
-                                            : "Unit %u %s for %u words (%u sector%s)\n"),
-              CM_UNIT (cvptr->spd_unit),
-              (cvptr->opcode == Initialize
-                 ? fmt_bitset (cvptr->spd_unit, initialize_format)
-                 : opcode_name [cvptr->opcode]),
-              cvptr->count,
-              cvptr->count / cmd_props [cvptr->opcode].transfer_size + (cvptr->length > 0),
-              (cvptr->count <= cmd_props [cvptr->opcode].transfer_size ? "" : "s"));
+    dpprintf(cvptr->device, DL_DEB_INCO, "Unit %u %s command completed with %s status\n", CM_UNIT(cvptr->spd_unit),
+             opcode_name[cvptr->opcode], dl_status_name(cvptr->status));
 
-dpprintf (cvptr->device, DL_DEB_INCO, "Unit %u %s command completed with %s status\n",
-          CM_UNIT (cvptr->spd_unit), opcode_name [cvptr->opcode],
-          dl_status_name (cvptr->status));
-
-return;
+    return;
 }
-
 
 /* Start a read operation on the current sector.
 
@@ -3674,33 +3605,34 @@ return;
        seek phase if a seek is required.
 */
 
-static t_bool start_write (CVPTR cvptr, UNIT *uptr)
-{
-const CNTLR_OPCODE opcode = (CNTLR_OPCODE) uptr->OPCODE;
+static t_bool
+start_write(CVPTR cvptr, UNIT *uptr) {
+    const CNTLR_OPCODE opcode = (CNTLR_OPCODE)uptr->OPCODE;
 
-if (opcode == Write                                     /* if this is a Write command */
-  && cvptr->spd_unit & CM_PROTECTED                     /*   and the track is protected */
-  && (uptr->flags & UNIT_FMT) == 0)                     /*     but the FORMAT switch is not set */
-    end_command (cvptr, uptr, Protected_Track);         /*       then fail with a protection error */
+    if (opcode == Write                            /* if this is a Write command */
+        && cvptr->spd_unit & CM_PROTECTED          /*   and the track is protected */
+        && (uptr->flags & UNIT_FMT) == 0) {        /*     but the FORMAT switch is not set */
+        end_command(cvptr, uptr, Protected_Track); /*       then fail with a protection error */
 
-else if (uptr->STATUS & S2_READ_ONLY                    /* otherwise if the unit is write protected */
-  || opcode != Write && (uptr->flags & UNIT_FMT) == 0)  /*   or the FORMAT switch must be set but is not */
-    end_command (cvptr, uptr, Status_2_Error);          /*     then fail with a status error */
+    } else {
+        if (uptr->STATUS & S2_READ_ONLY                              /* otherwise if the unit is write protected */
+            || (opcode != Write && (uptr->flags & UNIT_FMT) == 0)) { /*   or the FORMAT switch must be set but is not */
+            end_command(cvptr, uptr, Status_2_Error);                /*     then fail with a status error */
+        } else {
+            if (position_sector(cvptr, uptr) == TRUE) {          /* otherwise if positioning the sector succeeded */
+                cvptr->length = cmd_props[opcode].transfer_size; /*   then set the appropriate transfer length */
+                cvptr->index  = 0;                               /*     and reset the data index */
 
-else if (position_sector (cvptr, uptr) == TRUE) {       /* otherwise if positioning the sector succeeded */
-    cvptr->length = cmd_props [opcode].transfer_size;   /*   then set the appropriate transfer length */
-    cvptr->index = 0;                                   /*     and reset the data index */
+                dpprintf(cvptr->device, DL_DEB_INCO, "Unit %d %s to cylinder %u head %u sector %u\n",
+                         (int32)(uptr - cvptr->device->units), opcode_name[opcode], uptr->CYL, cvptr->head, cvptr->sector);
 
-    dpprintf (cvptr->device, DL_DEB_INCO, "Unit %d %s to cylinder %u head %u sector %u\n",
-              (int32) (uptr - cvptr->device->units), opcode_name [opcode],
-              uptr->CYL, cvptr->head, cvptr->sector);
-
-    return TRUE;                                        /* the write was successfully started */
+                return TRUE; /* the write was successfully started */
+            }
+        }
     }
 
-return FALSE;                                           /* otherwise an error occurred or a seek is required */
+    return FALSE; /* otherwise an error occurred or a seek is required */
 }
-
 
 /* Finish a write operation on the current sector.
 
@@ -3845,88 +3777,88 @@ return;
        drive status word.
 */
 
-static t_bool position_sector (CVPTR cvptr, UNIT *uptr)
-{
-const DRIVE_TYPE model = GET_MODEL (uptr->flags);           /* get the drive model */
+static t_bool
+position_sector(CVPTR cvptr, UNIT *uptr) {
+    const DRIVE_TYPE model = GET_MODEL(uptr->flags); /* get the drive model */
 
-if (cvptr->status != Normal_Completion                      /* if a diagnostic override is present */
-  && cvptr->status != Uncorrectable_Data_Error              /*   and it's not */
-  && cvptr->status != Correctable_Data_Error)               /*     a data error */
-    end_command (cvptr, uptr, cvptr->status);               /*       then report it */
+    if (cvptr->status != Normal_Completion            /* if a diagnostic override is present */
+        && cvptr->status != Uncorrectable_Data_Error  /*   and it's not */
+        && cvptr->status != Correctable_Data_Error) { /*     a data error */
+        end_command(cvptr, uptr, cvptr->status);      /*       then report it */
+    } else {
+        if (cvptr->eoc == SET) {                      /* otherwise if we are at the end of a cylinder */
+            if (cvptr->file_mask & CM_AUTO_SEEK_EN) { /*   then if an auto-seek is allowed */
+                if (cvptr->file_mask & CM_DECR_SEEK)  /*     then if a decremental seek is requested */
+                    cvptr->cylinder =
+                        (cvptr->cylinder - 1) & D16_MASK; /*       then decrease the address with wraparound */
+                else                                      /*     otherwise an incremental seek is requested */
+                    cvptr->cylinder = (cvptr->cylinder + 1) & D16_MASK; /*       so increase the address with wraparound */
 
-else if (cvptr->eoc == SET)                                     /* otherwise if we are at the end of a cylinder */
-    if (cvptr->file_mask & CM_AUTO_SEEK_EN) {                   /*   then if an auto-seek is allowed */
-        if (cvptr->file_mask & CM_DECR_SEEK)                    /*     then if a decremental seek is requested */
-            cvptr->cylinder = cvptr->cylinder - 1 & D16_MASK;   /*       then decrease the address with wraparound */
-        else                                                    /*     otherwise an incremental seek is requested */
-            cvptr->cylinder = cvptr->cylinder + 1 & D16_MASK;   /*       so increase the address with wraparound */
+                start_seek(cvptr, uptr); /* start the auto-seek */
 
-        start_seek (cvptr, uptr);                               /* start the auto-seek */
+                dpprintf(cvptr->device, DL_DEB_INCO, "Unit %d %s%s autoseek to cylinder %u head %u sector %u\n",
+                         (int32)(uptr - cvptr->device->units), opcode_name[uptr->OPCODE],
+                         (uptr->STATUS & S2_SEEK_CHECK ? " seek check on" : ""), cvptr->cylinder, cvptr->head,
+                         cvptr->sector);
 
-        dpprintf (cvptr->device, DL_DEB_INCO, "Unit %d %s%s autoseek to cylinder %u head %u sector %u\n",
-                  (int32) (uptr - cvptr->device->units), opcode_name [uptr->OPCODE],
-                  (uptr->STATUS & S2_SEEK_CHECK ? " seek check on" : ""),
-                  cvptr->cylinder, cvptr->head, cvptr->sector);
+                if (uptr->STATUS & S2_SEEK_CHECK) {                /* if a seek check occurred */
+                    if (cvptr->type == ICD)                        /*   then if this is an ICD controller */
+                        end_command(cvptr, uptr, End_of_Cylinder); /*     then report it as an End of Cylinder error */
+                    else                                           /*   otherwise */
+                        end_command(cvptr, uptr, Status_2_Error);  /*     report it as a Status-2 error */
+                }
+            } else {                                       /* otherwise the file mask does not permit an auto-seek */
+                end_command(cvptr, uptr, End_of_Cylinder); /*   so terminate with an EOC error */
+            }
+        } else {
+            if (cvptr->verify                              /* if address verification is enabled */
+                && (uint32)uptr->CYL != cvptr->cylinder) { /*   and the positioner is on the wrong cylinder */
+                start_seek(cvptr, uptr);                   /*     then start a seek to the correct cylinder */
 
-        if (uptr->STATUS & S2_SEEK_CHECK)                   /* if a seek check occurred */
-            if (cvptr->type == ICD)                         /*   then if this is an ICD controller */
-                end_command (cvptr, uptr, End_of_Cylinder); /*     then report it as an End of Cylinder error */
-            else                                            /*   otherwise */
-                end_command (cvptr, uptr, Status_2_Error);  /*     report it as a Status-2 error */
+                dpprintf(cvptr->device, DL_DEB_INCO, "Unit %d %s%s reseek to cylinder %u head %u sector %u\n",
+                         (int32)(uptr - cvptr->device->units), opcode_name[uptr->OPCODE],
+                         (uptr->STATUS & S2_SEEK_CHECK ? " seek check on" : ""), cvptr->cylinder, cvptr->head,
+                         cvptr->sector);
+
+                if (uptr->STATUS & S2_SEEK_CHECK)             /* if a seek check occurred */
+                    end_command(cvptr, uptr, Status_2_Error); /*   then report a Status-2 error */
+            } else {
+                if (((uint32)uptr->CYL >= drive_props[model].cylinders) /* otherwise the heads are positioned correctly */
+                    || (cvptr->head >= drive_props[model].heads)        /*   but if the cylinder */
+                    || (cvptr->sector >= drive_props[model].sectors)) { /*     or head or sector is out of bounds */
+                    uptr->STATUS |= S2_SEEK_CHECK;                      /*       then set Seek Check status */
+                    end_command(cvptr, uptr, Status_2_Error);           /*         and terminate with an error */
+                } else {
+                    if (uptr->flags & UNIT_UNLOAD) { /* otherwise if the drive is not ready for positioning */
+                        end_command(cvptr, uptr, Access_Not_Ready); /*   then terminate with an access error */
+                    } else {                                        /* otherwise we are ready to move the heads */
+                        set_file_pos(cvptr, uptr, model);           /*   so calculate the new position */
+
+                        if (sim_fseek(uptr->fileref, uptr->pos, SEEK_SET)) { /* set the image file position; if it failed */
+                            io_error(cvptr, uptr, Status_2_Error); /*   then report it to the simulation console */
+
+                            dl_load_unload(cvptr, uptr, FALSE); /* unload the heads */
+                            uptr->STATUS |= S2_FAULT;           /*   and set Fault status */
+                        } else {                                /* otherwise the seek succeeded */
+                            uptr->PHASE = Data_Phase;           /*   so set up the data transfer phase */
+
+                            if (cvptr->device->flags & DEV_REALTIME) /* if the real time mode is enabled */
+                                uptr->wait =
+                                    cvptr->dlyptr->data_xfer /*   then base the delay on the sector preamble size */
+                                    * cmd_props[uptr->OPCODE].preamble_size;
+                            else                                       /* otherwise */
+                                uptr->wait = cvptr->dlyptr->data_xfer; /*   start the transfer with a nominal delay */
+
+                            return TRUE; /* report that positioning was accomplished */
+                        }
+                    }
+                }
+            }
         }
-
-    else                                                    /* otherwise the file mask does not permit an auto-seek */
-        end_command (cvptr, uptr, End_of_Cylinder);         /*   so terminate with an EOC error */
-
-else if (cvptr->verify                                      /* if address verification is enabled */
-  && (uint32) uptr->CYL != cvptr->cylinder) {               /*   and the positioner is on the wrong cylinder */
-    start_seek (cvptr, uptr);                               /*     then start a seek to the correct cylinder */
-
-    dpprintf (cvptr->device, DL_DEB_INCO, "Unit %d %s%s reseek to cylinder %u head %u sector %u\n",
-              (int32) (uptr - cvptr->device->units), opcode_name [uptr->OPCODE],
-              (uptr->STATUS & S2_SEEK_CHECK ? " seek check on" : ""),
-              cvptr->cylinder, cvptr->head, cvptr->sector);
-
-    if (uptr->STATUS & S2_SEEK_CHECK)                       /* if a seek check occurred */
-        end_command (cvptr, uptr, Status_2_Error);          /*   then report a Status-2 error */
     }
 
-else if (((uint32) uptr->CYL >= drive_props [model].cylinders)  /* otherwise the heads are positioned correctly */
-  || (cvptr->head >= drive_props [model].heads)                 /*   but if the cylinder */
-  || (cvptr->sector >= drive_props [model].sectors)) {          /*     or head or sector is out of bounds */
-    uptr->STATUS |= S2_SEEK_CHECK;                              /*       then set Seek Check status */
-    end_command (cvptr, uptr, Status_2_Error);                  /*         and terminate with an error */
-    }
-
-else if (uptr->flags & UNIT_UNLOAD)                     /* otherwise if the drive is not ready for positioning */
-    end_command (cvptr, uptr, Access_Not_Ready);        /*   then terminate with an access error */
-
-else {                                                  /* otherwise we are ready to move the heads */
-    set_file_pos (cvptr, uptr, model);                  /*   so calculate the new position */
-
-    if (sim_fseek (uptr->fileref, uptr->pos, SEEK_SET)) {   /* set the image file position; if it failed */
-        io_error (cvptr, uptr, Status_2_Error);             /*   then report it to the simulation console */
-
-        dl_load_unload (cvptr, uptr, FALSE);                /* unload the heads */
-        uptr->STATUS |= S2_FAULT;                           /*   and set Fault status */
-        }
-
-    else {                                              /* otherwise the seek succeeded */
-        uptr->PHASE = Data_Phase;                       /*   so set up the data transfer phase */
-
-        if (cvptr->device->flags & DEV_REALTIME)        /* if the real time mode is enabled */
-            uptr->wait = cvptr->dlyptr->data_xfer       /*   then base the delay on the sector preamble size */
-                           * cmd_props [uptr->OPCODE].preamble_size;
-        else                                            /* otherwise */
-            uptr->wait = cvptr->dlyptr->data_xfer;      /*   start the transfer with a nominal delay */
-
-        return TRUE;                                    /* report that positioning was accomplished */
-        }
-    }
-
-return FALSE;                                           /* positioning failed or was deferred */
+    return FALSE; /* positioning failed or was deferred */
 }
-
 
 /* Address the next sector.
 

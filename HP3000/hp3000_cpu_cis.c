@@ -824,7 +824,7 @@ switch (opcode) {                                       /* dispatch the opcode *
         offset = RC;                                    /*   and the PB-relative offset of the target */
 
         RB = STA;                                       /* replace the segment number with the current status */
-        RC = P - 1 - PB & R_MASK;                       /*   and the target with the PB-relative return address */
+        RC = (P - 1 - PB) & R_MASK;                     /*   and the target with the PB-relative return address */
 
         branch_external (segment, offset);              /* branch to the target location */
         break;
@@ -845,7 +845,7 @@ switch (opcode) {                                       /* dispatch the opcode *
         opcode = NIR;                                   /* get the operation code from the second word */
 
         cpu_read_memory (fetch, P, &NIR);               /* load the next instruction */
-        P = P + 1 & R_MASK;                             /*   and point to the following instruction */
+        P = (P + 1) & R_MASK;                           /*   and point to the following instruction */
 
         switch (opcode) {                               /* dispatch the second instruction word */
 
@@ -1034,12 +1034,12 @@ switch (opcode) {                                       /* dispatch the opcode *
 
                     else                                            /* otherwise this is a NEGD instruction */
                         if (IS_NEG (byte)) {                        /*   so if the number is negative */
-                            byte = byte & SIGN_MASK | SIGN_PLUS;    /*     then make the number positive */
+                            byte = (byte & SIGN_MASK) | SIGN_PLUS;  /*     then make the number positive */
                             SET_CCG;                                /*       and set the greater-than condition code */
                             }
 
                         else {                                      /*   otherwise the number is positive */
-                            byte = byte & SIGN_MASK | SIGN_MINUS;   /*     so make it negative */
+                            byte = (byte & SIGN_MASK) | SIGN_MINUS; /*     so make it negative */
                             SET_CCL;                                /*       and set the less-than condition code */
                             }
 
@@ -1483,8 +1483,8 @@ do {                                                    /* process operations wh
             while (operand > 0) {                       /* while there are characters to move */
                 byte = mem_read_byte (&source);         /*   get the next byte */
 
-                if (byte >= 'A' && byte <= 'Z'          /* if the character is an uppercase letter */
-                  || byte >= 'a' && byte <= 'z'         /*   or a lowercase letter */
+                if ((byte >= 'A' && byte <= 'Z')        /* if the character is an uppercase letter */
+                  || (byte >= 'a' && byte <= 'z')       /*   or a lowercase letter */
                   || byte == ' ') {                     /*     or a space */
                     mem_write_byte (&target, byte);     /*       then move it to the target */
                     operand = operand - 1;              /*         and count it */
@@ -1618,23 +1618,23 @@ do {                                                    /* process operations wh
             break;
 
 
-        case 011:                                       /* BRIS - branch if significance */
-            if (filling == FALSE) {                     /* if zero-filling is off */
-                RD = RD - 1 + SEXT8 (operand) & R_MASK; /*   then add the signed displacement to the offset */
-                mem_set_byte (&prog);                   /*     and reset the subprogram accessor */
+        case 011:                                         /* BRIS - branch if significance */
+            if (filling == FALSE) {                       /* if zero-filling is off */
+                RD = (RD - 1 + SEXT8 (operand)) & R_MASK; /* then add the signed displacement to the offset */
+                mem_set_byte (&prog);                     /* and reset the subprogram accessor */
                 }
             break;
 
 
         case 012:                                       /* SUFT - subtract from target */
             mem_update_byte (&target);                  /* update the final target byte if needed */
-            RC = RC - SEXT8 (operand) & R_MASK;         /* subtract the signed displacement from the offset */
+            RC = (RC - SEXT8 (operand)) & R_MASK;       /* subtract the signed displacement from the offset */
             mem_set_byte (&target);                     /*   and reset the target accessor */
             break;
 
 
         case 013:                                       /* SUFS - subtract from source */
-            RB = RB - SEXT8 (operand) & R_MASK;         /* subtract the signed displacement from the offset */
+            RB = (RB - SEXT8 (operand)) & R_MASK;       /* subtract the signed displacement from the offset */
             mem_set_byte (&source);                     /*   and reset the source accessor */
             break;
 
@@ -1659,7 +1659,7 @@ do {                                                    /* process operations wh
                 count = operand;                        /*   then get the character count */
 
                 if ((STA & STATUS_CC_MASK) == STATUS_CCL) { /* if the sign is negative */
-                    RD = RD + count & R_MASK;               /*   then index to the negative character string */
+                    RD = (RD + count) & R_MASK;             /*   then index to the negative character string */
                     mem_set_byte (&prog);                   /*     and reset the subprogram accessor */
                     }
 
@@ -1671,7 +1671,7 @@ do {                                                    /* process operations wh
                     }
 
                 if ((STA & STATUS_CC_MASK) != STATUS_CCL) { /* if the sign is positive */
-                    RD = RD + operand & R_MASK;             /*   then skip over the negative character string */
+                    RD = (RD + operand) & R_MASK;           /*   then skip over the negative character string */
                     mem_set_byte (&prog);                   /*     and reset the subprogram accessor */
                     }
                 }
@@ -1756,10 +1756,10 @@ do {                                                    /* process operations wh
                 case 011:                                       /* DBNZ - decrement loop count and branch */
                     byte = mem_read_byte (&prog);               /* get the displacement */
 
-                    loop_count = loop_count - 1 & D8_MASK;      /* decrement the loop count modulo 256 */
+                    loop_count = (loop_count - 1) & D8_MASK;    /* decrement the loop count modulo 256 */
 
                     if (loop_count > 0) {                       /* if the count is not zero */
-                        RD = RD - 1 - SEXT8 (byte) & R_MASK;    /*   then subtract the signed displacement from the offset */
+                        RD = (RD - 1 - SEXT8 (byte)) & R_MASK;  /*   then subtract the signed displacement from the offset */
                         mem_set_byte (&prog);                   /*     and reset the subprogram accessor */
                         }
                     break;

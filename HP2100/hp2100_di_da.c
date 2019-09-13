@@ -750,266 +750,243 @@ DEVICE da_dev = {
        assert NRFD if the LSTN control bit is clear).
 */
 
-t_stat da_service (UNIT *uptr)
+t_stat
+da_service(UNIT *uptr)
 {
-uint8 data;
-CNTLR_CLASS command_class;
-const int32 unit = uptr - da_unit;                          /* get the disc unit number */
-const CVPTR cvptr = &icd_cntlr [unit];                      /* get a pointer to the controller */
-t_stat result = SCPE_OK;
-t_bool release_interface = FALSE;
+    uint8       data;
+    CNTLR_CLASS command_class;
+    const int32 unit              = uptr - da_unit;   /* get the disc unit number */
+    const CVPTR cvptr             = &icd_cntlr[unit]; /* get a pointer to the controller */
+    t_stat      result            = SCPE_OK;
+    t_bool      release_interface = FALSE;
 
-switch (if_state [unit]) {                                  /* dispatch the interface state */
+    switch (if_state[unit]) { /* dispatch the interface state */
 
-    case command_wait:                                      /* command is waiting */
-        release_interface = TRUE;                           /* release the interface at then end if it's idle */
+    case command_wait:            /* command is waiting */
+        release_interface = TRUE; /* release the interface at then end if it's idle */
 
         /* fall into the command_exec handler to process the current command */
 
-    case command_exec:                                      /* command is executing */
-        switch (if_command [unit]) {                        /* dispatch the interface command */
+    case command_exec:              /* command is executing */
+        switch (if_command[unit]) { /* dispatch the interface command */
 
-            case disc_command:                              /* execute a disc command */
-                result = dl_service_drive (cvptr, uptr);    /* service the disc unit */
+        case disc_command:                          /* execute a disc command */
+            result = dl_service_drive(cvptr, uptr); /* service the disc unit */
 
-                if (cvptr->opcode == Clear)                 /* is this a Clear command? */
-                    if_dsj [unit] = 2;                      /* indicate that the self test is complete */
+            if (cvptr->opcode == Clear) /* is this a Clear command? */
+                if_dsj[unit] = 2;       /* indicate that the self test is complete */
 
-                if (cvptr->state != cntlr_busy) {           /* has the controller stopped? */
-                    if_state [unit] = idle;                 /* idle the interface */
+            if (cvptr->state != cntlr_busy) { /* has the controller stopped? */
+                if_state[unit] = idle;        /* idle the interface */
 
-                    if (cvptr->status == normal_completion ||   /* do we have normal completion */
-                        cvptr->status == drive_attention)       /*   or drive attention? */
-                        break;                                  /* we're done */
+                if (cvptr->status == normal_completion || /* do we have normal completion */
+                    cvptr->status == drive_attention)     /*   or drive attention? */
+                    break;                                /* we're done */
 
-                    else {                                      /* if the status is abnormal */
-                        if_dsj [unit] = 1;                      /*   an error has occurred */
+                else {                /* if the status is abnormal */
+                    if_dsj[unit] = 1; /*   an error has occurred */
 
-                        command_class = dl_classify (*cvptr);   /* classify the command */
+                    command_class = dl_classify(*cvptr); /* classify the command */
 
-                        if (command_class == class_write) {     /* did a write command fail? */
-                            if_state [unit] = error_sink;       /* sink the remaining bytes */
-                            uptr->wait = cvptr->cmd_time;       /* activate to complete processing */
-                            }
-
-                        else if (command_class != class_control) {  /* did a read or status command fail? */
-                            if_state [unit] = error_source;         /* source an error byte */
-                            uptr->wait = cvptr->cmd_time;           /* activate to complete processing */
-                            }
-                        }
+                    if (command_class == class_write) {   /* did a write command fail? */
+                        if_state[unit] = error_sink;      /* sink the remaining bytes */
+                        uptr->wait     = cvptr->cmd_time; /* activate to complete processing */
                     }
 
-                else if (uptr->PHASE == data_phase) {           /* are we starting the data phase? */
-                    cvptr->length = cvptr->length * 2;          /* convert the buffer length to bytes */
-
-                    if (dl_classify (*cvptr) == class_write)    /* is this a write command? */
-                        if_state [unit] = write_xfer;           /* set for a write data transfer */
-                    else                                        /* it is a read or status command */
-                        if_state [unit] = read_xfer;            /* set for a read data transfer */
+                    else if (command_class != class_control) { /* did a read or status command fail? */
+                        if_state[unit] = error_source;         /* source an error byte */
+                        uptr->wait     = cvptr->cmd_time;      /* activate to complete processing */
                     }
-
-                break;
-
-
-            case amigo_identify:                            /* Amigo Identify */
-                buffer [0] = 0x0003;                        /* store the response in the buffer */
-                cvptr->length = 2;                          /* return two bytes */
-
-                if_state [unit] = read_xfer;                /* we are ready to transfer the data */
-                uptr->wait = cvptr->cmd_time;               /* schedule the transfer */
-
-                tprintf (da_dev, DEB_RWSC, "Unit %d Amigo identify response %04XH\n",
-                         unit, buffer [0]);
-                break;
-
-
-            case initiate_self_test:                        /* Initiate a self test */
-                sim_cancel (&da_unit [unit]);               /* cancel any operation in progress */
-                dl_clear_controller (cvptr,                 /* hard-clear the controller */
-                                     &da_unit [unit],
-                                     hard_clear);
-                if_dsj [unit] = 2;                          /* set DSJ for self test completion */
-                if_state [unit] = idle;                     /* the command is complete */
-                di_poll_response (da, unit, SET);           /*   with PPR enabled */
-                break;
-
-
-            case amigo_clear:                               /* Amigo clear */
-                dl_idle_controller (cvptr);                 /* idle the controller */
-                if_dsj [unit] = 0;                          /* clear the DSJ value */
-                if_state [unit] = idle;                     /* the command is complete */
-                di_poll_response (da, unit, SET);           /*   with PPR enabled */
-                break;
-
-
-            default:                                        /* no other commands are executed */
-                result = SCPE_IERR;                         /* signal an internal error */
-                break;
-            }                                               /* end of command dispatch */
-        break;
-
-
-    case error_source:                                      /* send data after an error */
-        if (! (di [da].bus_cntl & (BUS_ATN | BUS_NRFD))) {  /* is the card ready for data? */
-            di [da].bus_cntl |= BUS_EOI;                    /* set EOI */
-            di_bus_source (da, 0);                          /*   and send a dummy byte to the card */
-            if_state [unit] = idle;                         /* the command is complete */
+                }
             }
+
+            else if (uptr->PHASE == data_phase) {  /* are we starting the data phase? */
+                cvptr->length = cvptr->length * 2; /* convert the buffer length to bytes */
+
+                if (dl_classify(*cvptr) == class_write) /* is this a write command? */
+                    if_state[unit] = write_xfer;        /* set for a write data transfer */
+                else                                    /* it is a read or status command */
+                    if_state[unit] = read_xfer;         /* set for a read data transfer */
+            }
+
+            break;
+
+        case amigo_identify:        /* Amigo Identify */
+            buffer[0]     = 0x0003; /* store the response in the buffer */
+            cvptr->length = 2;      /* return two bytes */
+
+            if_state[unit] = read_xfer;       /* we are ready to transfer the data */
+            uptr->wait     = cvptr->cmd_time; /* schedule the transfer */
+
+            tprintf(da_dev, DEB_RWSC, "Unit %d Amigo identify response %04XH\n", unit, buffer[0]);
+            break;
+
+        case initiate_self_test:        /* Initiate a self test */
+            sim_cancel(&da_unit[unit]); /* cancel any operation in progress */
+            dl_clear_controller(cvptr,  /* hard-clear the controller */
+                                &da_unit[unit], hard_clear);
+            if_dsj[unit]   = 2;              /* set DSJ for self test completion */
+            if_state[unit] = idle;           /* the command is complete */
+            di_poll_response(da, unit, SET); /*   with PPR enabled */
+            break;
+
+        case amigo_clear:                    /* Amigo clear */
+            dl_idle_controller(cvptr);       /* idle the controller */
+            if_dsj[unit]   = 0;              /* clear the DSJ value */
+            if_state[unit] = idle;           /* the command is complete */
+            di_poll_response(da, unit, SET); /*   with PPR enabled */
+            break;
+
+        default:                /* no other commands are executed */
+            result = SCPE_IERR; /* signal an internal error */
+            break;
+        } /* end of command dispatch */
         break;
 
-
-    case read_xfer:                                         /* send read data */
-        if (! (di [da].bus_cntl & (BUS_ATN | BUS_NRFD)))    /* is the card ready for data? */
-            switch (if_command [unit]) {                    /* dispatch the interface command */
-
-                case disc_command:                          /* disc read or status commands */
-                    data = get_buffer_byte (cvptr);         /* get the next byte from the buffer */
-
-                    if (di_bus_source (da, data) == FALSE)  /* send the byte to the card; is it listening? */
-                        cvptr->eod = SET;                   /* no, so terminate the read */
-
-                    if (cvptr->length == 0 || cvptr->eod == SET) {  /* is the data phase complete? */
-                        uptr->PHASE = end_phase;                    /* set the end phase */
-
-                        if (cvptr->opcode == Request_Status)    /* is it a Request Status command? */
-                            if_dsj [unit] = 0;                  /* clear the DSJ value */
-
-                        if_state [unit] = command_exec;         /* set to execute the command */
-                        uptr->wait = cvptr->cmd_time;           /*   and reschedule the service */
-                        }
-
-                    else                                    /* the data phase continues */
-                        uptr->wait = cvptr->data_time;      /* reschedule the next transfer */
-
-                    break;
-
-
-                case amigo_identify:
-                case read_loopback:
-                case return_self_test_result:
-                    data = get_buffer_byte (cvptr);         /* get the next byte from the buffer */
-
-                    if (cvptr->length == 0)                 /* is the transfer complete? */
-                        di [da].bus_cntl |= BUS_EOI;        /* set EOI */
-
-                    if (di_bus_source (da, data)            /* send the byte to the card; is it listening? */
-                      && cvptr->length > 0)                 /*   and is there more to transfer? */
-                        uptr->wait = cvptr->data_time;      /* reschedule the next transfer */
-
-                    else {                                  /* the transfer is complete */
-                        if_state [unit] = idle;             /* the command is complete */
-                        di_poll_response (da, unit, SET);   /* enable the PPR */
-                        }
-                    break;
-
-
-                case device_specified_jump:
-                    di [da].bus_cntl |= BUS_EOI;            /* set EOI */
-                    di_bus_source (da, if_dsj [unit]);      /* send the DSJ value to the card */
-                    if_state [unit] = idle;                 /* the command is complete */
-                    break;
-
-
-                case crc_talk:
-                    di [da].bus_cntl |= BUS_EOI;            /* set EOI */
-                    di_bus_source (da, 0);                  /* send dummy bytes */
-                    break;                                  /*   until the card untalks */
-
-
-                default:                                    /* no other commands send data */
-                    result = SCPE_IERR;                     /* signal an internal error */
-                    break;
-                }                                           /* end of read data transfer dispatch */
-        break;
-
-
-    case error_sink:                                        /* absorb data after an error */
-        cvptr->index = 0;                                   /* absorb data until EOI asserts */
-
-        if (cvptr->eod == SET)                              /* is the transfer complete? */
-            if_state [unit] = idle;                         /* the command is complete */
-
-        di_bus_control (da, unit, 0, BUS_NRFD);             /* deny NRFD to allow the card to resume */
-        break;
-
-
-    case write_xfer:                                        /* receive write data */
-        switch (if_command [unit]) {                        /* dispatch the interface command */
-
-            case disc_command:                                  /* disc write commands */
-                if (cvptr->length == 0 || cvptr->eod == SET) {  /* is the data phase complete? */
-                    uptr->PHASE = end_phase;                    /* set the end phase */
-
-                    if_state [unit] = command_exec;         /* set to execute the command */
-                    uptr->wait = cvptr->cmd_time;           /*   and schedule the service */
-
-                    if (cvptr->eod == CLEAR)                /* is the transfer continuing? */
-                        break;                              /* do not deny NRFD until next service! */
-                    }
-
-                di_bus_control (da, unit, 0, BUS_NRFD);     /* deny NRFD to allow the card to resume */
-                break;
-
-
-            case write_loopback:
-                if (cvptr->eod == SET) {                    /* is the transfer complete? */
-                    cvptr->length = 16 - cvptr->length;     /* set the count of bytes transferred */
-                    if_state [unit] = idle;                 /* the command is complete */
-                    }
-
-                di_bus_control (da, unit, 0, BUS_NRFD);     /* deny NRFD to allow the card to resume */
-                break;
-
-
-            default:                                        /* no other commands receive data */
-                result = SCPE_IERR;                         /* signal an internal error */
-                break;
-            }                                               /* end of write data transfer dispatch */
-        break;
-
-
-    default:                                                /* no other states schedule service */
-        result = SCPE_IERR;                                 /* signal an internal error */
-        break;
-    }                                                       /* end of interface state dispatch */
-
-
-if (uptr->wait)                                             /* is service requested? */
-    activate_unit (uptr);                                   /* schedule the next event */
-
-if (result == SCPE_IERR)                                    /* did an internal error occur? */
-    if (if_state [unit] == command_exec
-      && if_command [unit] == disc_command)
-        tprintf (da_dev, DEB_RWSC, "Unit %d %s command %s phase service not handled\n",
-                 unit,
-                 dl_opcode_name (ICD, (CNTLR_OPCODE) uptr->OP),
-                 dl_phase_name ((CNTLR_PHASE) uptr->PHASE));
-    else
-        tprintf (da_dev, DEB_RWSC, "Unit %d %s state %s service not handled\n",
-                 unit,
-                 if_command_name [if_command [unit]],
-                 if_state_name [if_state [unit]]);
-
-if (if_state [unit] == idle) {                              /* is the command now complete? */
-    if (if_command [unit] == disc_command) {                /* did a disc command complete? */
-        if (cvptr->opcode != End)                           /* yes; if the command was not End, */
-            di_poll_response (da, unit, SET);               /*   then enable PPR */
-
-        tprintf (da_dev, DEB_RWSC, "Unit %d %s disc command completed\n",
-                 unit, dl_opcode_name (ICD, cvptr->opcode));
+    case error_source:                                   /* send data after an error */
+        if (!(di[da].bus_cntl & (BUS_ATN | BUS_NRFD))) { /* is the card ready for data? */
+            di[da].bus_cntl |= BUS_EOI;                  /* set EOI */
+            di_bus_source(da, 0);                        /*   and send a dummy byte to the card */
+            if_state[unit] = idle;                       /* the command is complete */
         }
+        break;
 
-    else                                                    /* an interface command completed */
-        tprintf (da_dev, DEB_RWSC, "Unit %d %s command completed\n",
-                 unit, if_command_name [if_command [unit]]);
+    case read_xfer:                                    /* send read data */
+        if (!(di[da].bus_cntl & (BUS_ATN | BUS_NRFD))) /* is the card ready for data? */
+            switch (if_command[unit]) {                /* dispatch the interface command */
 
-    if (release_interface)                                  /* if the next command is already pending */
-        di_bus_control (da, unit, 0, BUS_NRFD);             /*   deny NRFD to allow the card to resume */
+            case disc_command:                 /* disc read or status commands */
+                data = get_buffer_byte(cvptr); /* get the next byte from the buffer */
+
+                if (di_bus_source(da, data) == FALSE) /* send the byte to the card; is it listening? */
+                    cvptr->eod = SET;                 /* no, so terminate the read */
+
+                if (cvptr->length == 0 || cvptr->eod == SET) { /* is the data phase complete? */
+                    uptr->PHASE = end_phase;                   /* set the end phase */
+
+                    if (cvptr->opcode == Request_Status) /* is it a Request Status command? */
+                        if_dsj[unit] = 0;                /* clear the DSJ value */
+
+                    if_state[unit] = command_exec;    /* set to execute the command */
+                    uptr->wait     = cvptr->cmd_time; /*   and reschedule the service */
+                }
+
+                else                               /* the data phase continues */
+                    uptr->wait = cvptr->data_time; /* reschedule the next transfer */
+
+                break;
+
+            case amigo_identify:
+            case read_loopback:
+            case return_self_test_result:
+                data = get_buffer_byte(cvptr); /* get the next byte from the buffer */
+
+                if (cvptr->length == 0)         /* is the transfer complete? */
+                    di[da].bus_cntl |= BUS_EOI; /* set EOI */
+
+                if (di_bus_source(da, data)        /* send the byte to the card; is it listening? */
+                    && cvptr->length > 0)          /*   and is there more to transfer? */
+                    uptr->wait = cvptr->data_time; /* reschedule the next transfer */
+
+                else {                               /* the transfer is complete */
+                    if_state[unit] = idle;           /* the command is complete */
+                    di_poll_response(da, unit, SET); /* enable the PPR */
+                }
+                break;
+
+            case device_specified_jump:
+                di[da].bus_cntl |= BUS_EOI;      /* set EOI */
+                di_bus_source(da, if_dsj[unit]); /* send the DSJ value to the card */
+                if_state[unit] = idle;           /* the command is complete */
+                break;
+
+            case crc_talk:
+                di[da].bus_cntl |= BUS_EOI; /* set EOI */
+                di_bus_source(da, 0);       /* send dummy bytes */
+                break;                      /*   until the card untalks */
+
+            default:                /* no other commands send data */
+                result = SCPE_IERR; /* signal an internal error */
+                break;
+            } /* end of read data transfer dispatch */
+        break;
+
+    case error_sink:      /* absorb data after an error */
+        cvptr->index = 0; /* absorb data until EOI asserts */
+
+        if (cvptr->eod == SET)     /* is the transfer complete? */
+            if_state[unit] = idle; /* the command is complete */
+
+        di_bus_control(da, unit, 0, BUS_NRFD); /* deny NRFD to allow the card to resume */
+        break;
+
+    case write_xfer:                /* receive write data */
+        switch (if_command[unit]) { /* dispatch the interface command */
+
+        case disc_command:                                 /* disc write commands */
+            if (cvptr->length == 0 || cvptr->eod == SET) { /* is the data phase complete? */
+                uptr->PHASE = end_phase;                   /* set the end phase */
+
+                if_state[unit] = command_exec;    /* set to execute the command */
+                uptr->wait     = cvptr->cmd_time; /*   and schedule the service */
+
+                if (cvptr->eod == CLEAR) /* is the transfer continuing? */
+                    break;               /* do not deny NRFD until next service! */
+            }
+
+            di_bus_control(da, unit, 0, BUS_NRFD); /* deny NRFD to allow the card to resume */
+            break;
+
+        case write_loopback:
+            if (cvptr->eod == SET) {                 /* is the transfer complete? */
+                cvptr->length  = 16 - cvptr->length; /* set the count of bytes transferred */
+                if_state[unit] = idle;               /* the command is complete */
+            }
+
+            di_bus_control(da, unit, 0, BUS_NRFD); /* deny NRFD to allow the card to resume */
+            break;
+
+        default:                /* no other commands receive data */
+            result = SCPE_IERR; /* signal an internal error */
+            break;
+        } /* end of write data transfer dispatch */
+        break;
+
+    default:                /* no other states schedule service */
+        result = SCPE_IERR; /* signal an internal error */
+        break;
+    } /* end of interface state dispatch */
+
+    if (uptr->wait)          /* is service requested? */
+        activate_unit(uptr); /* schedule the next event */
+
+    if (result == SCPE_IERR) { /* did an internal error occur? */
+        if (if_state[unit] == command_exec && if_command[unit] == disc_command) {
+            tprintf(da_dev, DEB_RWSC, "Unit %d %s command %s phase service not handled\n", unit,
+                    dl_opcode_name(ICD, (CNTLR_OPCODE)uptr->OP), dl_phase_name((CNTLR_PHASE)uptr->PHASE));
+        } else {
+            tprintf(da_dev, DEB_RWSC, "Unit %d %s state %s service not handled\n", unit, if_command_name[if_command[unit]],
+                    if_state_name[if_state[unit]]);
+        }
     }
 
-return result;                                              /* return the result of the service */
-}
+    if (if_state[unit] == idle) {                /* is the command now complete? */
+        if (if_command[unit] == disc_command) {  /* did a disc command complete? */
+            if (cvptr->opcode != End)            /* yes; if the command was not End, */
+                di_poll_response(da, unit, SET); /*   then enable PPR */
 
+            tprintf(da_dev, DEB_RWSC, "Unit %d %s disc command completed\n", unit, dl_opcode_name(ICD, cvptr->opcode));
+        }
+
+        else /* an interface command completed */
+            tprintf(da_dev, DEB_RWSC, "Unit %d %s command completed\n", unit, if_command_name[if_command[unit]]);
+
+        if (release_interface)                     /* if the next command is already pending */
+            di_bus_control(da, unit, 0, BUS_NRFD); /*   deny NRFD to allow the card to resume */
+    }
+
+    return result; /* return the result of the service */
+}
 
 /* Reset or preset the simulator.
 
@@ -1507,375 +1484,364 @@ return result;
        commands, as only listeners are called by the bus source.
 */
 
-t_bool da_bus_accept (uint32 unit, uint8 data)
+t_bool
+da_bus_accept(uint32 unit, uint8 data)
 {
-const uint8 message_address = data & BUS_ADDRESS;
-t_bool accepted = TRUE;
-t_bool initiated = FALSE;
-t_bool addressed = FALSE;
-t_bool stopped_listening = FALSE;
-t_bool stopped_talking = FALSE;
-char action [40] = "";
-uint32 my_address;
+    const uint8 message_address   = data & BUS_ADDRESS;
+    t_bool      accepted          = TRUE;
+    t_bool      initiated         = FALSE;
+    t_bool      addressed         = FALSE;
+    t_bool      stopped_listening = FALSE;
+    t_bool      stopped_talking   = FALSE;
+    char        action[40]        = "";
+    uint32      my_address;
 
-if (di [da].bus_cntl & BUS_ATN) {                           /* is it a bus command (ATN asserted)? */
-    switch (data & BUS_GROUP) {                             /* dispatch the bus group */
+    if (di[da].bus_cntl & BUS_ATN) { /* is it a bus command (ATN asserted)? */
+        switch (data & BUS_GROUP) {  /* dispatch the bus group */
 
-        case BUS_PCG:                                       /* primary command group */
+        case BUS_PCG: /* primary command group */
             switch (message_address) {
 
-                case 0x04:                                  /* selected device clear */
-                case 0x05:                                  /* SDC with parity freeze */
-                case 0x14:                                  /* universal clear */
-                    tprintf (da_dev, DEB_RWSC, "Unit %d device cleared\n", unit);
+            case 0x04: /* selected device clear */
+            case 0x05: /* SDC with parity freeze */
+            case 0x14: /* universal clear */
+                tprintf(da_dev, DEB_RWSC, "Unit %d device cleared\n", unit);
 
-                    sim_cancel (&da_unit [unit]);           /* cancel any in-progress command */
-                    dl_idle_controller (&icd_cntlr [unit]); /* idle the controller */
-                    if_dsj [unit] = 0;                      /* clear DSJ */
-                    if_state [unit] = idle;                 /* idle the interface */
-                    di_poll_response (da, unit, SET);       /* enable PPR */
+                sim_cancel(&da_unit[unit]);           /* cancel any in-progress command */
+                dl_idle_controller(&icd_cntlr[unit]); /* idle the controller */
+                if_dsj[unit]   = 0;                   /* clear DSJ */
+                if_state[unit] = idle;                /* idle the interface */
+                di_poll_response(da, unit, SET);      /* enable PPR */
 
-                    if (TRACING (da_dev, DEB_XFER))
-                        strcpy (action, "device clear");
+                if (TRACING(da_dev, DEB_XFER))
+                    strcpy(action, "device clear");
+                break;
+
+            default:   /* unsupported universal command */
+                break; /* universals are always accepted */
+            }
+
+            break;
+
+        case BUS_LAG:                                     /* listen address group */
+            my_address = GET_BUSADR(da_unit[unit].flags); /* get my bus address */
+
+            if (message_address == my_address) { /* is it my listen address? */
+                di[da].listeners |= (1 << unit); /* set my listener bit */
+                di[da].talker &= ~(1 << unit);   /* clear my talker bit */
+
+                addressed       = TRUE; /* unit is now addressed */
+                stopped_talking = TRUE; /* MLA stops the unit from talking */
+
+                if (TRACING(da_dev, DEB_XFER))
+                    sprintf(action, "listen %d", message_address);
+            }
+
+            else if (message_address == BUS_UNADDRESS) { /* is it an Unlisten? */
+                di[da].listeners = 0;                    /* clear all of the listeners */
+
+                stopped_listening = TRUE; /* UNL stops the unit from listening */
+
+                if (TRACING(da_dev, DEB_XFER))
+                    strcpy(action, "unlisten");
+            }
+
+            else                  /* other listen addresses */
+                accepted = FALSE; /*   are not accepted */
+
+            break;
+
+        case BUS_TAG:                                     /* talk address group */
+            my_address = GET_BUSADR(da_unit[unit].flags); /* get my bus address */
+
+            if (message_address == my_address) {  /* is it my talk address? */
+                di[da].talker = (1 << unit);      /* set my talker bit and clear the others */
+                di[da].listeners &= ~(1 << unit); /* clear my listener bit */
+
+                addressed         = TRUE; /* the unit is now addressed */
+                stopped_listening = TRUE; /* MTA stops the unit from listening */
+
+                if (TRACING(da_dev, DEB_XFER))
+                    sprintf(action, "talk %d", message_address);
+            }
+
+            else {                             /* it is some other talker (or Untalk) */
+                di[da].talker &= ~(1 << unit); /* clear my talker bit */
+
+                stopped_talking = TRUE; /* UNT or OTA stops the unit from talking */
+
+                if (message_address != BUS_UNADDRESS) /* other talk addresses */
+                    accepted = FALSE;                 /*   are not accepted */
+
+                else /* it's an Untalk */
+                    if (TRACING(da_dev, DEB_XFER))
+                    strcpy(action, "untalk");
+            }
+
+            break;
+
+        case BUS_SCG:                  /* secondary command group */
+            icd_cntlr[unit].index = 0; /* reset the buffer index */
+
+            if (di[da].listeners & (1 << unit)) {         /* is it a listen secondary? */
+                if (if_state[unit] == write_wait          /* if we're waiting for a write data secondary */
+                    && message_address != 0x00)           /*   but it's not there, */
+                    abort_command(unit, io_program_error, /*   then abort the pending command */
+                                  idle);                  /*   and process the new command */
+
+                switch (message_address) { /* dispatch the listen secondary */
+
+                case 0x00:                                    /* Receive Write Data */
+                    if (if_state[unit] != write_wait)         /* if we're not expecting it */
+                        abort_command(unit, io_program_error, /*   abort and sink any data */
+                                      error_sink);
+                    else {                                             /* the sequence is correct */
+                        if_state[unit]     = command_exec;             /* the command is ready to execute */
+                        da_unit[unit].wait = icd_cntlr[unit].cmd_time; /* schedule the unit */
+                        di_bus_control(da, unit, BUS_NRFD, 0);         /* assert NRFD to hold off the card */
+                    }
+
+                    initiated = TRUE; /* log the command or abort initiation */
                     break;
 
+                case 0x08:                           /* disc commands */
+                    if_command[unit] = disc_command; /* set the command and wait */
+                    if_state[unit]   = opcode_wait;  /*  for the opcode that must follow */
+                    break;
 
-                default:                                    /* unsupported universal command */
-                    break;                                  /* universals are always accepted */
+                case 0x09:                         /* CRC (Listen) */
+                    if_command[unit] = crc_listen; /* set up the command */
+                    if_state[unit]   = error_sink; /* sink any data that will be coming */
+                    initiated        = TRUE;       /* log the command initiation */
+                    break;
+
+                case 0x10:                                   /* Amigo Clear */
+                    if_command[unit]       = amigo_clear;    /* set up the command */
+                    if_state[unit]         = parameter_wait; /* a parameter must follow */
+                    icd_cntlr[unit].length = 1;              /* set to expect one (unused) byte */
+                    break;
+
+                case 0x1E:                                   /* Write Loopback */
+                    if_command[unit]       = write_loopback; /* set up the command */
+                    if_state[unit]         = write_xfer;     /* data will be coming */
+                    icd_cntlr[unit].length = 16;             /* accept only the first 16 bytes */
+                    initiated              = TRUE;           /* log the command initiation */
+                    break;
+
+                case 0x1F:                                       /* Initiate Self-Test */
+                    if_command[unit]       = initiate_self_test; /* set up the command */
+                    if_state[unit]         = parameter_wait;     /* a parameter must follow */
+                    icd_cntlr[unit].length = 1;                  /* set to expect the test ID byte */
+                    break;
+
+                default:                                  /* an unsupported listen secondary was received */
+                    abort_command(unit, io_program_error, /* abort and sink any data */
+                                  error_sink);            /*   that might accompany the command */
+                    initiated = TRUE;                     /* log the abort initiation */
+                    break;
+                }
+            }
+
+            else if (di[da].talker & (1 << unit)) {            /* is it a talk secondary? */
+                da_unit[unit].wait = icd_cntlr[unit].cmd_time; /* these are always scheduled and */
+                initiated          = TRUE;                     /*   logged as initiated */
+
+                if ((if_state[unit] == read_wait          /* if we're waiting for a send data secondary */
+                     && message_address != 0x00)          /*   but it's not there */
+                    || (if_state[unit] == status_wait     /* or a send status secondary, */
+                        && message_address != 0x08))      /*   but it's not there */
+                    abort_command(unit, io_program_error, /*   then abort the pending command */
+                                  idle);                  /*   and process the new command */
+
+                switch (message_address) { /* dispatch the talk secondary */
+
+                case 0x00:                                    /* Send Read Data */
+                    if (if_state[unit] != read_wait)          /* if we're not expecting it */
+                        abort_command(unit, io_program_error, /*   abort and source a data byte */
+                                      error_source);          /*     tagged with EOI */
+                    else
+                        if_state[unit] = command_exec; /* the command is ready to execute */
+                    break;
+
+                case 0x08:                                    /* Read Status */
+                    if (if_state[unit] != status_wait)        /* if we're not expecting it, */
+                        abort_command(unit, io_program_error, /*   abort and source a data byte */
+                                      error_source);          /*     tagged with EOI */
+                    else                                      /* all status commands */
+                        if_state[unit] = read_xfer;           /*   are ready to transfer data */
+                    break;
+
+                case 0x09:                        /* CRC (Talk) */
+                    if_command[unit] = crc_talk;  /* set up the command */
+                    if_state[unit]   = read_xfer; /* data will be going */
+                    break;
+
+                case 0x10:                                    /* Device-Specified Jump */
+                    if_command[unit] = device_specified_jump; /* set up the command */
+                    if_state[unit]   = read_xfer;             /* data will be going */
+                    break;
+
+                case 0x1E:                            /* Read Loopback */
+                    if_command[unit] = read_loopback; /* set up the command */
+                    if_state[unit]   = read_xfer;     /* data will be going */
+                    break;
+
+                case 0x1F:                                            /* Return Self-Test Result */
+                    if_command[unit]       = return_self_test_result; /* set up the command */
+                    if_state[unit]         = read_xfer;               /* data will be going */
+                    icd_cntlr[unit].length = 1;                       /* return one byte that indicates */
+                    buffer[0]              = 0;                       /*   that the self-test passed */
+                    break;
+
+                default:                                  /* an unsupported talk secondary was received */
+                    abort_command(unit, io_program_error, /* abort and source a data byte */
+                                  error_source);          /*   tagged with EOI */
+                    break;
+                }
+            }
+
+            else {                                            /* the unit is not addressed */
+                my_address = GET_BUSADR(da_unit[unit].flags); /* get my bus address */
+
+                if (di[da].talker == 0 && di[da].listeners == 0    /* if there are no talkers or listeners */
+                    && message_address == my_address) {            /*   and this is my secondary address, */
+                    if_command[unit]   = amigo_identify;           /*     then this is an Amigo ID sequence */
+                    if_state[unit]     = command_exec;             /* set up for execution */
+                    da_unit[unit].wait = icd_cntlr[unit].cmd_time; /* schedule the unit */
+                    initiated          = TRUE;                     /* log the command initiation */
                 }
 
-            break;
+                else                  /* unaddressed secondaries */
+                    accepted = FALSE; /*   are not accepted */
+            }
 
+            if (accepted) { /* was the command accepted? */
+                if (TRACING(da_dev, DEB_XFER))
+                    sprintf(action, "secondary %02XH", message_address);
 
-        case BUS_LAG:                                       /* listen address group */
-            my_address = GET_BUSADR (da_unit [unit].flags); /* get my bus address */
+                if (if_command[unit] != amigo_identify) /* disable PPR for all commands */
+                    di_poll_response(da, unit, CLEAR);  /*   except Amigo ID */
+            }
 
-            if (message_address == my_address) {            /* is it my listen address? */
-                di [da].listeners |= (1 << unit);           /* set my listener bit */
-                di [da].talker &= ~(1 << unit);             /* clear my talker bit */
-
-                addressed = TRUE;                           /* unit is now addressed */
-                stopped_talking = TRUE;                     /* MLA stops the unit from talking */
-
-                if (TRACING (da_dev, DEB_XFER))
-                    sprintf (action, "listen %d", message_address);
-                }
-
-            else if (message_address == BUS_UNADDRESS) {    /* is it an Unlisten? */
-                di [da].listeners = 0;                      /* clear all of the listeners */
-
-                stopped_listening = TRUE;                   /* UNL stops the unit from listening */
-
-                if (TRACING (da_dev, DEB_XFER))
-                    strcpy (action, "unlisten");
-                }
-
-            else                                            /* other listen addresses */
-                accepted = FALSE;                           /*   are not accepted */
-
-            break;
-
-
-        case BUS_TAG:                                       /* talk address group */
-            my_address = GET_BUSADR (da_unit [unit].flags); /* get my bus address */
-
-            if (message_address == my_address) {            /* is it my talk address? */
-                di [da].talker = (1 << unit);               /* set my talker bit and clear the others */
-                di [da].listeners &= ~(1 << unit);          /* clear my listener bit */
-
-                addressed = TRUE;                           /* the unit is now addressed */
-                stopped_listening = TRUE;                   /* MTA stops the unit from listening */
-
-                if (TRACING (da_dev, DEB_XFER))
-                    sprintf (action, "talk %d", message_address);
-                }
-
-            else {                                          /* it is some other talker (or Untalk) */
-                di [da].talker &= ~(1 << unit);             /* clear my talker bit */
-
-                stopped_talking = TRUE;                     /* UNT or OTA stops the unit from talking */
-
-                if (message_address != BUS_UNADDRESS)       /* other talk addresses */
-                    accepted = FALSE;                       /*   are not accepted */
-
-                else                                        /* it's an Untalk */
-                    if (TRACING (da_dev, DEB_XFER))
-                        strcpy (action, "untalk");
-                }
-
-            break;
-
-
-        case BUS_SCG:                                       /* secondary command group */
-            icd_cntlr [unit].index = 0;                     /* reset the buffer index */
-
-            if (di [da].listeners & (1 << unit)) {          /* is it a listen secondary? */
-                if (if_state [unit] == write_wait           /* if we're waiting for a write data secondary */
-                  && message_address != 0x00)               /*   but it's not there, */
-                    abort_command (unit, io_program_error,  /*   then abort the pending command */
-                                   idle);                   /*   and process the new command */
-
-                switch (message_address) {                  /* dispatch the listen secondary */
-
-                    case 0x00:                                                  /* Receive Write Data */
-                        if (if_state [unit] != write_wait)                      /* if we're not expecting it */
-                            abort_command (unit, io_program_error,              /*   abort and sink any data */
-                                           error_sink);
-                        else {                                                  /* the sequence is correct */
-                            if_state [unit] = command_exec;                     /* the command is ready to execute */
-                            da_unit [unit].wait = icd_cntlr [unit].cmd_time;    /* schedule the unit */
-                            di_bus_control (da, unit, BUS_NRFD, 0);             /* assert NRFD to hold off the card */
-                            }
-
-                        initiated = TRUE;                   /* log the command or abort initiation */
-                        break;
-
-                    case 0x08:                                  /* disc commands */
-                        if_command [unit] = disc_command;       /* set the command and wait */
-                        if_state [unit] = opcode_wait;          /*  for the opcode that must follow */
-                        break;
-
-                    case 0x09:                                  /* CRC (Listen) */
-                        if_command [unit] = crc_listen;         /* set up the command */
-                        if_state [unit] = error_sink;           /* sink any data that will be coming */
-                        initiated = TRUE;                       /* log the command initiation */
-                        break;
-
-                    case 0x10:                                  /* Amigo Clear */
-                        if_command [unit] = amigo_clear;        /* set up the command */
-                        if_state [unit] = parameter_wait;       /* a parameter must follow */
-                        icd_cntlr [unit].length = 1;            /* set to expect one (unused) byte */
-                        break;
-
-                    case 0x1E:                                  /* Write Loopback */
-                        if_command [unit] = write_loopback;     /* set up the command */
-                        if_state [unit] = write_xfer;           /* data will be coming */
-                        icd_cntlr [unit].length = 16;           /* accept only the first 16 bytes */
-                        initiated = TRUE;                       /* log the command initiation */
-                        break;
-
-                    case 0x1F:                                  /* Initiate Self-Test */
-                        if_command [unit] = initiate_self_test; /* set up the command */
-                        if_state [unit] = parameter_wait;       /* a parameter must follow */
-                        icd_cntlr [unit].length = 1;            /* set to expect the test ID byte */
-                        break;
-
-                    default:                                    /* an unsupported listen secondary was received */
-                        abort_command (unit, io_program_error,  /* abort and sink any data */
-                                       error_sink);             /*   that might accompany the command */
-                        initiated = TRUE;                       /* log the abort initiation */
-                        break;
-                    }
-                }
-
-
-            else if (di [da].talker & (1 << unit)) {                /* is it a talk secondary? */
-                da_unit [unit].wait = icd_cntlr [unit].cmd_time;    /* these are always scheduled and */
-                initiated = TRUE;                                   /*   logged as initiated */
-
-                if (if_state [unit] == read_wait                    /* if we're waiting for a send data secondary */
-                  && message_address != 0x00                        /*   but it's not there */
-                  || if_state [unit] == status_wait                 /* or a send status secondary, */
-                  && message_address != 0x08)                       /*   but it's not there */
-                    abort_command (unit, io_program_error,          /*   then abort the pending command */
-                                   idle);                           /*   and process the new command */
-
-                switch (message_address) {                          /* dispatch the talk secondary */
-
-                    case 0x00:                                      /* Send Read Data */
-                        if (if_state [unit] != read_wait)           /* if we're not expecting it */
-                            abort_command (unit, io_program_error,  /*   abort and source a data byte */
-                                           error_source);           /*     tagged with EOI */
-                        else
-                            if_state [unit] = command_exec;         /* the command is ready to execute */
-                        break;
-
-                    case 0x08:                                      /* Read Status */
-                        if (if_state [unit] != status_wait)         /* if we're not expecting it, */
-                            abort_command (unit, io_program_error,  /*   abort and source a data byte */
-                                           error_source);           /*     tagged with EOI */
-                        else                                        /* all status commands */
-                            if_state [unit] = read_xfer;            /*   are ready to transfer data */
-                        break;
-
-                    case 0x09:                                      /* CRC (Talk) */
-                        if_command [unit] = crc_talk;               /* set up the command */
-                        if_state [unit] = read_xfer;                /* data will be going */
-                        break;
-
-                    case 0x10:                                      /* Device-Specified Jump */
-                        if_command [unit] = device_specified_jump;  /* set up the command */
-                        if_state [unit] = read_xfer;                /* data will be going */
-                        break;
-
-                    case 0x1E:                                      /* Read Loopback */
-                        if_command [unit] = read_loopback;          /* set up the command */
-                        if_state [unit] = read_xfer;                /* data will be going */
-                        break;
-
-                    case 0x1F:                                          /* Return Self-Test Result */
-                        if_command [unit] = return_self_test_result;    /* set up the command */
-                        if_state [unit] = read_xfer;                    /* data will be going */
-                        icd_cntlr [unit].length = 1;                    /* return one byte that indicates */
-                        buffer [0] = 0;                                 /*   that the self-test passed */
-                        break;
-
-                    default:                                        /* an unsupported talk secondary was received */
-                        abort_command (unit, io_program_error,      /* abort and source a data byte */
-                                       error_source);               /*   tagged with EOI */
-                        break;
-                    }
-                }
-
-
-            else {                                                  /* the unit is not addressed */
-                my_address = GET_BUSADR (da_unit [unit].flags);     /* get my bus address */
-
-                if (di [da].talker == 0 && di [da].listeners == 0       /* if there are no talkers or listeners */
-                  && message_address == my_address) {                   /*   and this is my secondary address, */
-                    if_command [unit] = amigo_identify;                 /*     then this is an Amigo ID sequence */
-                    if_state [unit] = command_exec;                     /* set up for execution */
-                    da_unit [unit].wait = icd_cntlr [unit].cmd_time;    /* schedule the unit */
-                    initiated = TRUE;                                   /* log the command initiation */
-                    }
-
-                else                                                /* unaddressed secondaries */
-                    accepted = FALSE;                               /*   are not accepted */
-                }
-
-
-            if (accepted) {                                 /* was the command accepted? */
-                if (TRACING (da_dev, DEB_XFER))
-                    sprintf (action, "secondary %02XH", message_address);
-
-                if (if_command [unit] != amigo_identify)    /* disable PPR for all commands */
-                    di_poll_response (da, unit, CLEAR);     /*   except Amigo ID */
-                }
-
-            break;                                          /* end of secondary processing */
+            break; /* end of secondary processing */
         }
 
+        if (addressed && sim_is_active(&da_unit[unit])) { /* is the unit being addressed while it is busy? */
+            if_state[unit] = command_wait;                /* change the interface state to wait */
+            di_bus_control(da, unit, BUS_NRFD, 0);        /*   and assert NRFD to hold off the card */
 
-    if (addressed && sim_is_active (&da_unit [unit])) {     /* is the unit being addressed while it is busy? */
-        if_state [unit] = command_wait;                     /* change the interface state to wait */
-        di_bus_control (da, unit, BUS_NRFD, 0);             /*   and assert NRFD to hold off the card */
-
-        tprintf (da_dev, DEB_RWSC, "Unit %d addressed while controller is busy\n", unit);
+            tprintf(da_dev, DEB_RWSC, "Unit %d addressed while controller is busy\n", unit);
         }
 
-    if (stopped_listening) {                                /* was the unit Unlistened? */
-        if (icd_cntlr [unit].state == cntlr_busy)           /* if the controller is busy, */
-            complete_write (unit);                          /*   then check for write completion */
+        if (stopped_listening) {                     /* was the unit Unlistened? */
+            if (icd_cntlr[unit].state == cntlr_busy) /* if the controller is busy, */
+                complete_write(unit);                /*   then check for write completion */
 
-        else if (if_command [unit] == invalid)              /* if a command was aborting, */
-            complete_abort (unit);                          /*   then complete it */
+            else if (if_command[unit] == invalid) /* if a command was aborting, */
+                complete_abort(unit);             /*   then complete it */
 
-        else if (if_state [unit] == opcode_wait             /* if waiting for an opcode */
-          || if_state [unit] == parameter_wait)             /*   or a parameter, */
-            abort_command (unit, io_program_error, idle);   /*   then abort the pending command */
+            else if (if_state[unit] == opcode_wait           /* if waiting for an opcode */
+                     || if_state[unit] == parameter_wait)    /*   or a parameter, */
+                abort_command(unit, io_program_error, idle); /*   then abort the pending command */
         }
 
-    else if (stopped_talking) {                             /* was the unit Untalked? */
-        if (icd_cntlr [unit].state == cntlr_busy)           /* if the controller is busy, */
-            complete_read (unit);                           /*   then check for read completion */
+        else if (stopped_talking) {                  /* was the unit Untalked? */
+            if (icd_cntlr[unit].state == cntlr_busy) /* if the controller is busy, */
+                complete_read(unit);                 /*   then check for read completion */
 
-        else if (if_command [unit] == invalid)              /* if a command was aborting, */
-            complete_abort (unit);                          /*   then complete it */
+            else if (if_command[unit] == invalid) /* if a command was aborting, */
+                complete_abort(unit);             /*   then complete it */
         }
-    }                                                       /* end of bus command processing */
+    } /* end of bus command processing */
 
+    else {                        /* it is bus data (ATN is denied) */
+        switch (if_state[unit]) { /* dispatch the interface state */
 
-else {                                                      /* it is bus data (ATN is denied) */
-    switch (if_state [unit]) {                              /* dispatch the interface state */
+        case opcode_wait: /* waiting for an opcode */
+            if (TRACING(da_dev, DEB_XFER))
+                sprintf(action, "opcode %02XH", data & DL_OPCODE_MASK);
 
-        case opcode_wait:                                   /* waiting for an opcode */
-            if (TRACING (da_dev, DEB_XFER))
-                sprintf (action, "opcode %02XH", data & DL_OPCODE_MASK);
+            buffer[0] = TO_WORD(data, 0); /* set the opcode into the buffer */
 
-            buffer [0] = TO_WORD (data, 0);                 /* set the opcode into the buffer */
+            if (dl_prepare_command(&icd_cntlr[unit], /* is the command valid? */
+                                   da_unit, unit)) {
+                if_state[unit]         = parameter_wait; /* set up to get the pad byte */
+                icd_cntlr[unit].index  = 0;              /* reset the word index for the next byte */
+                icd_cntlr[unit].length =                 /* convert the parameter count to bytes */
+                    icd_cntlr[unit].length * 2 + 1;      /*   and include the pad byte */
+            }
 
-            if (dl_prepare_command (&icd_cntlr [unit],      /* is the command valid? */
-                                    da_unit, unit)) {
-                if_state [unit] = parameter_wait;           /* set up to get the pad byte */
-                icd_cntlr [unit].index = 0;                 /* reset the word index for the next byte */
-                icd_cntlr [unit].length =                   /* convert the parameter count to bytes */
-                  icd_cntlr [unit].length * 2 + 1;          /*   and include the pad byte */
+            else {                                  /* the disc command is invalid */
+                abort_command(unit, illegal_opcode, /* abort the command */
+                              error_sink);          /*   and sink any parameter bytes */
+                initiated = TRUE;                   /* log the abort initiation */
+            }                                       /* (the unit cannot be busy) */
+            break;
+
+        case parameter_wait: /* waiting for a parameter */
+            if (TRACING(da_dev, DEB_XFER))
+                sprintf(action, "parameter %02XH", data);
+
+            put_buffer_byte(&icd_cntlr[unit], data); /* add the byte to the buffer */
+
+            if (icd_cntlr[unit].length == 0) {       /* is this the last parameter? */
+                if (di[da].bus_cntl & BUS_EOI)       /* does the host agree? */
+                    initiated = start_command(unit); /* start the command and log the initiation */
+
+                else {                                    /* the parameter count is wrong */
+                    abort_command(unit, io_program_error, /* abort the command and sink */
+                                  error_sink);            /*   any additional parameter bytes */
+                    initiated = TRUE;                     /* log the abort initiation */
                 }
-
-            else {                                          /* the disc command is invalid */
-                abort_command (unit, illegal_opcode,        /* abort the command */
-                               error_sink);                 /*   and sink any parameter bytes */
-                initiated = TRUE;                           /* log the abort initiation */
-                }                                           /* (the unit cannot be busy) */
+	    }
             break;
 
-
-        case parameter_wait:                                /* waiting for a parameter */
-            if (TRACING (da_dev, DEB_XFER))
-                sprintf (action, "parameter %02XH", data);
-
-            put_buffer_byte (&icd_cntlr [unit], data);      /* add the byte to the buffer */
-
-            if (icd_cntlr [unit].length == 0)               /* is this the last parameter? */
-                if (di [da].bus_cntl & BUS_EOI)             /* does the host agree? */
-                    initiated = start_command (unit);       /* start the command and log the initiation */
-
-                else {                                      /* the parameter count is wrong */
-                    abort_command (unit, io_program_error,  /* abort the command and sink */
-                                   error_sink);             /*   any additional parameter bytes */
-                    initiated = TRUE;                       /* log the abort initiation */
-                    }
-            break;
-
-
-        case write_xfer:                                    /* transferring write data */
-            if (icd_cntlr [unit].length > 0)                /* if there is more to transfer */
-                put_buffer_byte (&icd_cntlr [unit], data);  /*   then add the byte to the buffer */
+        case write_xfer:                                 /* transferring write data */
+            if (icd_cntlr[unit].length > 0)              /* if there is more to transfer */
+                put_buffer_byte(&icd_cntlr[unit], data); /*   then add the byte to the buffer */
 
             /* fall into error_sink handler */
 
-        case error_sink:                                        /* sinking data after an error */
-            if (TRACING (da_dev, DEB_XFER))
-                sprintf (action, "data %03o", data);
+        case error_sink: /* sinking data after an error */
+            if (TRACING(da_dev, DEB_XFER))
+                sprintf(action, "data %03o", data);
 
-            if (di [da].bus_cntl & BUS_EOI)                     /* is this the last byte from the bus? */
-                icd_cntlr [unit].eod = SET;                     /* indicate EOD to the controller */
+            if (di[da].bus_cntl & BUS_EOI) /* is this the last byte from the bus? */
+                icd_cntlr[unit].eod = SET; /* indicate EOD to the controller */
 
-            di_bus_control (da, unit, BUS_NRFD, 0);             /* assert NRFD to hold off the card */
+            di_bus_control(da, unit, BUS_NRFD, 0); /* assert NRFD to hold off the card */
 
-            da_unit [unit].wait = icd_cntlr [unit].data_time;   /* schedule the unit */
+            da_unit[unit].wait = icd_cntlr[unit].data_time; /* schedule the unit */
             break;
 
+        default:                                  /* data was received in the wrong state */
+            abort_command(unit, io_program_error, /* report the error */
+                          error_sink);            /*   and sink any data that follows */
 
-        default:                                            /* data was received in the wrong state */
-            abort_command (unit, io_program_error,          /* report the error */
-                           error_sink);                     /*   and sink any data that follows */
-
-            if (TRACING (da_dev, DEB_XFER))
-                sprintf (action, "unhandled data %03o", data);
+            if (TRACING(da_dev, DEB_XFER))
+                sprintf(action, "unhandled data %03o", data);
             break;
         }
     }
 
+    if (accepted) {
+        tprintf(da_dev, DEB_XFER, "HP-IB address %d accepted %s\n", GET_BUSADR(da_unit[unit].flags), action);
+    }
 
-if (accepted)
-    tprintf (da_dev, DEB_XFER, "HP-IB address %d accepted %s\n",
-             GET_BUSADR (da_unit [unit].flags), action);
+    if (da_unit[unit].wait > 0)        /* was service requested? */
+        activate_unit(&da_unit[unit]); /* schedule the unit */
 
-if (da_unit [unit].wait > 0)                            /* was service requested? */
-    activate_unit (&da_unit [unit]);                    /* schedule the unit */
+    if (initiated) {
+        if (if_command[unit] == disc_command) {
+            tprintf(da_dev, DEB_RWSC, "Unit %d position %" T_ADDR_FMT "d %s disc command initiated\n", unit,
+                    da_unit[unit].pos, dl_opcode_name(ICD, icd_cntlr[unit].opcode));
+	} else {
+            tprintf(da_dev, DEB_RWSC, "Unit %d %s command initiated\n", unit, if_command_name[if_command[unit]]);
+	}
+    }
 
-if (initiated)
-    if (if_command [unit] == disc_command)
-        tprintf (da_dev, DEB_RWSC, "Unit %d position %" T_ADDR_FMT "d %s disc command initiated\n",
-                 unit, da_unit [unit].pos, dl_opcode_name (ICD, icd_cntlr [unit].opcode));
-    else
-        tprintf (da_dev, DEB_RWSC, "Unit %d %s command initiated\n",
-                 unit, if_command_name [if_command [unit]]);
-
-return accepted;                                        /* indicate the acceptance condition */
+    return accepted; /* indicate the acceptance condition */
 }
-
 
 /* Respond to the bus control lines.
 

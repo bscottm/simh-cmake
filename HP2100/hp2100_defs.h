@@ -204,9 +204,9 @@
 
 #define REG_X               REG_VMIO                    /* permit symbolic display overrides */
 
-#define REG_A               (1u << REG_V_UF + 0)        /* default format is -A (one ASCII character) */
-#define REG_C               (1u << REG_V_UF + 1)        /* default format is -C (two ASCII characters) */
-#define REG_M               (1u << REG_V_UF + 2)        /* default format is -M (mnemonic) */
+#define REG_A               (1u << (REG_V_UF + 0))      /* default format is -A (one ASCII character) */
+#define REG_C               (1u << (REG_V_UF + 1))      /* default format is -C (two ASCII characters) */
+#define REG_M               (1u << (REG_V_UF + 2))      /* default format is -M (mnemonic) */
 
 
 /* Global tracing flags.
@@ -267,16 +267,16 @@
 #define TRACINGP(d,f)       (sim_deb != NULL && ((d)->dctrl & (f)))
 
 #define tprintf(dev, flag, ...) \
-          if (TRACING (dev, flag)) \
+          if (TRACING (dev, flag)) { \
               hp_trace (&(dev), (flag), __VA_ARGS__); \
-          else \
-              (void) 0
+	  } else \
+	      (void) 0
 
 #define tpprintf(dptr, flag, ...) \
-          if (TRACINGP (dptr, flag)) \
+          if (TRACINGP (dptr, flag)) { \
               hp_trace ((dptr), (flag), __VA_ARGS__); \
-          else \
-              (void) 0
+	  } else \
+	      (void) 0
 
 #define cprintf(...) \
           do { \
@@ -536,7 +536,7 @@ typedef uint16              MEMORY_WORD;                /* HP 16-bit memory word
 
 #define PAGE(p)             ((p) >> PG_WIDTH & PG_MASK)
 #define OFFSET(p)           ((p) & OF_MASK)
-#define TO_PA(b,o)          (((uint32) (b) & PG_MASK) << PG_WIDTH | (uint32) (o) & OF_MASK)
+#define TO_PA(b,o)          (((uint32) (b) & PG_MASK) << PG_WIDTH | ((uint32) (o) & OF_MASK))
 
 
 /* Memory access classifications.
@@ -622,10 +622,10 @@ typedef enum {
 
 #define UPPER_BYTE(w)       (uint8)   ((w) >> D8_WIDTH & D8_MASK)
 #define LOWER_BYTE(w)       (uint8)   ((w) &  D8_MASK)
-#define TO_WORD(u,l)        (HP_WORD) (((u) & D8_MASK) << D8_WIDTH | (l) & D8_MASK)
+#define TO_WORD(u,l)        (HP_WORD) ((((u) & D8_MASK) << D8_WIDTH) | ((l) & D8_MASK))
 
-#define REPLACE_UPPER(w,b)  ((w) & D8_MASK | ((b) & D8_MASK) << D8_WIDTH)
-#define REPLACE_LOWER(w,b)  ((w) & D8_MASK << D8_WIDTH | (b) & D8_MASK)
+#define REPLACE_UPPER(w,b)  (((w) & D8_MASK) | (((b) & D8_MASK) << D8_WIDTH))
+#define REPLACE_LOWER(w,b)  ((((w) & D8_MASK) << D8_WIDTH) | ((b) & D8_MASK))
 
 
 /* Double-word accessors */
@@ -945,10 +945,10 @@ struct dib {                                    /* the Device Information Block 
        if the Boolean test B is true.
 */
 
-#define IONEXT(I)       (IOSIGNAL) ((I) & ~(I) + 1)                         /* extract next I/O signal to handle */
+#define IONEXT(I)       (IOSIGNAL) (((I) & ~(I)) + 1)                       /* extract next I/O signal to handle */
 #define IOADDSIR(I)     ((I) & IOIRQSET ? (I) | ioSIR : (I))                /* add SIR if IRQ state might change */
 
-#define IORETURN(E,D)   ((uint32) ((E) << D16_WIDTH | (D) & D16_MASK))      /* form I/O handler return value */
+#define IORETURN(E,D)   ((uint32) (((E) << D16_WIDTH | (D)) & D16_MASK))    /* form I/O handler return value */
 #define IOSTATUS(C)     ((t_stat) ((C) >> D16_WIDTH) & D16_MASK)            /* extract I/O status from combined value */
 #define IODATA(C)       ((uint16) ((C) & D16_MASK))                         /* extract data from combined value */
 
@@ -1011,16 +1011,16 @@ struct dib {                                    /* the Device Information Block 
 
 #define setSKF(B)       stat_data = ((B) ? ioSKF : ioNONE)
 
-#define setPRL(S,B)     dev_prl[(S)/32] = dev_prl[(S)/32] & ~BIT_M (S) | (((B) & 1) << BIT_V (S))
-#define setIRQ(S,B)     dev_irq[(S)/32] = dev_irq[(S)/32] & ~BIT_M (S) | (((B) & 1) << BIT_V (S))
-#define setSRQ(S,B)     dev_srq[(S)/32] = dev_srq[(S)/32] & ~BIT_M (S) | (((B) & 1) << BIT_V (S))
+#define setPRL(S,B)     dev_prl[(S)/32] = (dev_prl[(S)/32] & ~BIT_M (S)) | (((B) & 1) << BIT_V (S))
+#define setIRQ(S,B)     dev_irq[(S)/32] = (dev_irq[(S)/32] & ~BIT_M (S)) | (((B) & 1) << BIT_V (S))
+#define setSRQ(S,B)     dev_srq[(S)/32] = (dev_srq[(S)/32] & ~BIT_M (S)) | (((B) & 1) << BIT_V (S))
 
 #define PRL(S)          ((dev_prl[(S)/32] >> BIT_V (S)) & 1)
 #define IRQ(S)          ((dev_irq[(S)/32] >> BIT_V (S)) & 1)
 #define SRQ(S)          ((dev_srq[(S)/32] >> BIT_V (S)) & 1)
 
-#define setstdSKF(N)    setSKF ((signal == ioSFC) && !N.flag || \
-                                (signal == ioSFS) && N.flag)
+#define setstdSKF(N)    setSKF (((signal == ioSFC) && !N.flag) || \
+                                ((signal == ioSFS) && N.flag))
 
 #define setstdPRL(N)    setPRL (dibptr->select_code, !(N.control & N.flag));
 #define setstdIRQ(N)    setIRQ (dibptr->select_code, N.control & N.flag & N.flagbuf);

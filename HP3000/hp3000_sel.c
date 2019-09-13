@@ -935,8 +935,8 @@ while (sel_request && cycles > 0) {                     /* execute as long as a 
                 case sioEND:
                 case sioENDIN:
                 case sioSENSE:
-                    outbound_data = IODATA (outbound);              /* get the status or residue to return */
-                    return_address = program_counter - 1 & LA_MASK; /* point at the second of the program words */
+                    outbound_data = IODATA (outbound);                /* get the status or residue to return */
+                    return_address = (program_counter - 1) & LA_MASK; /* point at the second of the program words */
 
                     port_write_memory (absolute, return_address, outbound_data);    /* save the word */
                     cycles = cycles - CYCLES_PER_WRITE;                             /*   and count the access */
@@ -1040,11 +1040,12 @@ while (sel_request && cycles > 0) {                     /* execute as long as a 
                     inbound_data = input_buffer;                    /* get the word to supply */
                     inbound_signals = PWRITESTB | CHANSO;           /*   to the interface */
 
-                    if (word_count == CNTR_MAX)                     /* if the word count is exhausted */
+                    if (word_count == CNTR_MAX) {                   /* if the word count is exhausted */
                         if (order == sioWRITEC)                     /*   then if the order is chained */
                             inbound_signals |= EOT;                 /*     then continue the transfer block */
                         else                                        /*   otherwise */
                             inbound_signals |= EOT | TOGGLEOUTXFER; /*     end the transfer block */
+		    }
 
                     sel_request = FALSE;                            /* wait until the interface confirms receipt */
                     }
@@ -1062,7 +1063,7 @@ while (sel_request && cycles > 0) {                     /* execute as long as a 
             if (sel_is_idle)                            /* if the interface aborted the transfer */
                 break;                                  /*   then terminate processing now */
 
-            if ((outbound & CHANSR) == NO_SIGNALS)          /* if the interface did not assert a service request */
+            if ((outbound & CHANSR) == NO_SIGNALS) {        /* if the interface did not assert a service request */
                 if (prefetch_control) {                     /*   then if control word prefetching is enabled */
                     load_control (&control_buffer);         /*     then prefetch the next IOCW into the buffer */
                     cycles = cycles - CYCLES_PER_PREFETCH;  /*       and count the sequencer time */
@@ -1074,6 +1075,7 @@ while (sel_request && cycles > 0) {                     /* execute as long as a 
                     cycles = cycles - CYCLES_PER_PREFETCH;  /*       and count the sequencer time */
                     prefetch_address = FALSE;               /* mark the job done */
                     }
+	    }
 
             if (order == sioCNTL) {                                 /* if this is a Control order */
                 sim_activate (&sel_unit [0], sel_unit [0].wait);    /*   then start the SR timer */
@@ -1112,8 +1114,8 @@ while (sel_request && cycles > 0) {                     /* execute as long as a 
                         }
                     }
 
-                address_word = address_word + 1 & LA_MASK;  /* increment the transfer address */
-                word_count = word_count + 1 & CNTR_MASK;    /*   and the word count */
+                address_word = (address_word + 1) & LA_MASK;  /* increment the transfer address */
+                word_count = (word_count + 1) & CNTR_MASK;    /*   and the word count */
 
                 if (word_count == 0) {                      /* if the word count is exhausted */
                     rollover = SET;                         /*   then set the rollover flip-flop */
@@ -1311,7 +1313,7 @@ dprintf (sel_dev, DEB_PIO, "Channel %s IOCW %06o (%s) from address %06o\n",
          action_name [sequencer], *value,
          sio_order_name [IOCW_ORDER (*value)], program_counter);
 
-program_counter = program_counter + 1 & LA_MASK;        /* increment the program counter */
+program_counter = (program_counter + 10) & LA_MASK;      /* increment the program counter */
 
 return;
 }
@@ -1332,7 +1334,7 @@ port_read_memory (absolute, program_counter, value);    /* read the IOAW from me
 dprintf (sel_dev, DEB_PIO, "Channel %s IOAW %06o from address %06o\n",
          action_name [sequencer], *value, program_counter);
 
-program_counter = program_counter + 1 & LA_MASK;        /* increment the program counter */
+program_counter = (program_counter + 1) & LA_MASK;      /* increment the program counter */
 
 return;
 }

@@ -452,8 +452,8 @@ while (working_set) {
         case ioIOI:                                     /* I/O data input */
             if (ms_crc) {                               /* ready for CRC? */
                 check = calc_crc_lrc (msxb, ms_max);    /* calculate CRCC and LRCC */
-                msd_buf = check >> 8 & 0177400          /* position CRCC in upper byte */
-                            | check & 0377;             /*   and LRCC in lower byte */
+                msd_buf = (check >> 8 & 0177400)          /* position CRCC in upper byte */
+                            | (check & 0377);             /*   and LRCC in lower byte */
                 }
 
             stat_data = IORETURN (SCPE_OK, msd_buf);    /* merge in return status */

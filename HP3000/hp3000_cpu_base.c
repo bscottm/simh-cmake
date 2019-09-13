@@ -179,7 +179,7 @@ if (sim_interval <= 0) {                                /* if an event timeout e
     *status = sim_process_event ();                     /*   then process the event service */
 
     if (*status != SCPE_OK) {                           /* if the service failed */
-        P = P - 1 & R_MASK;                             /*   then back up to reenter the instruction */
+        P = (P - 1) & R_MASK;                           /*   then back up to reenter the instruction */
         sim_interval = sim_interval + 1;                /*     and cancel the instruction loop increment */
 
         return TRUE;                                    /* abort the instruction and stop the simulator */
@@ -199,7 +199,7 @@ if (iop_interrupt_request_set && STA & STATUS_I)        /* if a hardware interru
     device_number = iop_poll ();                        /*   then poll to acknowledge the request */
 
 if (CPX1 & CPX1_IRQ_SET) {                              /* if an interrupt is pending */
-    P = P - 1 & R_MASK;                                 /*   then back up to reenter the instruction */
+    P = (P - 1) & R_MASK;                               /*   then back up to reenter the instruction */
     cpu_run_mode_interrupt (device_number);             /*     and set up the service routine */
 
     return TRUE;                                        /* abort the instruction */
@@ -240,25 +240,25 @@ t_stat  status;
 displacement = CIR & DISPL_31_MASK;                     /* get the displacement */
 
 if (CIR & DISPL_31_SIGN)                                /* if the displacement is negative */
-    address = P - 2 - displacement & LA_MASK;           /*   then subtract the displacement from the base */
+    address = (P - 2 - displacement) & LA_MASK;         /*   then subtract the displacement from the base */
 else                                                    /* otherwise */
-    address = P - 2 + displacement & LA_MASK;           /*   add the displacement to the base */
+    address = (P - 2 + displacement) & LA_MASK;         /*   add the displacement to the base */
 
 if ((CIR & I_FLAG_BIT_4) != 0) {                                /* if the mode is indirect */
     cpu_read_memory (program_checked, address, &displacement);  /*   then get the displacement value */
 
-    address = address + displacement & LA_MASK;         /* add the displacement to the base */
+    address = (address + displacement) & LA_MASK;       /* add the displacement to the base */
     }
 
 if (cpu_stop_flags & SS_LOOP                            /* if the infinite loop stop is active */
   && check_loop                                         /*   and an infinite loop is possible */
-  && address == (P - 2 & LA_MASK))                      /*   and the target is the current instruction */
+  && address == ((P - 2) & LA_MASK))                    /*   and the target is the current instruction */
     status = STOP_INFLOOP;                              /*     then stop the simulator */
 else                                                    /* otherwise */
     status = SCPE_OK;                                   /*   continue */
 
 cpu_read_memory (fetch_checked, address, &NIR);         /* load the next instruction register */
-P = address + 1 & R_MASK;                               /*   and increment the program counter */
+P = (address + 1) & R_MASK;                             /*   and increment the program counter */
 
 return status;                                          /* return the execution status */
 }
@@ -445,7 +445,7 @@ else {                                                  /* otherwise */
 
     if (STACKOP_B (CIR) != NOP) {                       /* if the right-hand opcode is a not a NOP */
         STA |= STATUS_R;                                /*   then set the right-hand stackop pending flag */
-        P = P - 1 & R_MASK;                             /*     and decrement P to cancel the later increment */
+        P = (P - 1) & R_MASK;                           /*     and decrement P to cancel the later increment */
         }
     }
 
@@ -896,7 +896,7 @@ switch (operation) {                                    /* dispatch the stack op
     case 061:                                           /* LSUB (CCA, C; STUN) */
         SET_CARRY (RA <= RB);                           /* set C if there will not be a borrow by the MSB */
 
-        RB = RB - RA & R_MASK;                          /* subtract the values */
+        RB = (RB - RA) & R_MASK;                        /* subtract the values */
         cpu_pop ();                                     /*   and pop the TOS */
 
         SET_CCA (RA, 0);                                /* set the (integer) condition code */
@@ -979,7 +979,7 @@ switch (operation) {                                    /* dispatch the stack op
                     operand_u, FP_NOP);                     /*     to a fix operation */
 
         if (operand_v.trap != trap_None) {              /* if an overflow occurs */
-            RB = RB & FRACTION_BITS | ASSUMED_BIT;      /*   then the microcode masks and restores */
+            RB = (RB & FRACTION_BITS) | ASSUMED_BIT;    /*   then the microcode masks and restores */
             MICRO_ABORT (operand_v.trap);               /*     the leading 1 to the mantissa before trapping */
             }
 
@@ -1112,7 +1112,7 @@ switch (operation) {                                    /* dispatch the shift/br
     case 006:                                           /* SCAN (CCA; STUN) */
         if (RA == 0)                                    /* if the TOS is zero */
             if (CIR & X_FLAG)                           /*   then if the instruction is indexed */
-                X = X + 16 & R_MASK;                    /*     then add 16 to the index register value */
+                X = (X + 16) & R_MASK;                  /*     then add 16 to the index register value */
             else                                        /*   otherwise */
                 X = 16;                                 /*     set the index register value to 16 */
 
@@ -1125,7 +1125,7 @@ switch (operation) {                                    /* dispatch the shift/br
                 }
 
             if (CIR & X_FLAG)                           /* if the instruction is indexed */
-                X = X + count + 1 & R_MASK;             /*   then return the count + 1 */
+                X = (X + count + 1) & R_MASK;           /*   then return the count + 1 */
             else                                        /* otherwise */
                 X = count;                              /*   return the count */
 
@@ -1194,7 +1194,7 @@ switch (operation) {                                    /* dispatch the shift/br
         if ((CIR & ~SHIFT_COUNT_MASK) == QASR)          /* transfer the left/right flag */
             opcode = CIR | SHIFT_RIGHT_FLAG | X_FLAG;   /*   to the same position */
         else                                            /*     as the other shift instructions use */
-            opcode = CIR & ~SHIFT_RIGHT_FLAG | X_FLAG;  /*       and set the indexed flag on */
+            opcode = (CIR & ~SHIFT_RIGHT_FLAG) | X_FLAG; /*       and set the indexed flag on */
 
         shift_48_64 (opcode, arithmetic, size_64);      /* do a quadruple arithmetic left or right shift */
         break;
@@ -1439,12 +1439,12 @@ switch (operation) {                                    /* dispatch the operatio
 
         if (CIR & PSR_S) {                              /* if S is to be stored */
             cpu_push ();                                /*   then push the stack down */
-            RA = SM - DB & R_MASK;                      /*     and store delta S on the TOS */
+            RA = (SM - DB) & R_MASK;                    /*     and store delta S on the TOS */
             }
 
         if (CIR & PSR_Q) {                              /* if Q is to be stored */
             cpu_push ();                                /*   then push the stack down */
-            RA = Q - DB & R_MASK;                       /*     and store delta Q on the TOS */
+            RA = (Q - DB) & R_MASK;                     /*     and store delta Q on the TOS */
             }
 
         if (CIR & PSR_X) {                              /* if X is to be stored */
@@ -1460,14 +1460,14 @@ switch (operation) {                                    /* dispatch the operatio
 
         if (CIR & PSR_Z) {                              /* if Z is to be stored */
             cpu_push ();                                /*   then push the stack down */
-            RA = Z - DB & R_MASK;                       /*     and store delta Z on the TOS */
+            RA = (Z - DB) & R_MASK;                     /*     and store delta Z on the TOS */
             }
 
         cpu_flush ();                                   /* flush the TOS register queue */
 
         if (CIR & PSR_DL) {                             /* if DL is to be stored */
             cpu_push ();                                /*   then push the stack down */
-            RA = DL - DB & R_MASK;                      /*     and store delta DL on the TOS */
+            RA = (DL - DB) & R_MASK;                    /*     and store delta DL on the TOS */
             }
 
         if (CIR & (PSR_DB_DBANK | PSR_SBANK)) {         /* if a bank register is to be stored */
@@ -1516,8 +1516,8 @@ switch (operation) {                                    /* dispatch the operatio
 
         bit_mask = (1 << bit_count) - 1;                    /* form a right-justified mask */
 
-        RA = (RA << bit_shift | RA >> D16_WIDTH - bit_shift)    /* rotate the TOS to align with the mask */
-               & bit_mask;                                      /*   and then mask to the desired field */
+        RA = (RA << bit_shift | RA >> (D16_WIDTH - bit_shift))    /* rotate the TOS to align with the mask */
+               & bit_mask;                                        /*   and then mask to the desired field */
 
         SET_CCA (RA, 0);                                   /* set the condition code */
         break;
@@ -1532,10 +1532,10 @@ switch (operation) {                                    /* dispatch the operatio
         bit_mask = (1 << bit_count) - 1;                    /* form a right-justified mask */
 
         bit_mask = bit_mask >> bit_shift                    /* rotate it into the correct position */
-                     | bit_mask << D16_WIDTH - bit_shift;   /*   to mask the target field */
+                     | bit_mask << (D16_WIDTH - bit_shift); /*   to mask the target field */
 
-        RB = (RB & ~bit_mask                                /* mask the NOS and rotate and mask the TOS to fill */
-               | (RA >> bit_shift | RA << D16_WIDTH - bit_shift) & bit_mask)
+        RB = (((RB & ~bit_mask)                              /* mask the NOS and rotate and mask the TOS to fill */
+               | ((RA >> bit_shift | RA << (D16_WIDTH - bit_shift)) & bit_mask)))
                & R_MASK;
 
         cpu_pop ();                                     /* pop the TOS */
@@ -1563,7 +1563,7 @@ switch (operation) {                                    /* dispatch the operatio
                 }
 
             if (CIR & PSR_DL) {                         /* if DL is to be set */
-                DL = RA + DB & R_MASK;                  /*   then set the new value as an offset from DB */
+                DL = (RA + DB) & R_MASK;                /*   then set the new value as an offset from DB */
                 cpu_pop ();                             /*     and pop the parameter */
                 }
 
@@ -1571,7 +1571,7 @@ switch (operation) {                                    /* dispatch the operatio
                 cpu_queue_up ();                        /*   if it is needed */
 
             if (CIR & PSR_Z) {                          /* if Z is to be set */
-                Z = RA + DB & R_MASK;                   /*   then set the new value as an offset from DB */
+                Z = (RA + DB) & R_MASK;                 /*   then set the new value as an offset from DB */
                 cpu_pop ();                             /*     and pop the parameter */
                 }
                                                         /* queue up another parameter */
@@ -1579,11 +1579,11 @@ switch (operation) {                                    /* dispatch the operatio
                 cpu_queue_up ();
             }
 
-        if (CIR & PSR_STA) {                                    /* if STA is to be set */
-            if (NPRV)                                           /*   then if the mode is not privileged */
-                STA = STA & ~STATUS_NPRV | RA & STATUS_NPRV;    /*     then only T, O, C, and CC can be set */
-            else                                                /*   otherwise privileged mode */
-                STA = RA;                                       /*     allows the entire word to be set */
+        if (CIR & PSR_STA) {                                     /* if STA is to be set */
+            if (NPRV)                                            /* then if the mode is not privileged */
+                STA = (STA & ~STATUS_NPRV) | (RA & STATUS_NPRV); /* then only T, O, C, and CC can be set */
+            else                                                 /* otherwise privileged mode */
+                STA = RA;                                        /* allows the entire word to be set */
 
             if ((STA & STATUS_OVTRAP) == STATUS_OVTRAP) /* if overflow was set with trap enabled */
                 CPX1 |= cpx1_INTOVFL;                   /*   then an interrupt occurs */
@@ -1603,7 +1603,7 @@ switch (operation) {                                    /* dispatch the operatio
             if (SR == 0)                                /*   then queue up another parameter */
                 cpu_queue_up ();                        /*     if it is needed */
 
-            new_q = RA + DB & R_MASK;                   /* set the new value as an offset from DB */
+            new_q = (RA + DB) & R_MASK;                 /* set the new value as an offset from DB */
 
             check_stack_bounds (new_q);                 /* trap if the new value is outside of the stack */
 
@@ -1615,7 +1615,7 @@ switch (operation) {                                    /* dispatch the operatio
             if (SR == 0)                                /*   then queue up another parameter */
                 cpu_queue_up ();                        /*     if it is needed */
 
-            new_sm = RA + DB & R_MASK;                  /* set the new value as an offset from DB */
+            new_sm = (RA + DB) & R_MASK;                /* set the new value as an offset from DB */
 
             check_stack_bounds (new_sm);                /* trap if the new value is outside of the stack */
 
@@ -1727,9 +1727,9 @@ switch (operation) {                                    /* dispatch the operatio
             cpu_pop ();                                 /*       and popping it from the stack */
             }
 
-        else                                                /* otherwise, the label is at M [PL-N] */
-            cpu_read_memory (program_checked,               /*   so check the bounds */
-                             PL - field & LA_MASK, &label); /*     and then read the label */
+        else                                                  /* otherwise, the label is at M [PL-N] */
+            cpu_read_memory (program_checked,                 /* so check the bounds */
+                             (PL - field) & LA_MASK, &label); /* and then read the label */
 
         cpu_flush ();                                   /* flush the TOS registers to memory */
 
@@ -1746,12 +1746,12 @@ switch (operation) {                                    /* dispatch the operatio
             MICRO_ABORTP (trap_STT_Violation, STA);     /*   then trap for an STT violation */
 
         cpu_push ();                                    /* push the stack down */
-        RA = P - 1 - PB & R_MASK;                       /*   and store the return address on the TOS */
+        RA = (P - 1 - PB) & R_MASK;                     /*   and store the return address on the TOS */
 
         new_p = PB + (label & LABEL_ADDRESS_MASK);      /* get the subroutine entry address */
 
         cpu_read_memory (fetch_checked, new_p, &NIR);   /* check the bounds and get the first instruction */
-        P = new_p + 1 & R_MASK;                         /*   and set P to point at the next instruction */
+        P = (new_p + 1) & R_MASK;                       /*   and set P to point at the next instruction */
         break;
 
 
@@ -1762,9 +1762,9 @@ switch (operation) {                                    /* dispatch the operatio
             cpu_pop ();                                 /*       and popping it from the stack */
             }
 
-        else                                                /* otherwise, the label is at M [PL-N] */
-            cpu_read_memory (program_checked,               /*   so check the bounds */
-                             PL - field & LA_MASK, &label); /*     and then read the label */
+        else                                                  /* otherwise, the label is at M [PL-N] */
+            cpu_read_memory (program_checked,                 /* so check the bounds */
+                             (PL - field) & LA_MASK, &label); /* and then read the label */
 
         cpu_flush ();                                   /* flush the TOS registers to memory */
 
@@ -1789,17 +1789,17 @@ switch (operation) {                                    /* dispatch the operatio
 
         SR = 0;                                         /* invalidate the TOS registers */
 
-        new_sm = Q - 4 - field & R_MASK;                /* compute the new stack pointer value */
+        new_sm = (Q - 4 - field) & R_MASK;              /* compute the new stack pointer value */
 
         cpu_read_memory (stack, Q, &operand);           /* read the delta Q value from the stack marker */
-        new_q = Q - operand & R_MASK;                   /*  and determine the new Q value */
+        new_q = (Q - operand) & R_MASK;                 /*  and determine the new Q value */
 
         cpu_exit_procedure (new_q, new_sm, field);      /* set up the return code segment and stack */
         break;
 
 
     case 004:                                           /* SXIT (none; STUN, STOV, BNDV) */
-        new_p = RA + PB & R_MASK;                       /* get the return address */
+        new_p = (RA + PB) & R_MASK;                     /* get the return address */
         cpu_read_memory (fetch_checked, new_p, &NIR);   /* check the bounds and then load the NIR */
 
         cpu_pop ();                                     /* pop the return address from the stack */
@@ -1807,23 +1807,23 @@ switch (operation) {                                    /* dispatch the operatio
         if (field > 0 && SR > 0)                        /* if an adjustment is wanted and the TOS registers are occupied */
             cpu_flush ();                               /*   then flush the registers to memory */
 
-        new_sm = SM - field & R_MASK;                   /* adjust the stack pointer as requested */
+        new_sm = (SM - field) & R_MASK;                 /* adjust the stack pointer as requested */
 
         check_stack_bounds (new_sm);                    /* trap if the new value is outside of the stack */
         SM = new_sm;                                    /*   before setting the new stack pointer value */
 
-        P = new_p + 1 & R_MASK;                         /* set the new P value for the return */
+        P = (new_p + 1) & R_MASK;                       /* set the new P value for the return */
         break;
 
 
     case 005:                                           /* ADXI (CCA; none) */
-        X = X + field & R_MASK;                         /* add the immediate value to X */
+        X = (X + field) & R_MASK;                       /* add the immediate value to X */
         SET_CCA (X, 0);                                 /*    and set the condition code */
         break;
 
 
     case 006:                                           /* SBXI (CCA; none) */
-        X = X - field & R_MASK;                         /* subtract the immediate value from X */
+        X = (X - field) & R_MASK;                       /* subtract the immediate value from X */
         SET_CCA (X, 0);                                 /*   and set the condition code */
         break;
 
@@ -1834,17 +1834,18 @@ switch (operation) {                                    /* dispatch the operatio
         if ((stt_length & STT_LENGTH_MASK) < field)     /* if the STT index is not within the STT */
             MICRO_ABORTP (trap_STT_Violation, STA);     /*   then trap for an STT violation */
 
-        cpu_read_memory (program_checked,               /* check the bounds */
-                         PL - field & LA_MASK, &label); /*   and then read the label */
+        cpu_read_memory (program_checked,                 /* check the bounds */
+                         (PL - field) & LA_MASK, &label); /* and then read the label */
 
-        if ((label & LABEL_EXTERNAL) == 0)              /* if the label is a local label */
-            if (field > LABEL_STTN_MAX)                 /*   then if the STT number is too big for an external */
+        if ((label & LABEL_EXTERNAL) == 0) {            /* if the label is a local label */
+            if (field > LABEL_STTN_MAX) {               /*   then if the STT number is too big for an external */
                 MICRO_ABORTP (trap_STT_Violation, STA); /*     then trap for an STT violation */
-
-            else                                        /*   otherwise */
+	    } else {                                    /*   otherwise */
                 label = LABEL_EXTERNAL                  /*     convert it to an external label */
                           | (field << LABEL_STTN_SHIFT) /*       by merging the STT number */
                           | STATUS_CS (STA);            /*         with the currently executing segment number */
+	    }
+	}
 
         cpu_push ();                                    /* push the stack down */
         RA = label;                                     /*   and store the label on the TOS */
@@ -1869,7 +1870,7 @@ switch (operation) {                                    /* dispatch the operatio
         cpu_read_memory (program, offset, &operand);    /* read the first word */
         RB = operand;                                   /*   and store it in the NOS */
 
-        offset = offset + 1 & LA_MASK;                  /* point at the second word */
+        offset = (offset + 1) & LA_MASK;                /* point at the second word */
 
         cpu_read_memory (program, offset, &operand);    /* read the second word */
         RA = operand;                                   /*   and store the on the TOS */
@@ -1884,7 +1885,7 @@ switch (operation) {                                    /* dispatch the operatio
 
         cpu_flush ();                                   /* empty the TOS registers */
 
-        new_sm = SM + field & R_MASK;                   /* get the new stack pointer value */
+        new_sm = (SM + field) & R_MASK;                 /* get the new stack pointer value */
 
         check_stack_bounds (new_sm);                    /* trap if the new value is outside of the stack */
         SM = new_sm;                                    /*   before setting the new stack pointer value */
@@ -1897,7 +1898,7 @@ switch (operation) {                                    /* dispatch the operatio
 
         cpu_flush ();                                   /* empty the TOS registers */
 
-        new_sm = SM - field & R_MASK;                   /* get the new stack pointer value */
+        new_sm = (SM - field) & R_MASK;                 /* get the new stack pointer value */
 
         check_stack_bounds (new_sm);                    /* trap if the new value is outside of the stack */
         SM = new_sm;                                    /*   before setting the new stack pointer value */
@@ -2066,7 +2067,7 @@ uint32 count, operand, fill, result;
 count = SHIFT_COUNT (opcode);                           /* get the shift count from the instruction */
 
 if (opcode & X_FLAG)                                    /* if the instruction is indexed */
-    count = count + X & SHIFT_COUNT_MASK;               /*   then add the index to the count modulo 64 */
+    count = (count + X) & SHIFT_COUNT_MASK;             /*   then add the index to the count modulo 64 */
 
 operand = RA;                                           /* get the (lower half of the) operand */
 
@@ -2099,23 +2100,25 @@ switch (shift) {                                        /* dispatch the shift op
         return;
     }
 
+    if (count == 0) {                                                /* if the shift count is zero */
+        result = operand;                                            /* then the result is the operand value */
+    } else {
+        if (count < prop[op_size].width) {                           /* otherwise if the shift count is not excessive */
+            if (opcode & SHIFT_RIGHT_FLAG) {                         /* then if this is a right shift of any type */
+                result = operand >> count                            /* then shift the operand */
+                         | fill << (prop[op_size].width - count);    /* and fill with fill bits */
 
-if (count == 0)                                             /* if the shift count is zero */
-    result = operand;                                       /*   then the result is the operand value */
+            } else {
+                if (shift == arithmetic)                             /* otherwise if this is an arithmetic left shift */
+                    result = (operand << count & prop[op_size].data) /* then shift the operand */
+                             | (fill & prop[op_size].sign);          /* and restore the sign bit */
 
-else if (count < prop [op_size].width)                      /* otherwise if the shift count is not excessive */
-    if (opcode & SHIFT_RIGHT_FLAG)                          /*   then if this is a right shift of any type */
-        result = operand >> count                           /*     then shift the operand */
-                   | fill << prop [op_size].width - count;  /*       and fill with fill bits */
-
-    else if (shift == arithmetic)                           /* otherwise if this is an arithmetic left shift */
-        result = operand << count & prop [op_size].data     /*   then shift the operand */
-                   | fill & prop [op_size].sign;            /*     and restore the sign bit */
-
-    else                                                    /* otherwise this is a logical or circular left shift */
-        result = operand << count                           /*   so shift the operand */
-                   | fill >> prop [op_size].width - count;  /*     and fill with fill bits */
-
+                else                            /* otherwise this is a logical or circular left shift */
+                    result = (operand << count) /*   so shift the operand */
+                             | fill >> (prop[op_size].width - count); /*     and fill with fill bits */
+            }
+        }
+    }
 
 RA = LOWER_WORD (result);                               /* store the lower word on the TOS */
 
@@ -2203,20 +2206,20 @@ if (shift == arithmetic) {                              /* if this is an arithme
     count = SHIFT_COUNT (opcode);                       /*   then the instruction contains the shift count */
 
     if (opcode & X_FLAG)                                /* if the instruction is indexed */
-        count = count + X & SHIFT_COUNT_MASK;           /*   then add the index to the count modulo 64 */
+        count = (count + X) & SHIFT_COUNT_MASK;         /*   then add the index to the count modulo 64 */
 
     fill = operand & prop [op_size].sign ? ~0 : 0;      /* filling will use copies of the sign bit */
 
     if (count == 0)                                     /* if the shift count is zero */
         result = operand;                               /*   then the result is the operand value */
 
-    else if (count < prop [op_size].width)                      /* otherwise if the shift count is not excessive */
-        if (opcode & SHIFT_RIGHT_FLAG)                          /*   then if this is a right shift */
-            result = operand >> count                           /*     then shift the operand */
-                       | fill << prop [op_size].width - count;  /*       and fill with fill bits */
-        else                                                    /* otherwise it is a left shift */
-            result = operand << count & prop [op_size].data     /*   so shift the operand */
-                       | fill & prop [op_size].sign;            /*     and restore the sign bit */
+    else if (count < prop [op_size].width)                       /* otherwise if the shift count is not excessive */
+        if (opcode & SHIFT_RIGHT_FLAG)                           /* then if this is a right shift */
+            result = operand >> count                            /* then shift the operand */
+                       | fill << (prop [op_size].width - count); /* and fill with fill bits */
+        else                                                     /* otherwise it is a left shift */
+            result = (operand << count & prop [op_size].data)    /* so shift the operand */
+                       | (fill & prop [op_size].sign);           /* and restore the sign bit */
 
     else                                                /* otherwise the shift count exceeds the operand size */
         if (opcode & SHIFT_RIGHT_FLAG)                  /*   so if this is a right shift */
@@ -2242,7 +2245,7 @@ else if (shift == normalizing) {                        /* otherwise if this is 
         }
 
     else {                                              /* otherwise there are no bits to normalize */
-        X = X + 42 & R_MASK;                            /*   so report the maximum shift count */
+        X = (X + 42) & R_MASK;                          /*   so report the maximum shift count */
 
         SET_CCE;                                        /* set the condition code */
         return;                                         /*   and return with the operand unmodified */
@@ -2343,7 +2346,7 @@ HP_WORD device, result;
 if (NPRV)                                               /* if the mode is not privileged */
     MICRO_ABORT (trap_Privilege_Violation);             /*   then abort with a privilege violation */
 
-address = SM + SR - IO_K (CIR) & LA_MASK;               /* get the location of the device number */
+address = (SM + SR - IO_K (CIR)) & LA_MASK;             /* get the location of the device number */
 
 cpu_read_memory (stack, address, &device);              /* read it from the stack or TOS registers */
 device = LOWER_BYTE (device);                           /*   and use only the lower byte of the value */
@@ -2525,16 +2528,16 @@ else                                                    /* otherwise */
 
 while (RA != 0) {                                       /* while there are words to move */
     cpu_read_memory (source_class,                      /*   read a source word */
-                     source_bank | source_base + RB & LA_MASK,
+                     source_bank | ((source_base + RB) & LA_MASK),
                      &operand);
 
     cpu_write_memory (dest_class,                       /* move it to the destination */
-                      dest_bank | dest_base + *RX & LA_MASK,
+                      dest_bank | ((dest_base + *RX) & LA_MASK),
                       operand);
 
-    RA  = RA  - increment & R_MASK;                     /* update the count */
-    RB  = RB  + increment & R_MASK;                     /*   and the source */
-    *RX = *RX + increment & R_MASK;                     /*     and destination offsets */
+    RA  = (RA  - increment) & R_MASK;                     /* update the count */
+    RB  = (RB  + increment) & R_MASK;                     /*   and the source */
+    *RX = (*RX + increment) & R_MASK;                     /*     and destination offsets */
 
     if (cpu_interrupt_pending (&status))                /* if an interrupt is pending */
         return status;                                  /*   then return with an interrupt set up or an error */
@@ -2676,8 +2679,8 @@ switch (operation) {                                    /* dispatch the move or 
                 class = data;                                   /*   then set for data access */
                 base = DB;                                      /*     and base the offset on DB */
 
-                source = DB + RB & LA_MASK;                     /* determine the starting */
-                source_end = source + RA - increment & LA_MASK; /*   and ending data source addresses */
+                source = (DB + RB) & LA_MASK;                     /* determine the starting */
+                source_end = (source + RA - increment) & LA_MASK; /*   and ending data source addresses */
 
                 if (NPRV                                        /* if the mode is non-privileged */
                   && (source < DL || source > SM                /*   and the starting or ending address */
@@ -2689,16 +2692,16 @@ switch (operation) {                                    /* dispatch the move or 
                 class = program;                                /*   so set for program access */
                 base = PB;                                      /*     and base the offset on PB */
 
-                source = PB + RB & LA_MASK;                     /* determine the starting */
-                source_end = source + RA - increment & LA_MASK; /*   and ending program source addresses */
+                source = (PB + RB) & LA_MASK;                     /* determine the starting */
+                source_end = (source + RA - increment) & LA_MASK; /*   and ending program source addresses */
 
                 if (source < PB || source > PL                  /* if the starting or ending address */
                   || source_end < PB || source_end > PL)        /*   is outside of the code segment */
                     MICRO_ABORT (trap_Bounds_Violation);        /*     then trap with a Bounds Violation */
                 }
 
-            target = DB + RC & LA_MASK;                         /* calculate the starting */
-            target_end = target + RA - increment & LA_MASK;     /*   and ending data target addresses */
+            target = (DB + RC) & LA_MASK;                         /* calculate the starting */
+            target_end = (target + RA - increment) & LA_MASK;     /*   and ending data target addresses */
 
             if (NPRV                                            /* if the mode is non-privileged */
               && (target < DL || target > SM                    /*   and the starting or ending target address */
@@ -2747,8 +2750,8 @@ switch (operation) {                                    /* dispatch the move or 
                 else                                        /* otherwise the address is even */
                     byte = UPPER_BYTE (operand);            /*   so get the upper byte */
 
-                if ((RB & 1) == (HP_WORD) (increment == 1)) /* if the last byte of the source word was accessed */
-                    source = source + increment & LA_MASK;  /*   then update the word address */
+                if ((RB & 1) == (HP_WORD) (increment == 1))   /* if the last byte of the source word was accessed */
+                    source = (source + increment) & LA_MASK;  /*   then update the word address */
 
                 cpu_read_memory (data, target, &operand);   /* read the target word */
 
@@ -2757,14 +2760,14 @@ switch (operation) {                                    /* dispatch the move or 
                 else                                            /* otherwise the address is even */
                     operand = REPLACE_UPPER (operand, byte);    /*   so replace the upper byte */
 
-                cpu_write_memory (data, target, operand);   /* write the word back */
+                cpu_write_memory (data, target, operand);     /* write the word back */
 
-                if ((RC & 1) == (HP_WORD) (increment == 1)) /* if the last byte of the target word was accessed */
-                    target = target + increment & LA_MASK;  /*   then update the word address */
+                if ((RC & 1) == (HP_WORD) (increment == 1))   /* if the last byte of the target word was accessed */
+                    target = (target + increment) & LA_MASK;  /*   then update the word address */
 
-                RA = RA - increment & R_MASK;               /* update the count */
-                RB = RB + increment & R_MASK;               /*   and the source */
-                RC = RC + increment & R_MASK;               /*     and destination offsets */
+                RA = (RA - increment) & R_MASK;               /* update the count */
+                RB = (RB + increment) & R_MASK;               /*   and the source */
+                RC = (RC + increment) & R_MASK;               /*     and destination offsets */
 
                 if (cpu_interrupt_pending (&status))        /* if an interrupt is pending */
                     return status;                          /*   then return with an interrupt set up or an error */
@@ -2825,7 +2828,7 @@ switch (operation) {                                    /* dispatch the move or 
                     return status;                      /*     then return with an interrupt set up or an error */
 
                 byte = LOWER_BYTE (operand);            /* get the lower byte */
-                source = source + 1 & LA_MASK;          /*   and update the word address */
+                source = (source + 1) & LA_MASK;        /*   and update the word address */
 
                 if (NPRV && source > SM)                    /* if non-privileged and the address is out of range */
                     MICRO_ABORT (trap_Bounds_Violation);    /*   then trap for a bounds violation */
@@ -2838,7 +2841,7 @@ switch (operation) {                                    /* dispatch the move or 
 
             if (operation == 012)                       /* if this is the "scan while" instruction */
                 if (byte == test_byte)                  /*   then if the byte matches the test byte */
-                    RB = RB + 1 & R_MASK;               /*     then update the byte offset and continue */
+                    RB = (RB + 1) & R_MASK;             /*     then update the byte offset and continue */
 
                 else {                                  /*   otherwise the "while" condition fails */
                     SET_CARRY (byte == terminal_byte);  /*     so set carry if the byte matches the terminal byte */
@@ -2857,7 +2860,7 @@ switch (operation) {                                    /* dispatch the move or 
                     }
 
                 else                                    /*   otherwise neither byte matches */
-                    RB = RB + 1 & R_MASK;               /*    so update the byte offset and continue */
+                    RB = (RB + 1) & R_MASK;             /*    so update the byte offset and continue */
             }
 
         decrement_stack (SDEC2 (CIR));                  /* adjust the stack as indicated by the instruction */
@@ -2967,7 +2970,7 @@ switch (operation) {                                    /* dispatch the move or 
 
             if (RA & 1) {                               /* if the byte address is odd */
                 byte = LOWER_BYTE (operand);            /*   then get the lower byte */
-                source = source + 1 & LA_MASK;          /*     and update the word address */
+                source = (source + 1) & LA_MASK;        /*     and update the word address */
                 }
 
             else                                        /* otherwise the address is even */
@@ -2994,11 +2997,11 @@ switch (operation) {                                    /* dispatch the move or 
             cpu_write_memory (data, target, operand);   /* write the word back */
 
             if (RB & 1)                                 /* if the byte address is odd */
-                target = target + 1 & LA_MASK;          /*   then update the word address */
+                target = (target + 1) & LA_MASK;        /*   then update the word address */
 
             byte_count = byte_count - 1;                /* update the count */
-            RA = RA + 1 & R_MASK;                       /*   and the source */
-            RB = RB + 1 & R_MASK;                       /*     and destination offsets */
+            RA = (RA + 1) & R_MASK;                     /*   and the source */
+            RB = (RB + 1) & R_MASK;                     /*     and destination offsets */
 
             if (cpu_interrupt_pending (&status))        /* if an interrupt is pending */
                 return status;                          /*   then return with an interrupt set up or an error */
@@ -3043,8 +3046,8 @@ switch (operation) {                                    /* dispatch the move or 
                 else                                        /* otherwise the address is even */
                     byte = UPPER_BYTE (operand);            /*   so get the upper byte */
 
-                if ((RB & 1) == (HP_WORD) (increment == 1)) /* if the last byte of the source word was accessed */
-                    source = source + increment & LA_MASK;  /*   then update the word address */
+                if ((RB & 1) == (HP_WORD) (increment == 1))   /* if the last byte of the source word was accessed */
+                    source = (source + increment) & LA_MASK;  /*   then update the word address */
 
                 cpu_read_memory (data, target, &operand);   /* read the target word */
 
@@ -3056,12 +3059,12 @@ switch (operation) {                                    /* dispatch the move or 
                 if (test_byte != byte)                      /* if the bytes do not compare */
                     break;                                  /*   then terminate the loop */
 
-                if ((RC & 1) == (HP_WORD) (increment == 1)) /* if the last byte of the target word was accessed */
-                    target = target + increment & LA_MASK;  /*   then update the word address */
+                if ((RC & 1) == (HP_WORD) (increment == 1))   /* if the last byte of the target word was accessed */
+                    target = (target + increment) & LA_MASK;  /*   then update the word address */
 
-                RA = RA - increment & R_MASK;               /* update the count */
-                RB = RB + increment & R_MASK;               /*   and the source */
-                RC = RC + increment & R_MASK;               /*     and destination offsets */
+                RA = (RA - increment) & R_MASK;               /* update the count */
+                RB = (RB + increment) & R_MASK;               /*   and the source */
+                RC = (RC + increment) & R_MASK;               /*     and destination offsets */
 
                 if (cpu_interrupt_pending (&status))        /* if an interrupt is pending */
                     return status;                          /*   then return with an interrupt set up or an error */
@@ -3089,7 +3092,7 @@ switch (operation) {                                    /* dispatch the move or 
 
             while (X > 0) {                             /* while the link count is non-zero */
                 cpu_read_memory (absolute,              /*   read the target value */
-                                 TO_PA (RB, RA + RD & LA_MASK),
+                                 TO_PA (RB, (RA + RD) & LA_MASK),
                                  &target);
 
                 if (target >= RC) {                     /* if the target is greater than or equal to the test word */
@@ -3100,12 +3103,12 @@ switch (operation) {                                    /* dispatch the move or 
                     break;                              /* end the search */
                     }
 
-                address = TO_PA (RB, RA + 1 & LA_MASK); /* otherwise save the link offset address */
+                address = TO_PA (RB, (RA + 1) & LA_MASK); /* otherwise save the link offset address */
 
                 cpu_read_memory (absolute, TO_PA (RB, RA), &RB);    /* read the next link bank */
                 cpu_read_memory (absolute, address, &RA);           /*   and link offset */
 
-                X = X - 1 & R_MASK;                     /* decrement the count */
+                X = (X - 1) & R_MASK;                   /* decrement the count */
 
                 if (cpu_interrupt_pending (&status))    /* if an interrupt is pending */
                     return status;                      /*   then return with an interrupt set up or an error */
@@ -3195,8 +3198,8 @@ switch (operation) {                                    /* dispatch the move or 
                 cpu_push ();                            /* push the stack down */
                 RA = operand;                           /*   and store the MSW on the TOS */
 
-                address = TO_PA (RC, RB + 1 & LA_MASK); /* increment the physical address */
-                cpu_read_memory (absolute,              /*   and read the LSW from memory */
+                address = TO_PA (RC, (RB + 1) & LA_MASK); /* increment the physical address */
+                cpu_read_memory (absolute,                /*   and read the LSW from memory */
                                  address, &operand);
 
                 cpu_push ();                            /* push the stack down again */
@@ -3213,8 +3216,8 @@ switch (operation) {                                    /* dispatch the move or 
                 cpu_write_memory (absolute,             /* write the MSW from the NOS to memory */
                                   address, RB);
 
-                address = TO_PA (RD, RC + 1 & LA_MASK); /* increment the physical address */
-                cpu_write_memory (absolute,             /*   and write the LSW on the TOS to memory */
+                address = TO_PA (RD, (RC + 1) & LA_MASK); /* increment the physical address */
+                cpu_write_memory (absolute,               /*   and write the LSW on the TOS to memory */
                                   address, RA);
 
                 cpu_pop ();                             /* pop the TOS */
@@ -3237,7 +3240,7 @@ switch (operation) {                                    /* dispatch the move or 
                 cpu_read_memory (stack, Q, &delta_q);               /* read the stack marker link value */
                 cpu_read_memory (absolute, ICS_Q, &ics_q);          /*   the stack marker initial value */
                 cpu_read_memory (absolute, ics_q, &delta_qi);       /*     the dispatcher stack marker link */
-                cpu_read_memory (absolute, ics_q - 18 & LA_MASK,    /*       and the dispatcher counter */
+                cpu_read_memory (absolute, (ics_q - 18) & LA_MASK,  /*       and the dispatcher counter */
                                  &disp_counter);
 
                 q_is_qi = (Q == ics_q);                     /* TRUE if Q = QI, i.e., a user process was interrupted */
@@ -3249,7 +3252,7 @@ switch (operation) {                                    /* dispatch the move or 
                 if (!disp_active) {                         /* if not called by the dispatcher to start a process */
                     if (STATUS_CS (STA) > 1) {              /*   then if an external interrupt was serviced  */
                         cpu_read_memory (stack,             /*     then get the device number (parameter) */
-                                         Q + 3 & LA_MASK,
+                                         (Q + 3) & LA_MASK,
                                          &device);
 
                         iop_direct_io (device, ioRIN, 0);   /* send a Reset Interrupt I/O order to the device */
@@ -3265,7 +3268,7 @@ switch (operation) {                                    /* dispatch the move or 
                             CPX1 &= ~cpx1_EXTINTR;          /*   then handle it without exiting and restacking */
 
                             dprintf (cpu_dev, DEB_INSTR, BOV_FORMAT "  external interrupt\n",
-                                     PBANK, P - 1 & R_MASK, device);
+                                     PBANK, (P - 1) & R_MASK, device);
 
                             cpu_setup_irq_handler (irq_IXIT, device);   /* set up entry into the interrupt handler */
                             break;                                      /*   with the prior context still on the stack */
@@ -3276,7 +3279,7 @@ switch (operation) {                                    /* dispatch the move or 
                         CPX1 |= cpx1_DISPFLAG;          /*   then set the dispatcher-is-active flag */
 
                         new_q = ics_q;                  /* set the returning Q value */
-                        new_sm = ics_q + 2 & R_MASK;    /*   and the returning SM value */
+                        new_sm = (ics_q + 2) & R_MASK;  /*   and the returning SM value */
 
                         if (delta_qi & STMK_D           /* if the dispatcher is scheduled */
                           && disp_counter == 0) {       /*   and enabled */
@@ -3286,29 +3289,29 @@ switch (operation) {                                    /* dispatch the move or 
                         }
                     }
 
-                if (disp_active                                             /* if the dispatcher is launching a process */
-                  || q_is_qi && ((delta_q & STMK_D) == 0                    /*   or a process was interrupted */
-                                   || disp_counter != 0)) {                 /*     or the dispatcher is disabled */
-                    cpu_read_memory (absolute, Q - 4 & LA_MASK, &stack_db); /*       then read the DB and stack bank */
-                    cpu_read_memory (absolute, Q - 5 & LA_MASK, &SBANK);    /*         for the return process */
+                if (disp_active                                               /* if the dispatcher is launching a process */
+                  || ((q_is_qi && ((delta_q & STMK_D) == 0))                  /* or a process was interrupted */
+                                   || disp_counter != 0)) {                   /* or the dispatcher is disabled */
+                    cpu_read_memory (absolute, (Q - 4) & LA_MASK, &stack_db); /* then read the DB and stack bank */
+                    cpu_read_memory (absolute, (Q - 5) & LA_MASK, &SBANK);    /* for the return process */
 
-                    cpu_read_memory (absolute, Q - 7 & LA_MASK, &operand);  /* read the stack-DB-relative data limit */
-                    DL = stack_db + operand & R_MASK;                       /*   and restore it */
+                    cpu_read_memory (absolute, (Q - 7) & LA_MASK, &operand);  /* read the stack-DB-relative data limit */
+                    DL = (stack_db + operand) & R_MASK;                       /* and restore it */
 
-                    cpu_read_memory (absolute, Q - 8 & LA_MASK, &operand);  /* read the stack-DB-relative stack limit */
-                    Z = stack_db + operand & R_MASK;                        /*   and restore it */
+                    cpu_read_memory (absolute, (Q - 8) & LA_MASK, &operand);  /* read the stack-DB-relative stack limit */
+                    Z = (stack_db + operand) & R_MASK;                        /* and restore it */
 
-                    cpu_write_memory (absolute, Q - 13, D16_UMAX);          /* set the trace flag to a non-zero value */
+                    cpu_write_memory (absolute, (Q - 13), D16_UMAX);          /* set the trace flag to a non-zero value */
 
-                    cpu_read_memory (absolute, Q - 6 & LA_MASK, &operand);  /* read the stack-DB-relative stack pointer */
-                    Q = stack_db + operand - 2 & R_MASK;                    /*   and restore it */
+                    cpu_read_memory (absolute, (Q - 6) & LA_MASK, &operand);  /* read the stack-DB-relative stack pointer */
+                    Q = (stack_db + operand - 2) & R_MASK;                    /* and restore it */
 
-                    cpu_read_memory (stack, Q, &delta_q);       /* read the relative frame pointer */
+                    cpu_read_memory (stack, Q, &delta_q);                     /* read the relative frame pointer */
 
                     CPX1 &= ~(cpx1_ICSFLAG | cpx1_DISPFLAG);    /* clear the ICS and dispatcher-is-running flags */
 
-                    new_sm = Q - 4 & R_MASK;                    /* set up the return TOS pointer */
-                    new_q = Q - delta_q & R_MASK;               /*   and frame pointer */
+                    new_sm = (Q - 4) & R_MASK;                  /* set up the return TOS pointer */
+                    new_q = (Q - delta_q) & R_MASK;             /*   and frame pointer */
                     }
 
                 if (!disp_active                                /* if not launching a new process */
@@ -3316,12 +3319,12 @@ switch (operation) {                                    /* dispatch the move or 
                   && ((delta_q & STMK_D) == 0                   /*     to an interrupted interrupt handler */
                     || (delta_qi & STMK_D) == 0                 /*     or to the interrupted dispatcher */
                     || disp_counter != 0)) {                    /*     or to the dispatcher requesting a disabled redispatch */
-                    new_sm = Q - 4 & R_MASK;                    /*       then set up the return TOS pointer */
-                    new_q = Q - (delta_q & ~STMK_D) & R_MASK;   /*         and frame pointer */
+                    new_sm = (Q - 4) & R_MASK;                  /*       then set up the return TOS pointer */
+                    new_q = (Q - (delta_q & ~STMK_D)) & R_MASK; /*         and frame pointer */
                     }
 
-                cpu_read_memory (stack, Q + 1 & LA_MASK, &DBANK);   /* restore the data bank */
-                cpu_read_memory (stack, Q + 2 & LA_MASK, &DB);      /*   and data base values */
+                cpu_read_memory (stack, (Q + 1) & LA_MASK, &DBANK); /* restore the data bank */
+                cpu_read_memory (stack, (Q + 2) & LA_MASK, &DB);    /*   and data base values */
 
                 cpu_exit_procedure (new_q, new_sm, 0);  /* set up the return code segment and stack */
                 break;
@@ -3626,7 +3629,7 @@ switch (operation) {                                    /* dispatch the I/O or c
 
         if (offset == 0) {                              /* if the specified offset is zero */
             cpu_read_memory (absolute,                  /*   then offset using the TOS */
-                             RA + SGT_POINTER & LA_MASK,
+                             (RA + SGT_POINTER) & LA_MASK,
                              &operand);
             cpu_pop ();                                 /* delete the TOS */
             }
@@ -3641,7 +3644,7 @@ switch (operation) {                                    /* dispatch the I/O or c
 
         cpu_push ();                                    /* push the stack down */
         cpu_read_memory (absolute,                      /*   and read the table word onto the TOS */
-                         X + operand + SGT_POINTER & LA_MASK,
+                         (X + operand + SGT_POINTER) & LA_MASK,
                          &RA);
 
         SET_CCA (RA, 0);                                /* set the condition code */
@@ -3718,11 +3721,11 @@ switch (operation) {                                    /* dispatch the I/O or c
                 cpu_read_memory (absolute, ICS_Q,       /* read the ICS stack marker pointer value */
                                  &ics_q);
 
-                cpu_read_memory (absolute, ics_q - 18 & LA_MASK,    /* read the dispatcher counter */
+                cpu_read_memory (absolute, (ics_q - 18) & LA_MASK,  /* read the dispatcher counter */
                                  &disp_counter);
 
-                cpu_write_memory (absolute, ics_q - 18 & LA_MASK,   /*  and increment it */
-                                  disp_counter + 1 & DV_MASK);
+                cpu_write_memory (absolute, (ics_q - 18) & LA_MASK, /*  and increment it */
+                                  (disp_counter + 1) & DV_MASK);
                 break;
 
 
@@ -3743,7 +3746,7 @@ switch (operation) {                                    /* dispatch the I/O or c
                 cpu_read_memory (absolute, ICS_Q,       /* read the stack marker initial value */
                                  &ics_q);
 
-                cpu_read_memory (absolute, ics_q - 18 & LA_MASK,    /* read the dispatcher counter */
+                cpu_read_memory (absolute, (ics_q - 18) & LA_MASK,  /* read the dispatcher counter */
                                  &disp_counter);
 
                 cpu_write_memory (absolute, ics_q,                  /* set the dispatcher-is-scheduled flag */
@@ -3777,11 +3780,11 @@ switch (operation) {                                    /* dispatch the I/O or c
                 cpu_read_memory (absolute, ICS_Q,       /* read the stack marker initial value */
                                  &ics_q);
 
-                cpu_read_memory (absolute, ics_q - 18 & LA_MASK,    /* read the dispatcher counter */
+                cpu_read_memory (absolute, (ics_q - 18) & LA_MASK,  /* read the dispatcher counter */
                                  &disp_counter);
 
-                cpu_write_memory (absolute, ics_q - 18 & LA_MASK,   /*  and decrement it */
-                                  disp_counter - 1 & DV_MASK);
+                cpu_write_memory (absolute, (ics_q - 18) & LA_MASK, /*  and decrement it */
+                                  (disp_counter - 1) & DV_MASK);
 
                 if (disp_counter == 0)                          /* if the dispatcher is already enabled */
                     MICRO_ABORT (trap_SysHalt_PSEB_Enabled);    /*   then trap for a system halt */
@@ -3867,12 +3870,12 @@ switch (operation) {                                    /* dispatch the I/O or c
 
 
     case 006:                                           /* XEQ (none; BNDV) */
-        address = SM + SR - IO_K (CIR) & LA_MASK;       /* get the address of the target instruction */
+        address = (SM + SR - IO_K (CIR)) & LA_MASK;     /* get the address of the target instruction */
 
         if (address >= DB || PRIV) {                    /* if the address is not below DB or the mode is privileged */
             cpu_read_memory (stack, address, &NIR);     /*   then read the word at S - K into the NIR */
 
-            P = P - 1 & R_MASK;                         /* decrement P so the instruction after XEQ is next */
+            P = (P - 1) & R_MASK;                       /* decrement P so the instruction after XEQ is next */
             sim_interval = sim_interval + 1;            /*   but don't count the XEQ against a STEP count */
             }
 
@@ -3929,7 +3932,7 @@ switch (operation) {                                    /* dispatch the I/O or c
         if (NPRV)                                       /* if the mode is not privileged */
             MICRO_ABORT (trap_Privilege_Violation);     /*   then abort with a privilege violation */
 
-        address = SM + SR - IO_K (CIR) & LA_MASK;       /* get the location of the command word */
+        address = (SM + SR - IO_K (CIR)) & LA_MASK;     /* get the location of the command word */
         cpu_read_memory (stack, address, &command);     /*   and read it from the stack or TOS registers */
 
         module = CMD_TO (command);                      /* get the addressed (TO) module number */
@@ -3959,7 +3962,7 @@ switch (operation) {                                    /* dispatch the I/O or c
                         | TO_MOD_MOP (MOP_NOP);         /*     and the module operation to NOP */
                 }
 
-        else if (UNIT_CPU_MODEL == UNIT_SERIES_III)     /* otherwise if a Series III memory module is addressed */
+        else if (UNIT_CPU_MODEL == UNIT_SERIES_III) {   /* otherwise if a Series III memory module is addressed */
             if (module >= MODULE_MEMORY_UPPER           /*   then if the upper module is addressed */
               && MEMSIZE < 512 * 1024)                  /*     but it's not present */
                 CPX1 |= cpx1_CPUTIMER;                  /*       then it will not respond */
@@ -3968,6 +3971,7 @@ switch (operation) {                                    /* dispatch the I/O or c
                 MOD = MOD_CPU_1                         /*   so set the MOD register */
                         | TO_MOD_FROM (module)          /*     FROM field to the TO address */
                         | TO_MOD_MOP (MOP_NOP);         /*       and the module operation to NOP */
+	}
 
         if (MOD != 0 && STA & STATUS_I)                 /* if a module interrupt is indicated and enabled */
             CPX1 |= cpx1_MODINTR;                       /*   then request it */
@@ -3981,7 +3985,7 @@ switch (operation) {                                    /* dispatch the I/O or c
 
         if (offset == 0) {                              /* if the specified offset is zero */
             cpu_read_memory (absolute,                  /*   then offset using the TOS */
-                             RA + SGT_POINTER & LA_MASK,
+                             (RA + SGT_POINTER) & LA_MASK,
                              &operand);
             cpu_pop ();                                 /* delete the TOS */
             }
@@ -3995,7 +3999,7 @@ switch (operation) {                                    /* dispatch the I/O or c
             MICRO_ABORT (trap_Privilege_Violation);     /*   then abort with a privilege violation */
 
         cpu_write_memory (absolute,                     /* write the TOS value into the table */
-                          X + operand + SGT_POINTER & LA_MASK,
+                          (X + operand + SGT_POINTER) & LA_MASK,
                           RA);
 
         cpu_pop ();                                     /* delete the TOS */

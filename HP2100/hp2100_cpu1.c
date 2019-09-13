@@ -248,15 +248,15 @@ switch ((IR >> 8) & 0377) {                             /* decode IR<15:8> */
             case 001:                                   /* ASL 100020-100037 */
                 operand = TO_DWORD (BR, AR);            /* form the double-word operand */
 
-                mask = D32_UMAX << 31 - shift;          /* form a mask for the bits that will be lost */
+                mask = D32_UMAX << (31 - shift);        /* form a mask for the bits that will be lost */
 
                 if (operand & D32_SIGN)                     /* if the operand is negative */
                     O = (~operand & mask & D32_MASK) != 0;  /*   then set overflow if any of the lost bits are zeros */
                 else                                        /* otherwise it's positive */
                     O = (operand & mask & D32_MASK) != 0;   /*   so set overflow if any of the lost bits are ones */
 
-                operand = operand << shift & D32_SMAX   /* shift the operand left */
-                            | operand & D32_SIGN;       /*   while keeping the original sign bit */
+                operand = (operand << shift & D32_SMAX)   /* shift the operand left */
+                            | (operand & D32_SIGN);       /*   while keeping the original sign bit */
 
                 BR = UPPER_WORD (operand);              /* split the operand */
                 AR = LOWER_WORD (operand);              /*   into its constituent parts */
@@ -276,7 +276,7 @@ switch ((IR >> 8) & 0377) {                             /* decode IR<15:8> */
                 fill = operand;                         /*   and fill with operand bits */
 
                 operand = operand << shift              /* rotate the operand left */
-                            | fill >> 32 - shift;       /*   while filling in on the right */
+                            | fill >> (32 - shift);     /*   while filling in on the right */
 
                 BR = UPPER_WORD (operand);              /* split the operand */
                 AR = LOWER_WORD (operand);              /*   into its constituent parts */
@@ -286,7 +286,7 @@ switch ((IR >> 8) & 0377) {                             /* decode IR<15:8> */
             case 003:                                   /* TIMER 100060 */
                 if (UNIT_CPU_MODEL == UNIT_1000_E       /* if the CPU is an E-series */
                   || UNIT_CPU_MODEL == UNIT_1000_F) {   /*   or an F-series */
-                    BR = BR + 1 & R_MASK;               /*     then increment B */
+                    BR = (BR + 1) & R_MASK;             /*     then increment B */
 
                     if (BR != 0)                        /* if B did not roll over */
                         PR = err_PC;                    /*   then repeat the instruction */
@@ -377,7 +377,7 @@ switch ((IR >> 8) & 0377) {                             /* decode IR<15:8> */
                 fill = (operand & D32_SIGN ? ~0 : 0);   /*   and fill with copies of the sign bit */
 
                 operand = operand >> shift              /* shift the operand right */
-                            | fill << 32 - shift;       /*   while filling in with sign bits */
+                            | fill << (32 - shift);     /*   while filling in with sign bits */
 
                 BR = UPPER_WORD (operand);              /* split the operand */
                 AR = LOWER_WORD (operand);              /*   into its constituent parts */
@@ -397,7 +397,7 @@ switch ((IR >> 8) & 0377) {                             /* decode IR<15:8> */
                 fill = operand;                         /*   and fill with operand bits */
 
                 operand = operand >> shift              /* rotate the operand right */
-                            | fill << 32 - shift;       /*   while filling in on the left */
+                            | fill << (32 - shift);     /*   while filling in on the left */
 
                 BR = UPPER_WORD (operand);              /* split the operand */
                 AR = LOWER_WORD (operand);              /*   into its constituent parts */

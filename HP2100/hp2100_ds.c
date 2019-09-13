@@ -127,69 +127,62 @@
        a disc write as the FIFO fills.
 */
 
-
-
 #include "hp2100_defs.h"
 #include "hp2100_cpu.h"
 #include "hp2100_disclib.h"
 
-
-
 /* Program constants */
 
-#define DS_DRIVES       (DL_MAXDRIVE + 1)               /* number of disc drive units */
-#define DS_UNITS        (DS_DRIVES + DL_AUXUNITS)       /* total number of units */
+#define DS_DRIVES (DL_MAXDRIVE + 1)        /* number of disc drive units */
+#define DS_UNITS (DS_DRIVES + DL_AUXUNITS) /* total number of units */
 
-#define ds_cntlr        ds_unit [DL_MAXDRIVE + 1]       /* controller unit alias */
+#define ds_cntlr ds_unit[DL_MAXDRIVE + 1] /* controller unit alias */
 
-#define FIFO_SIZE       16                              /* FIFO depth */
+#define FIFO_SIZE 16 /* FIFO depth */
 
-#define FIFO_EMPTY      (ds.fifo_count == 0)            /* FIFO empty test */
-#define FIFO_STOP       (ds.fifo_count >= 5)            /* FIFO stop filling test */
-#define FIFO_FULL       (ds.fifo_count == FIFO_SIZE)    /* FIFO full test */
+#define FIFO_EMPTY (ds.fifo_count == 0)        /* FIFO empty test */
+#define FIFO_STOP (ds.fifo_count >= 5)         /* FIFO stop filling test */
+#define FIFO_FULL (ds.fifo_count == FIFO_SIZE) /* FIFO full test */
 
-#define PRESET_ENABLE   TRUE                            /* Preset Jumper (W4) is enabled */
-
+#define PRESET_ENABLE TRUE /* Preset Jumper (W4) is enabled */
 
 /* Per-card state variables */
 
-typedef struct {
-    FLIP_FLOP control;                                  /* control flip-flop */
-    FLIP_FLOP flag;                                     /* flag flip-flop */
-    FLIP_FLOP flagbuf;                                  /* flag buffer flip-flop */
-    FLIP_FLOP srq;                                      /* SRQ flip-flop */
-    FLIP_FLOP edt;                                      /* EDT flip-flop */
-    FLIP_FLOP cmfol;                                    /* command follows flip-flop */
-    FLIP_FLOP cmrdy;                                    /* command ready flip-flop */
-    uint16    fifo [FIFO_SIZE];                         /* FIFO buffer */
-    uint32    fifo_count;                               /* FIFO occupancy counter */
-    REG      *fifo_reg;                                 /* FIFO register pointer */
-    } CARD_STATE;
-
+typedef struct
+{
+    FLIP_FLOP control;         /* control flip-flop */
+    FLIP_FLOP flag;            /* flag flip-flop */
+    FLIP_FLOP flagbuf;         /* flag buffer flip-flop */
+    FLIP_FLOP srq;             /* SRQ flip-flop */
+    FLIP_FLOP edt;             /* EDT flip-flop */
+    FLIP_FLOP cmfol;           /* command follows flip-flop */
+    FLIP_FLOP cmrdy;           /* command ready flip-flop */
+    uint16    fifo[FIFO_SIZE]; /* FIFO buffer */
+    uint32    fifo_count;      /* FIFO occupancy counter */
+    REG *     fifo_reg;        /* FIFO register pointer */
+} CARD_STATE;
 
 /* MAC disc state variables */
 
-static UNIT ds_unit [DS_UNITS];                         /* unit array */
+static UNIT ds_unit[DS_UNITS]; /* unit array */
 
-static CARD_STATE ds;                                   /* card state */
+static CARD_STATE ds; /* card state */
 
-static uint16 buffer [DL_BUFSIZE];                      /* command/status/sector buffer */
+static uint16 buffer[DL_BUFSIZE]; /* command/status/sector buffer */
 
-static CNTLR_VARS mac_cntlr =                           /* MAC controller */
+static CNTLR_VARS mac_cntlr = /* MAC controller */
     { CNTLR_INIT (MAC, buffer, &ds_cntlr) };
-
-
 
 /* MAC disc global VM routines */
 
 IOHANDLER ds_io;
-t_stat    ds_service_drive      (UNIT   *uptr);
-t_stat    ds_service_controller (UNIT   *uptr);
-t_stat    ds_service_timer      (UNIT   *uptr);
-t_stat    ds_reset              (DEVICE *dptr);
-t_stat    ds_attach             (UNIT   *uptr,  CONST char *cptr);
-t_stat    ds_detach             (UNIT   *uptr);
-t_stat    ds_boot               (int32  unitno, DEVICE *dptr);
+t_stat    ds_service_drive (UNIT *uptr);
+t_stat    ds_service_controller (UNIT *uptr);
+t_stat    ds_service_timer (UNIT *uptr);
+t_stat    ds_reset (DEVICE *dptr);
+t_stat    ds_attach (UNIT *uptr, CONST char *cptr);
+t_stat    ds_detach (UNIT *uptr);
+t_stat    ds_boot (int32 unitno, DEVICE *dptr);
 
 /* MAC disc global SCP routines */
 
@@ -197,15 +190,13 @@ t_stat ds_load_unload (UNIT *uptr, int32 value, CONST char *cptr, void *desc);
 
 /* MAC disc local utility routines */
 
-static void   start_command     (void);
-static void   poll_interface    (void);
-static void   poll_drives       (void);
-static void   fifo_load         (uint16 data);
-static uint16 fifo_unload       (void);
-static void   fifo_clear        (void);
-static t_stat activate_unit     (UNIT *uptr);
-
-
+static void   start_command (void);
+static void   poll_interface (void);
+static void   poll_drives (void);
+static void   fifo_load (uint16 data);
+static uint16 fifo_unload (void);
+static void   fifo_clear (void);
+static t_stat activate_unit (UNIT *uptr);
 
 /* MAC disc VM data structures.
 
@@ -233,150 +224,137 @@ static t_stat activate_unit     (UNIT *uptr);
        compatibility.
 */
 
-
 DEVICE ds_dev;
 
 static DIB ds_dib = { &ds_io, DS };
 
-#define UNIT_FLAGS  (UNIT_FIX | UNIT_ATTABLE | UNIT_ROABLE | UNIT_DISABLE | UNIT_UNLOAD)
+#define UNIT_FLAGS (UNIT_FIX | UNIT_ATTABLE | UNIT_ROABLE | UNIT_DISABLE | UNIT_UNLOAD)
 
-static UNIT ds_unit [] = {
-    { UDATA (&ds_service_drive,      UNIT_FLAGS | MODEL_7905, D7905_WORDS) },   /* drive unit 0 */
-    { UDATA (&ds_service_drive,      UNIT_FLAGS | MODEL_7905, D7905_WORDS) },   /* drive unit 1 */
-    { UDATA (&ds_service_drive,      UNIT_FLAGS | MODEL_7905, D7905_WORDS) },   /* drive unit 2 */
-    { UDATA (&ds_service_drive,      UNIT_FLAGS | MODEL_7905, D7905_WORDS) },   /* drive unit 3 */
-    { UDATA (&ds_service_drive,      UNIT_FLAGS | MODEL_7905, D7905_WORDS) },   /* drive unit 4 */
-    { UDATA (&ds_service_drive,      UNIT_FLAGS | MODEL_7905, D7905_WORDS) },   /* drive unit 5 */
-    { UDATA (&ds_service_drive,      UNIT_FLAGS | MODEL_7905, D7905_WORDS) },   /* drive unit 6 */
-    { UDATA (&ds_service_drive,      UNIT_FLAGS | MODEL_7905, D7905_WORDS) },   /* drive unit 7 */
-    { UDATA (&ds_service_controller, UNIT_DIS,                0)           },   /* controller unit */
-    { UDATA (&ds_service_timer,      UNIT_DIS,                0)           }    /* timer unit */
-    };
+static UNIT ds_unit[] = {
+    { UDATA (&ds_service_drive, UNIT_FLAGS | MODEL_7905, D7905_WORDS) }, /* drive unit 0 */
+    { UDATA (&ds_service_drive, UNIT_FLAGS | MODEL_7905, D7905_WORDS) }, /* drive unit 1 */
+    { UDATA (&ds_service_drive, UNIT_FLAGS | MODEL_7905, D7905_WORDS) }, /* drive unit 2 */
+    { UDATA (&ds_service_drive, UNIT_FLAGS | MODEL_7905, D7905_WORDS) }, /* drive unit 3 */
+    { UDATA (&ds_service_drive, UNIT_FLAGS | MODEL_7905, D7905_WORDS) }, /* drive unit 4 */
+    { UDATA (&ds_service_drive, UNIT_FLAGS | MODEL_7905, D7905_WORDS) }, /* drive unit 5 */
+    { UDATA (&ds_service_drive, UNIT_FLAGS | MODEL_7905, D7905_WORDS) }, /* drive unit 6 */
+    { UDATA (&ds_service_drive, UNIT_FLAGS | MODEL_7905, D7905_WORDS) }, /* drive unit 7 */
+    { UDATA (&ds_service_controller, UNIT_DIS, 0) },                     /* controller unit */
+    { UDATA (&ds_service_timer, UNIT_DIS, 0) }                           /* timer unit */
+};
 
-static REG ds_reg [] = {
-    { FLDATA (CMFOL,  ds.cmfol,                0)                           },
-    { FLDATA (CMRDY,  ds.cmrdy,                0)                           },
-    { DRDATA (FCNT,   ds.fifo_count,           5)                           },
-    { BRDATA (FIFO,   ds.fifo,                 8, 16, FIFO_SIZE), REG_CIRC  },
-    { ORDATA (FREG,   ds.fifo_reg,            32), REG_HRO                  },
+static REG ds_reg[] = { { FLDATA (CMFOL, ds.cmfol, 0) },
+                        { FLDATA (CMRDY, ds.cmrdy, 0) },
+                        { DRDATA (FCNT, ds.fifo_count, 5) },
+                        { BRDATA (FIFO, ds.fifo, 8, 16, FIFO_SIZE), REG_CIRC },
+                        { ORDATA (FREG, ds.fifo_reg, 32), REG_HRO },
 
-    { ORDATA (CNTYPE, mac_cntlr.type,          2), REG_HRO                  },
-    { ORDATA (STATE,  mac_cntlr.state,         2)                           },
-    { ORDATA (OPCODE, mac_cntlr.opcode,        6)                           },
-    { ORDATA (STATUS, mac_cntlr.status,        6)                           },
-    { FLDATA (EOC,    mac_cntlr.eoc,           0)                           },
-    { FLDATA (EOD,    mac_cntlr.eod,           0)                           },
-    { ORDATA (SPDU,   mac_cntlr.spd_unit,     16)                           },
-    { ORDATA (FLMASK, mac_cntlr.file_mask,     4)                           },
-    { ORDATA (RETRY,  mac_cntlr.retry,         4), REG_HRO                  },
-    { ORDATA (CYL,    mac_cntlr.cylinder,     16)                           },
-    { ORDATA (HEAD,   mac_cntlr.head,          6)                           },
-    { ORDATA (SECTOR, mac_cntlr.sector,        8)                           },
-    { ORDATA (VFYCNT, mac_cntlr.verify_count, 16)                           },
-    { ORDATA (LASPOL, mac_cntlr.poll_unit,     3)                           },
-    { HRDATA (BUFPTR, mac_cntlr.buffer,       32), REG_HRO                  },
-    { BRDATA (BUFFER, buffer,              8, 16, DL_BUFSIZE)               },
-    { DRDATA (INDEX,  mac_cntlr.index,         8)                           },
-    { DRDATA (LENGTH, mac_cntlr.length,        8)                           },
-    { HRDATA (AUXPTR, mac_cntlr.aux,          32), REG_HRO                  },
-    { DRDATA (STIME,  mac_cntlr.seek_time,    24), PV_LEFT | REG_NZ         },
-    { DRDATA (ITIME,  mac_cntlr.sector_time,  24), PV_LEFT | REG_NZ         },
-    { DRDATA (CTIME,  mac_cntlr.cmd_time,     24), PV_LEFT | REG_NZ         },
-    { DRDATA (DTIME,  mac_cntlr.data_time,    24), PV_LEFT | REG_NZ         },
-    { DRDATA (WTIME,  mac_cntlr.wait_time,    31), PV_LEFT | REG_NZ         },
+                        { ORDATA (CNTYPE, mac_cntlr.type, 2), REG_HRO },
+                        { ORDATA (STATE, mac_cntlr.state, 2) },
+                        { ORDATA (OPCODE, mac_cntlr.opcode, 6) },
+                        { ORDATA (STATUS, mac_cntlr.status, 6) },
+                        { FLDATA (EOC, mac_cntlr.eoc, 0) },
+                        { FLDATA (EOD, mac_cntlr.eod, 0) },
+                        { ORDATA (SPDU, mac_cntlr.spd_unit, 16) },
+                        { ORDATA (FLMASK, mac_cntlr.file_mask, 4) },
+                        { ORDATA (RETRY, mac_cntlr.retry, 4), REG_HRO },
+                        { ORDATA (CYL, mac_cntlr.cylinder, 16) },
+                        { ORDATA (HEAD, mac_cntlr.head, 6) },
+                        { ORDATA (SECTOR, mac_cntlr.sector, 8) },
+                        { ORDATA (VFYCNT, mac_cntlr.verify_count, 16) },
+                        { ORDATA (LASPOL, mac_cntlr.poll_unit, 3) },
+                        { HRDATA (BUFPTR, mac_cntlr.buffer, 32), REG_HRO },
+                        { BRDATA (BUFFER, buffer, 8, 16, DL_BUFSIZE) },
+                        { DRDATA (INDEX, mac_cntlr.index, 8) },
+                        { DRDATA (LENGTH, mac_cntlr.length, 8) },
+                        { HRDATA (AUXPTR, mac_cntlr.aux, 32), REG_HRO },
+                        { DRDATA (STIME, mac_cntlr.seek_time, 24), PV_LEFT | REG_NZ },
+                        { DRDATA (ITIME, mac_cntlr.sector_time, 24), PV_LEFT | REG_NZ },
+                        { DRDATA (CTIME, mac_cntlr.cmd_time, 24), PV_LEFT | REG_NZ },
+                        { DRDATA (DTIME, mac_cntlr.data_time, 24), PV_LEFT | REG_NZ },
+                        { DRDATA (WTIME, mac_cntlr.wait_time, 31), PV_LEFT | REG_NZ },
 
-    { FLDATA (CTL,    ds.control,              0)                           },
-    { FLDATA (FLG,    ds.flag,                 0)                           },
-    { FLDATA (FBF,    ds.flagbuf,              0)                           },
-    { FLDATA (SRQ,    ds.srq,                  0)                           },
-    { FLDATA (EDT,    ds.edt,                  0)                           },
+                        { FLDATA (CTL, ds.control, 0) },
+                        { FLDATA (FLG, ds.flag, 0) },
+                        { FLDATA (FBF, ds.flagbuf, 0) },
+                        { FLDATA (SRQ, ds.srq, 0) },
+                        { FLDATA (EDT, ds.edt, 0) },
 
-    { URDATA (UCYL,   ds_unit[0].CYL,   10, 10,       0, DS_UNITS, PV_LEFT) },
-    { URDATA (UOP,    ds_unit[0].OP,     8,  6,       0, DS_UNITS, PV_RZRO) },
-    { URDATA (USTAT,  ds_unit[0].STAT,   2,  8,       0, DS_UNITS, PV_RZRO) },
-    { URDATA (UPHASE, ds_unit[0].PHASE,  8,  3,       0, DS_UNITS, PV_RZRO) },
-    { URDATA (UPOS,   ds_unit[0].pos,    8, T_ADDR_W, 0, DS_UNITS, PV_LEFT) },
-    { URDATA (UWAIT,  ds_unit[0].wait,   8, 32,       0, DS_UNITS, PV_LEFT) },
+                        { URDATA (UCYL, ds_unit[0].CYL, 10, 10, 0, DS_UNITS, PV_LEFT) },
+                        { URDATA (UOP, ds_unit[0].OP, 8, 6, 0, DS_UNITS, PV_RZRO) },
+                        { URDATA (USTAT, ds_unit[0].STAT, 2, 8, 0, DS_UNITS, PV_RZRO) },
+                        { URDATA (UPHASE, ds_unit[0].PHASE, 8, 3, 0, DS_UNITS, PV_RZRO) },
+                        { URDATA (UPOS, ds_unit[0].pos, 8, T_ADDR_W, 0, DS_UNITS, PV_LEFT) },
+                        { URDATA (UWAIT, ds_unit[0].wait, 8, 32, 0, DS_UNITS, PV_LEFT) },
 
-    { ORDATA (SC,     ds_dib.select_code, 6), REG_HRO },
-    { ORDATA (DEVNO,  ds_dib.select_code, 6), REG_HRO },
-    { NULL }
-    };
+                        { ORDATA (SC, ds_dib.select_code, 6), REG_HRO },
+                        { ORDATA (DEVNO, ds_dib.select_code, 6), REG_HRO },
+                        { NULL } };
 
-static MTAB ds_mod [] = {
-/*    Mask Value    Match Value   Print String       Match String     Validation        Display  Descriptor */
-/*    ------------  ------------  -----------------  ---------------  ----------------  -------  ---------- */
-    { UNIT_UNLOAD,  UNIT_UNLOAD,  "heads unloaded",  "UNLOADED",      &ds_load_unload,  NULL,    NULL       },
-    { UNIT_UNLOAD,  0,            "heads loaded",    "LOADED",        &ds_load_unload,  NULL,    NULL       },
+static MTAB ds_mod[] = {
+    /*    Mask Value    Match Value   Print String       Match String     Validation        Display  Descriptor */
+    /*    ------------  ------------  -----------------  ---------------  ----------------  -------  ---------- */
+    { UNIT_UNLOAD, UNIT_UNLOAD, "heads unloaded", "UNLOADED", &ds_load_unload, NULL, NULL },
+    { UNIT_UNLOAD, 0, "heads loaded", "LOADED", &ds_load_unload, NULL, NULL },
 
-    { UNIT_WLK,     UNIT_WLK,     "protected",       "PROTECT",       NULL,             NULL,    NULL       },
-    { UNIT_WLK,     0,            "unprotected",     "UNPROTECT",     NULL,             NULL,    NULL       },
+    { UNIT_WLK, UNIT_WLK, "protected", "PROTECT", NULL, NULL, NULL },
+    { UNIT_WLK, 0, "unprotected", "UNPROTECT", NULL, NULL, NULL },
 
-    { UNIT_WLK,     UNIT_WLK,     NULL,              "LOCKED",        NULL,             NULL,    NULL       },
-    { UNIT_WLK,     0,            NULL,              "WRITEENABLED",  NULL,             NULL,    NULL       },
+    { UNIT_WLK, UNIT_WLK, NULL, "LOCKED", NULL, NULL, NULL },
+    { UNIT_WLK, 0, NULL, "WRITEENABLED", NULL, NULL, NULL },
 
-    { UNIT_FMT,     UNIT_FMT,     "format enabled",  "FORMAT",        NULL,             NULL,    NULL       },
-    { UNIT_FMT,     0,            "format disabled", "NOFORMAT",      NULL,             NULL,    NULL       },
+    { UNIT_FMT, UNIT_FMT, "format enabled", "FORMAT", NULL, NULL, NULL },
+    { UNIT_FMT, 0, "format disabled", "NOFORMAT", NULL, NULL, NULL },
 
-/*                                                              Print       Match                                 */
-/*    Mask Value                         Match Value            String      String      Validation     Disp  Desc */
-/*    ---------------------------------  ---------------------  ----------  ----------  -------------  ----  ---- */
-    { UNIT_AUTO | UNIT_ATT,              UNIT_AUTO,             "autosize", "AUTOSIZE", &dl_set_model, NULL, NULL },
-    { UNIT_AUTO | UNIT_ATT | UNIT_MODEL, MODEL_7905,            "7905",     "7905",     &dl_set_model, NULL, NULL },
-    { UNIT_AUTO | UNIT_ATT | UNIT_MODEL, MODEL_7906,            "7906",     "7906",     &dl_set_model, NULL, NULL },
-    { UNIT_AUTO | UNIT_ATT | UNIT_MODEL, MODEL_7920,            "7920",     "7920",     &dl_set_model, NULL, NULL },
-    { UNIT_AUTO | UNIT_ATT | UNIT_MODEL, MODEL_7925,            "7925",     "7925",     &dl_set_model, NULL, NULL },
-    { UNIT_ATT | UNIT_MODEL,             UNIT_ATT | MODEL_7905, "7905",     NULL,       NULL,          NULL, NULL },
-    { UNIT_ATT | UNIT_MODEL,             UNIT_ATT | MODEL_7906, "7906",     NULL,       NULL,          NULL, NULL },
-    { UNIT_ATT | UNIT_MODEL,             UNIT_ATT | MODEL_7920, "7920",     NULL,       NULL,          NULL, NULL },
-    { UNIT_ATT | UNIT_MODEL,             UNIT_ATT | MODEL_7925, "7925",     NULL,       NULL,          NULL, NULL },
+    /*                                                              Print       Match                                 */
+    /*    Mask Value                         Match Value            String      String      Validation     Disp  Desc */
+    /*    ---------------------------------  ---------------------  ----------  ----------  -------------  ----  ---- */
+    { UNIT_AUTO | UNIT_ATT, UNIT_AUTO, "autosize", "AUTOSIZE", &dl_set_model, NULL, NULL },
+    { UNIT_AUTO | UNIT_ATT | UNIT_MODEL, MODEL_7905, "7905", "7905", &dl_set_model, NULL, NULL },
+    { UNIT_AUTO | UNIT_ATT | UNIT_MODEL, MODEL_7906, "7906", "7906", &dl_set_model, NULL, NULL },
+    { UNIT_AUTO | UNIT_ATT | UNIT_MODEL, MODEL_7920, "7920", "7920", &dl_set_model, NULL, NULL },
+    { UNIT_AUTO | UNIT_ATT | UNIT_MODEL, MODEL_7925, "7925", "7925", &dl_set_model, NULL, NULL },
+    { UNIT_ATT | UNIT_MODEL, UNIT_ATT | MODEL_7905, "7905", NULL, NULL, NULL, NULL },
+    { UNIT_ATT | UNIT_MODEL, UNIT_ATT | MODEL_7906, "7906", NULL, NULL, NULL, NULL },
+    { UNIT_ATT | UNIT_MODEL, UNIT_ATT | MODEL_7920, "7920", NULL, NULL, NULL, NULL },
+    { UNIT_ATT | UNIT_MODEL, UNIT_ATT | MODEL_7925, "7925", NULL, NULL, NULL, NULL },
 
-/*    Entry Flags          Value  Print String  Match String  Validation    Display        Descriptor       */
-/*    -------------------  -----  ------------  ------------  ------------  -------------  ---------------- */
-    { MTAB_XDV,              1u,  "SC",         "SC",         &hp_set_dib,  &hp_show_dib,  (void *) &ds_dib },
-    { MTAB_XDV | MTAB_NMO,  ~1u,  "DEVNO",      "DEVNO",      &hp_set_dib,  &hp_show_dib,  (void *) &ds_dib },
+    /*    Entry Flags          Value  Print String  Match String  Validation    Display        Descriptor       */
+    /*    -------------------  -----  ------------  ------------  ------------  -------------  ---------------- */
+    { MTAB_XDV, 1u, "SC", "SC", &hp_set_dib, &hp_show_dib, (void *)&ds_dib },
+    { MTAB_XDV | MTAB_NMO, ~1u, "DEVNO", "DEVNO", &hp_set_dib, &hp_show_dib, (void *)&ds_dib },
     { 0 }
-    };
+};
 
-static DEBTAB ds_deb [] = {
-    { "RWSC",  DEB_RWSC    },
-    { "CMDS",  DEB_CMDS    },
-    { "CPU",   DEB_CPU     },
-    { "BUF",   DEB_BUF     },
-    { "SERV",  DEB_SERV    },
-    { "IOBUS", TRACE_IOBUS },
-    { NULL,    0           }
-    };
+static DEBTAB ds_deb[] = { { "RWSC", DEB_RWSC }, { "CMDS", DEB_CMDS },     { "CPU", DEB_CPU }, { "BUF", DEB_BUF },
+                           { "SERV", DEB_SERV }, { "IOBUS", TRACE_IOBUS }, { NULL, 0 } };
 
 DEVICE ds_dev = {
-    "DS",                                               /* device name */
-    ds_unit,                                            /* unit array */
-    ds_reg,                                             /* register array */
-    ds_mod,                                             /* modifier array */
-    DS_UNITS,                                           /* number of units */
-    8,                                                  /* address radix */
-    27,                                                 /* address width = 128 MB */
-    1,                                                  /* address increment */
-    8,                                                  /* data radix */
-    16,                                                 /* data width */
-    NULL,                                               /* examine routine */
-    NULL,                                               /* deposit routine */
-    &ds_reset,                                          /* reset routine */
-    &ds_boot,                                           /* boot routine */
-    &ds_attach,                                         /* attach routine */
-    &ds_detach,                                         /* detach routine */
-    &ds_dib,                                            /* device information block */
-    DEV_DEBUG | DEV_DISABLE,                            /* device flags */
-    0,                                                  /* debug control flags */
-    ds_deb,                                             /* debug flag name table */
-    NULL,                                               /* memory size change routine */
-    NULL                                                /* logical device name */
-    };
-
-
+    "DS",                    /* device name */
+    ds_unit,                 /* unit array */
+    ds_reg,                  /* register array */
+    ds_mod,                  /* modifier array */
+    DS_UNITS,                /* number of units */
+    8,                       /* address radix */
+    27,                      /* address width = 128 MB */
+    1,                       /* address increment */
+    8,                       /* data radix */
+    16,                      /* data width */
+    NULL,                    /* examine routine */
+    NULL,                    /* deposit routine */
+    &ds_reset,               /* reset routine */
+    &ds_boot,                /* boot routine */
+    &ds_attach,              /* attach routine */
+    &ds_detach,              /* detach routine */
+    &ds_dib,                 /* device information block */
+    DEV_DEBUG | DEV_DISABLE, /* device flags */
+    0,                       /* debug control flags */
+    ds_deb,                  /* debug flag name table */
+    NULL,                    /* memory size change routine */
+    NULL                     /* logical device name */
+};
 
 /* MAC disc global VM routines */
-
 
 /* I/O signal handler.
 
@@ -433,179 +411,176 @@ DEVICE ds_dev = {
        interface from the current command operation and phase.
 */
 
-uint32 ds_io (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+uint32
+ds_io (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-static const char * const output_state [] = { "Data", "Command" };
-const char * const hold_or_clear = (signal_set & ioCLF ? ",C" : "");
+    static const char *const output_state[] = { "Data", "Command" };
+    const char *const        hold_or_clear  = (signal_set & ioCLF ? ",C" : "");
 
-uint16   data;
-IOSIGNAL signal;
-IOCYCLE  working_set = IOADDSIR (signal_set);           /* add ioSIR if needed */
-t_bool   command_issued = FALSE;
-t_bool   interrupt_enabled = FALSE;
+    uint16   data;
+    IOSIGNAL signal;
+    IOCYCLE  working_set       = IOADDSIR (signal_set); /* add ioSIR if needed */
+    t_bool   command_issued    = FALSE;
+    t_bool   interrupt_enabled = FALSE;
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate the next signal */
+    while (working_set)
+        {
+            signal = IONEXT (working_set); /* isolate the next signal */
 
-    switch (signal) {                                   /* dispatch the I/O signal */
+            switch (signal)
+                { /* dispatch the I/O signal */
 
-        case ioCLF:                                     /* clear flag flip-flop */
-            ds.flag = CLEAR;                            /* clear the flag */
-            ds.flagbuf = CLEAR;                         /*   and flag buffer */
+                case ioCLF:             /* clear flag flip-flop */
+                    ds.flag    = CLEAR; /* clear the flag */
+                    ds.flagbuf = CLEAR; /*   and flag buffer */
 
-            tprintf (ds_dev, DEB_CMDS, "[CLF] Flag cleared\n");
-            break;
+                    tprintf (ds_dev, DEB_CMDS, "[CLF] Flag cleared\n");
+                    break;
 
+                case ioSTF:           /* set flag flip-flop */
+                case ioENF:           /* enable flag */
+                    ds.flag    = SET; /* set the flag */
+                    ds.flagbuf = SET; /*   and flag buffer */
 
-        case ioSTF:                                     /* set flag flip-flop */
-        case ioENF:                                     /* enable flag */
-            ds.flag = SET;                              /* set the flag */
-            ds.flagbuf = SET;                           /*   and flag buffer */
+                    tprintf (ds_dev, DEB_CMDS, "[STF] Flag set\n");
+                    break;
 
-            tprintf (ds_dev, DEB_CMDS, "[STF] Flag set\n");
-            break;
+                case ioSFC:                                 /* skip if flag is clear */
+                    setSKF (mac_cntlr.state != cntlr_busy); /* skip if the controller is not busy */
+                    break;
 
+                case ioSFS:         /* skip if flag is set */
+                    setstdSKF (ds); /* assert SKF if the flag is set */
+                    break;
 
-        case ioSFC:                                     /* skip if flag is clear */
-            setSKF (mac_cntlr.state != cntlr_busy);     /* skip if the controller is not busy */
-            break;
+                case ioIOI:                               /* I/O data input */
+                    data      = fifo_unload ();           /* unload the next word from the FIFO */
+                    stat_data = IORETURN (SCPE_OK, data); /* merge in the return status */
 
+                    tprintf (ds_dev, DEB_CPU, "[LIx%s] Data = %06o\n", hold_or_clear, data);
 
-        case ioSFS:                                     /* skip if flag is set */
-            setstdSKF (ds);                             /* assert SKF if the flag is set */
-            break;
+                    if (FIFO_EMPTY)
+                        { /* is the FIFO now empty? */
+                            if (ds.srq == SET)
+                                {
+                                    tprintf (ds_dev, DEB_CMDS, "[LIx%s] SRQ cleared\n", hold_or_clear);
+                                }
 
+                            ds.srq = CLEAR; /* clear SRQ */
 
-        case ioIOI:                                         /* I/O data input */
-            data = fifo_unload ();                          /* unload the next word from the FIFO */
-            stat_data = IORETURN (SCPE_OK, data);           /* merge in the return status */
+                            if (ds_cntlr.PHASE == data_phase)
+                                {                                        /* is this an outbound parameter? */
+                                    ds_cntlr.wait = mac_cntlr.data_time; /* activate the controller */
+                                    activate_unit (&ds_cntlr);           /*   to acknowledge the data */
+                                }
+                        }
+                    break;
 
-            tprintf (ds_dev, DEB_CPU, "[LIx%s] Data = %06o\n", hold_or_clear, data);
+                case ioIOO:                    /* I/O data output */
+                    data = IODATA (stat_data); /* mask to just the data word */
 
-            if (FIFO_EMPTY) {                               /* is the FIFO now empty? */
-                if (ds.srq == SET)
-                    tprintf (ds_dev, DEB_CMDS, "[LIx%s] SRQ cleared\n", hold_or_clear);
+                    tprintf (ds_dev, DEB_CPU, "[OTx%s] %s = %06o\n", hold_or_clear, output_state[ds.cmfol], data);
 
-                ds.srq = CLEAR;                             /* clear SRQ */
+                    fifo_load (data); /* load the word into the FIFO */
 
-                if (ds_cntlr.PHASE == data_phase) {         /* is this an outbound parameter? */
-                    ds_cntlr.wait = mac_cntlr.data_time;    /* activate the controller */
-                    activate_unit (&ds_cntlr);              /*   to acknowledge the data */
-                    }
+                    if (ds.cmfol == SET)
+                        {                           /* are we expecting a command? */
+                            ds.cmfol       = CLEAR; /* clear the command follows flip-flop */
+                            ds.cmrdy       = SET;   /* set the command ready flip-flop */
+                            command_issued = TRUE;  /*   and request an interface poll */
+                        }
+                    else
+                        { /* not a command */
+                            if (ds_cntlr.PHASE == data_phase)
+                                {                                        /* is this an inbound parameter? */
+                                    ds_cntlr.wait = mac_cntlr.data_time; /* activate the controller */
+                                    activate_unit (&ds_cntlr);           /*   to receive the data */
+                                }
+
+                            if (FIFO_STOP)
+                                { /* is the FIFO now full enough? */
+                                    if (ds.srq == SET)
+                                        {
+                                            tprintf (ds_dev, DEB_CMDS, "[OTx%s] SRQ cleared\n", hold_or_clear);
+                                        }
+
+                                    ds.srq = CLEAR; /* clear SRQ to stop filling */
+                                }
+                        }
+                    break;
+
+                case ioPOPIO:           /* power-on preset to I/O */
+                    ds.flag    = SET;   /* set the flag */
+                    ds.flagbuf = SET;   /*   and flag buffer */
+                    ds.cmrdy   = CLEAR; /* clear the command ready flip-flop */
+
+                    tprintf (ds_dev, DEB_CMDS, "[POPIO] Flag set\n");
+                    break;
+
+                case ioCRS: /* control reset */
+                    tprintf (ds_dev, DEB_CMDS, "[CRS] Master reset\n");
+
+                    ds.control = CLEAR; /* clear the control */
+                    ds.cmfol   = CLEAR; /*   and command follows flip-flops */
+
+                    if (PRESET_ENABLE)
+                        {                  /* is preset enabled for this interface? */
+                            fifo_clear (); /* clear the FIFO */
+
+                            dl_clear_controller (&mac_cntlr, ds_unit, /* do a hard clear of the controller */
+                                                 hard_clear);
+                        }
+                    break;
+
+                case ioCLC: /* clear control flip-flop */
+                    tprintf (ds_dev, DEB_CMDS, "[CLC%s] Control cleared\n", hold_or_clear);
+
+                    ds.control    = CLEAR; /* clear the control */
+                    ds.edt        = CLEAR; /*   and EDT flip-flops */
+                    ds.cmfol      = SET;   /* set the command follows flip-flop */
+                    mac_cntlr.eod = SET;   /* set the controller's EOD flag */
+
+                    fifo_clear (); /* clear the FIFO */
+                    break;
+
+                case ioSTC:           /* set control flip-flop */
+                    ds.control = SET; /* set the control flip-flop */
+
+                    interrupt_enabled = TRUE; /* check for drive attention */
+
+                    tprintf (ds_dev, DEB_CMDS, "[STC%s] Control set\n", hold_or_clear);
+                    break;
+
+                case ioEDT:       /* end data transfer */
+                    ds.edt = SET; /* set the EDT flip-flop */
+
+                    tprintf (ds_dev, DEB_CPU, "[EDT] DCPC transfer ended\n");
+                    break;
+
+                case ioSIR:                               /* set interrupt request */
+                    setstdPRL (ds);                       /* set the standard PRL signal */
+                    setstdIRQ (ds);                       /* set the standard IRQ signal */
+                    setSRQ (dibptr->select_code, ds.srq); /* set the SRQ signal */
+                    break;
+
+                case ioIAK:             /* interrupt acknowledge */
+                    ds.flagbuf = CLEAR; /* clear the flag */
+                    break;
+
+                default:   /* all other signals */
+                    break; /*   are ignored */
                 }
-            break;
 
-
-        case ioIOO:                                         /* I/O data output */
-            data = IODATA (stat_data);                      /* mask to just the data word */
-
-            tprintf (ds_dev, DEB_CPU, "[OTx%s] %s = %06o\n",
-                     hold_or_clear, output_state [ds.cmfol], data);
-
-            fifo_load (data);                               /* load the word into the FIFO */
-
-            if (ds.cmfol == SET) {                          /* are we expecting a command? */
-                ds.cmfol = CLEAR;                           /* clear the command follows flip-flop */
-                ds.cmrdy = SET;                             /* set the command ready flip-flop */
-                command_issued = TRUE;                      /*   and request an interface poll */
-                }
-
-            else {                                          /* not a command */
-                if (ds_cntlr.PHASE == data_phase) {         /* is this an inbound parameter? */
-                    ds_cntlr.wait = mac_cntlr.data_time;    /* activate the controller */
-                    activate_unit (&ds_cntlr);              /*   to receive the data */
-                    }
-
-                if (FIFO_STOP) {                            /* is the FIFO now full enough? */
-                    if (ds.srq == SET)
-                        tprintf (ds_dev, DEB_CMDS, "[OTx%s] SRQ cleared\n", hold_or_clear);
-
-                    ds.srq = CLEAR;                         /* clear SRQ to stop filling */
-                    }
-                }
-            break;
-
-
-        case ioPOPIO:                                   /* power-on preset to I/O */
-            ds.flag = SET;                              /* set the flag */
-            ds.flagbuf = SET;                           /*   and flag buffer */
-            ds.cmrdy = CLEAR;                           /* clear the command ready flip-flop */
-
-            tprintf (ds_dev, DEB_CMDS, "[POPIO] Flag set\n");
-            break;
-
-
-        case ioCRS:                                         /* control reset */
-            tprintf (ds_dev, DEB_CMDS, "[CRS] Master reset\n");
-
-            ds.control = CLEAR;                             /* clear the control */
-            ds.cmfol = CLEAR;                               /*   and command follows flip-flops */
-
-            if (PRESET_ENABLE) {                            /* is preset enabled for this interface? */
-                fifo_clear ();                              /* clear the FIFO */
-
-                dl_clear_controller (&mac_cntlr, ds_unit,   /* do a hard clear of the controller */
-                                     hard_clear);
-                }
-            break;
-
-
-        case ioCLC:                                     /* clear control flip-flop */
-            tprintf (ds_dev, DEB_CMDS, "[CLC%s] Control cleared\n", hold_or_clear);
-
-            ds.control = CLEAR;                         /* clear the control */
-            ds.edt = CLEAR;                             /*   and EDT flip-flops */
-            ds.cmfol = SET;                             /* set the command follows flip-flop */
-            mac_cntlr.eod = SET;                        /* set the controller's EOD flag */
-
-            fifo_clear ();                              /* clear the FIFO */
-            break;
-
-
-        case ioSTC:                                     /* set control flip-flop */
-            ds.control = SET;                           /* set the control flip-flop */
-
-            interrupt_enabled = TRUE;                   /* check for drive attention */
-
-            tprintf (ds_dev, DEB_CMDS, "[STC%s] Control set\n", hold_or_clear);
-            break;
-
-
-        case ioEDT:                                     /* end data transfer */
-            ds.edt = SET;                               /* set the EDT flip-flop */
-
-            tprintf (ds_dev, DEB_CPU, "[EDT] DCPC transfer ended\n");
-            break;
-
-
-        case ioSIR:                                     /* set interrupt request */
-            setstdPRL (ds);                             /* set the standard PRL signal */
-            setstdIRQ (ds);                             /* set the standard IRQ signal */
-            setSRQ (dibptr->select_code, ds.srq);       /* set the SRQ signal */
-            break;
-
-
-        case ioIAK:                                     /* interrupt acknowledge */
-            ds.flagbuf = CLEAR;                         /* clear the flag */
-            break;
-
-
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+            working_set = working_set & ~signal; /* remove the current signal from the set */
         }
 
-    working_set = working_set & ~signal;                /* remove the current signal from the set */
-    }
+    if (command_issued)         /* was a command received? */
+        poll_interface ();      /* poll the interface for the next command */
+    else if (interrupt_enabled) /* were interrupts enabled? */
+        poll_drives ();         /* poll the drives for Attention */
 
-
-if (command_issued)                                     /* was a command received? */
-    poll_interface ();                                  /* poll the interface for the next command */
-else if (interrupt_enabled)                             /* were interrupts enabled? */
-    poll_drives ();                                     /* poll the drives for Attention */
-
-return stat_data;
+    return stat_data;
 }
-
 
 /* Service the disc drive unit.
 
@@ -692,118 +667,114 @@ return stat_data;
        drained.
 */
 
-t_stat ds_service_drive (UNIT *uptr)
+t_stat
+ds_service_drive(UNIT *uptr)
 {
-t_stat result;
-t_bool seek_completion;
-FLIP_FLOP entry_srq = ds.srq;                           /* get the SRQ state on entry */
-CNTLR_PHASE entry_phase = (CNTLR_PHASE) uptr->PHASE;    /* get the operation phase on entry */
-uint32 entry_status = uptr->STAT;                       /* get the drive status on entry */
+    t_stat      result;
+    t_bool      seek_completion;
+    FLIP_FLOP   entry_srq    = ds.srq;                   /* get the SRQ state on entry */
+    CNTLR_PHASE entry_phase  = (CNTLR_PHASE)uptr->PHASE; /* get the operation phase on entry */
+    uint32      entry_status = uptr->STAT;               /* get the drive status on entry */
 
-result = dl_service_drive (&mac_cntlr, uptr);           /* service the drive */
+    result = dl_service_drive(&mac_cntlr, uptr); /* service the drive */
 
-if ((CNTLR_PHASE) uptr->PHASE == data_phase)            /* is the drive in the data phase? */
-    switch ((CNTLR_OPCODE) uptr->OP) {                  /* dispatch the current operation */
+    if ((CNTLR_PHASE)uptr->PHASE == data_phase) { /* is the drive in the data phase? */
+        switch ((CNTLR_OPCODE)uptr->OP) {       /* dispatch the current operation */
 
-        case Read:                                      /* read operations */
+        case Read: /* read operations */
         case Read_Full_Sector:
         case Read_With_Offset:
         case Read_Without_Verify:
-            if (mac_cntlr.length == 0 || ds.edt == SET) {   /* is the data phase complete? */
-                mac_cntlr.eod = ds.edt;                     /* set EOD if DCPC is done */
-                uptr->PHASE = end_phase;                    /* set the end phase */
-                uptr->wait = mac_cntlr.cmd_time;            /*   and schedule the controller */
+            if (mac_cntlr.length == 0 || ds.edt == SET) { /* is the data phase complete? */
+                mac_cntlr.eod = ds.edt;                   /* set EOD if DCPC is done */
+                uptr->PHASE   = end_phase;                /* set the end phase */
+                uptr->wait    = mac_cntlr.cmd_time;       /*   and schedule the controller */
+            } else {
+                if (FIFO_FULL) {                              /* is the FIFO already full? */
+                    dl_end_command(&mac_cntlr, data_overrun); /* terminate the command with an overrun */
+                } else {
+                    fifo_load(buffer[mac_cntlr.index++]); /* load the next word into the FIFO */
+                    mac_cntlr.length--;                   /* count it */
+                    ds.srq = SET;                         /* ask DCPC to pick it up */
+                    ds_io(&ds_dib, ioSIR, 0);             /*   and recalculate the interrupts */
+                    uptr->wait = mac_cntlr.data_time;     /* schedule the next data transfer */
                 }
-
-            else if (FIFO_FULL)                             /* is the FIFO already full? */
-                dl_end_command (&mac_cntlr, data_overrun);  /* terminate the command with an overrun */
-
-            else {
-                fifo_load (buffer [mac_cntlr.index++]);     /* load the next word into the FIFO */
-                mac_cntlr.length--;                         /* count it */
-                ds.srq = SET;                               /* ask DCPC to pick it up */
-                ds_io (&ds_dib, ioSIR, 0);                  /*   and recalculate the interrupts */
-                uptr->wait = mac_cntlr.data_time;           /* schedule the next data transfer */
-                }
-
+            }
             break;
 
-
-        case Write:                                     /* write operations */
+        case Write: /* write operations */
         case Write_Full_Sector:
         case Initialize:
-            if (entry_phase == start_phase) {           /* is this the phase transition? */
-                ds.srq = SET;                           /* start the DCPC transfer */
-                ds_io (&ds_dib, ioSIR, 0);              /*   and recalculate the interrupts */
-                }
+            if (entry_phase == start_phase) { /* is this the phase transition? */
+                ds.srq = SET;                 /* start the DCPC transfer */
+                ds_io(&ds_dib, ioSIR, 0);     /*   and recalculate the interrupts */
+            } else {
+                if (FIFO_EMPTY) {                             /* is the FIFO empty? */
+                    dl_end_command(&mac_cntlr, data_overrun); /* terminate the command with an underrun */
+                } else {
+                    buffer[mac_cntlr.index++] = fifo_unload(); /* unload the next word from the FIFO */
+                    mac_cntlr.length--;                        /* count it */
 
-            else if (FIFO_EMPTY)                            /* is the FIFO empty? */
-                dl_end_command (&mac_cntlr, data_overrun);  /* terminate the command with an underrun */
+                    if (ds.edt == SET && FIFO_EMPTY) /* if DCPC is complete and the FIFO is empty */
+                        mac_cntlr.eod = SET;         /*   then set the end-of-data flag */
 
-            else {
-                buffer [mac_cntlr.index++] = fifo_unload ();    /* unload the next word from the FIFO */
-                mac_cntlr.length--;                             /* count it */
-
-                if (ds.edt == SET && FIFO_EMPTY)                /* if DCPC is complete and the FIFO is empty */
-                    mac_cntlr.eod = SET;                        /*   then set the end-of-data flag */
-
-                if (mac_cntlr.length == 0 || mac_cntlr.eod == SET) {    /* is the data phase complete? */
-                    uptr->PHASE = end_phase;                            /* set the end phase */
-                    uptr->wait = mac_cntlr.cmd_time;                    /*   and schedule the controller */
+                    if (mac_cntlr.length == 0 || mac_cntlr.eod == SET) { /* is the data phase complete? */
+                        uptr->PHASE = end_phase;                         /* set the end phase */
+                        uptr->wait  = mac_cntlr.cmd_time;                /*   and schedule the controller */
                     }
 
-                else {
-                    if (ds.edt == CLEAR) {              /* if DCPC is still transferring */
-                        ds.srq = SET;                   /*   then request the next word */
-                        ds_io (&ds_dib, ioSIR, 0);      /*   and recalculate the interrupts */
+                    else {
+                        if (ds.edt == CLEAR) {        /* if DCPC is still transferring */
+                            ds.srq = SET;             /*   then request the next word */
+                            ds_io(&ds_dib, ioSIR, 0); /*   and recalculate the interrupts */
                         }
 
-                    uptr->wait = mac_cntlr.data_time;   /* schedule the next data transfer */
+                        uptr->wait = mac_cntlr.data_time; /* schedule the next data transfer */
                     }
                 }
-
+            }
             break;
 
-
-        default:                                        /* we were entered with an invalid state */
-            result = SCPE_IERR;                         /* return an internal (programming) error */
+        default:                /* we were entered with an invalid state */
+            result = SCPE_IERR; /* return an internal (programming) error */
             break;
-        }                                               /* end of data phase operation dispatch */
-
-
-if (entry_srq != ds.srq)
-    tprintf (ds_dev, DEB_CMDS, "SRQ %s\n", ds.srq == SET ? "set" : "cleared");
-
-if (uptr->wait)                                             /* was service requested? */
-    activate_unit (uptr);                                   /* schedule the next event */
-
-seek_completion = ~entry_status & uptr->STAT & DL_S2ATN;    /* seek is complete when Attention sets */
-
-if (mac_cntlr.state != cntlr_busy) {                        /* is the command complete? */
-    if (mac_cntlr.state == cntlr_wait && !seek_completion)  /* is it command but not seek completion? */
-        ds_io (&ds_dib, ioENF, 0);                          /* set the data flag to interrupt the CPU */
-
-    poll_interface ();                                      /* poll the interface for the next command */
-    poll_drives ();                                         /* poll the drives for Attention */
+        } /* end of data phase operation dispatch */
     }
 
+    if (entry_srq != ds.srq) {
+        tprintf(ds_dev, DEB_CMDS, "SRQ %s\n", ds.srq == SET ? "set" : "cleared");
+    }
 
-if (result == SCPE_IERR)                                    /* did an internal error occur? */
-    tprintf (ds_dev, DEB_RWSC, "Unit %d %s command %s phase service not handled\n",
-             uptr - ds_unit, dl_opcode_name (MAC, (CNTLR_OPCODE) uptr->OP),
-             dl_phase_name ((CNTLR_PHASE) uptr->PHASE));
+    if (uptr->wait)          /* was service requested? */
+        activate_unit(uptr); /* schedule the next event */
 
-else if (seek_completion)                                           /* if a seek has completed */
-    tprintf (ds_dev, DEB_RWSC, "Unit %d %s command completed\n",    /*   report the unit command */
-             uptr - ds_unit, dl_opcode_name (MAC, (CNTLR_OPCODE) uptr->OP));
+    seek_completion = ~entry_status & uptr->STAT & DL_S2ATN; /* seek is complete when Attention sets */
 
-else if (mac_cntlr.state == cntlr_wait)                             /* if the controller has stopped */
-    tprintf (ds_dev, DEB_RWSC, "Unit %d %s command completed\n",    /*   report the controller command */
-             uptr - ds_unit, dl_opcode_name (MAC, mac_cntlr.opcode));
+    if (mac_cntlr.state != cntlr_busy) {                       /* is the command complete? */
+        if (mac_cntlr.state == cntlr_wait && !seek_completion) /* is it command but not seek completion? */
+            ds_io(&ds_dib, ioENF, 0);                          /* set the data flag to interrupt the CPU */
 
-return result;                                              /* return the result of the service */
+        poll_interface(); /* poll the interface for the next command */
+        poll_drives();    /* poll the drives for Attention */
+    }
+
+    if (result == SCPE_IERR) { /* did an internal error occur? */
+        tprintf(ds_dev, DEB_RWSC, "Unit %d %s command %s phase service not handled\n", uptr - ds_unit,
+                dl_opcode_name(MAC, (CNTLR_OPCODE)uptr->OP), dl_phase_name((CNTLR_PHASE)uptr->PHASE));
+    } else {
+        if (seek_completion) {                                          /* if a seek has completed */
+            tprintf(ds_dev, DEB_RWSC, "Unit %d %s command completed\n", /*   report the unit command */
+                    uptr - ds_unit, dl_opcode_name(MAC, (CNTLR_OPCODE)uptr->OP));
+        } else {
+            if (mac_cntlr.state == cntlr_wait) {                            /* if the controller has stopped */
+                tprintf(ds_dev, DEB_RWSC, "Unit %d %s command completed\n", /*   report the controller command */
+                        uptr - ds_unit, dl_opcode_name(MAC, mac_cntlr.opcode));
+            }
+        }
+    }
+
+    return result; /* return the result of the service */
 }
-
 
 /* Service the controller unit.
 
@@ -832,111 +803,104 @@ return result;                                              /* return the result
        In simulation, the flag is set as soon as the parameter is received.
 */
 
-t_stat ds_service_controller (UNIT *uptr)
+t_stat
+ds_service_controller(UNIT *uptr)
 {
-t_stat result;
-const CNTLR_OPCODE opcode = (CNTLR_OPCODE) uptr->OP;
+    t_stat             result;
+    const CNTLR_OPCODE opcode = (CNTLR_OPCODE)uptr->OP;
 
-result = dl_service_controller (&mac_cntlr, uptr);      /* service the controller */
+    result = dl_service_controller(&mac_cntlr, uptr); /* service the controller */
 
-switch ((CNTLR_PHASE) uptr->PHASE) {                    /* dispatch the current phase */
+    switch ((CNTLR_PHASE)uptr->PHASE) { /* dispatch the current phase */
 
-    case start_phase:                                   /* most controller operations */
-    case end_phase:                                     /*   start and end on the same phase */
-        switch (opcode) {                               /* dispatch the current operation */
+    case start_phase:     /* most controller operations */
+    case end_phase:       /*   start and end on the same phase */
+        switch (opcode) { /* dispatch the current operation */
 
-            case Request_Status:
-            case Request_Sector_Address:
-            case Address_Record:
-            case Request_Syndrome:
-            case Load_TIO_Register:
-            case Request_Disc_Address:
-            case End:
-                break;                                  /* complete the operation without setting the flag */
+        case Request_Status:
+        case Request_Sector_Address:
+        case Address_Record:
+        case Request_Syndrome:
+        case Load_TIO_Register:
+        case Request_Disc_Address:
+        case End:
+            break; /* complete the operation without setting the flag */
 
+        case Clear:
+        case Set_File_Mask:
+        case Wakeup:
+            ds_io(&ds_dib, ioENF, 0); /* complete the operation and set the flag */
+            break;
 
-            case Clear:
-            case Set_File_Mask:
-            case Wakeup:
-                ds_io (&ds_dib, ioENF, 0);              /* complete the operation and set the flag */
-                break;
-
-
-            default:                                    /* we were entered with an invalid state */
-                result = SCPE_IERR;                     /* return an internal (programming) error */
-                break;
-            }                                           /* end of operation dispatch */
-        break;                                          /* end of start and end phase handlers */
-
+        default:                /* we were entered with an invalid state */
+            result = SCPE_IERR; /* return an internal (programming) error */
+            break;
+        }      /* end of operation dispatch */
+        break; /* end of start and end phase handlers */
 
     case data_phase:
-        switch (opcode) {                               /* dispatch the current operation */
+        switch (opcode) { /* dispatch the current operation */
 
-            case Seek:                                  /* operations that accept parameters */
-            case Verify:
-            case Address_Record:
-            case Read_With_Offset:
-            case Load_TIO_Register:
-                buffer [mac_cntlr.index++] = fifo_unload ();    /* unload the next word from the FIFO */
-                mac_cntlr.length--;                             /* count it */
+        case Seek: /* operations that accept parameters */
+        case Verify:
+        case Address_Record:
+        case Read_With_Offset:
+        case Load_TIO_Register:
+            buffer[mac_cntlr.index++] = fifo_unload(); /* unload the next word from the FIFO */
+            mac_cntlr.length--;                        /* count it */
 
-                if (mac_cntlr.length)                           /* are there more words to transfer? */
-                    ds_io (&ds_dib, ioENF, 0);                  /* set the flag to request the next one */
+            if (mac_cntlr.length)         /* are there more words to transfer? */
+                ds_io(&ds_dib, ioENF, 0); /* set the flag to request the next one */
 
-                else {                                          /* all parameters have been received */
-                    uptr->PHASE = end_phase;                    /* set the end phase */
+            else {                       /* all parameters have been received */
+                uptr->PHASE = end_phase; /* set the end phase */
 
-                    if (opcode == Read_With_Offset)             /* a Read With Offset command sets the flag */
-                        ds_io (&ds_dib, ioENF, 0);              /*   to indicate that offsetting is complete */
+                if (opcode == Read_With_Offset) /* a Read With Offset command sets the flag */
+                    ds_io(&ds_dib, ioENF, 0);   /*   to indicate that offsetting is complete */
 
-                    start_command ();                           /* the command is now ready to execute */
-                    }
-                break;
+                start_command(); /* the command is now ready to execute */
+            }
+            break;
 
+        case Request_Status: /* operations that supply parameters */
+        case Request_Sector_Address:
+        case Request_Syndrome:
+        case Request_Disc_Address:
+            if (mac_cntlr.length) {                   /* are there more words to return? */
+                fifo_load(buffer[mac_cntlr.index++]); /* load the next word into the FIFO */
+                mac_cntlr.length--;                   /* count it */
 
-            case Request_Status:                        /* operations that supply parameters */
-            case Request_Sector_Address:
-            case Request_Syndrome:
-            case Request_Disc_Address:
-                if (mac_cntlr.length) {                         /* are there more words to return? */
-                    fifo_load (buffer [mac_cntlr.index++]);     /* load the next word into the FIFO */
-                    mac_cntlr.length--;                         /* count it */
+                ds_io(&ds_dib, ioENF, 0); /* set the flag to request pickup by the CPU */
+            }
 
-                    ds_io (&ds_dib, ioENF, 0);                  /* set the flag to request pickup by the CPU */
-                    }
+            else {                                /* all parameters have been sent */
+                uptr->PHASE = end_phase;          /* set the end phase */
+                uptr->wait  = mac_cntlr.cmd_time; /* schedule the controller */
+                activate_unit(uptr);              /*   to complete the command */
+            }
+            break;
 
-                else {                                  /* all parameters have been sent */
-                    uptr->PHASE = end_phase;            /* set the end phase */
-                    uptr->wait = mac_cntlr.cmd_time;    /* schedule the controller */
-                    activate_unit (uptr);               /*   to complete the command */
-                    }
-                break;
+        default:                /* we were entered with an invalid state */
+            result = SCPE_IERR; /* return an internal (programming) error */
+            break;
+        }      /* end of operation dispatch */
+        break; /* end of data phase handlers */
+    }          /* end of phase dispatch */
 
-
-            default:                                    /* we were entered with an invalid state */
-                result = SCPE_IERR;                     /* return an internal (programming) error */
-                break;
-            }                                           /* end of operation dispatch */
-        break;                                          /* end of data phase handlers */
-    }                                                   /* end of phase dispatch */
-
-
-if (result == SCPE_IERR)                                /* did an internal error occur? */
-    tprintf (ds_dev, DEB_RWSC, "Controller %s command %s phase service not handled\n",
-             dl_opcode_name (MAC, opcode), dl_phase_name ((CNTLR_PHASE) uptr->PHASE));
-
-
-if (mac_cntlr.state != cntlr_busy) {                    /* has the controller stopped? */
-    poll_interface ();                                  /* poll the interface for the next command */
-    poll_drives ();                                     /* poll the drives for Attention status */
-
-    tprintf (ds_dev, DEB_RWSC, "Controller %s command completed\n",
-             dl_opcode_name (MAC, opcode));
+    if (result == SCPE_IERR) { /* did an internal error occur? */
+        tprintf(ds_dev, DEB_RWSC, "Controller %s command %s phase service not handled\n", dl_opcode_name(MAC, opcode),
+                dl_phase_name((CNTLR_PHASE)uptr->PHASE));
     }
 
-return result;                                          /* return the result of the service */
-}
+    if (mac_cntlr.state != cntlr_busy) { /* has the controller stopped? */
+        poll_interface();                /* poll the interface for the next command */
+        poll_drives();                   /* poll the drives for Attention status */
 
+        tprintf(ds_dev, DEB_RWSC, "Controller %s command completed\n", dl_opcode_name(MAC, opcode));
+    }
+
+    return result; /* return the result of the service */
+}
 
 /* Service the command wait timer unit.
 
@@ -946,18 +910,18 @@ return result;                                          /* return the result of 
    polled for Attention status.
 */
 
-t_stat ds_service_timer (UNIT *uptr)
+t_stat
+ds_service_timer (UNIT *uptr)
 {
-t_stat result;
+    t_stat result;
 
-result = dl_service_timer (&mac_cntlr, uptr);           /* service the timer */
+    result = dl_service_timer (&mac_cntlr, uptr); /* service the timer */
 
-poll_interface ();                                      /* poll the interface for the next command */
-poll_drives ();                                         /* poll the drives for Attention status */
+    poll_interface (); /* poll the interface for the next command */
+    poll_drives ();    /* poll the drives for Attention status */
 
-return result;                                          /* return the result of the service */
+    return result; /* return the result of the service */
 }
-
 
 /* Reset the simulator.
 
@@ -979,34 +943,37 @@ return result;                                          /* return the result of 
        interface is not selected.
 */
 
-t_stat ds_reset (DEVICE *dptr)
+t_stat
+ds_reset (DEVICE *dptr)
 {
-uint32 unit;
+    uint32 unit;
 
-if (sim_switches & SWMASK ('P')) {                      /* is this a power-on reset? */
-    ds.fifo_reg = find_reg ("FIFO", NULL, dptr);        /* find the FIFO register entry */
+    if (sim_switches & SWMASK ('P'))
+        {                                                /* is this a power-on reset? */
+            ds.fifo_reg = find_reg ("FIFO", NULL, dptr); /* find the FIFO register entry */
 
-    if (ds.fifo_reg == NULL)                            /* if it cannot be found, */
-        return SCPE_IERR;                               /*   report a programming error */
+            if (ds.fifo_reg == NULL) /* if it cannot be found, */
+                return SCPE_IERR;    /*   report a programming error */
 
-    else {                                              /* found it */
-        ds.fifo_reg->qptr = 0;                          /*   so reset the FIFO bottom index */
-        ds.fifo_count = 0;                              /*   and clear the FIFO */
+            else
+                {                          /* found it */
+                    ds.fifo_reg->qptr = 0; /*   so reset the FIFO bottom index */
+                    ds.fifo_count     = 0; /*   and clear the FIFO */
+                }
+
+            for (unit = 0; unit < dptr->numunits; unit++)
+                {                                    /* loop through all of the units */
+                    sim_cancel (dptr->units + unit); /* cancel activation */
+                    dptr->units[unit].CYL = 0;       /* reset the head position to cylinder 0 */
+                    dptr->units[unit].pos = 0;       /* (irrelevant for the controller and timer) */
+                }
         }
 
-    for (unit = 0; unit < dptr->numunits; unit++) {     /* loop through all of the units */
-        sim_cancel (dptr->units + unit);                /* cancel activation */
-        dptr->units [unit].CYL = 0;                     /* reset the head position to cylinder 0 */
-        dptr->units [unit].pos = 0;                     /* (irrelevant for the controller and timer) */
-        }
-    }
+    IOPRESET (&ds_dib); /* PRESET the device */
+    ds.srq = CLEAR;     /* clear SRQ */
 
-IOPRESET (&ds_dib);                                     /* PRESET the device */
-ds.srq = CLEAR;                                         /* clear SRQ */
-
-return SCPE_OK;
+    return SCPE_OK;
 }
-
 
 /* Attach a drive unit.
 
@@ -1029,31 +996,33 @@ return SCPE_OK;
        offset from the start of the file to the last byte and seek there.
 */
 
-t_stat ds_attach (UNIT *uptr, CONST char *cptr)
+t_stat
+ds_attach (UNIT *uptr, CONST char *cptr)
 {
-t_stat      result;
-t_addr      offset;
-const uint8 zero = 0;
+    t_stat      result;
+    t_addr      offset;
+    const uint8 zero = 0;
 
-result = dl_attach (&mac_cntlr, uptr, cptr);            /* attach the drive */
+    result = dl_attach (&mac_cntlr, uptr, cptr); /* attach the drive */
 
-if (result == SCPE_OK) {                                /* if the attach was successful */
-    poll_drives ();                                     /*   then poll the drives to notify the CPU */
+    if (result == SCPE_OK)
+        {                   /* if the attach was successful */
+            poll_drives (); /*   then poll the drives to notify the CPU */
 
-    if (sim_switches & SWMASK ('N')) {                  /* if this is a new disc image */
-        offset = (t_addr)                               /*   then determine the offset of */
-          (uptr->capac * sizeof (int16) - sizeof zero); /*     the last byte in a full-sized file */
+            if (sim_switches & SWMASK ('N'))
+                {                                                     /* if this is a new disc image */
+                    offset = (t_addr)                                 /*   then determine the offset of */
+                        (uptr->capac * sizeof (int16) - sizeof zero); /*     the last byte in a full-sized file */
 
-        if (sim_fseek (uptr->fileref, offset, SEEK_SET) != 0    /* seek to the last byte */
-          || fwrite (&zero, sizeof zero, 1, uptr->fileref) == 0 /*   and write a zero to fill */
-          || fflush (uptr->fileref) != 0)                       /*     the file to its capacity */
-            clearerr (uptr->fileref);                           /* clear and ignore any errors */
+                    if (sim_fseek (uptr->fileref, offset, SEEK_SET) != 0      /* seek to the last byte */
+                        || fwrite (&zero, sizeof zero, 1, uptr->fileref) == 0 /*   and write a zero to fill */
+                        || fflush (uptr->fileref) != 0)                       /*     the file to its capacity */
+                        clearerr (uptr->fileref);                             /* clear and ignore any errors */
+                }
         }
-    }
 
-return result;                                          /* return the result of the attach */
+    return result; /* return the result of the attach */
 }
-
 
 /* Detach a drive unit.
 
@@ -1063,18 +1032,18 @@ return result;                                          /* return the result of 
    the drive is now offline.
 */
 
-t_stat ds_detach (UNIT *uptr)
+t_stat
+ds_detach (UNIT *uptr)
 {
-t_stat result;
+    t_stat result;
 
-result = dl_detach (&mac_cntlr, uptr);                  /* detach the drive */
+    result = dl_detach (&mac_cntlr, uptr); /* detach the drive */
 
-if (result == SCPE_OK)                                  /* was the detach successful? */
-    poll_drives ();                                     /* poll the drives to notify the CPU */
+    if (result == SCPE_OK) /* was the detach successful? */
+        poll_drives ();    /* poll the drives to notify the CPU */
 
-return result;
+    return result;
 }
-
 
 /* MAC disc bootstrap loaders (BMDL and 12992B).
 
@@ -1118,145 +1087,144 @@ return result;
 */
 
 static const LOADER_ARRAY ds_loaders = {
-    {                               /* HP 21xx Basic Moving-Head Disc Loader (BMDL-7905) */
-      050,                          /*   loader starting index */
-      076,                          /*   DMA index */
-      034,                          /*   FWA index */
-      { 0002401,                    /*   77700:  PTAPE CLA,RSS             Paper Tape start */
-        0063722,                    /*   77701:        LDA 77722           */
-        0107700,                    /*   77702:        CLC 0,C             */
-        0002307,                    /*   77703:        CCE,INA,SZA,RSS     */
-        0102077,                    /*   77704:        HLT 77              */
-        0017735,                    /*   77705:        JSB 77735           */
-        0007307,                    /*   77706:        CMB,CCE,INB,SZB,RSS */
-        0027702,                    /*   77707:        JMP 77702           */
-        0077733,                    /*   77710:        STB 77733           */
-        0017735,                    /*   77711:        JSB 77735           */
-        0017735,                    /*   77712:        JSB 77735           */
-        0074000,                    /*   77713:        STB 0               */
-        0077747,                    /*   77714:        STB 77747           */
-        0047734,                    /*   77715:        ADB 77734           */
-        0002140,                    /*   77716:        SEZ,CLE             */
-        0102055,                    /*   77717:        HLT 55              */
-        0017735,                    /*   77720:        JSB 77735           */
-        0040001,                    /*   77721:        ADA 1               */
-        0177747,                    /*   77722:        STB 77747,I         */
-        0067747,                    /*   77723:        LDB 77747           */
-        0006104,                    /*   77724:        CLE,INB             */
-        0037733,                    /*   77725:        ISZ 77733           */
-        0027714,                    /*   77726:        JMP 77714           */
-        0017735,                    /*   77727:        JSB 77735           */
-        0054000,                    /*   77730:        CPB 0               */
-        0027701,                    /*   77731:        JMP 77701           */
-        0102011,                    /*   77732:        HLT 11              */
-        0000000,                    /*   77733:        NOP                 */
-        0100100,                    /*   77734:        RRL 16              */
-        0000000,                    /*   77735:        NOP                 */
-        0006400,                    /*   77736:        CLB                 */
-        0103710,                    /*   77737:        STC 10,C            */
-        0102310,                    /*   77740:        SFS 10              */
-        0027740,                    /*   77741:        JMP 77740           */
-        0106410,                    /*   77742:        MIB 10              */
-        0002240,                    /*   77743:        SEZ,CME             */
-        0127735,                    /*   77744:        JMP 77735,I         */
-        0005727,                    /*   77745:        BLF,BLF             */
-        0027737,                    /*   77746:        JMP 77737           */
-        0000000,                    /*   77747:        NOP                 */
-        0067777,                    /*   77750: DISC   LDB 77777           */
-        0174001,                    /*   77751:        STB 1,I             */
-        0006004,                    /*   77752:        INB                 */
-        0063732,                    /*   77753:        LDA 77732           */
-        0170001,                    /*   77754:        STA 1,I             */
-        0067776,                    /*   77755:        LDB 77776           */
-        0106606,                    /*   77756:        OTB 6               */
-        0106702,                    /*   77757:        CLC 2               */
-        0102602,                    /*   77760:        OTA 2               */
-        0102702,                    /*   77761:        STC 2               */
-        0063751,                    /*   77762:        LDA 77751           */
-        0102602,                    /*   77763:        OTA 2               */
-        0102501,                    /*   77764:        LIA 1               */
-        0001027,                    /*   77765:        ALS,ALF             */
-        0013767,                    /*   77766:        AND 77767           */
-        0000160,                    /*   77767:        CLE,ALS             */
-        0106710,                    /*   77770:        CLC 10              */
-        0103610,                    /*   77771:        OTA 10,C            */
-        0103706,                    /*   77772:        STC 6,C             */
-        0102310,                    /*   77773:        SFS 10              */
-        0027773,                    /*   77774:        JMP 77773           */
-        0117717,                    /*   77775:        JSB 77717,I         */
-        0000010,                    /*   77776:        SLA                 */
-        0002055 } },                /*   77777:        SEZ,SLA,INA,RSS     */
+    {                /* HP 21xx Basic Moving-Head Disc Loader (BMDL-7905) */
+      050,           /*   loader starting index */
+      076,           /*   DMA index */
+      034,           /*   FWA index */
+      { 0002401,     /*   77700:  PTAPE CLA,RSS             Paper Tape start */
+        0063722,     /*   77701:        LDA 77722           */
+        0107700,     /*   77702:        CLC 0,C             */
+        0002307,     /*   77703:        CCE,INA,SZA,RSS     */
+        0102077,     /*   77704:        HLT 77              */
+        0017735,     /*   77705:        JSB 77735           */
+        0007307,     /*   77706:        CMB,CCE,INB,SZB,RSS */
+        0027702,     /*   77707:        JMP 77702           */
+        0077733,     /*   77710:        STB 77733           */
+        0017735,     /*   77711:        JSB 77735           */
+        0017735,     /*   77712:        JSB 77735           */
+        0074000,     /*   77713:        STB 0               */
+        0077747,     /*   77714:        STB 77747           */
+        0047734,     /*   77715:        ADB 77734           */
+        0002140,     /*   77716:        SEZ,CLE             */
+        0102055,     /*   77717:        HLT 55              */
+        0017735,     /*   77720:        JSB 77735           */
+        0040001,     /*   77721:        ADA 1               */
+        0177747,     /*   77722:        STB 77747,I         */
+        0067747,     /*   77723:        LDB 77747           */
+        0006104,     /*   77724:        CLE,INB             */
+        0037733,     /*   77725:        ISZ 77733           */
+        0027714,     /*   77726:        JMP 77714           */
+        0017735,     /*   77727:        JSB 77735           */
+        0054000,     /*   77730:        CPB 0               */
+        0027701,     /*   77731:        JMP 77701           */
+        0102011,     /*   77732:        HLT 11              */
+        0000000,     /*   77733:        NOP                 */
+        0100100,     /*   77734:        RRL 16              */
+        0000000,     /*   77735:        NOP                 */
+        0006400,     /*   77736:        CLB                 */
+        0103710,     /*   77737:        STC 10,C            */
+        0102310,     /*   77740:        SFS 10              */
+        0027740,     /*   77741:        JMP 77740           */
+        0106410,     /*   77742:        MIB 10              */
+        0002240,     /*   77743:        SEZ,CME             */
+        0127735,     /*   77744:        JMP 77735,I         */
+        0005727,     /*   77745:        BLF,BLF             */
+        0027737,     /*   77746:        JMP 77737           */
+        0000000,     /*   77747:        NOP                 */
+        0067777,     /*   77750: DISC   LDB 77777           */
+        0174001,     /*   77751:        STB 1,I             */
+        0006004,     /*   77752:        INB                 */
+        0063732,     /*   77753:        LDA 77732           */
+        0170001,     /*   77754:        STA 1,I             */
+        0067776,     /*   77755:        LDB 77776           */
+        0106606,     /*   77756:        OTB 6               */
+        0106702,     /*   77757:        CLC 2               */
+        0102602,     /*   77760:        OTA 2               */
+        0102702,     /*   77761:        STC 2               */
+        0063751,     /*   77762:        LDA 77751           */
+        0102602,     /*   77763:        OTA 2               */
+        0102501,     /*   77764:        LIA 1               */
+        0001027,     /*   77765:        ALS,ALF             */
+        0013767,     /*   77766:        AND 77767           */
+        0000160,     /*   77767:        CLE,ALS             */
+        0106710,     /*   77770:        CLC 10              */
+        0103610,     /*   77771:        OTA 10,C            */
+        0103706,     /*   77772:        STC 6,C             */
+        0102310,     /*   77773:        SFS 10              */
+        0027773,     /*   77774:        JMP 77773           */
+        0117717,     /*   77775:        JSB 77717,I         */
+        0000010,     /*   77776:        SLA                 */
+        0002055 } }, /*   77777:        SEZ,SLA,INA,RSS     */
 
-    {                               /* HP 1000 Loader ROM (12992B) */
-      IBL_START,                    /*   loader starting index */
-      IBL_DMA,                      /*   DMA index */
-      IBL_FWA,                      /*   FWA index */
-      { 0017727,                    /*   77700:  START JSB STAT      GET STATUS */
-        0002021,                    /*   77701:        SSA,RSS       IS DRIVE READY ? */
-        0027742,                    /*   77702:        JMP DMA       YES, SET UP DMA */
-        0013714,                    /*   77703:        AND B20       NO, CHECK STATUS BITS */
-        0002002,                    /*   77704:        SZA           IS DRIVE FAULTY OR HARD DOWN ? */
-        0102030,                    /*   77705:        HLT 30B       YES, HALT 30B, "RUN" TO TRY AGAIN */
-        0027700,                    /*   77706:        JMP START     NO, TRY AGAIN FOR DISC READY */
-        0102011,                    /*   77707:  ADDR1 OCT 102011    */
-        0102055,                    /*   77710:  ADDR2 OCT 102055    */
-        0164000,                    /*   77711:  CNT   DEC -6144     */
-        0000007,                    /*   77712:  D7    OCT 7         */
-        0001400,                    /*   77713:  STCMD OCT 1400      */
-        0000020,                    /*   77714:  B20   OCT 20        */
-        0017400,                    /*   77715:  STMSK OCT 17400     */
-        0000000,                    /*   77716:        NOP           */
-        0000000,                    /*   77717:        NOP           */
-        0000000,                    /*   77720:        NOP           */
-        0000000,                    /*   77721:        NOP           */
-        0000000,                    /*   77722:        NOP           */
-        0000000,                    /*   77723:        NOP           */
-        0000000,                    /*   77724:        NOP           */
-        0000000,                    /*   77725:        NOP           */
-        0000000,                    /*   77726:        NOP           */
-        0000000,                    /*   77727:  STAT  NOP           STATUS CHECK SUBROUTINE */
-        0107710,                    /*   77730:        CLC DC,C      SET STATUS COMMAND MODE */
-        0063713,                    /*   77731:        LDA STCMD     GET STATUS COMMAND */
-        0102610,                    /*   77732:        OTA DC        OUTPUT STATUS COMMAND */
-        0102310,                    /*   77733:        SFS DC        WAIT FOR STATUS#1 WORD */
-        0027733,                    /*   77734:        JMP *-1       */
-        0107510,                    /*   77735:        LIB DC,C      B-REG = STATUS#1 WORD */
-        0102310,                    /*   77736:        SFS DC        WAIT FOR STATUS#2 WORD */
-        0027736,                    /*   77737:        JMP *-1       */
-        0103510,                    /*   77740:        LIA DC,C      A-REG = STATUS#2 WORD */
-        0127727,                    /*   77741:        JMP STAT,I    RETURN */
-        0067776,                    /*   77742:  DMA   LDB DMACW     GET DMA CONTROL WORD */
-        0106606,                    /*   77743:        OTB 6         OUTPUT DMA CONTROL WORD */
-        0067707,                    /*   77744:        LDB ADDR1     GET MEMORY ADDRESS */
-        0106702,                    /*   77745:        CLC 2         SET MEMORY ADDRESS INPUT MODE */
-        0106602,                    /*   77746:        OTB 2         OUTPUT MEMORY ADDRESS TO DMA */
-        0102702,                    /*   77747:        STC 2         SET WORD COUNT INPUT MODE */
-        0067711,                    /*   77750:        LDB CNT       GET WORD COUNT */
-        0106602,                    /*   77751:        OTB 2         OUTPUT WORD COUNT TO DMA */
-        0106710,                    /*   77752:  CLDLD CLC DC        SET COMMAND INPUT MODE */
-        0102501,                    /*   77753:        LIA 1         LOAD SWITCH */
-        0106501,                    /*   77754:        LIB 1         REGISTER SETTINGS */
-        0013712,                    /*   77755:        AND D7        ISOLATE HEAD NUMBER */
-        0005750,                    /*   77756:        BLF,CLE,SLB   BIT 12=0? */
-        0027762,                    /*   77757:        JMP *+3       NO,MANUAL BOOT */
-        0002002,                    /*   77760:        SZA           YES,RPL BOOT. HEAD#=0? */
-        0001000,                    /*   77761:        ALS           NO,HEAD#1, MAKE HEAD#=2 */
-        0001720,                    /*   77762:        ALF,ALS       FORM COLD LOAD */
-        0001000,                    /*   77763:        ALS           COMMAND WORD */
-        0103706,                    /*   77764:        STC 6,C       ACTIVATE DMA */
-        0103610,                    /*   77765:        OTA DC,C      OUTPUT COLD LOAD COMMAND */
-        0102310,                    /*   77766:        SFS DC        IS COLD LOAD COMPLETED ? */
-        0027766,                    /*   77767:        JMP *-1       NO, WAIT */
-        0017727,                    /*   77770:        JSB STAT      YES, GET STATUS */
-        0060001,                    /*   77771:        LDA 1         */
-        0013715,                    /*   77772:        AND STMSK     A-REG = STATUS BITS OF STATUS#1 WD */
-        0002002,                    /*   77773:        SZA           IS TRANSFER OK ? */
-        0027700,                    /*   77774:        JMP START     NO,TRY AGAIN */
-        0117710,                    /*   77775:  EXIT  JSB ADDR2,I   YES, EXEC LOADED PROGRAM @ 2055B */
-        0000010,                    /*   77776:  DMACW ABS DC        */
-        0170100 } }                 /*   77777:        ABS -START    */
-    };
-
+    {               /* HP 1000 Loader ROM (12992B) */
+      IBL_START,    /*   loader starting index */
+      IBL_DMA,      /*   DMA index */
+      IBL_FWA,      /*   FWA index */
+      { 0017727,    /*   77700:  START JSB STAT      GET STATUS */
+        0002021,    /*   77701:        SSA,RSS       IS DRIVE READY ? */
+        0027742,    /*   77702:        JMP DMA       YES, SET UP DMA */
+        0013714,    /*   77703:        AND B20       NO, CHECK STATUS BITS */
+        0002002,    /*   77704:        SZA           IS DRIVE FAULTY OR HARD DOWN ? */
+        0102030,    /*   77705:        HLT 30B       YES, HALT 30B, "RUN" TO TRY AGAIN */
+        0027700,    /*   77706:        JMP START     NO, TRY AGAIN FOR DISC READY */
+        0102011,    /*   77707:  ADDR1 OCT 102011    */
+        0102055,    /*   77710:  ADDR2 OCT 102055    */
+        0164000,    /*   77711:  CNT   DEC -6144     */
+        0000007,    /*   77712:  D7    OCT 7         */
+        0001400,    /*   77713:  STCMD OCT 1400      */
+        0000020,    /*   77714:  B20   OCT 20        */
+        0017400,    /*   77715:  STMSK OCT 17400     */
+        0000000,    /*   77716:        NOP           */
+        0000000,    /*   77717:        NOP           */
+        0000000,    /*   77720:        NOP           */
+        0000000,    /*   77721:        NOP           */
+        0000000,    /*   77722:        NOP           */
+        0000000,    /*   77723:        NOP           */
+        0000000,    /*   77724:        NOP           */
+        0000000,    /*   77725:        NOP           */
+        0000000,    /*   77726:        NOP           */
+        0000000,    /*   77727:  STAT  NOP           STATUS CHECK SUBROUTINE */
+        0107710,    /*   77730:        CLC DC,C      SET STATUS COMMAND MODE */
+        0063713,    /*   77731:        LDA STCMD     GET STATUS COMMAND */
+        0102610,    /*   77732:        OTA DC        OUTPUT STATUS COMMAND */
+        0102310,    /*   77733:        SFS DC        WAIT FOR STATUS#1 WORD */
+        0027733,    /*   77734:        JMP *-1       */
+        0107510,    /*   77735:        LIB DC,C      B-REG = STATUS#1 WORD */
+        0102310,    /*   77736:        SFS DC        WAIT FOR STATUS#2 WORD */
+        0027736,    /*   77737:        JMP *-1       */
+        0103510,    /*   77740:        LIA DC,C      A-REG = STATUS#2 WORD */
+        0127727,    /*   77741:        JMP STAT,I    RETURN */
+        0067776,    /*   77742:  DMA   LDB DMACW     GET DMA CONTROL WORD */
+        0106606,    /*   77743:        OTB 6         OUTPUT DMA CONTROL WORD */
+        0067707,    /*   77744:        LDB ADDR1     GET MEMORY ADDRESS */
+        0106702,    /*   77745:        CLC 2         SET MEMORY ADDRESS INPUT MODE */
+        0106602,    /*   77746:        OTB 2         OUTPUT MEMORY ADDRESS TO DMA */
+        0102702,    /*   77747:        STC 2         SET WORD COUNT INPUT MODE */
+        0067711,    /*   77750:        LDB CNT       GET WORD COUNT */
+        0106602,    /*   77751:        OTB 2         OUTPUT WORD COUNT TO DMA */
+        0106710,    /*   77752:  CLDLD CLC DC        SET COMMAND INPUT MODE */
+        0102501,    /*   77753:        LIA 1         LOAD SWITCH */
+        0106501,    /*   77754:        LIB 1         REGISTER SETTINGS */
+        0013712,    /*   77755:        AND D7        ISOLATE HEAD NUMBER */
+        0005750,    /*   77756:        BLF,CLE,SLB   BIT 12=0? */
+        0027762,    /*   77757:        JMP *+3       NO,MANUAL BOOT */
+        0002002,    /*   77760:        SZA           YES,RPL BOOT. HEAD#=0? */
+        0001000,    /*   77761:        ALS           NO,HEAD#1, MAKE HEAD#=2 */
+        0001720,    /*   77762:        ALF,ALS       FORM COLD LOAD */
+        0001000,    /*   77763:        ALS           COMMAND WORD */
+        0103706,    /*   77764:        STC 6,C       ACTIVATE DMA */
+        0103610,    /*   77765:        OTA DC,C      OUTPUT COLD LOAD COMMAND */
+        0102310,    /*   77766:        SFS DC        IS COLD LOAD COMPLETED ? */
+        0027766,    /*   77767:        JMP *-1       NO, WAIT */
+        0017727,    /*   77770:        JSB STAT      YES, GET STATUS */
+        0060001,    /*   77771:        LDA 1         */
+        0013715,    /*   77772:        AND STMSK     A-REG = STATUS BITS OF STATUS#1 WD */
+        0002002,    /*   77773:        SZA           IS TRANSFER OK ? */
+        0027700,    /*   77774:        JMP START     NO,TRY AGAIN */
+        0117710,    /*   77775:  EXIT  JSB ADDR2,I   YES, EXEC LOADED PROGRAM @ 2055B */
+        0000010,    /*   77776:  DMACW ABS DC        */
+        0170100 } } /*   77777:        ABS -START    */
+};
 
 /* Device boot routine.
 
@@ -1314,27 +1282,25 @@ static const LOADER_ARRAY ds_loaders = {
        field, resulting in a Recalibrate command.
 */
 
-t_stat ds_boot (int32 unitno, DEVICE *dptr)
+t_stat
+ds_boot (int32 unitno, DEVICE *dptr)
 {
-static const HP_WORD ds_preserved   = 0000073u;             /* S-register bits 5-3 and 1-0 are preserved */
-static const HP_WORD ds_manual_boot = 0010000u;             /* S-register bit 12 set for a manual boot */
+    static const HP_WORD ds_preserved   = 0000073u; /* S-register bits 5-3 and 1-0 are preserved */
+    static const HP_WORD ds_manual_boot = 0010000u; /* S-register bit 12 set for a manual boot */
 
-if (dptr == NULL)                                           /* if we are being called for a BOOT/LOAD CPU */
-    return cpu_copy_loader (ds_loaders, unitno,             /*   then copy the boot loader to memory */
-                            IBL_S_NOCLEAR, IBL_S_NOSET);    /*     but do not alter the S register */
+    if (dptr == NULL)                                        /* if we are being called for a BOOT/LOAD CPU */
+        return cpu_copy_loader (ds_loaders, unitno,          /*   then copy the boot loader to memory */
+                                IBL_S_NOCLEAR, IBL_S_NOSET); /*     but do not alter the S register */
 
-else if (unitno != 0)                                       /* otherwise a BOOT DS for a non-zero unit */
-    return SCPE_NOFNC;                                      /*   is rejected as unsupported */
+    else if (unitno != 0)  /* otherwise a BOOT DS for a non-zero unit */
+        return SCPE_NOFNC; /*   is rejected as unsupported */
 
-else                                                        /* otherwise this is a BOOT/LOAD DS */
-    return cpu_copy_loader (ds_loaders, ds_dib.select_code, /*   so copy the boot loader to memory */
-                            ds_preserved, ds_manual_boot);  /*     and configure the S register if 1000 CPU */
+    else                                                        /* otherwise this is a BOOT/LOAD DS */
+        return cpu_copy_loader (ds_loaders, ds_dib.select_code, /*   so copy the boot loader to memory */
+                                ds_preserved, ds_manual_boot);  /*     and configure the S register if 1000 CPU */
 }
 
-
-
 /* MAC disc global SCP routines */
-
 
 /* Load or unload the drive heads.
 
@@ -1348,17 +1314,15 @@ else                                                        /* otherwise this is
    status.
 */
 
-t_stat ds_load_unload (UNIT *uptr, int32 value, CONST char *cptr, void *desc)
+t_stat
+ds_load_unload (UNIT *uptr, int32 value, CONST char *cptr, void *desc)
 {
-const t_bool load = (value != UNIT_UNLOAD);             /* true if the heads are loading */
+    const t_bool load = (value != UNIT_UNLOAD); /* true if the heads are loading */
 
-return dl_load_unload (&mac_cntlr, uptr, load);         /* load or unload the heads */
+    return dl_load_unload (&mac_cntlr, uptr, load); /* load or unload the heads */
 }
 
-
-
 /* MAC disc local utility routines */
-
 
 /* Start a command.
 
@@ -1403,45 +1367,43 @@ return dl_load_unload (&mac_cntlr, uptr, load);         /* load or unload the he
        will occur.
 */
 
-static void start_command (void)
+static void
+start_command (void)
 {
-int32 unit, time;
-UNIT *uptr;
-CNTLR_OPCODE drive_command;
+    int32        unit, time;
+    UNIT *       uptr;
+    CNTLR_OPCODE drive_command;
 
-unit = GET_S1UNIT (mac_cntlr.spd_unit);                 /* get the (prepared) unit from the command */
+    unit = GET_S1UNIT(mac_cntlr.spd_unit); /* get the (prepared) unit from the command */
 
-if (unit <= DL_MAXDRIVE)                                /* is the unit number valid? */
-    drive_command = (CNTLR_OPCODE) ds_unit [unit].OP;   /* get the opcode from the unit that will be used */
-else                                                    /* the unit is invalid, so the command will not start */
-    drive_command = End;                                /*   but the compiler doesn't know this! */
+    if (unit <= DL_MAXDRIVE)                            /* is the unit number valid? */
+        drive_command = (CNTLR_OPCODE)ds_unit[unit].OP; /* get the opcode from the unit that will be used */
+    else                                                /* the unit is invalid, so the command will not start */
+        drive_command = End;                            /*   but the compiler doesn't know this! */
 
-uptr = dl_start_command (&mac_cntlr, ds_unit, DL_MAXDRIVE); /* ask the controller to start the command */
+    uptr = dl_start_command(&mac_cntlr, ds_unit, DL_MAXDRIVE); /* ask the controller to start the command */
 
-if (uptr) {                                             /* did the command start? */
-    time = uptr->wait;                                  /* save the activation time */
+    if (uptr) {            /* did the command start? */
+        time = uptr->wait; /* save the activation time */
 
-    if (time)                                           /* was the unit scheduled? */
-        activate_unit (uptr);                           /* activate it (and clear the "wait" field) */
+        if (time)                /* was the unit scheduled? */
+            activate_unit(uptr); /* activate it (and clear the "wait" field) */
 
-    if (time == 0)                                  /* was the unit busy? */
-        tprintf (ds_dev, DEB_RWSC, "Unit %d %s in progress\n",
-                 uptr - ds_unit, dl_opcode_name (MAC, drive_command));
+        if (time == 0) { /* was the unit busy? */
+            tprintf(ds_dev, DEB_RWSC, "Unit %d %s in progress\n", uptr - ds_unit, dl_opcode_name(MAC, drive_command));
+        }
 
-    if (uptr - ds_unit > DL_MAXDRIVE)
-        tprintf (ds_dev, DEB_RWSC, "Controller %s command initiated\n",
-                 dl_opcode_name (MAC, mac_cntlr.opcode));
-    else
-        tprintf (ds_dev, DEB_RWSC, "Unit %d position %" T_ADDR_FMT "d %s command initiated\n",
-                 uptr - ds_unit, uptr->pos, dl_opcode_name (MAC, mac_cntlr.opcode));
-    }
+        if (uptr - ds_unit > DL_MAXDRIVE) {
+            tprintf(ds_dev, DEB_RWSC, "Controller %s command initiated\n", dl_opcode_name(MAC, mac_cntlr.opcode));
+	} else {
+            tprintf(ds_dev, DEB_RWSC, "Unit %d position %" T_ADDR_FMT "d %s command initiated\n", uptr - ds_unit, uptr->pos,
+                    dl_opcode_name(MAC, mac_cntlr.opcode));
+	}
+    } else                        /* the command failed to start */
+        ds_io(&ds_dib, ioENF, 0); /*   so set the flag to notify the CPU */
 
-else                                                    /* the command failed to start */
-    ds_io (&ds_dib, ioENF, 0);                          /*   so set the flag to notify the CPU */
-
-return;
+    return;
 }
-
 
 /* Poll the interface for a new command.
 
@@ -1454,27 +1416,29 @@ return;
    status contains the reason for the failure.
 */
 
-static void poll_interface (void)
+static void
+poll_interface (void)
 {
-if (ds.cmrdy == SET && mac_cntlr.state != cntlr_busy) {     /* are the interface and controller ready? */
-    buffer [0] = fifo_unload ();                            /* unload the command into the buffer */
+    if (ds.cmrdy == SET && mac_cntlr.state != cntlr_busy)
+        {                               /* are the interface and controller ready? */
+            buffer[0] = fifo_unload (); /* unload the command into the buffer */
 
-    if (dl_prepare_command (&mac_cntlr, ds_unit, DL_MAXDRIVE)) {    /* prepare the command; did it succeed? */
-        if (mac_cntlr.length)                                       /* does the command require parameters? */
-            ds_io (&ds_dib, ioENF, 0);                              /* set the flag to request the first one */
-        else                                                        /* if not waiting for parameters */
-            start_command ();                                       /*   start the command */
+            if (dl_prepare_command (&mac_cntlr, ds_unit, DL_MAXDRIVE))
+                {                                  /* prepare the command; did it succeed? */
+                    if (mac_cntlr.length)          /* does the command require parameters? */
+                        ds_io (&ds_dib, ioENF, 0); /* set the flag to request the first one */
+                    else                           /* if not waiting for parameters */
+                        start_command ();          /*   start the command */
+                }
+
+            else                           /* preparation failed */
+                ds_io (&ds_dib, ioENF, 0); /*   so set the flag to notify the CPU */
+
+            ds.cmrdy = CLEAR; /* flush the command from the interface */
         }
 
-    else                                                /* preparation failed */
-        ds_io (&ds_dib, ioENF, 0);                      /*   so set the flag to notify the CPU */
-
-    ds.cmrdy = CLEAR;                                   /* flush the command from the interface */
-    }
-
-return;
+    return;
 }
-
 
 /* Poll the drives for attention requests.
 
@@ -1485,14 +1449,14 @@ return;
    sets the flag to notify the CPU.
 */
 
-static void poll_drives (void)
+static void
+poll_drives (void)
 {
-if (mac_cntlr.state == cntlr_idle && ds.control == SET)     /* is the controller idle and interrupts are allowed? */
-    if (dl_poll_drives (&mac_cntlr, ds_unit, DL_MAXDRIVE))  /* poll the drives; was Attention seen? */
-        ds_io (&ds_dib, ioENF, 0);                          /* request an interrupt */
-return;
+    if (mac_cntlr.state == cntlr_idle && ds.control == SET)    /* is the controller idle and interrupts are allowed? */
+        if (dl_poll_drives (&mac_cntlr, ds_unit, DL_MAXDRIVE)) /* poll the drives; was Attention seen? */
+            ds_io (&ds_dib, ioENF, 0);                         /* request an interrupt */
+    return;
 }
-
 
 /* Load a word into the FIFO.
 
@@ -1519,27 +1483,27 @@ return;
        fifo_reg variable during device reset.
 */
 
-static void fifo_load (uint16 data)
+static void
+fifo_load (uint16 data)
 {
-uint32 index;
+    uint32 index;
 
-if (FIFO_FULL) {                                            /* is the FIFO already full? */
-    tprintf (ds_dev, DEB_BUF, "Attempted load to full FIFO, data %06o\n", data);
+    if (FIFO_FULL)
+        { /* is the FIFO already full? */
+            tprintf (ds_dev, DEB_BUF, "Attempted load to full FIFO, data %06o\n", data);
 
-    return;                                                 /* return with the load ignored */
-    }
+            return; /* return with the load ignored */
+        }
 
-index = (ds.fifo_reg->qptr + ds.fifo_count) % FIFO_SIZE;    /* calculate the index of the next available location */
+    index = (ds.fifo_reg->qptr + ds.fifo_count) % FIFO_SIZE; /* calculate the index of the next available location */
 
-ds.fifo [index] = data;                                     /* store the word in the FIFO */
-ds.fifo_count = ds.fifo_count + 1;                          /* increment the count of words stored */
+    ds.fifo[index] = data;              /* store the word in the FIFO */
+    ds.fifo_count  = ds.fifo_count + 1; /* increment the count of words stored */
 
-tprintf (ds_dev, DEB_BUF, "Data %06o loaded into FIFO (%d)\n",
-         data, ds.fifo_count);
+    tprintf (ds_dev, DEB_BUF, "Data %06o loaded into FIFO (%d)\n", data, ds.fifo_count);
 
-return;
+    return;
 }
-
 
 /* Unload a word from the FIFO.
 
@@ -1555,41 +1519,41 @@ return;
        fifo_count.
 */
 
-static uint16 fifo_unload (void)
+static uint16
+fifo_unload (void)
 {
-uint16 data;
+    uint16 data;
 
-if (FIFO_EMPTY) {                                           /* is the FIFO already empty? */
-    tprintf (ds_dev, DEB_BUF, "Attempted unload from empty FIFO\n");
-    return 0;                                               /* return with no data */
-    }
+    if (FIFO_EMPTY)
+        { /* is the FIFO already empty? */
+            tprintf (ds_dev, DEB_BUF, "Attempted unload from empty FIFO\n");
+            return 0; /* return with no data */
+        }
 
-data = ds.fifo [ds.fifo_reg->qptr];                         /* get the word from the FIFO */
+    data = ds.fifo[ds.fifo_reg->qptr]; /* get the word from the FIFO */
 
-ds.fifo_reg->qptr = (ds.fifo_reg->qptr + 1) % FIFO_SIZE;    /* update the FIFO queue pointer */
-ds.fifo_count = ds.fifo_count - 1;                          /* decrement the count of words stored */
+    ds.fifo_reg->qptr = (ds.fifo_reg->qptr + 1) % FIFO_SIZE; /* update the FIFO queue pointer */
+    ds.fifo_count     = ds.fifo_count - 1;                   /* decrement the count of words stored */
 
-tprintf (ds_dev, DEB_BUF, "Data %06o unloaded from FIFO (%d)\n",
-         data, ds.fifo_count);
+    tprintf (ds_dev, DEB_BUF, "Data %06o unloaded from FIFO (%d)\n", data, ds.fifo_count);
 
-return data;
+    return data;
 }
-
 
 /* Clear the FIFO.
 
    The FIFO is cleared by setting the occupancy counter to zero.
 */
 
-static void fifo_clear (void)
+static void
+fifo_clear (void)
 {
-ds.fifo_count = 0;                                      /* clear the FIFO */
+    ds.fifo_count = 0; /* clear the FIFO */
 
-tprintf (ds_dev, DEB_BUF, "FIFO cleared\n");
+    tprintf (ds_dev, DEB_BUF, "FIFO cleared\n");
 
-return;
+    return;
 }
-
 
 /* Activate the unit.
 
@@ -1597,19 +1561,19 @@ return;
    is enabled, the activation is logged to the debug file.
 */
 
-static t_stat activate_unit (UNIT *uptr)
+static t_stat
+activate_unit (UNIT *uptr)
 {
-t_stat result;
+    t_stat result;
 
-if (uptr == &ds_cntlr)
-    tprintf (ds_dev, DEB_SERV, "Controller delay %d service scheduled\n",
-             uptr->wait);
-else
-    tprintf (ds_dev, DEB_SERV, "Unit %d delay %d service scheduled\n",
-             uptr - ds_unit, uptr->wait);
+    if (uptr == &ds_cntlr) {
+        tprintf (ds_dev, DEB_SERV, "Controller delay %d service scheduled\n", uptr->wait);
+    } else {
+        tprintf (ds_dev, DEB_SERV, "Unit %d delay %d service scheduled\n", uptr - ds_unit, uptr->wait);
+    }
 
-result = sim_activate (uptr, uptr->wait);               /* activate the unit */
-uptr->wait = 0;                                         /* reset the activation time */
+    result     = sim_activate (uptr, uptr->wait); /* activate the unit */
+    uptr->wait = 0;                               /* reset the activation time */
 
-return result;                                          /* return the activation status */
+    return result; /* return the activation status */
 }

@@ -151,10 +151,10 @@
 
 #define REG_X               REG_VMIO                    /* permit symbolic display overrides */
 
-#define REG_A               (1u << REG_V_UF + 0)        /* default format is -A (one ASCII character) */
-#define REG_C               (1u << REG_V_UF + 1)        /* default format is -C (two ASCII characters) */
-#define REG_M               (1u << REG_V_UF + 2)        /* default format is -M (mnemonic) */
-#define REG_T               (1u << REG_V_UF + 3)        /* default format is -T (status mnemonic) */
+#define REG_A               (1u << (REG_V_UF + 0))      /* default format is -A (one ASCII character) */
+#define REG_C               (1u << (REG_V_UF + 1))      /* default format is -C (two ASCII characters) */
+#define REG_M               (1u << (REG_V_UF + 2))      /* default format is -M (mnemonic) */
+#define REG_T               (1u << (REG_V_UF + 3))      /* default format is -T (status mnemonic) */
 
 
 /* Register macros.
@@ -252,16 +252,18 @@
 #define DPPRINTING(d,f)     (sim_deb && ((d)->dctrl & (f)))
 
 #define dprintf(dev, flag, ...) \
-          if (DPRINTING (dev, flag)) \
+          if (DPRINTING (dev, flag)) { \
               hp_debug (&(dev), (flag), __VA_ARGS__); \
-          else \
-              (void) 0
+	  } else { \
+              (void) 0; \
+	  }
 
 #define dpprintf(dptr, flag, ...) \
-          if (DPPRINTING (dptr, flag)) \
+          if (DPPRINTING (dptr, flag)) { \
               hp_debug ((dptr), (flag), __VA_ARGS__); \
-          else \
-              (void) 0
+	  } else { \
+              (void) 0; \
+	  }
 
 #define cprintf(...) \
           do { \
@@ -486,7 +488,7 @@ typedef uint32              HP_WORD;                    /* HP 16-bit data word r
        In the few cases where it is not, explicit masking is required.
 */
 
-#define TO_PA(b,o)          (((uint32) (b) & BA_MASK) << LA_WIDTH | (uint32) (o))
+#define TO_PA(b,o)          ((((uint32) (b) & BA_MASK) << LA_WIDTH) | (uint32) (o))
 #define TO_BANK(p)          ((p) >> LA_WIDTH & BA_MASK)
 #define TO_OFFSET(p)        ((p) & LA_MASK)
 
@@ -622,10 +624,10 @@ typedef enum {
 
 #define UPPER_BYTE(w)       (uint8)   ((w) >> D8_WIDTH & D8_MASK)
 #define LOWER_BYTE(w)       (uint8)   ((w) &  D8_MASK)
-#define TO_WORD(u,l)        (HP_WORD) (((u) & D8_MASK) << D8_WIDTH | (l) & D8_MASK)
+#define TO_WORD(u,l)        (HP_WORD) (((u) & D8_MASK) << D8_WIDTH | ((l) & D8_MASK))
 
-#define REPLACE_UPPER(w,b)  ((w) & D8_MASK | ((b) & D8_MASK) << D8_WIDTH)
-#define REPLACE_LOWER(w,b)  ((w) & D8_MASK << D8_WIDTH | (b) & D8_MASK)
+#define REPLACE_UPPER(w,b)  (((w) & D8_MASK) | (((b) & D8_MASK) << D8_WIDTH))
+#define REPLACE_LOWER(w,b)  ((((w) & D8_MASK) << D8_WIDTH) | ((b) & D8_MASK))
 
 
 /* Double-word accessors */

@@ -2141,7 +2141,7 @@ if (flag == 0) {                                        /* if this is a LOAD com
 
 
 else {                                                  /* otherwise this is a DUMP command */
-    address = MEMSIZE - 1 & ~IBL_MASK & LA_MASK;        /* the loader occupies the last 64 words in memory */
+    address = (MEMSIZE - 1) & ~IBL_MASK & LA_MASK;        /* the loader occupies the last 64 words in memory */
 
     for (record = 0; record < 2; record++) {            /* write two absolute records */
         if (fputword (reclen [record], fptr) == EOF)    /*   starting with the record length; if it fails */
@@ -2292,100 +2292,103 @@ return SCPE_OK;
        implemented.
 */
 
-t_stat fprint_sym (FILE *ofile, t_addr addr, t_value *val, UNIT *uptr, int32 sw)
-{
-int32         formats, modes, i;
-uint32        irq, radix;
-SYMBOL_SOURCE source;
+t_stat
+fprint_sym(FILE *ofile, t_addr addr, t_value *val, UNIT *uptr, int32 sw) {
+    int32         formats, modes, i;
+    uint32        irq, radix;
+    SYMBOL_SOURCE source;
 
-if ((sw & (SIM_SW_REG | ALL_SWITCHES)) == SIM_SW_REG)   /* if we are formatting a register without overrides */
-    if (addr & REG_A)                                   /*   then if the default format is character */
-        sw |= A_SWITCH;                                 /*     then set the -A switch */
+    if ((sw & (SIM_SW_REG | ALL_SWITCHES)) == SIM_SW_REG) { /* if we are formatting a register without overrides */
+        if (addr & REG_A) {                               /*   then if the default format is character */
+            sw |= A_SWITCH;                               /*     then set the -A switch */
 
-    else if (addr & REG_C)                              /*   otherwise if the default mode is string */
-        sw |= C_SWITCH;                                 /*     then set the -C switch */
+        } else {
+            if (addr & REG_C) { /*   otherwise if the default mode is string */
+                sw |= C_SWITCH; /*     then set the -C switch */
 
-    else if (addr & REG_M)                              /*   otherwise if the default mode is mnemonic */
-        sw |= M_SWITCH;                                 /*     then set the -M switch */
+            } else {
+                if (addr & REG_M)   /*   otherwise if the default mode is mnemonic */
+                    sw |= M_SWITCH; /*     then set the -M switch */
+            }
+        }
+    }
 
-if ((sw & SYMBOLIC_SWITCHES) == 0)                      /* if there are no symbolic overrides */
-    return SCPE_ARG;                                    /*   then return an error to use the standard formatter */
+    if ((sw & SYMBOLIC_SWITCHES) == 0) /* if there are no symbolic overrides */
+        return SCPE_ARG;               /*   then return an error to use the standard formatter */
 
+    formats = sw & FORMAT_SWITCHES; /* separate the format switches */
+    modes   = sw & MODE_SWITCHES;   /*   from the mode switches */
 
-formats = sw & FORMAT_SWITCHES;                         /* separate the format switches */
-modes   = sw & MODE_SWITCHES;                           /*   from the mode switches */
+    if (formats == A_SWITCH) /* if the -A switch is specified */
+        radix = 256;         /*   then override the radix to character */
 
-if (formats == A_SWITCH)                                /* if the -A switch is specified */
-    radix = 256;                                        /*   then override the radix to character */
+    else if (formats == B_SWITCH) /* otherwise if the -B switch is specified */
+        radix = 2;                /*   then override the radix to binary */
 
-else if (formats == B_SWITCH)                           /* otherwise if the -B switch is specified */
-    radix = 2;                                          /*   then override the radix to binary */
+    else if (formats == D_SWITCH) /* otherwise if the -D switch is specified */
+        radix = 10;               /*   then override the radix to decimal */
 
-else if (formats == D_SWITCH)                           /* otherwise if the -D switch is specified */
-    radix = 10;                                         /*   then override the radix to decimal */
+    else if (formats == H_SWITCH) /* otherwise if the -H switch is specified */
+        radix = 16;               /*   then override the radix to hexadecimal */
 
-else if (formats == H_SWITCH)                           /* otherwise if the -H switch is specified */
-    radix = 16;                                         /*   then override the radix to hexadecimal */
+    else if (formats == O_SWITCH) /* otherwise if the -O switch is specified */
+        radix = 8;                /*   then override the radix to octal */
 
-else if (formats == O_SWITCH)                           /* otherwise if the -O switch is specified */
-    radix = 8;                                          /*   then override the radix to octal */
+    else if (formats == 0) /* otherwise if no format switch is specified */
+        radix = 0;         /*   then indicate that the default radix is to be used */
 
-else if (formats == 0)                                  /* otherwise if no format switch is specified */
-    radix = 0;                                          /*   then indicate that the default radix is to be used */
+    else                   /* otherwise more than one format is specified */
+        return SCPE_INVSW; /*   so return an error */
 
-else                                                    /* otherwise more than one format is specified */
-    return SCPE_INVSW;                                  /*   so return an error */
+    if (modes == M_SWITCH) {     /* if mnemonic mode is specified */
+        if (sw & SIM_SW_STOP) {  /*   then if this is a simulator stop */
+            source = CPU_Symbol; /*     then report as a CPU symbol */
 
-if (modes == M_SWITCH) {                                /* if mnemonic mode is specified */
-    if (sw & SIM_SW_STOP) {                             /*   then if this is a simulator stop */
-        source = CPU_Symbol;                            /*     then report as a CPU symbol */
+            irq = calc_int(); /* check for a pending interrupt */
 
-        irq = calc_int ();                              /* check for a pending interrupt */
+            if (irq && !ion_defer) { /* if a pending interrupt is present and not deferred */
+                addr = irq;          /*   then set the display address to the trap cell */
 
-        if (irq && !ion_defer) {                        /* if a pending interrupt is present and not deferred */
-            addr = irq;                                 /*   then set the display address to the trap cell */
+                for (i = 0; i < sim_emax; i++)                        /* load the trap cell instruction */
+                    val[i] = mem_fast_read((HP_WORD)(irq + i), SMAP); /*   which might be multi-word (e.g., JLY) */
 
-            for (i = 0; i < sim_emax; i++)                              /* load the trap cell instruction */
-                val [i] = mem_fast_read ((HP_WORD) (irq + i), SMAP);    /*   which might be multi-word (e.g., JLY) */
-
-            fprintf (ofile, "IAK %2o: ", irq);          /* report that the interrupt will be acknowledged  */
+                fprintf(ofile, "IAK %2o: ", irq); /* report that the interrupt will be acknowledged  */
             }
         }
 
-    else if (sw & SIM_SW_REG) {                         /* otherwise if a register value is being formatted */
-        source = Device_Symbol;                         /*   then report it as a device symbol */
+        else if (sw & SIM_SW_REG) { /* otherwise if a register value is being formatted */
+            source = Device_Symbol; /*   then report it as a device symbol */
 
-        memset (sim_eval, 0,                            /* clear the sim_eval array */
-                MAX_INSTR_LENGTH * sizeof (t_value));   /*   in case the instruction is multi-word */
+            memset(sim_eval, 0,                         /* clear the sim_eval array */
+                   MAX_INSTR_LENGTH * sizeof(t_value)); /*   in case the instruction is multi-word */
 
-        sim_eval [0] = *val;                            /* copy the register value */
-        val = sim_eval;                                 /*   and point at the sim_eval array */
+            sim_eval[0] = *val;     /* copy the register value */
+            val         = sim_eval; /*   and point at the sim_eval array */
         }
 
-    else if (uptr == &cpu_unit)                         /* otherwise if access is to CPU memory */
-        source = CPU_Symbol;                            /*   then report as a CPU symbol */
+        else if (uptr == &cpu_unit) /* otherwise if access is to CPU memory */
+            source = CPU_Symbol;    /*   then report as a CPU symbol */
 
-    else                                                /* otherwise access is to device memory */
-        source = Device_Symbol;                         /*   so report it as a device symbol */
+        else                        /* otherwise access is to device memory */
+            source = Device_Symbol; /*   so report it as a device symbol */
 
-    return fprint_cpu (ofile, addr, val, radix, source);    /* format and print the value in mnemonic format */
+        return fprint_cpu(ofile, addr, val, radix, source); /* format and print the value in mnemonic format */
     }
 
-else if (modes == C_SWITCH) {                           /* otherwise if ASCII string mode is specified */
-    fputs (fmt_char (UPPER_BYTE (val [0])), ofile);     /*   then format and print the upper byte */
-    fputc (',', ofile);                                 /*     followed by a separator */
-    fputs (fmt_char (LOWER_BYTE (val [0])), ofile);     /*       followed by the lower byte */
-    return SCPE_OK;
+    else if (modes == C_SWITCH) {                   /* otherwise if ASCII string mode is specified */
+        fputs(fmt_char(UPPER_BYTE(val[0])), ofile); /*   then format and print the upper byte */
+        fputc(',', ofile);                          /*     followed by a separator */
+        fputs(fmt_char(LOWER_BYTE(val[0])), ofile); /*       followed by the lower byte */
+        return SCPE_OK;
     }
 
-else if (modes == 0)                                    /* otherwise if no mode was specified */
-    return fprint_value (ofile, val [0], radix,         /*   then format and print it with the specified radix */
-                         DV_WIDTH, PV_RZRO);            /*     and data width */
+    else if (modes == 0)                          /* otherwise if no mode was specified */
+        return fprint_value(ofile, val[0], radix, /*   then format and print it with the specified radix */
+                            DV_WIDTH, PV_RZRO);   /*     and data width */
 
-else                                                    /* otherwise the modes conflict */
-    return SCPE_INVSW;                                  /*   so return an error */
+    else                   /* otherwise the modes conflict */
+        return SCPE_INVSW; /*   so return an error */
 }
-
 
 /* Parse a value in symbolic format.
 
@@ -2484,90 +2487,94 @@ else                                                    /* otherwise the modes c
        implemented.
 */
 
-t_stat parse_sym (CONST char *cptr, t_addr addr, UNIT *uptr, t_value *val, int32 sw)
-{
-int32         formats, modes;
-uint32        radix;
-t_stat        status;
-SYMBOL_SOURCE target;
+t_stat
+parse_sym(CONST char *cptr, t_addr addr, UNIT *uptr, t_value *val, int32 sw) {
+    int32         formats, modes;
+    uint32        radix;
+    t_stat        status;
+    SYMBOL_SOURCE target;
 
-if ((sw & (SIM_SW_REG | ALL_SWITCHES)) == SIM_SW_REG)   /* if we are parsing a register without overrides */
-    if (addr & REG_A)                                   /*   then if the default format is character */
-        sw |= A_SWITCH;                                 /*     then set the -A switch */
-
-    else if (addr & REG_C)                              /*   otherwise if the default mode is string */
-        sw |= C_SWITCH;                                 /*     then set the -C switch */
-
-    else if (addr & REG_M)                              /*   otherwise if the default mode is mnemonic */
-        sw |= M_SWITCH;                                 /*     then set the -M switch */
-
-
-if ((sw & ALL_SWITCHES) == 0)                           /* if there are no default or explicit overrides */
-    if (*cptr == '\'' && cptr++)                        /*   then if a character parse is implied */
-        sw |= A_SWITCH;                                 /*     then set the -A switch */
-
-    else if (*cptr == '"' && cptr++)                    /*   otherwise if a character string parse is implied */
-        sw |= C_SWITCH;                                 /*     then set the -C switch */
-
-    else if (isalpha (*cptr) || ispunct (*cptr))        /*   otherwise if an instruction mnemonic parse is implied */
-        sw |= M_SWITCH;                                 /*     then set the -M switch */
-
-
-if ((sw & SYMBOLIC_SWITCHES) == 0)                      /* if there are no symbolic overrides */
-    return SCPE_ARG;                                    /*   then return an error to use the standard parser */
-
-
-formats = sw & FORMAT_SWITCHES;                         /* separate the format switches */
-modes   = sw & MODE_SWITCHES;                           /*   from the mode switches */
-
-if (formats == A_SWITCH)                                /* if the -A switch is specified */
-    radix = 256;                                        /*   then override the radix to character */
-
-else if (formats == B_SWITCH)                           /* otherwise if the -B switch is specified */
-    radix = 2;                                          /*   then override the radix to binary */
-
-else if (formats == D_SWITCH)                           /* otherwise if the -D switch is specified */
-    radix = 10;                                         /*   then override the radix to decimal */
-
-else if (formats == H_SWITCH)                           /* otherwise if the -H switch is specified */
-    radix = 16;                                         /*   then override the radix to hexadecimal */
-
-else if (formats == O_SWITCH)                           /* otherwise if the -O switch is specified */
-    radix = 8;                                          /*   then override the radix to octal */
-
-else if (formats == 0)                                  /* otherwise if no format switch is specified */
-    radix = 0;                                          /*   then indicate that the default radix is to be used */
-
-else                                                    /* otherwise more than one format is specified */
-    return SCPE_INVSW;                                  /*   so return an error */
-
-if (modes == M_SWITCH) {                                /* if instruction mnemonic mode is specified */
-    if (uptr == NULL || uptr == &cpu_unit)              /*   then if access is to a register or CPU memory */
-        target = CPU_Symbol;                            /*     then report as a CPU symbol */
-    else                                                /*   otherwise access is to device memory */
-        target = Device_Symbol;                         /*     so report it as a device symbol */
-
-    return parse_cpu (cptr, addr, val, radix, target);  /* attempt a mnemonic instruction parse */
+    if ((sw & (SIM_SW_REG | ALL_SWITCHES)) == SIM_SW_REG) { /* if we are parsing a register without overrides */
+        if (addr & REG_A) {                                 /*   then if the default format is character */
+            sw |= A_SWITCH;                                 /*     then set the -A switch */
+        } else {
+            if (addr & REG_C) { /*   otherwise if the default mode is string */
+                sw |= C_SWITCH; /*     then set the -C switch */
+            } else {
+                if (addr & REG_M) { /*   otherwise if the default mode is mnemonic */
+                    sw |= M_SWITCH; /*     then set the -M switch */
+                }
+            }
+        }
     }
 
-else if (modes == C_SWITCH)                                 /* otherwise if string mode is specified */
-    if (cptr [0] != '\0') {                                 /*   then if characters are present */
-        val [0] = (t_value) TO_WORD (cptr [0], cptr [1]);   /*     then convert the character values */
-        return SCPE_OK;                                     /*       and indicate success */
+    if ((sw & ALL_SWITCHES) == 0) {    /* if there are no default or explicit overrides */
+        if (*cptr == '\'' && cptr++) { /*   then if a character parse is implied */
+            sw |= A_SWITCH;            /*     then set the -A switch */
+        } else {
+            if (*cptr == '"' && cptr++) { /*   otherwise if a character string parse is implied */
+                sw |= C_SWITCH;           /*     then set the -C switch */
+            } else {
+                if (isalpha(*cptr) || ispunct(*cptr)) { /*   otherwise if an instruction mnemonic parse is implied */
+                    sw |= M_SWITCH;                     /*     then set the -M switch */
+                }
+            }
+        }
+    }
+
+    if ((sw & SYMBOLIC_SWITCHES) == 0) /* if there are no symbolic overrides */
+        return SCPE_ARG;               /*   then return an error to use the standard parser */
+
+    formats = sw & FORMAT_SWITCHES; /* separate the format switches */
+    modes   = sw & MODE_SWITCHES;   /*   from the mode switches */
+
+    if (formats == A_SWITCH) /* if the -A switch is specified */
+        radix = 256;         /*   then override the radix to character */
+
+    else if (formats == B_SWITCH) /* otherwise if the -B switch is specified */
+        radix = 2;                /*   then override the radix to binary */
+
+    else if (formats == D_SWITCH) /* otherwise if the -D switch is specified */
+        radix = 10;               /*   then override the radix to decimal */
+
+    else if (formats == H_SWITCH) /* otherwise if the -H switch is specified */
+        radix = 16;               /*   then override the radix to hexadecimal */
+
+    else if (formats == O_SWITCH) /* otherwise if the -O switch is specified */
+        radix = 8;                /*   then override the radix to octal */
+
+    else if (formats == 0) /* otherwise if no format switch is specified */
+        radix = 0;         /*   then indicate that the default radix is to be used */
+
+    else                   /* otherwise more than one format is specified */
+        return SCPE_INVSW; /*   so return an error */
+
+    if (modes == M_SWITCH) {                   /* if instruction mnemonic mode is specified */
+        if (uptr == NULL || uptr == &cpu_unit) /*   then if access is to a register or CPU memory */
+            target = CPU_Symbol;               /*     then report as a CPU symbol */
+        else                                   /*   otherwise access is to device memory */
+            target = Device_Symbol;            /*     so report it as a device symbol */
+
+        return parse_cpu(cptr, addr, val, radix, target); /* attempt a mnemonic instruction parse */
+    }
+
+    else if (modes == C_SWITCH)                          /* otherwise if string mode is specified */
+        if (cptr[0] != '\0') {                           /*   then if characters are present */
+            val[0] = (t_value)TO_WORD(cptr[0], cptr[1]); /*     then convert the character values */
+            return SCPE_OK;                              /*       and indicate success */
         }
 
-    else                                                    /* otherwise */
-        return SCPE_ARG;                                    /*   report that the line cannot be parsed */
+        else                 /* otherwise */
+            return SCPE_ARG; /*   report that the line cannot be parsed */
 
-else if (modes == 0) {                                      /* otherwise if no mode was specified */
-    val [0] = parse_value (cptr, radix, DV_UMAX, &status);  /*   then parse using the specified radix */
-    return status;                                          /*     and return the parsing status */
+    else if (modes == 0) {                                   /* otherwise if no mode was specified */
+        val[0] = parse_value(cptr, radix, DV_UMAX, &status); /*   then parse using the specified radix */
+        return status;                                       /*     and return the parsing status */
     }
 
-else                                                    /* otherwise the modes conflict */
-    return SCPE_INVSW;                                  /*   so return an error */
+    else                   /* otherwise the modes conflict */
+        return SCPE_INVSW; /*   so return an error */
 }
-
 
 /* Attach a file for appending.
 
@@ -2613,28 +2620,27 @@ else                                                    /* otherwise the modes c
        the unit to attach.
 */
 
-t_stat hp_attach (UNIT *uptr, CONST char *cptr)
-{
-t_stat result;
+t_stat
+hp_attach(UNIT *uptr, CONST char *cptr) {
+    t_stat result;
 
-result = attach_unit (uptr, cptr);                      /* attach the specified image file */
+    result = attach_unit(uptr, cptr); /* attach the specified image file */
 
-if (result == SCPE_OK                                   /* if the attach was successful */
-  && (sim_switches & SIM_SW_REST) == 0)                 /*   and we are not being called during a RESTORE command */
-    if (fseek (uptr->fileref, 0, SEEK_END) == 0)        /*     then append by seeking to the end of the file */
-        uptr->pos = (t_addr) ftell (uptr->fileref);     /*       and repositioning if the seek succeeded */
+    if (result == SCPE_OK                             /* if the attach was successful */
+        && (sim_switches & SIM_SW_REST) == 0) {       /*   and we are not being called during a RESTORE command */
+        if (fseek(uptr->fileref, 0, SEEK_END) == 0) { /*     then append by seeking to the end of the file */
+            uptr->pos = (t_addr)ftell(uptr->fileref); /*       and repositioning if the seek succeeded */
+        } else {                                      /* otherwise the seek failed */
+            cprintf("%s simulator seek error: %s\n",  /*   so report the error to the console */
+                    sim_name, strerror(errno));
 
-    else {                                              /* otherwise the seek failed */
-        cprintf ("%s simulator seek error: %s\n",       /*   so report the error to the console */
-                 sim_name, strerror (errno));
-
-        detach_unit (uptr);                             /* detach the unit */
-        result = SCPE_IOERR;                            /*   and report that the seek failed */
+            detach_unit(uptr);   /* detach the unit */
+            result = SCPE_IOERR; /*   and report that the seek failed */
         }
+    }
 
-return result;
+    return result;
 }
-
 
 /* Set a device select code.
 
@@ -2988,7 +2994,7 @@ else {                                                  /* otherwise this is a M
 
                 if (status == SCPE_UNK) {                                       /* if it's not an IOP opcode */
                     if (source == CPU_Trace)                                    /*   then if this is a CPU trace call */
-                        val [1] = mem_fast_read (addr + 1 & LA_MASK, dms_ump);  /*   then load the following word */
+                        val [1] = mem_fast_read ((addr + 1) & LA_MASK, dms_ump);  /*   then load the following word */
 
                     status = fprint_instruction (ofile, addr, val,  /* print as a VIS instruction */
                                                  radix, vis_desc, vis_ops);
@@ -3228,99 +3234,98 @@ else {
        either side of the name and a terminating NUL character.
 */
 
-const char *fmt_bitset (uint32 bitset, const BITSET_FORMAT bitfmt)
+const char *
+fmt_bitset(uint32 bitset, const BITSET_FORMAT bitfmt)
 {
-static const char separator [] = " | ";                     /* the separator to use between names */
-static char fmt_buffer [1024];                              /* the return buffer */
-static char *freeptr = fmt_buffer;                          /* pointer to the first free character in the buffer */
-static char *endptr  = fmt_buffer + sizeof fmt_buffer       /* pointer to the end of the buffer */
-                         - 2 * (sizeof separator - 1) - 1;  /*   less allowance for two separators and a terminator */
-const char *bnptr, *fmtptr;
-uint32     test_bit, index, bitmask;
-size_t     name_length;
+    static const char separator[] = " | ";                     /* the separator to use between names */
+    static char       fmt_buffer[1024];                        /* the return buffer */
+    static char *     freeptr = fmt_buffer;                    /* pointer to the first free character in the buffer */
+    static char *     endptr  = fmt_buffer + sizeof fmt_buffer /* pointer to the end of the buffer */
+                          - 2 * (sizeof separator - 1) - 1;    /*   less allowance for two separators and a terminator */
+    const char *bnptr, *fmtptr;
+    uint32      test_bit, index, bitmask;
+    size_t      name_length;
 
-if (bitfmt.name_count < D32_WIDTH)                      /* if the name count is the less than the mask width */
-    bitmask = (1 << bitfmt.name_count) - 1;             /*   then create a mask for the name count specified */
+    if (bitfmt.name_count < D32_WIDTH)          /* if the name count is the less than the mask width */
+        bitmask = (1 << bitfmt.name_count) - 1; /*   then create a mask for the name count specified */
 
-else                                                    /* otherwise use a predefined value for the mask */
-    bitmask = D32_MASK;                                 /*   to prevent shifting the bit off the MSB end */
+    else                    /* otherwise use a predefined value for the mask */
+        bitmask = D32_MASK; /*   to prevent shifting the bit off the MSB end */
 
-bitmask = bitmask << bitfmt.offset;                     /* align the mask to the named bits */
-bitset = bitset & bitmask;                              /*   and mask to just the significant bits */
+    bitmask = bitmask << bitfmt.offset; /* align the mask to the named bits */
+    bitset  = bitset & bitmask;         /*   and mask to just the significant bits */
 
-if (bitfmt.direction == msb_first)                          /* if the examination is left-to-right */
-    test_bit = 1 << bitfmt.name_count + bitfmt.offset - 1;  /*   then create a test bit for the MSB */
-else                                                        /* otherwise */
-    test_bit = 1 << bitfmt.offset;                          /*   create a test bit for the LSB */
+    if (bitfmt.direction == msb_first)                           /* if the examination is left-to-right */
+        test_bit = 1 << (bitfmt.name_count + bitfmt.offset - 1); /*   then create a test bit for the MSB */
+    else                                                         /* otherwise */
+        test_bit = 1 << bitfmt.offset;                           /*   create a test bit for the LSB */
 
+    fmtptr   = freeptr; /* initialize the return pointer */
+    *freeptr = '\0';    /*   and the format accumulator */
+    index    = 0;       /*     and the name index */
 
-fmtptr = freeptr;                                       /* initialize the return pointer */
-*freeptr = '\0';                                        /*   and the format accumulator */
-index = 0;                                              /*     and the name index */
+    while ((bitfmt.alternate || bitset)    /* while more bits */
+           && index < bitfmt.name_count) { /*   and more names exist */
+        bnptr = bitfmt.names[index];       /*     point at the name for the current bit */
 
-while ((bitfmt.alternate || bitset)                     /* while more bits */
-  && index < bitfmt.name_count) {                       /*   and more names exist */
-    bnptr = bitfmt.names [index];                       /*     point at the name for the current bit */
-
-    if (bnptr)                                          /* if the name is defined */
-        if (*bnptr == '\1' && bitfmt.alternate)         /*   then if this name has an alternate */
-            if (bitset & test_bit)                      /*     then if the bit is asserted */
-                bnptr++;                                /*       then point at the name for the "1" state */
-            else                                        /*     otherwise */
-                bnptr = bnptr + strlen (bnptr) + 1;     /*       point at the name for the "0" state */
-
-        else                                            /*   otherwise the name is unilateral */
-            if ((bitset & test_bit) == 0)               /*     so if the bit is denied */
-                bnptr = NULL;                           /*       then clear the name pointer */
-
-    if (bnptr) {                                        /* if the name pointer is set */
-        name_length = strlen (bnptr);                   /*   then get the length needed */
-
-        if (freeptr + name_length > endptr) {           /* if there is not enough room left to append the name */
-            strcpy (fmt_buffer, fmtptr);                /*   then move the partial string to the start of the buffer */
-
-            freeptr = fmt_buffer + (freeptr - fmtptr);  /* point at the new first free character location */
-            fmtptr = fmt_buffer;                        /*   and reset the return pointer */
-
-            if (freeptr + name_length > endptr)         /* if there is still not enough room left to append */
-                return "(buffer overflow)";             /*   then this call is requires a larger buffer! */
+        if (bnptr) {                                   /* if the name is defined */
+            if (*bnptr == '\1' && bitfmt.alternate) {  /*   then if this name has an alternate */
+                if (bitset & test_bit)                 /*     then if the bit is asserted */
+                    bnptr++;                           /*       then point at the name for the "1" state */
+                else                                   /*     otherwise */
+                    bnptr = bnptr + strlen(bnptr) + 1; /*       point at the name for the "0" state */
+            } else {                                   /*   otherwise the name is unilateral */
+                if ((bitset & test_bit) == 0)          /*     so if the bit is denied */
+                    bnptr = NULL;                      /*       then clear the name pointer */
             }
-
-        if (*fmtptr != '\0') {                          /* if this is not the first name added */
-            strcpy (freeptr, separator);                /*   then add a separator to the string */
-            freeptr = freeptr + strlen (separator);     /*     and move the free pointer */
-            }
-
-        strcpy (freeptr, bnptr);                        /* append the bit's mnemonic to the accumulator */
-        freeptr = freeptr + name_length;                /*   and move the free pointer */
         }
 
-    if (bitfmt.direction == msb_first)                  /* if formatting is left-to-right */
-        bitset = bitset << 1 & bitmask;                 /*   then shift the next bit to the MSB and remask */
-    else                                                /* otherwise formatting is right-to-left */
-        bitset = bitset >> 1 & bitmask;                 /*   so shift the next bit to the LSB and remask */
+        if (bnptr) {                     /* if the name pointer is set */
+            name_length = strlen(bnptr); /*   then get the length needed */
 
-    index = index + 1;                                  /* bump the bit name index */
+            if (freeptr + name_length > endptr) { /* if there is not enough room left to append the name */
+                strcpy(fmt_buffer, fmtptr);       /*   then move the partial string to the start of the buffer */
+
+                freeptr = fmt_buffer + (freeptr - fmtptr); /* point at the new first free character location */
+                fmtptr  = fmt_buffer;                      /*   and reset the return pointer */
+
+                if (freeptr + name_length > endptr) /* if there is still not enough room left to append */
+                    return "(buffer overflow)";     /*   then this call is requires a larger buffer! */
+            }
+
+            if (*fmtptr != '\0') {                     /* if this is not the first name added */
+                strcpy(freeptr, separator);            /*   then add a separator to the string */
+                freeptr = freeptr + strlen(separator); /*     and move the free pointer */
+            }
+
+            strcpy(freeptr, bnptr);          /* append the bit's mnemonic to the accumulator */
+            freeptr = freeptr + name_length; /*   and move the free pointer */
+        }
+
+        if (bitfmt.direction == msb_first)  /* if formatting is left-to-right */
+            bitset = bitset << 1 & bitmask; /*   then shift the next bit to the MSB and remask */
+        else                                /* otherwise formatting is right-to-left */
+            bitset = bitset >> 1 & bitmask; /*   so shift the next bit to the LSB and remask */
+
+        index = index + 1; /* bump the bit name index */
     }
 
+    if (*fmtptr == '\0')              /* if no names were output */
+        if (bitfmt.bar == append_bar) /*   then if concatenating with more information */
+            return "";                /*     then return an empty string */
+        else                          /*   otherwise it's a standalone format */
+            return "(none)";          /*     so return a placeholder */
 
-if (*fmtptr == '\0')                                    /* if no names were output */
-    if (bitfmt.bar == append_bar)                       /*   then if concatenating with more information */
-        return "";                                      /*     then return an empty string */
-    else                                                /*   otherwise it's a standalone format */
-        return "(none)";                                /*     so return a placeholder */
-
-else if (bitfmt.bar == append_bar) {                    /* otherwise if a trailing separator is specified */
-    strcpy (freeptr, separator);                        /*   then add a separator to the string */
-    freeptr = freeptr + strlen (separator) + 1;         /*     and account for it plus the trailing NUL */
+    else if (bitfmt.bar == append_bar) {           /* otherwise if a trailing separator is specified */
+        strcpy(freeptr, separator);                /*   then add a separator to the string */
+        freeptr = freeptr + strlen(separator) + 1; /*     and account for it plus the trailing NUL */
     }
 
-else                                                    /* otherwise */
-    freeptr = freeptr + 1;                              /*   just account for the trailing NUL */
+    else                       /* otherwise */
+        freeptr = freeptr + 1; /*   just account for the trailing NUL */
 
-return fmtptr;                                          /* return a pointer to the formatted string */
+    return fmtptr; /* return a pointer to the formatted string */
 }
-
 
 /* Format and print a trace line to the debug log file.
 
@@ -3359,50 +3364,49 @@ return fmtptr;                                          /* return a pointer to t
 #define FLAG_SIZE           32                          /* sufficiently large to accommodate all flag names */
 #define FORMAT_SIZE         1024                        /* sufficiently large to accommodate all format strings */
 
-void hp_trace (DEVICE *dptr, uint32 flag, ...)
+void
+hp_trace(DEVICE *dptr, uint32 flag, ...)
 {
-const char *nptr;
-va_list    argptr;
-DEBTAB     *debptr;
-char       *format, *fptr;
-char       flag_name [FLAG_SIZE];                       /* desired size is [flag_size + 1] */
-char       header_fmt [FORMAT_SIZE];                    /* desired size is [device_size + flag_size + format_size + 6] */
+    const char *nptr;
+    va_list     argptr;
+    DEBTAB *    debptr;
+    char *      format, *fptr;
+    char        flag_name[FLAG_SIZE];    /* desired size is [flag_size + 1] */
+    char        header_fmt[FORMAT_SIZE]; /* desired size is [device_size + flag_size + format_size + 6] */
 
-if (sim_deb != NULL && dptr != NULL) {                  /* if the output stream and device pointer are valid */
-    debptr = dptr->debflags;                            /*   then get a pointer to the trace flags table */
+    if (sim_deb != NULL && dptr != NULL) { /* if the output stream and device pointer are valid */
+        debptr = dptr->debflags;           /*   then get a pointer to the trace flags table */
 
-    if (debptr != NULL)                                 /* if the trace table exists */
-        while (debptr->name != NULL)                    /*   then search it for an entry with the supplied flag */
-            if (debptr->mask & flag) {                  /* if the flag matches this entry */
-                nptr = debptr->name;                    /*   then get a pointer to the flag name */
-                fptr = flag_name;                       /*     and the buffer */
+        if (debptr != NULL) {              /* if the trace table exists */
+            while (debptr->name != NULL)   /*   then search it for an entry with the supplied flag */
+                if (debptr->mask & flag) { /* if the flag matches this entry */
+                    nptr = debptr->name;   /*   then get a pointer to the flag name */
+                    fptr = flag_name;      /*     and the buffer */
 
-                do
-                    *fptr++ = (char) tolower (*nptr);   /* copy and downshift the flag name */
-                while (*nptr++ != '\0');
+                    do
+                        *fptr++ = (char)tolower(*nptr); /* copy and downshift the flag name */
+                    while (*nptr++ != '\0');
 
-                sprintf (header_fmt, ">>%-*s %*s: ",            /* format the prefix and store it */
-                         (int) device_size, sim_dname (dptr),   /*   while padding the device and flag names */
-                         (int) flag_size, flag_name);           /*     as needed for proper alignment */
+                    sprintf(header_fmt, ">>%-*s %*s: ",        /* format the prefix and store it */
+                            (int)device_size, sim_dname(dptr), /*   while padding the device and flag names */
+                            (int)flag_size, flag_name);        /*     as needed for proper alignment */
 
-                va_start (argptr, flag);                        /* set up the argument list */
+                    va_start(argptr, flag); /* set up the argument list */
 
-                format = va_arg (argptr, char *);               /* get the format string parameter */
-                strcat (header_fmt, format);                    /* append the supplied format */
+                    format = va_arg(argptr, char *); /* get the format string parameter */
+                    strcat(header_fmt, format);      /* append the supplied format */
 
-                vfprintf (sim_deb, header_fmt, argptr);         /* format and print to the debug stream */
+                    vfprintf(sim_deb, header_fmt, argptr); /* format and print to the debug stream */
 
-                va_end (argptr);                                /* clean up the argument list */
-                break;                                          /*   and exit with the job complete */
-                }
-
-            else                                        /* otherwise */
-                debptr++;                               /*   look at the next trace table entry */
+                    va_end(argptr); /* clean up the argument list */
+                    break;          /*   and exit with the job complete */
+                } else          /* otherwise */
+                    debptr++; /*   look at the next trace table entry */
+	}
     }
 
-return;
+    return;
 }
-
 
 /* Check for device conflicts.
 
@@ -3463,83 +3467,83 @@ return;
        run-time determination of the count of simulator devices.
 */
 
-t_bool hp_device_conflict (void)
+t_bool
+hp_device_conflict(void)
 {
-const DIB     *dibptr;
-const DEBTAB  *tptr;
-DEVICE        *dptr;
-size_t        name_length, flag_length;
-uint32        dev, val;
-int32         count;
-int32         dib_val   [DEVICE_COUNT];
-int32         conflicts [MAXDEV + 1];
-t_bool        is_conflict = FALSE;
+    const DIB *   dibptr;
+    const DEBTAB *tptr;
+    DEVICE *      dptr;
+    size_t        name_length, flag_length;
+    uint32        dev, val;
+    int32         count;
+    int32         dib_val[DEVICE_COUNT];
+    int32         conflicts[MAXDEV + 1];
+    t_bool        is_conflict = FALSE;
 
-device_size = 0;                                        /* reset the device and flag name sizes */
-flag_size = 0;                                          /*   to those of the devices actively tracing */
+    device_size = 0; /* reset the device and flag name sizes */
+    flag_size   = 0; /*   to those of the devices actively tracing */
 
-memset (conflicts, 0, sizeof conflicts);                /* zero the conflict table */
+    memset(conflicts, 0, sizeof conflicts); /* zero the conflict table */
 
-for (dev = 0; dev < DEVICE_COUNT; dev++) {              /* fill in the DIB value table */
-    dptr = sim_devices [dev];                           /*   from the device table */
-    dibptr = (DIB *) dptr->ctxt;                        /*     and the associated DIBs */
+    for (dev = 0; dev < DEVICE_COUNT; dev++) { /* fill in the DIB value table */
+        dptr   = sim_devices[dev];             /*   from the device table */
+        dibptr = (DIB *)dptr->ctxt;            /*     and the associated DIBs */
 
-    if (dibptr && !(dptr->flags & DEV_DIS)) {           /* if the DIB is defined and the device is enabled */
-        dib_val [dev] = dibptr->select_code;            /*   then copy the values to the DIB table */
+        if (dibptr && !(dptr->flags & DEV_DIS)) { /* if the DIB is defined and the device is enabled */
+            dib_val[dev] = dibptr->select_code;   /*   then copy the values to the DIB table */
 
-        if (++conflicts [dibptr->select_code] > 1)      /* increment the count of references; if more than one */
-            is_conflict = TRUE;                         /*   then a conflict occurs */
+            if (++conflicts[dibptr->select_code] > 1) /* increment the count of references; if more than one */
+                is_conflict = TRUE;                   /*   then a conflict occurs */
         }
 
-    if (sim_deb && dptr->dctrl) {                       /* if tracing is active for this device */
-        name_length = strlen (sim_dname (dptr));        /*   then get the length of the device name */
+        if (sim_deb && dptr->dctrl) {              /* if tracing is active for this device */
+            name_length = strlen(sim_dname(dptr)); /*   then get the length of the device name */
 
-        if (name_length > device_size)                  /* if it's greater than the current maximum */
-            device_size = name_length;                  /*   then reset the size */
+            if (name_length > device_size) /* if it's greater than the current maximum */
+                device_size = name_length; /*   then reset the size */
 
-        if (dptr->debflags)                                 /* if the device has a trace flags table */
-            for (tptr = dptr->debflags;                     /*   then scan the table */
-                 tptr->name != NULL; tptr++)
-                if (dev == 0 && dptr->dctrl & TRACE_EXEC    /* if the CPU device is tracing executions */
-                  || tptr->mask & dptr->dctrl) {            /*   or this trace option is active */
-                    flag_length = strlen (tptr->name);      /*     then get the flag name length */
+            if (dptr->debflags)             /* if the device has a trace flags table */
+                for (tptr = dptr->debflags; /*   then scan the table */
+                     tptr->name != NULL; tptr++)
+                    if ((dev == 0 && dptr->dctrl & TRACE_EXEC) /* if the CPU device is tracing executions */
+                        || tptr->mask & dptr->dctrl) {         /*   or this trace option is active */
+                        flag_length = strlen(tptr->name);      /*     then get the flag name length */
 
-                    if (flag_length > flag_size)            /* if it's greater than the current maximum */
-                        flag_size = flag_length;            /*   then reset the size */
+                        if (flag_length > flag_size) /* if it's greater than the current maximum */
+                            flag_size = flag_length; /*   then reset the size */
                     }
         }
     }
 
-if (is_conflict) {                                      /* if a conflict exists */
-    sim_ttcmd ();                                       /*   then restore the console and log I/O mode */
+    if (is_conflict) { /* if a conflict exists */
+        sim_ttcmd();   /*   then restore the console and log I/O mode */
 
-for (val = 0; val <= MAXDEV; val++)                     /* search the conflict table for the next conflict */
-    if (conflicts [val] > 1) {                          /* if a conflict is present for this value */
-        count = conflicts [val];                        /*   then get the number of conflicting devices */
+        for (val = 0; val <= MAXDEV; val++) /* search the conflict table for the next conflict */
+            if (conflicts[val] > 1) {       /* if a conflict is present for this value */
+                count = conflicts[val];     /*   then get the number of conflicting devices */
 
-        cprintf ("Select code %o conflict (", val);     /* report the multiply-assigned select code */
+                cprintf("Select code %o conflict (", val); /* report the multiply-assigned select code */
 
-        dev = 0;                                        /* search for the devices that conflict */
+                dev = 0; /* search for the devices that conflict */
 
-        while (count > 0) {                             /* search the DIB value table */
-            if (dib_val [dev] == (int32) val) {         /*   to find the conflicting entries */
-                if (count < conflicts [val])            /*     and report them to the console */
-                    cputs (" and ");
+                while (count > 0) {                   /* search the DIB value table */
+                    if (dib_val[dev] == (int32)val) { /*   to find the conflicting entries */
+                        if (count < conflicts[val])   /*     and report them to the console */
+                            cputs(" and ");
 
-                cputs (sim_dname (sim_devices [dev]));  /* report the conflicting device name */
-                count = count - 1;                      /*   and drop the count of remaining conflicts */
-                }
+                        cputs(sim_dname(sim_devices[dev])); /* report the conflicting device name */
+                        count = count - 1;                  /*   and drop the count of remaining conflicts */
+                    }
 
-            dev = dev + 1;                              /* move to the next device */
-            }                                           /*   and loop until all conflicting devices are reported */
+                    dev = dev + 1; /* move to the next device */
+                }                  /*   and loop until all conflicting devices are reported */
 
-        cputs (")\n");                                  /* tie off the line */
-        }                                               /*   and continue to look for other conflicting select codes */
+                cputs(")\n"); /* tie off the line */
+            }                 /*   and continue to look for other conflicting select codes */
     }
 
-return (is_conflict);                                   /* return TRUE if any conflicts exist */
+    return (is_conflict); /* return TRUE if any conflicts exist */
 }
-
 
 /* Make a pair of devices consistent */
 
@@ -3768,43 +3772,44 @@ return;
    physical and logical address specifications.
 */
 
-static t_addr parse_addr (DEVICE *dptr, CONST char *cptr, CONST char **tptr)
+static t_addr
+parse_addr(DEVICE *dptr, CONST char *cptr, CONST char **tptr)
 {
-CONST char *sptr;
-t_addr     page;
-t_addr     address = 0;
+    CONST char *sptr;
+    t_addr      page;
+    t_addr      address = 0;
 
-if (dptr != &cpu_dev)                                   /* if this is not a CPU memory address */
-    return (t_addr) strtotv (cptr, tptr, dptr->aradix); /*   then parse a scalar and return the value */
+    if (dptr != &cpu_dev)                                 /* if this is not a CPU memory address */
+        return (t_addr)strtotv(cptr, tptr, dptr->aradix); /*   then parse a scalar and return the value */
 
-address = strtotv (cptr, tptr, dptr->aradix);           /* parse the address */
+    address = strtotv(cptr, tptr, dptr->aradix); /* parse the address */
 
-if (cptr != *tptr)                                      /* if the parse succeeded */
-    if (**tptr == '.')                                  /*   then if this a paged address */
-        if (address > PG_MAX)                           /*     then if the page number is out of range */
-            *tptr = cptr;                               /*       then report a parse error */
+    if (cptr != *tptr) {                                     /* if the parse succeeded */
+        if (**tptr == '.') {                                 /*   then if this a paged address */
+            if (address > PG_MAX) {                          /*     then if the page number is out of range */
+                *tptr = cptr;                                /*       then report a parse error */
+            } else {                                         /* otherwise the <bank>.<offset> form is allowed */
+                sptr    = *tptr + 1;                         /* point to the offset */
+                page    = address;                           /* save the first part as the bank address */
+                address = strtotv(sptr, tptr, dptr->aradix); /* parse the offset */
 
-        else {                                              /* otherwise the <bank>.<offset> form is allowed */
-            sptr = *tptr + 1;                               /* point to the offset */
-            page = address;                                 /* save the first part as the bank address */
-            address = strtotv (sptr, tptr, dptr->aradix);   /* parse the offset */
-
-            if (address > OF_MAX)                       /* if the offset is too large */
-                *tptr = cptr;                           /*   then report a parse error */
-            else                                        /* otherwise it is in range */
-                address = TO_PA (page, address);        /*   so form the linear address */
+                if (address > OF_MAX)               /* if the offset is too large */
+                    *tptr = cptr;                   /*   then report a parse error */
+                else                                /* otherwise it is in range */
+                    address = TO_PA(page, address); /*   so form the linear address */
             }
+        } else {
+            if (address > LA_MAX) /* otherwise if the non-paged offset is too large */
+                *tptr = cptr;     /*   then report a parse error */
+        }
+    }
 
-    else if (address > LA_MAX)                          /* otherwise if the non-paged offset is too large */
-        *tptr = cptr;                                   /*   then report a parse error */
+    if (parse_physical == FALSE /* if only logical addresses are permitted */
+        && address > LA_MAX)    /*   and the parsed address is out of range */
+        *tptr = cptr;           /*     then report a parse error */
 
-if (parse_physical == FALSE                             /* if only logical addresses are permitted */
-  && address > LA_MAX)                                  /*   and the parsed address is out of range */
-    *tptr = cptr;                                       /*     then report a parse error */
-
-return address;                                         /* return the linear address */
+    return address; /* return the linear address */
 }
-
 
 /* Execute the EXAMINE, DEPOSIT, IEXAMINE, and IDEPOSIT commands.
 
@@ -3898,32 +3903,34 @@ return brk_cmd (arg, buf);                              /* return the result of 
        buffer.
 */
 
-static t_stat hp_load_cmd (int32 arg, CONST char *buf)
+static t_stat
+hp_load_cmd(int32 arg, CONST char *buf)
 {
-CONST char *cptr;
-char cbuf [CBUFSIZE];
-DEVICE *dptr = NULL;
+    CONST char *cptr;
+    char        cbuf[CBUFSIZE];
+    DEVICE *    dptr = NULL;
 
-GET_SWITCHES (buf);                                     /* parse any switches present */
+    GET_SWITCHES(buf); /* parse any switches present */
 
-cptr = get_glyph (buf, cbuf, '\0');                     /* parse a potential device name */
+    cptr = get_glyph(buf, cbuf, '\0'); /* parse a potential device name */
 
-if (cbuf [0] != '\0') {                                 /* if the name is present */
-    dptr = find_dev (cbuf);                             /*   then see if it matches a device */
+    if (cbuf[0] != '\0') {     /* if the name is present */
+        dptr = find_dev(cbuf); /*   then see if it matches a device */
 
-    if (dptr != NULL)                                   /* if it does */
-        if (dptr->boot == NULL)                         /*   then if the device is not bootable */
-            return SCPE_NOFNC;                          /*     then report "Command not allowed" */
-        else if (*cptr != '\0')                         /*   otherwise if more characters follow */
-            return SCPE_2MARG;                          /*     then report "Too many arguments" */
-        else                                            /*   otherwise the device name stands alone */
-            return dptr->boot (0, dptr);                /*     so load the corresponding boot loader */
+        if (dptr != NULL) {           /* if it does */
+            if (dptr->boot == NULL) { /*   then if the device is not bootable */
+                return SCPE_NOFNC;    /*     then report "Command not allowed" */
+            } else {
+                if (*cptr != '\0')              /*   otherwise if more characters follow */
+                    return SCPE_2MARG;          /*     then report "Too many arguments" */
+                else                            /*   otherwise the device name stands alone */
+                    return dptr->boot(0, dptr); /*     so load the corresponding boot loader */
+            }
+        }
     }
 
-return load_cmd (arg, buf);                             /* if it's not a device name, then try loading a file */
+    return load_cmd(arg, buf); /* if it's not a device name, then try loading a file */
 }
-
-
 
 /* System interface local utility routines */
 
@@ -4067,238 +4074,227 @@ else                                                        /* otherwise format 
        none of these take operands.
 */
 
-static t_stat fprint_instruction (FILE *ofile, t_addr addr, t_value *val, uint32 radix,
-                                  const OP_DESC op_desc, const OP_TABLE ops)
+static t_stat
+fprint_instruction(FILE *ofile, t_addr addr, t_value *val, uint32 radix, const OP_DESC op_desc, const OP_TABLE ops)
 {
-OP_TYPE    op_type;
-uint32     op_index, op_size, op_count, op_radix, op_address_set;
-t_value    instruction, op_value;
-t_stat     status;
-const char *prefix   = NULL;                            /* label to print before the operand */
-t_bool     clear     = FALSE;                           /* TRUE if the instruction contains a CLF micro-op */
-t_bool     separator = FALSE;                           /* TRUE if a separator between multiple ops is needed */
-uint32     op_start  = 1;                               /* the "val" array index of the first operand */
+    OP_TYPE     op_type;
+    uint32      op_index, op_size, op_count, op_radix, op_address_set;
+    t_value     instruction, op_value;
+    t_stat      status;
+    const char *prefix    = NULL;  /* label to print before the operand */
+    t_bool      clear     = FALSE; /* TRUE if the instruction contains a CLF micro-op */
+    t_bool      separator = FALSE; /* TRUE if a separator between multiple ops is needed */
+    uint32      op_start  = 1;     /* the "val" array index of the first operand */
 
-if (!(cpu_configuration & op_desc.feature & OPTION_MASK /* if the required feature set is not enabled */
-  && cpu_configuration & op_desc.feature & CPU_MASK))   /*   for the current CPU configuration */
-    return SCPE_UNK;                                    /*     then we cannot decode the instruction */
+    if (!(cpu_configuration & op_desc.feature & OPTION_MASK   /* if the required feature set is not enabled */
+          && cpu_configuration & op_desc.feature & CPU_MASK)) /*   for the current CPU configuration */
+        return SCPE_UNK;                                      /*     then we cannot decode the instruction */
 
-instruction = TO_DWORD (val [1], val [0]);              /* merge the two supplied values */
+    instruction = TO_DWORD(val[1], val[0]); /* merge the two supplied values */
 
-op_size = (op_desc.mask >> op_desc.shift)               /* determine the size of the primary table part */
-            + (op_desc.mask != 0);                      /*   if it is present */
+    op_size = (op_desc.mask >> op_desc.shift) /* determine the size of the primary table part */
+              + (op_desc.mask != 0);          /*   if it is present */
 
-op_index = ((uint32) instruction & op_desc.mask) >> op_desc.shift;  /* extract the opcode primary index */
+    op_index = ((uint32)instruction & op_desc.mask) >> op_desc.shift; /* extract the opcode primary index */
 
-if (op_desc.ab_selector) {                              /* if the A/B-register selector is significant */
-    if (op_desc.ab_selector & instruction)              /*   then if the A/B-register selector bit is set */
-        op_index = op_index + op_size;                  /*     then use the second half of the table */
+    if (op_desc.ab_selector) {                 /* if the A/B-register selector is significant */
+        if (op_desc.ab_selector & instruction) /*   then if the A/B-register selector bit is set */
+            op_index = op_index + op_size;     /*     then use the second half of the table */
 
-    op_size = op_size * 2;                              /* the primary table is twice the indicated size */
+        op_size = op_size * 2; /* the primary table is twice the indicated size */
     }
 
-if (op_desc.mask && ops [op_index].mnemonic [0])        /* if a primary entry is defined */
-    fputs (ops [op_index].mnemonic, ofile);             /*   then print the mnemonic */
+    if (op_desc.mask && ops[op_index].mnemonic[0]) { /* if a primary entry is defined */
+        fputs(ops[op_index].mnemonic, ofile);        /*   then print the mnemonic */
+    } else {                                         /* otherwise search through the secondary entries */
+        for (op_index = op_size;                     /*   starting after the primary entries */
+             ops[op_index].mnemonic != NULL;         /*     until the NULL entry at the end */
+             op_index++) {
+            if (ops[op_index].opcode ==                  /* if the opcode in this table entry */
+                (instruction                             /*   matches the instruction */
+                 & ops[op_index].op_bits                 /*     masked to the significant opcode bits */
+                 & op_props[ops[op_index].type].mask)) { /*       and with the operand bits masked off */
+                if (ops[op_index].mnemonic[0]) {         /*         then if the entry is defined */
+                    if (separator)                       /*           then if a separator is needed */
+                        fputc(',', ofile);               /*             then print it */
 
-else {                                                  /* otherwise search through the secondary entries */
-    for (op_index = op_size;                            /*   starting after the primary entries */
-      ops [op_index].mnemonic != NULL;                  /*     until the NULL entry at the end */
-      op_index++)
-        if (ops [op_index].opcode ==                    /* if the opcode in this table entry */
-          (instruction                                  /*   matches the instruction */
-          & ops [op_index].op_bits                      /*     masked to the significant opcode bits */
-          & op_props [ops [op_index].type].mask))       /*       and with the operand bits masked off */
-            if (ops [op_index].mnemonic [0]) {          /*         then if the entry is defined */
-                if (separator)                          /*           then if a separator is needed */
-                    fputc (',', ofile);                 /*             then print it */
+                    fputs(ops[op_index].mnemonic, ofile); /* print the opcode mnemonic */
 
-                fputs (ops [op_index].mnemonic, ofile); /* print the opcode mnemonic */
+                    if (op_desc.mask == OP_LINEAR        /* if multiple matches */
+                        && op_desc.shift == OP_MULTIPLE) /*   are allowed */
+                        separator = TRUE;                /*     then separators will be needed between mnemonics */
 
-                if (op_desc.mask == OP_LINEAR           /* if multiple matches */
-                  && op_desc.shift == OP_MULTIPLE)      /*   are allowed */
-                    separator = TRUE;                   /*     then separators will be needed between mnemonics */
+                    else                                      /* otherwise */
+                        break;                                /*   the search terminates on the first match */
+                } else {                                      /* otherwise this two-word instruction is unimplemented */
+                    fprint_val(ofile, val[0], cpu_dev.dradix, /*   so print the first word */
+                               cpu_dev.dwidth, PV_RZRO);      /*     with the default radix */
 
-                else                                    /* otherwise */
-                    break;                              /*   the search terminates on the first match */
+                    fputc(',', ofile); /* add a separator */
+
+                    fprint_val(ofile, val[1], cpu_dev.dradix, /* print the second word */
+                               cpu_dev.dwidth, PV_RZRO);
+
+                    return SCPE_OK_2_WORDS; /* return success to indicate printing is complete */
                 }
+            }
+        }
 
-            else {                                          /* otherwise this two-word instruction is unimplemented */
-                fprint_val (ofile, val [0], cpu_dev.dradix, /*   so print the first word */
-                            cpu_dev.dwidth, PV_RZRO);       /*     with the default radix */
-
-                fputc (',', ofile);                         /* add a separator */
-
-                fprint_val (ofile, val [1], cpu_dev.dradix, /* print the second word */
-                            cpu_dev.dwidth, PV_RZRO);
-
-                return SCPE_OK_2_WORDS;                     /* return success to indicate printing is complete */
-                }
-
-    if (separator)                                      /* if one or more micro-ops was found */
-        return SCPE_OK;                                 /*   then return, as there are no operands */
-
-    else if (ops [op_index].mnemonic == NULL)           /* otherwise if the opcode was not found */
-        return SCPE_ARG;                                /*   then return error status to print it in octal */
+        if (separator) {    /* if one or more micro-ops was found */
+            return SCPE_OK; /*   then return, as there are no operands */
+        } else {
+            if (ops[op_index].mnemonic == NULL) /* otherwise if the opcode was not found */
+                return SCPE_ARG;                /*   then return error status to print it in octal */
+        }
     }
 
-op_type = ops [op_index].type;                          /* get the type of the instruction operand(s) */
+    op_type = ops[op_index].type; /* get the type of the instruction operand(s) */
 
-op_value = val [0] & ~op_props [op_type].mask;          /* mask the first instruction word to the operand value */
+    op_value = val[0] & ~op_props[op_type].mask; /* mask the first instruction word to the operand value */
 
-op_count = (uint32) op_props [op_type].count;           /* get the number of operands */
-status = (t_stat) - op_props [op_type].count;           /*   and set the initial number of words consumed */
+    op_count = (uint32)op_props[op_type].count;  /* get the number of operands */
+    status   = (t_stat)-op_props[op_type].count; /*   and set the initial number of words consumed */
 
-op_address_set = op_props [op_type].address_set;        /* get the address/data-selector bit set */
+    op_address_set = op_props[op_type].address_set; /* get the address/data-selector bit set */
 
-op_radix = (radix ? radix : cpu_dev.dradix);            /* assume that the (only) operand is data */
+    op_radix = (radix ? radix : cpu_dev.dradix); /* assume that the (only) operand is data */
 
-if (ops [op_index].op_bits > D16_MASK) {                /* if this is a two-word instruction */
-    op_start = 2;                                       /*   then the operands start after the second word */
-    op_count = op_count + 1;                            /*     and extend for an extra word */
-    status = status - 1;                                /*       and consume an additional word */
+    if (ops[op_index].op_bits > D16_MASK) { /* if this is a two-word instruction */
+        op_start = 2;                       /*   then the operands start after the second word */
+        op_count = op_count + 1;            /*     and extend for an extra word */
+        status   = status - 1;              /*       and consume an additional word */
     }
 
-if (op_count > 0 && (addr & VAL_EMPTY)) {               /* if operand words are needed but not loaded */
-    addr = addr & LA_MASK;                              /*   then restore the logical address */
+    if (op_count > 0 && (addr & VAL_EMPTY)) { /* if operand words are needed but not loaded */
+        addr = addr & LA_MASK;                /*   then restore the logical address */
 
-    for (op_index = op_start; op_index <= op_count; op_index++)                 /* starting with the first operand */
-        val [op_index] = mem_fast_read ((HP_WORD) (addr + op_index), dms_ump);  /*   load the operands from memory */
+        for (op_index = op_start; op_index <= op_count; op_index++)             /* starting with the first operand */
+            val[op_index] = mem_fast_read((HP_WORD)(addr + op_index), dms_ump); /*   load the operands from memory */
     }
 
+    switch (op_type) { /* dispatch by the operand type */
 
-switch (op_type) {                                      /* dispatch by the operand type */
-
-    /* no operand */
+        /* no operand */
 
     case opNone:
-        break;                                          /* no formatting needed */
+        break; /* no formatting needed */
 
-
-    /* MRG page bit 10, offset 0000-1777 octal, indirect bit 15 */
+        /* MRG page bit 10, offset 0000-1777 octal, indirect bit 15 */
 
     case opMPOI:
-        if (addr > LA_MAX)                              /* if the instruction location is indeterminate */
-            if (instruction & I_CP)                     /*   then if the current-page bit is set */
-                prefix = " C ";                         /*     then prefix the offset with "C" */
-            else                                        /*   otherwise it's a base-page reference */
-                prefix = " Z ";                         /*     so prefix the offset with "Z" */
+        if (addr > LA_MAX)          /* if the instruction location is indeterminate */
+            if (instruction & I_CP) /*   then if the current-page bit is set */
+                prefix = " C ";     /*     then prefix the offset with "C" */
+            else                    /*   otherwise it's a base-page reference */
+                prefix = " Z ";     /*     so prefix the offset with "Z" */
 
-        else {                                          /* otherwise the address is valid */
-            prefix = " ";                               /*   so use a blank separator */
+        else {            /* otherwise the address is valid */
+            prefix = " "; /*   so use a blank separator */
 
-            if (instruction & I_CP)                     /* if the current-page bit is set */
-                op_value |= addr & I_PAGENO;            /*   then merge the offset with the current page address */
-            }
+            if (instruction & I_CP)          /* if the current-page bit is set */
+                op_value |= addr & I_PAGENO; /*   then merge the offset with the current page address */
+        }
 
-        val [1] = op_value;                             /* set the operand value */
-        op_count = 1;                                   /*   and print only one operand */
+        val[1]   = op_value; /* set the operand value */
+        op_count = 1;        /*   and print only one operand */
         break;
 
-
-    /* IOG hold/clear bit 9 */
+        /* IOG hold/clear bit 9 */
 
     case opHC:
-        if (op_value)                                   /* if the clear-flag bit is set */
-            fputs (" C", ofile);                        /*   then add the "C" to the mnemonic */
+        if (op_value)           /* if the clear-flag bit is set */
+            fputs(" C", ofile); /*   then add the "C" to the mnemonic */
         break;
 
-
-    /* IOG select code range 00-77 octal, hold/clear bit 9 */
-    /* IOG optional select code range 00-77 octal, hold/clear bit 9 */
+        /* IOG select code range 00-77 octal, hold/clear bit 9 */
+        /* IOG optional select code range 00-77 octal, hold/clear bit 9 */
 
     case opSCHC:
     case opSCOHC:
-        clear = (instruction & I_HC);                   /* set TRUE if the clear-flag bit is set */
+        clear = (instruction & I_HC); /* set TRUE if the clear-flag bit is set */
 
-    /* fall into the opSC case */
+        /* fall into the opSC case */
 
-    /* IOG select code range 00-77 octal */
+        /* IOG select code range 00-77 octal */
 
     case opSC:
-        prefix = " ";                                   /* add a separator */
-        val [1] = op_value;                             /*   and set the operand value */
-        op_count = 1;                                   /*     and print only one operand */
+        prefix   = " ";      /* add a separator */
+        val[1]   = op_value; /*   and set the operand value */
+        op_count = 1;        /*     and print only one operand */
         break;
 
-
-    /* EAU shift/rotate count range 1-16 */
+        /* EAU shift/rotate count range 1-16 */
 
     case opShift:
-        prefix = " ";                                   /* add a separator */
-        op_radix = (radix ? radix : 10);                /*   and default the shift counts to decimal */
+        prefix   = " ";                  /* add a separator */
+        op_radix = (radix ? radix : 10); /*   and default the shift counts to decimal */
 
-        if (op_value == 0)                              /* if the operand is zero */
-            val [1] = 16;                               /*   then the shift count is 16 */
-        else                                            /* otherwise */
-            val [1] = op_value;                         /*   then shift count is the operand value */
+        if (op_value == 0)     /* if the operand is zero */
+            val[1] = 16;       /*   then the shift count is 16 */
+        else                   /* otherwise */
+            val[1] = op_value; /*   then shift count is the operand value */
 
-        op_count = 1;                                   /* print only one operand */
+        op_count = 1; /* print only one operand */
         break;
 
-
-    /* IOP index negative offset range 1-20 octal */
+        /* IOP index negative offset range 1-20 octal */
 
     case opIOPON:
-        prefix = " -";                                  /* prefix the operand with the sign */
-        val [1] = 16 - op_value;                        /*   and set the (absolute) offset */
+        prefix = " -";          /* prefix the operand with the sign */
+        val[1] = 16 - op_value; /*   and set the (absolute) offset */
 
-        op_radix = (radix ? radix : 10);                /* default the offset to decimal */
-        op_count = 1;                                   /*   and print only one operand */
+        op_radix = (radix ? radix : 10); /* default the offset to decimal */
+        op_count = 1;                    /*   and print only one operand */
         break;
 
-
-    /* IOP index positive offset range 0-17 octal */
+        /* IOP index positive offset range 0-17 octal */
 
     case opIOPOP:
-        prefix = " ";                                   /* add a separator */
-        val [1] = op_value;                             /*   and set the (positive) offset */
+        prefix = " ";      /* add a separator */
+        val[1] = op_value; /*   and set the (positive) offset */
 
-        op_radix = (radix ? radix : 10);                /* default the offset to decimal */
-        op_count = 1;                                   /*   and print only one operand */
+        op_radix = (radix ? radix : 10); /* default the offset to decimal */
+        op_count = 1;                    /*   and print only one operand */
         break;
 
-
-    /* IOP index offset range 0-37 octal (+20 bias) */
+        /* IOP index offset range 0-37 octal (+20 bias) */
 
     case opIOPO:
-        if (op_value >= 020) {                          /* if the operand is positive */
-            prefix = " ";                               /*   then omit the sign */
-            val [1] = op_value - 020;                   /*     and remove the bias */
-            }
+        if (op_value >= 020) {       /* if the operand is positive */
+            prefix = " ";            /*   then omit the sign */
+            val[1] = op_value - 020; /*     and remove the bias */
+        }
 
-        else {                                          /* otherwise the operand is negative */
-            prefix = " -";                              /*   so prefix a minus sign */
-            val [1] = 020 - op_value;                   /*     and remove the bias to get the absolute value */
-            }
+        else {                       /* otherwise the operand is negative */
+            prefix = " -";           /*   so prefix a minus sign */
+            val[1] = 020 - op_value; /*     and remove the bias to get the absolute value */
+        }
 
-        op_radix = (radix ? radix : 10);                /* default the offset to decimal */
-        op_count = 1;                                   /*   and print only one operand */
+        op_radix = (radix ? radix : 10); /* default the offset to decimal */
+        op_count = 1;                    /*   and print only one operand */
         break;
 
-
-    /* UIG zero word, four (indirect) memory addresses */
-    /* UIG zero word, five (indirect) memory addresses */
-    /* UIG zero word, six (indirect) memory addresses */
-    /* UIG zero word, eight (indirect) memory addresses */
+        /* UIG zero word, four (indirect) memory addresses */
+        /* UIG zero word, five (indirect) memory addresses */
+        /* UIG zero word, six (indirect) memory addresses */
+        /* UIG zero word, eight (indirect) memory addresses */
 
     case opZA4:
     case opZA5:
     case opZA6:
     case opZA8:
-        prefix = " ";                                   /* add a separator */
-        op_start = 2;                                   /*   and skip the all-zeros word */
+        prefix   = " "; /* add a separator */
+        op_start = 2;   /*   and skip the all-zeros word */
         break;
 
-
-    /* One memory address range 00000-77777 octal, zero word, indirect bit 15 */
+        /* One memory address range 00000-77777 octal, zero word, indirect bit 15 */
 
     case opMA1ZI:
-        prefix = " ";                                   /* add a separator */
-        op_count = 1;                                   /*   and print only one operand */
+        prefix   = " "; /* add a separator */
+        op_count = 1;   /*   and print only one operand */
         break;
 
-
-    /* One to seven memory addresses range 00000-77777 octal, indirect bit 15 */
+        /* One to seven memory addresses range 00000-77777 octal, indirect bit 15 */
 
     case opMA1I:
     case opMA2I:
@@ -4308,49 +4304,47 @@ switch (op_type) {                                      /* dispatch by the opera
     case opMA6I:
     case opMA7I:
 
-    /* UIG one data value */
-    /* UIG two data values */
-    /* UIG one (indirect) memory address, one data value */
-    /* UIG two data values, one (indirect) memory address */
-    /* UIG one data value, five (indirect) memory addresses */
+        /* UIG one data value */
+        /* UIG two data values */
+        /* UIG one (indirect) memory address, one data value */
+        /* UIG two data values, one (indirect) memory address */
+        /* UIG one data value, five (indirect) memory addresses */
 
     case opV1:
     case opV2:
     case opA1V1:
     case opV2A1:
     case opV1A5:
-        prefix = " ";                                   /* add a separator */
+        prefix = " "; /* add a separator */
         break;
-    }                                                   /* end of the operand type dispatch */
+    } /* end of the operand type dispatch */
 
+    if (prefix)                    /* if an operand is present */
+        for (op_index = op_start;  /*   then format the operands */
+             op_index <= op_count; /*     starting with the first operand word */
+             op_index++) {
+            fputs(prefix, ofile); /* print the operand prefix or separator */
 
-if (prefix)                                             /* if an operand is present */
-    for (op_index = op_start;                           /*   then format the operands */
-      op_index <= op_count;                             /*     starting with the first operand word */
-      op_index++) {
-        fputs (prefix, ofile);                          /* print the operand prefix or separator */
+            if (op_address_set & 1) {                          /* if this operand is an address */
+                fprint_val(ofile, val[op_index] & LA_MASK,     /*   then print the logical address */
+                           cpu_dev.aradix, LA_WIDTH, PV_LEFT); /*     using the address radix */
 
-        if (op_address_set & 1) {                           /* if this operand is an address */
-            fprint_val (ofile, val [op_index] & LA_MASK,    /*   then print the logical address */
-                        cpu_dev.aradix, LA_WIDTH, PV_LEFT); /*     using the address radix */
-
-            if (val [op_index] & I_IA)                  /* add an indirect indicator */
-                fputs (",I", ofile);                    /*   if specified by the operand */
+                if (val[op_index] & I_IA) /* add an indirect indicator */
+                    fputs(",I", ofile);   /*   if specified by the operand */
             }
 
-        else                                            /* otherwise it's a data value */
-            fprint_value (ofile, val [op_index],        /*  so print the full value */
-                          op_radix, DV_WIDTH, PV_LEFT); /*    using the specified radix */
+            else                                           /* otherwise it's a data value */
+                fprint_value(ofile, val[op_index],         /*  so print the full value */
+                             op_radix, DV_WIDTH, PV_LEFT); /*    using the specified radix */
 
-        op_address_set = op_address_set >> 1;           /* shift the next address/data flag bit into place */
-        }                                               /*   and loop until all operands are printed */
+            op_address_set = op_address_set >> 1; /* shift the next address/data flag bit into place */
+        }                                         /*   and loop until all operands are printed */
 
-if (clear)                                              /* add a clear-flag indicator */
-    fputs (",C", ofile);                                /*   if specified by the instruction */
+    if (clear)              /* add a clear-flag indicator */
+        fputs(",C", ofile); /*   if specified by the instruction */
 
-return status;                                          /* return the number of words consumed */
+    return status; /* return the number of words consumed */
 }
-
 
 /* Parse an address operand.
 
@@ -4752,7 +4746,7 @@ else {                                                  /* otherwise, it's a sin
 
             else if (addr <= LA_MAX && op_implicit              /* otherwise if an implicit-page address is allowed */
               && ((addr ^ op_value) & I_PAGENO) == 0)           /*   and the target is in the current page */
-                val [0] |= I_CP | op_value & (I_IA | I_DISP);   /*     then merge the offset with the current-page flag */
+                val [0] |= I_CP | (op_value & (I_IA | I_DISP)); /*     then merge the offset with the current-page flag */
 
             else                                            /* otherwise the address cannot be reached */
                 return SCPE_ARG;                            /*   from the current instruction's location */
@@ -4774,42 +4768,41 @@ else {                                                  /* otherwise, it's a sin
             cptr = get_glyph (cptr, gbuf, (op_flag ? ',' : '\0'));      /* get the next glyph */
             op_value = get_uint (gbuf, op_radix, I_DEVMASK, &status);   /*   and parse the select code */
 
-            if (status == SCPE_OK)                      /* if the select code is good */
-                val [0] |= op_value;                    /*   then merge it into the opcode */
-
-            else if (op_type == opSCOHC)                /* otherwise if the select code is optional */
-                if (gbuf [0] == '\0')                   /*   then if it is not supplied */
-                    break;                              /*     then use the base instruction value */
-
-                else if (gbuf [0] == 'C' && gbuf [1] == '\0') { /*   otherwise if the "C" modifier was specified */
-                    val [0] |= I_HC;                            /*     then merge the H/C bit */
-                    break;                                      /*       into the base instruction value */
+            if (status == SCPE_OK) { /* if the select code is good */
+                val[0] |= op_value;  /*   then merge it into the opcode */
+            } else {
+                if (op_type == opSCOHC) {  /* otherwise if the select code is optional */
+                    if (gbuf[0] == '\0') { /*   then if it is not supplied */
+                        break;             /*     then use the base instruction value */
+                    } else {
+                        if (gbuf[0] == 'C' && gbuf[1] == '\0') { /*   otherwise if the "C" modifier was specified */
+                            val[0] |= I_HC;                      /*     then merge the H/C bit */
+                            break;                               /*       into the base instruction value */
+                        } else               /* otherwise the select code is bad */
+                            return SCPE_ARG; /*   so report failure for a bad argument */
                     }
-
-            else                                        /* otherwise the select code is bad */
-                return SCPE_ARG;                        /*   so report failure for a bad argument */
+                }
+            }
 
         /* fall into opHC case */
 
         /* IOG hold/clear bit 9 */
 
         case opHC:
-            if (*cptr != '\0')                                  /* if there is more */
-                if (op_type != opSC) {                          /*   and it is expected */
-                    cptr = get_glyph (cptr, gbuf, '\0');        /*     then get the glyph */
+            if (*cptr != '\0') {                        /* if there is more */
+                if (op_type != opSC) {                  /*   and it is expected */
+                    cptr = get_glyph(cptr, gbuf, '\0'); /*     then get the glyph */
 
-                    if (gbuf [0] == 'C' && gbuf [1] == '\0')    /* if the "C" modifier was specified */
-                        val [0] |= I_HC;                        /*   then merge the H/C bit */
-                    else                                        /* otherwise it's something else */
-                        return SCPE_ARG;                        /*   so report failure for a bad argument */
-                    }
-
-                else                                    /* otherwise it's not expected */
-                    return SCPE_ARG;                    /*   so report failure for a bad argument */
+                    if (gbuf[0] == 'C' && gbuf[1] == '\0') /* if the "C" modifier was specified */
+                        val[0] |= I_HC;                    /*   then merge the H/C bit */
+                    else                                   /* otherwise it's something else */
+                        return SCPE_ARG;                   /*   so report failure for a bad argument */
+                } else                                     /* otherwise it's not expected */
+                    return SCPE_ARG;                       /*   so report failure for a bad argument */
+            }
             break;
 
-
-        /* EAU shift/rotate count range 1-16 */
+            /* EAU shift/rotate count range 1-16 */
 
         case opShift:
             op_radix = (radix ? radix : 10);            /* shift counts default to decimal */

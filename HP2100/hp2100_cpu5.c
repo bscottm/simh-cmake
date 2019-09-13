@@ -624,7 +624,7 @@ if (!p30)                                               /* matched suit for 1st 
  * must be in idx 0 of PTE */
 if (pgidx==01777) {                                     /* suit switch situation */
     pgidx = 0;                                          /* select correct idx 0 */
-    suit = (HP_WORD) (pagid + 1 & D16_MASK);            /* suit needs increment with wraparound */
+    suit = (HP_WORD) ((pagid + 1) & D16_MASK);          /* suit needs increment with wraparound */
     if (suit==0) {                                      /* is it page 65536? */
         offset += 02000;                                /* adjust to 2nd page */
         suit = NILPAGE;
@@ -923,141 +923,142 @@ static const OP_PAT op_vma[16] = {
   OP_AA,   OP_A,      OP_A,    OP_N                     /* .LPXR  .LPX   .LBPR  .LBP   */
   };
 
-t_stat cpu_rte_vma (uint32 IR, uint32 intrq)
+t_stat
+cpu_rte_vma(uint32 IR, uint32 intrq)
 {
-static const char *const no [2] = { "",     "no " };
+    static const char *const no[2] = {"", "no "};
 
-t_stat reason = SCPE_OK;
-OPS op;
-OP_PAT pattern;
-HP_WORD t16;
-uint32 entry,t32,ndim;
-uint32 dtbl,atbl;                                       /* descriptor table ptr, actual args ptr */
-OP dop0,dop1;
-uint32 pcsave = (PR+1) & VAMASK;                        /* save P to check for redo in imap/jmap */
+    t_stat  reason = SCPE_OK;
+    OPS     op;
+    OP_PAT  pattern;
+    HP_WORD t16;
+    uint32  entry, t32, ndim;
+    uint32  dtbl, atbl; /* descriptor table ptr, actual args ptr */
+    OP      dop0, dop1;
+    uint32  pcsave = (PR + 1) & VAMASK; /* save P to check for redo in imap/jmap */
 
-entry = IR & 017;                                       /* mask to entry point */
-pattern = op_vma[entry];                                /* get operand pattern */
+    entry   = IR & 017;      /* mask to entry point */
+    pattern = op_vma[entry]; /* get operand pattern */
 
-if (pattern != OP_N) {
-    reason = cpu_ops (pattern, op, intrq);              /* get instruction operands */
-    if (reason != SCPE_OK)                              /* evaluation failed? */
-        return reason;                                  /* return reason for failure */
+    if (pattern != OP_N) {
+        reason = cpu_ops(pattern, op, intrq); /* get instruction operands */
+        if (reason != SCPE_OK)                /* evaluation failed? */
+            return reason;                    /* return reason for failure */
     }
 
-switch (entry) {                                        /* decode IR<3:0> */
+    switch (entry) { /* decode IR<3:0> */
 
-    case 000:                                           /* .PMAP 105240 (OP_N) */
-        reason = cpu_vma_pmap (IR, AR, BR);             /* map pages */
+    case 000:                              /* .PMAP 105240 (OP_N) */
+        reason = cpu_vma_pmap(IR, AR, BR); /* map pages */
 
-        if (PR - err_PC <= 2)
-            tprintf (cpu_dev, TRACE_OPND, OPND_FORMAT "  return location is P+%u (%serror)\n",
-                     PR, IR, PR - err_PC, no [PR - err_PC - 1]);
+        if (PR - err_PC <= 2) {
+            tprintf(cpu_dev, TRACE_OPND, OPND_FORMAT "  return location is P+%u (%serror)\n", PR, IR, PR - err_PC,
+                    no[PR - err_PC - 1]);
+        }
         break;
 
-    case 001:                                           /* $LOC  105241 (OP_CCCACC) */
-        reason = cpu_vma_loc(IR, op,intrq);             /* handle the coroutine switch */
+    case 001:                                /* $LOC  105241 (OP_CCCACC) */
+        reason = cpu_vma_loc(IR, op, intrq); /* handle the coroutine switch */
         break;
 
-    case 002:                                           /* [test] 105242 (OP_N) */
-        XR = 3;                                         /* refer to src code 92084-18828 rev 3 */
-        SR = 0102077;                                   /* HLT 77 instruction */
-        YR = 1;                                         /* ROMs correctly installed */
-        PR = (PR+1) & VAMASK;                           /* skip instr if VMA/EMA ROM installed */
+    case 002:                   /* [test] 105242 (OP_N) */
+        XR = 3;                 /* refer to src code 92084-18828 rev 3 */
+        SR = 0102077;           /* HLT 77 instruction */
+        YR = 1;                 /* ROMs correctly installed */
+        PR = (PR + 1) & VAMASK; /* skip instr if VMA/EMA ROM installed */
         break;
 
-    case 003:                                           /* [swap] 105243 (OP_N) */
-        t16 = AR;                                       /* swap A and B registers */
-        AR = BR;
-        BR = t16;
+    case 003:     /* [swap] 105243 (OP_N) */
+        t16 = AR; /* swap A and B registers */
+        AR  = BR;
+        BR  = t16;
         break;
 
-    case 004:                                           /* [---] 105244 (OP_N) */
-        reason = STOP (cpu_ss_unimpl);                  /* fragment of dead code */
-        break;                                          /* in microrom */
+    case 004:                         /* [---] 105244 (OP_N) */
+        reason = STOP(cpu_ss_unimpl); /* fragment of dead code */
+        break;                        /* in microrom */
 
-    case 005:                                           /* [---] 105245 (OP_N) */
-        reason = STOP (cpu_ss_unimpl);                  /* fragment of dead code */
-        break;                                          /* in microrom */
+    case 005:                         /* [---] 105245 (OP_N) */
+        reason = STOP(cpu_ss_unimpl); /* fragment of dead code */
+        break;                        /* in microrom */
 
-    case 006:                                           /* [nop] 105246 (OP_N) */
-        break;                                          /* do nothing */
+    case 006:  /* [nop] 105246 (OP_N) */
+        break; /* do nothing */
 
-    case 007:                                           /* [umpy] 105247 (OP_K) */
-        t32 = AR * op[0].word;                          /* get multiplier */
-        t32 += BR;                                      /* add B */
-        AR = (t32 >> 16) & DMASK;                       /* move result back to AB */
+    case 007:                     /* [umpy] 105247 (OP_K) */
+        t32 = AR * op[0].word;    /* get multiplier */
+        t32 += BR;                /* add B */
+        AR = (t32 >> 16) & DMASK; /* move result back to AB */
         BR = t32 & DMASK;
-        O = 0;                                          /* instr clears OV */
+        O  = 0; /* instr clears OV */
         break;
 
-    case 010:                                           /* .IMAP 105250 (OP_A) */
-        dtbl = op[0].word;
-        atbl = PR;
-        reason = cpu_vma_ijmar(IR, in_s,dtbl,atbl,&ndim,intrq);   /* calc the virt address to AB */
+    case 010: /* .IMAP 105250 (OP_A) */
+        dtbl   = op[0].word;
+        atbl   = PR;
+        reason = cpu_vma_ijmar(IR, in_s, dtbl, atbl, &ndim, intrq); /* calc the virt address to AB */
         if (reason)
             return reason;
-        t32 = (AR << 16) | (BR & DMASK);
-        reason = cpu_vma_lbp(IR, t32,0,PR-2,intrq);
+        t32    = (AR << 16) | (BR & DMASK);
+        reason = cpu_vma_lbp(IR, t32, 0, PR - 2, intrq);
         if (reason)
             return reason;
-        if (PR==pcsave)
-            PR = (PR+ndim) & VAMASK;                    /* adjust P: skip ndim subscript words */
+        if (PR == pcsave)
+            PR = (PR + ndim) & VAMASK; /* adjust P: skip ndim subscript words */
         break;
 
-    case 011:                                           /* .IMAR 105251 (OP_A) */
-        dtbl = ReadW(op[0].word);
-        atbl = (op[0].word+1) & VAMASK;
-        reason = cpu_vma_ijmar(IR, in_s,dtbl,atbl,0,intrq); /* calc the virt address to AB */
-    break;
+    case 011: /* .IMAR 105251 (OP_A) */
+        dtbl   = ReadW(op[0].word);
+        atbl   = (op[0].word + 1) & VAMASK;
+        reason = cpu_vma_ijmar(IR, in_s, dtbl, atbl, 0, intrq); /* calc the virt address to AB */
+        break;
 
-    case 012:                                           /* .JMAP 105252 (OP_A) */
-        dtbl = op[0].word;
-        atbl = PR;
-        reason = cpu_vma_ijmar(IR, in_d,dtbl,atbl,&ndim,intrq);   /* calc the virtual address to AB */
+    case 012: /* .JMAP 105252 (OP_A) */
+        dtbl   = op[0].word;
+        atbl   = PR;
+        reason = cpu_vma_ijmar(IR, in_d, dtbl, atbl, &ndim, intrq); /* calc the virtual address to AB */
         if (reason)
             return reason;
-        t32 = (AR << 16) | (BR & DMASK);
-        reason = cpu_vma_lbp(IR, t32,0,PR-2,intrq);
+        t32    = (AR << 16) | (BR & DMASK);
+        reason = cpu_vma_lbp(IR, t32, 0, PR - 2, intrq);
         if (reason)
             return reason;
-        if (PR==pcsave)
-            PR = (PR + ndim) & VAMASK;                  /* adjust P: skip ndim subscript dword ptr */
+        if (PR == pcsave)
+            PR = (PR + ndim) & VAMASK; /* adjust P: skip ndim subscript dword ptr */
         break;
 
-    case 013:                                           /* .JMAR 105253 (OP_A) */
-        dtbl = ReadW(op[0].word);
-        atbl = (op[0].word+1) & VAMASK;
-        reason = cpu_vma_ijmar(IR, in_d,dtbl,atbl,0,intrq); /* calc the virt address to AB */
+    case 013: /* .JMAR 105253 (OP_A) */
+        dtbl   = ReadW(op[0].word);
+        atbl   = (op[0].word + 1) & VAMASK;
+        reason = cpu_vma_ijmar(IR, in_d, dtbl, atbl, 0, intrq); /* calc the virt address to AB */
         break;
 
-    case 014:                                           /* .LPXR 105254 (OP_AA) */
-        dop0 = ReadOp(op[0].word,in_d);                 /* get pointer from arg */
-        dop1 = ReadOp(op[1].word,in_d);
-        t32 = dop0.dword + dop1.dword;                  /* add offset to it */
-        reason = cpu_vma_lbp(IR, t32,0,PR-3,intrq);
+    case 014:                              /* .LPXR 105254 (OP_AA) */
+        dop0   = ReadOp(op[0].word, in_d); /* get pointer from arg */
+        dop1   = ReadOp(op[1].word, in_d);
+        t32    = dop0.dword + dop1.dword; /* add offset to it */
+        reason = cpu_vma_lbp(IR, t32, 0, PR - 3, intrq);
         break;
 
-    case 015:                                           /* .LPX  105255 (OP_A) */
-        t32 = (AR << 16) | (BR & DMASK);                /* pointer in AB */
-        dop0 = ReadOp(op[0].word,in_d);
-        reason = cpu_vma_lbp(IR, t32,dop0.dword,PR-2,intrq);
+    case 015:                               /* .LPX  105255 (OP_A) */
+        t32    = (AR << 16) | (BR & DMASK); /* pointer in AB */
+        dop0   = ReadOp(op[0].word, in_d);
+        reason = cpu_vma_lbp(IR, t32, dop0.dword, PR - 2, intrq);
         break;
 
-    case 016:                                           /* .LBPR 105256 (OP_A) */
-        dop0 = ReadOp(op[0].word,in_d);                 /* get the pointer */
-        reason = cpu_vma_lbp(IR, dop0.dword,0,PR-2,intrq);
+    case 016:                              /* .LBPR 105256 (OP_A) */
+        dop0   = ReadOp(op[0].word, in_d); /* get the pointer */
+        reason = cpu_vma_lbp(IR, dop0.dword, 0, PR - 2, intrq);
         break;
 
-    case 017:                                           /* .LBP  105257 (OP_N) */
-        t32 = (AR << 16) | (BR & DMASK);
-        reason = cpu_vma_lbp(IR, t32,0,PR-1,intrq);
+    case 017: /* .LBP  105257 (OP_N) */
+        t32    = (AR << 16) | (BR & DMASK);
+        reason = cpu_vma_lbp(IR, t32, 0, PR - 1, intrq);
         break;
     }
 
-return reason;
+    return reason;
 }
-
 
 /* calculate the 32 bit EMA subscript for an array */
 static t_bool cpu_ema_resolve(uint32 dtbl,uint32 atbl,uint32* sum)

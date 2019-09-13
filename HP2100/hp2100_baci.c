@@ -542,227 +542,212 @@ DEVICE baci_dev = {
        would be cleared, and the interrupt would be lost.
 */
 
-uint32 baci_io (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+uint32
+baci_io (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-const char *hold_or_clear = (signal_set & ioCLF ? ",C" : "");
-uint8 ch;
-uint16 data;
-uint32 mask;
-IOSIGNAL signal;
-IOCYCLE  working_set = IOADDSIR (signal_set);           /* add ioSIR if needed */
+    const char *hold_or_clear = (signal_set & ioCLF ? ",C" : "");
+    uint8       ch;
+    uint16      data;
+    uint32      mask;
+    IOSIGNAL    signal;
+    IOCYCLE     working_set = IOADDSIR (signal_set);       /* add ioSIR if needed */
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate next signal */
+    while (working_set) {
+        signal = IONEXT (working_set);                     /* isolate next signal */
 
-    switch (signal) {                                   /* dispatch I/O signal */
+        switch (signal) { /* dispatch I/O signal */
 
-        case ioCLF:                                     /* clear flag flip-flop */
-            baci.flag = baci.flagbuf = CLEAR;           /* clear flag and flag buffer */
-            baci.srq = CLEAR;                           /* clear SRQ */
+        case ioCLF:                           /* clear flag flip-flop */
+            baci.flag = baci.flagbuf = CLEAR; /* clear flag and flag buffer */
+            baci.srq                 = CLEAR; /* clear SRQ */
 
             tprintf (baci_dev, DEB_CMDS, "[CLF] Flag and SRQ cleared\n");
 
-            update_status ();                           /* FLG might set when SRQ clears */
+            update_status (); /* FLG might set when SRQ clears */
             break;
 
-
-        case ioSTF:                                     /* set flag flip-flop */
-            baci.flag = baci.flagbuf = SET;             /* set flag and flag buffer */
-            baci.lockout = SET;                         /* set lockout */
-            baci.srq = SET;                             /* set SRQ */
+        case ioSTF:                         /* set flag flip-flop */
+            baci.flag = baci.flagbuf = SET; /* set flag and flag buffer */
+            baci.lockout             = SET; /* set lockout */
+            baci.srq                 = SET; /* set SRQ */
 
             tprintf (baci_dev, DEB_CMDS, "[STF] Flag, SRQ, and lockout set\n");
             break;
 
-
-        case ioENF:                                     /* enable flag */
-            baci.flag = baci.flagbuf = SET;             /* set device flag and flag buffer */
-            baci.lockout = SET;                         /* set lockout */
+        case ioENF:                         /* enable flag */
+            baci.flag = baci.flagbuf = SET; /* set device flag and flag buffer */
+            baci.lockout             = SET; /* set lockout */
             break;
 
-
-        case ioSFC:                                     /* skip if flag is clear */
+        case ioSFC: /* skip if flag is clear */
             setstdSKF (baci);
             break;
 
-
-        case ioSFS:                                     /* skip if flag is set */
+        case ioSFS: /* skip if flag is set */
             setstdSKF (baci);
             break;
 
+        case ioIOI:                                   /* I/O data input */
+            if (baci.control) {                       /* control set? */
+                baci_ibuf = TO_CHARCNT (baci_fcount); /* get FIFO count */
 
-        case ioIOI:                                         /* I/O data input */
-            if (baci.control) {                             /* control set? */
-                baci_ibuf = TO_CHARCNT (baci_fcount);       /* get FIFO count */
+                if (IO_MODE == RECV)                     /* receiving? */
+                    baci_ibuf = baci_ibuf | fifo_get (); /* add char and validity flag */
 
-                if (IO_MODE == RECV)                        /* receiving? */
-                    baci_ibuf = baci_ibuf | fifo_get ();    /* add char and validity flag */
+                data = baci_ibuf; /* return received data */
 
-                data = baci_ibuf;                           /* return received data */
+                tprintf (baci_dev, DEB_CPU, "[LIx%s] Received data = %06o\n", hold_or_clear, baci_ibuf);
+            } else {                  /* control clear? */
+                data = baci_status; /* return status */
 
-                tprintf (baci_dev, DEB_CPU, "[LIx%s] Received data = %06o\n",
-                         hold_or_clear, baci_ibuf);
-                }
+                tprintf (baci_dev, DEB_CPU, "[LIx%s] Status = %06o\n", hold_or_clear, baci_status);
+            }
 
-            else {                                          /* control clear? */
-                data = baci_status;                         /* return status */
-
-                tprintf (baci_dev, DEB_CPU, "[LIx%s] Status = %06o\n",
-                         hold_or_clear, baci_status);
-                }
-
-            stat_data = IORETURN (SCPE_OK, data);           /* merge in return status */
+            stat_data = IORETURN (SCPE_OK, data); /* merge in return status */
             break;
 
+        case ioIOO:                         /* I/O data output */
+            baci_obuf = IODATA (stat_data); /* get data value */
 
-        case ioIOO:                                         /* I/O data output */
-            baci_obuf = IODATA (stat_data);                 /* get data value */
+            tprintf (baci_dev, DEB_CPU, "[OTx%s] Command = %06o\n", hold_or_clear, baci_obuf);
 
-            tprintf (baci_dev, DEB_CPU, "[OTx%s] Command = %06o\n",
-                     hold_or_clear, baci_obuf);
-
-            if (baci_obuf & OUT_MR) {                       /* master reset? */
-                master_reset ();                            /* do before processing */
-                baci_io (&baci_dib, ioSIR, 0);              /* set interrupt request */
+            if (baci_obuf & OUT_MR) {          /* master reset? */
+                master_reset ();               /* do before processing */
+                baci_io (&baci_dib, ioSIR, 0); /* set interrupt request */
 
                 tprintf (baci_dev, DEB_CMDS, "[OTx%s] Master reset\n", hold_or_clear);
+            }
+
+            switch (GET_ID (baci_obuf)) { /* isolate ID code */
+
+            case 0:                            /* transmit data */
+                if (IO_MODE == XMIT) {         /* transmitting? */
+                    ch = baci_obuf & OUT_DATA; /* mask to character */
+                    fifo_put (ch);             /* queue character */
+
+                    if (baci_term.flags & UNIT_ATT) {          /* attached to network? */
+                        if (TRACING (baci_dev, DEB_CMDS) &&    /* debugging? */
+                            (sim_is_active (&baci_term) == 0)) /* service stopped? */
+                            hp_trace (&baci_dev, DEB_CMDS,
+                                      "[OTx%s] Terminal service scheduled, "
+                                      "time = %d\n",
+                                      hold_or_clear, baci_term.wait);
+
+                        if (baci_fcount == 1)             /* first char to xmit? */
+                            sim_activate_abs (&baci_term, /* start service with full char time */
+                                              baci_term.wait);
+                        else
+                            sim_activate (&baci_term, /* start service if not running */
+                                          baci_term.wait);
+                    }
+                }
+                break;
+
+            case 1:                     /* enable device status interrupt */
+                baci_edsiw = baci_obuf; /* load new enable word */
+                update_status ();       /* may have enabled an interrupt */
+                break;
+
+            case 2:                                  /* device status reference */
+                if ((baci_term.flags & UNIT_DIAG) && /* diagnostic mode? */
+                    (baci_dsrw & OUT_DIAG) &&        /*   and last DIAG was high? */
+                    !(baci_obuf & OUT_DIAG) &&       /*   and new DIAG is low? */
+                    !(baci_icw & OUT_BAUDRATE))      /*   and clock is external? */
+                    clock_uart ();                   /* pulse UART clock */
+
+                baci_dsrw = baci_obuf; /* load new reference word */
+                update_status ();      /* clocking UART may interrupt */
+                break;
+
+            case 3:                    /* character frame control */
+                baci_cfcw = baci_obuf; /* load new frame word */
+                break;
+
+            case 4:                                            /* interface control */
+                if ((baci_icw ^ baci_obuf) & OUT_BAUDRATE) {   /* baud rate change? */
+                    baci_term.wait = service_time (baci_obuf); /* set service time to match rate */
+
+                    if (baci_term.flags & UNIT_DIAG) {  /* diagnostic mode? */
+                        if (baci_obuf & OUT_BAUDRATE) { /* internal baud rate requested? */
+                            sim_activate (&baci_term,   /* activate I/O service */
+                                          baci_term.wait);
+
+                            tprintf (baci_dev, DEB_CMDS,
+                                     "[OTx%s] Terminal service scheduled, "
+                                     "time = %d\n",
+                                     hold_or_clear, baci_term.wait);
+                        } else {                       /* external rate */
+                            sim_cancel (&baci_term);   /* stop I/O service */
+
+                            tprintf (baci_dev, DEB_CMDS, "[OTx%s] Terminal service stopped\n", hold_or_clear);
+                        }
+		    }
                 }
 
-            switch (GET_ID (baci_obuf)) {                   /* isolate ID code */
+                baci_icw = baci_obuf; /* load new reference word */
+                update_status ();     /* loopback may change status */
+                break;
 
-                case 0:                                     /* transmit data */
-                    if (IO_MODE == XMIT) {                  /* transmitting? */
-                        ch = baci_obuf & OUT_DATA;          /* mask to character */
-                        fifo_put (ch);                      /* queue character */
+            case 5:                    /* interrupt status reset */
+                baci_isrw = baci_obuf; /* load new reset word */
 
-                        if (baci_term.flags & UNIT_ATT) {           /* attached to network? */
-                            if (TRACING (baci_dev, DEB_CMDS) &&     /* debugging? */
-                                (sim_is_active (&baci_term) == 0))  /* service stopped? */
-                                hp_trace (&baci_dev, DEB_CMDS, "[OTx%s] Terminal service scheduled, "
-                                                               "time = %d\n", hold_or_clear, baci_term.wait);
+                mask = (baci_isrw & OUT_IRQCLR) << /* form reset mask */
+                       IN_V_IRQCLR;                /*   for common irqs */
 
-                            if (baci_fcount == 1)                   /* first char to xmit? */
-                                sim_activate_abs (&baci_term,       /* start service with full char time */
-                                                  baci_term.wait);
-                            else
-                                sim_activate (&baci_term,           /* start service if not running */
-                                              baci_term.wait);
-                            }
-                        }
-                    break;
+                if (baci_isrw & OUT_CSC)     /* add special char mask bit */
+                    mask = mask | IN_SPCHAR; /*   if requested */
 
-                case 1:                                     /* enable device status interrupt */
-                    baci_edsiw = baci_obuf;                 /* load new enable word */
-                    update_status ();                       /* may have enabled an interrupt */
-                    break;
+                baci_status = baci_status & ~mask; /* clear specified status bits */
+                break;
 
-                case 2:                                     /* device status reference */
-                    if ((baci_term.flags & UNIT_DIAG) &&    /* diagnostic mode? */
-                        (baci_dsrw & OUT_DIAG) &&           /*   and last DIAG was high? */
-                        !(baci_obuf & OUT_DIAG) &&          /*   and new DIAG is low? */
-                        !(baci_icw & OUT_BAUDRATE))         /*   and clock is external? */
-                        clock_uart ();                      /* pulse UART clock */
-
-                    baci_dsrw = baci_obuf;                  /* load new reference word */
-                    update_status ();                       /* clocking UART may interrupt */
-                    break;
-
-                case 3:                                     /* character frame control */
-                    baci_cfcw = baci_obuf;                  /* load new frame word */
-                    break;
-
-                case 4:                                         /* interface control */
-                    if ((baci_icw ^ baci_obuf) & OUT_BAUDRATE) {    /* baud rate change? */
-                        baci_term.wait = service_time (baci_obuf);  /* set service time to match rate */
-
-                        if (baci_term.flags & UNIT_DIAG)        /* diagnostic mode? */
-                            if (baci_obuf & OUT_BAUDRATE) {     /* internal baud rate requested? */
-                                sim_activate (&baci_term,       /* activate I/O service */
-                                              baci_term.wait);
-
-                                tprintf (baci_dev, DEB_CMDS, "[OTx%s] Terminal service scheduled, "
-                                                             "time = %d\n", hold_or_clear, baci_term.wait);
-                                }
-
-                            else {                              /* external rate */
-                                sim_cancel (&baci_term);        /* stop I/O service */
-
-                                tprintf (baci_dev, DEB_CMDS, "[OTx%s] Terminal service stopped\n",
-                                         hold_or_clear);
-                                }
-                        }
-
-                    baci_icw = baci_obuf;                   /* load new reference word */
-                    update_status ();                       /* loopback may change status */
-                    break;
-
-                case 5:                                     /* interrupt status reset */
-                    baci_isrw = baci_obuf;                  /* load new reset word */
-
-                    mask = (baci_isrw & OUT_IRQCLR) <<      /* form reset mask */
-                           IN_V_IRQCLR;                     /*   for common irqs */
-
-                    if (baci_isrw & OUT_CSC)                /* add special char mask bit */
-                        mask = mask | IN_SPCHAR;            /*   if requested */
-
-                    baci_status = baci_status & ~mask;      /* clear specified status bits */
-                    break;
-
-                case 6:                                     /* special character */
-                    baci_spchar [baci_obuf & OUT_SPCHAR] =  /* set special character entry */
-                        ((baci_obuf & OUT_SPFLAG) != 0);
-                    break;
-                }
+            case 6:                                   /* special character */
+                baci_spchar[baci_obuf & OUT_SPCHAR] = /* set special character entry */
+                    ((baci_obuf & OUT_SPFLAG) != 0);
+                break;
+            }
             break;
 
-
-        case ioCRS:                                     /* control reset */
-            master_reset ();                            /* issue master reset */
+        case ioCRS:          /* control reset */
+            master_reset (); /* issue master reset */
 
             tprintf (baci_dev, DEB_CMDS, "[CRS] Master reset\n");
             break;
 
-
-        case ioCLC:                                     /* clear control flip-flop */
-            baci.control = CLEAR;                       /* clear control */
+        case ioCLC:               /* clear control flip-flop */
+            baci.control = CLEAR; /* clear control */
 
             tprintf (baci_dev, DEB_CMDS, "[CLC%s] Control cleared\n", hold_or_clear);
             break;
 
-
-        case ioSTC:                                     /* set control flip-flop */
-            baci.control = SET;                         /* set control */
-            baci.lockout = CLEAR;                       /* clear lockout */
+        case ioSTC:               /* set control flip-flop */
+            baci.control = SET;   /* set control */
+            baci.lockout = CLEAR; /* clear lockout */
 
             tprintf (baci_dev, DEB_CMDS, "[STC%s] Control set and lockout cleared\n", hold_or_clear);
 
-            if (!(signal_set & ioCLF))                  /* STC without ,C ? */
-                update_status ();                       /* clearing lockout might interrupt */
+            if (!(signal_set & ioCLF)) /* STC without ,C ? */
+                update_status ();      /* clearing lockout might interrupt */
             break;
 
-
-        case ioSIR:                                     /* set interrupt request */
-            setstdPRL (baci);                           /* set standard PRL signal */
-            setstdIRQ (baci);                           /* set standard IRQ signal */
-            setSRQ (dibptr->select_code, baci.srq);     /* set SRQ signal */
+        case ioSIR:                                 /* set interrupt request */
+            setstdPRL (baci);                       /* set standard PRL signal */
+            setstdIRQ (baci);                       /* set standard IRQ signal */
+            setSRQ (dibptr->select_code, baci.srq); /* set SRQ signal */
             break;
 
-
-        case ioIAK:                                     /* interrupt acknowledge */
+        case ioIAK: /* interrupt acknowledge */
             baci.flagbuf = CLEAR;
             break;
 
-
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+        default:   /* all other signals */
+            break; /*   are ignored */
         }
 
-    working_set = working_set & ~signal;                /* remove current signal from set */
+        working_set = working_set & ~signal; /* remove current signal from set */
     }
 
-return stat_data;
+    return stat_data;
 }
-
 
 /* BACI terminal service.
 
@@ -869,161 +854,156 @@ return stat_data;
        This permits the simulation to continue while ignoring the output.
 */
 
-t_stat baci_term_svc (UNIT *uptr)
+t_stat
+baci_term_svc (UNIT *uptr)
 {
-uint32 data_bits, data_mask;
-const t_bool fast_timing = (baci_term.flags & UNIT_FASTTIME) != 0;
-const t_bool is_attached = (baci_term.flags & UNIT_ATT) != 0;
-t_stat status = SCPE_OK;
-t_bool recv_loop = TRUE;
-t_bool xmit_loop = (baci_ldsc.xmte != 0);               /* TRUE if the transmit buffer is not full */
+    uint32       data_bits, data_mask;
+    const t_bool fast_timing = (baci_term.flags & UNIT_FASTTIME) != 0;
+    const t_bool is_attached = (baci_term.flags & UNIT_ATT) != 0;
+    t_stat       status      = SCPE_OK;
+    t_bool       recv_loop   = TRUE;
+    t_bool       xmit_loop   = (baci_ldsc.xmte != 0); /* TRUE if the transmit buffer is not full */
 
+    /* Transmission */
 
-/* Transmission */
+    if (baci_ldsc.xmte == 0) { /* if the transmit buffer is full */
+        tprintf (baci_dev, DEB_XFER, "Transmission stalled for full buffer\n");
+    }
 
-if (baci_ldsc.xmte == 0)                                /* if the transmit buffer is full */
-    tprintf (baci_dev, DEB_XFER, "Transmission stalled for full buffer\n");
+    while (xmit_loop && (baci_uart_thr & IN_VALID)) {  /* valid character in UART? */
+        data_bits    = 5 + (baci_cfcw & OUT_CHARSIZE); /* calculate number of data bits */
+        data_mask    = (1 << data_bits) - 1;           /* generate mask for data bits */
+        baci_uart_tr = baci_uart_thr & data_mask;      /* mask data into transmitter register */
 
+        if ((baci_uart_tr == ENQ) && fast_timing) { /* char is ENQ and fast timing? */
+            baci_enq_seen = TRUE;                   /* set flag instead of transmitting */
+            baci_enq_cntr = baci_enq_cntr + 1;      /* bump ENQ counter */
+            recv_loop     = FALSE;                  /* skip recv to allow time before ACK */
 
-while (xmit_loop && (baci_uart_thr & IN_VALID)) {       /* valid character in UART? */
-    data_bits = 5 + (baci_cfcw & OUT_CHARSIZE);         /* calculate number of data bits */
-    data_mask = (1 << data_bits) - 1;                   /* generate mask for data bits */
-    baci_uart_tr = baci_uart_thr & data_mask;           /* mask data into transmitter register */
-
-    if ((baci_uart_tr == ENQ) && fast_timing) {         /* char is ENQ and fast timing? */
-        baci_enq_seen = TRUE;                           /* set flag instead of transmitting */
-        baci_enq_cntr = baci_enq_cntr + 1;              /* bump ENQ counter */
-        recv_loop = FALSE;                              /* skip recv to allow time before ACK */
-
-        tprintf (baci_dev, DEB_XFER, "Character ENQ absorbed internally, "
-                                     "ENQ count = %d\n", baci_enq_cntr);
+            tprintf (baci_dev, DEB_XFER,
+                     "Character ENQ absorbed internally, "
+                     "ENQ count = %d\n",
+                     baci_enq_cntr);
         }
 
-    else {                                              /* character is not ENQ or not fast timing */
-        baci_enq_cntr = 0;                              /* reset ENQ counter */
+        else {                 /* character is not ENQ or not fast timing */
+            baci_enq_cntr = 0; /* reset ENQ counter */
 
-        if (is_attached) {                              /* attached to network? */
-            status = tmxr_putc_ln (&baci_ldsc,          /* transmit the character */
-                                   baci_uart_tr);
+            if (is_attached) {                     /* attached to network? */
+                status = tmxr_putc_ln (&baci_ldsc, /* transmit the character */
+                                       baci_uart_tr);
 
-            if (status == SCPE_OK)                      /* transmitted OK? */
-                tprintf (baci_dev, DEB_XFER, "Character %s transmitted from the UART\n",
-                                             fmt_char ((uint8) baci_uart_tr));
+                if (status == SCPE_OK) { /* transmitted OK? */
+                    tprintf (baci_dev, DEB_XFER, "Character %s transmitted from the UART\n",
+                             fmt_char ((uint8)baci_uart_tr));
+		} else {
+                    tprintf (baci_dev, DEB_XFER, "Character %s transmission failed with status %d\n",
+                             fmt_char ((uint8)baci_uart_tr), status);
 
-            else {
-                tprintf (baci_dev, DEB_XFER, "Character %s transmission failed with status %d\n",
-                                             fmt_char ((uint8) baci_uart_tr), status);
-
-                if (status == SCPE_LOST)                /* if the line is not connected */
-                    status = SCPE_OK;                   /*   then ignore the output */
+                    if (status == SCPE_LOST) /* if the line is not connected */
+                        status = SCPE_OK;    /*   then ignore the output */
                 }
             }
         }
 
-    if (status == SCPE_OK) {                            /* transmitted OK? */
-        baci_uart_tr = CLEAR_R;                         /* clear transmitter register */
+        if (status == SCPE_OK) {    /* transmitted OK? */
+            baci_uart_tr = CLEAR_R; /* clear transmitter register */
 
-        if (IO_MODE == XMIT) {                          /* transmit mode? */
-            baci_fcount = baci_fcount - 1;              /* decrement occupancy counter */
-            baci_uart_thr = fifo_get ();                /* get next char into UART */
-            update_status ();                           /* update FIFO status */
+            if (IO_MODE == XMIT) {               /* transmit mode? */
+                baci_fcount   = baci_fcount - 1; /* decrement occupancy counter */
+                baci_uart_thr = fifo_get ();     /* get next char into UART */
+                update_status ();                /* update FIFO status */
             }
 
-        else                                            /* receive mode */
-            baci_uart_thr = CLEAR_HR;                   /* clear holding register */
+            else                          /* receive mode */
+                baci_uart_thr = CLEAR_HR; /* clear holding register */
 
-        xmit_loop = (fast_timing && ! baci_enq_seen     /* loop if fast mode and char not ENQ */
-                      && baci_ldsc.xmte != 0);          /*   and buffer space is available */
+            xmit_loop = (fast_timing && !baci_enq_seen /* loop if fast mode and char not ENQ */
+                         && baci_ldsc.xmte != 0);      /*   and buffer space is available */
         }
 
-    else                                                /* otherwise transmission failed */
-        xmit_loop = FALSE;                              /*   so drop out of the loop */
+        else                   /* otherwise transmission failed */
+            xmit_loop = FALSE; /*   so drop out of the loop */
     }
 
+    /* Deferred reception */
 
-/* Deferred reception */
+    if (recv_loop &&                                /* ok to process? */
+        baci_uart_rhr && (IO_MODE == RECV) &&       /*   and deferred char in RHR in recv mode? */
+        (!baci_enq_seen || (baci_enq_cntr >= 2))) { /*   and either no ENQ or at least 2nd ENQ? */
 
-if (recv_loop &&                                        /* ok to process? */
-    baci_uart_rhr && (IO_MODE == RECV) &&               /*   and deferred char in RHR in recv mode? */
-    (!baci_enq_seen || (baci_enq_cntr >= 2))) {         /*   and either no ENQ or at least 2nd ENQ? */
+        baci_uart_rhr = baci_uart_rhr & ~IN_VALID; /* clear valid bit */
 
-    baci_uart_rhr = baci_uart_rhr & ~IN_VALID;          /* clear valid bit */
+        tprintf (baci_dev, DEB_XFER, "Deferred character %s processed\n", fmt_char ((uint8)baci_uart_rhr));
 
-    tprintf (baci_dev, DEB_XFER, "Deferred character %s processed\n",
-             fmt_char ((uint8) baci_uart_rhr));
-
-    fifo_put ((uint8) baci_uart_rhr);                   /* move deferred character to FIFO */
-    baci_uart_rhr = CLEAR_HR;                           /* clear RHR */
-    update_status ();                                   /* update FIFO status */
+        fifo_put ((uint8)baci_uart_rhr); /* move deferred character to FIFO */
+        baci_uart_rhr = CLEAR_HR;        /* clear RHR */
+        update_status ();                /* update FIFO status */
     }
 
+    /* Reception */
 
-/* Reception */
+    while (recv_loop) {                           /* OK to process? */
+        baci_uart_rr = tmxr_getc_ln (&baci_ldsc); /* get a new character */
 
-while (recv_loop) {                                     /* OK to process? */
-    baci_uart_rr = tmxr_getc_ln (&baci_ldsc);           /* get a new character */
+        if (baci_uart_rr == 0) /* if there are no more characters available */
+            break;             /*   then quit the reception loop */
 
-    if (baci_uart_rr == 0)                              /* if there are no more characters available */
-        break;                                          /*   then quit the reception loop */
+        if (baci_uart_rr & SCPE_BREAK) {          /* break detected? */
+            baci_status = baci_status | IN_BREAK; /* set break status */
 
-    if (baci_uart_rr & SCPE_BREAK) {                    /* break detected? */
-        baci_status = baci_status | IN_BREAK;           /* set break status */
-
-        tprintf (baci_dev, DEB_XFER, "Break detected\n");
+            tprintf (baci_dev, DEB_XFER, "Break detected\n");
         }
 
-    data_bits = 5 + (baci_cfcw & OUT_CHARSIZE);             /* calculate number of data bits */
-    data_mask = (1 << data_bits) - 1;                       /* generate mask for data bits */
-    baci_uart_rhr = (uint16) (baci_uart_rr & data_mask);    /* mask data into holding register */
-    baci_uart_rr = CLEAR_R;                                 /* clear receiver register */
+        data_bits     = 5 + (baci_cfcw & OUT_CHARSIZE);      /* calculate number of data bits */
+        data_mask     = (1 << data_bits) - 1;                /* generate mask for data bits */
+        baci_uart_rhr = (uint16) (baci_uart_rr & data_mask); /* mask data into holding register */
+        baci_uart_rr  = CLEAR_R;                             /* clear receiver register */
 
-    tprintf (baci_dev, DEB_XFER, "Character %s received by the UART\n",
-             fmt_char ((uint8) baci_uart_rhr));
+        tprintf (baci_dev, DEB_XFER, "Character %s received by the UART\n", fmt_char ((uint8)baci_uart_rhr));
 
-    if (baci_term.flags & UNIT_CAPSLOCK)                    /* caps lock mode? */
-        baci_uart_rhr = (uint16) toupper (baci_uart_rhr);   /* convert to upper case if lower */
+        if (baci_term.flags & UNIT_CAPSLOCK)                 /* caps lock mode? */
+            baci_uart_rhr = (uint16)toupper (baci_uart_rhr); /* convert to upper case if lower */
 
-    if (baci_cfcw & OUT_ECHO)                           /* echo wanted? */
-        tmxr_putc_ln (&baci_ldsc, baci_uart_rhr);       /* send it back */
+        if (baci_cfcw & OUT_ECHO)                     /* echo wanted? */
+            tmxr_putc_ln (&baci_ldsc, baci_uart_rhr); /* send it back */
 
-    if ((IO_MODE == RECV) && !baci_enq_seen) {          /* receive mode and not ENQ/ACK? */
-        fifo_put ((uint8) baci_uart_rhr);               /* put data in FIFO */
-        baci_uart_rhr = CLEAR_HR;                       /* clear RHR */
-        update_status ();                               /* update FIFO status (may set flag) */
+        if ((IO_MODE == RECV) && !baci_enq_seen) { /* receive mode and not ENQ/ACK? */
+            fifo_put ((uint8)baci_uart_rhr);       /* put data in FIFO */
+            baci_uart_rhr = CLEAR_HR;              /* clear RHR */
+            update_status ();                      /* update FIFO status (may set flag) */
 
-        recv_loop = fast_timing && !IRQ (baci_dib.select_code);   /* loop if fast mode and no IRQ */
+            recv_loop = fast_timing && !IRQ (baci_dib.select_code); /* loop if fast mode and no IRQ */
         }
 
-    else {                                              /* xmit or ENQ/ACK, leave char in RHR */
-        baci_uart_rhr = baci_uart_rhr | IN_VALID;       /* set character valid bit */
-        recv_loop = FALSE;                              /* terminate loop */
+        else {                                        /* xmit or ENQ/ACK, leave char in RHR */
+            baci_uart_rhr = baci_uart_rhr | IN_VALID; /* set character valid bit */
+            recv_loop     = FALSE;                    /* terminate loop */
         }
     }
 
+    /* Housekeeping */
 
-/* Housekeeping */
+    if (recv_loop && baci_enq_seen) { /* OK to process and ENQ seen? */
+        baci_enq_seen = FALSE;        /* reset flag */
 
-if (recv_loop && baci_enq_seen) {                       /* OK to process and ENQ seen? */
-    baci_enq_seen = FALSE;                              /* reset flag */
+        tprintf (baci_dev, DEB_XFER, "Character ACK generated internally\n");
 
-    tprintf (baci_dev, DEB_XFER, "Character ACK generated internally\n");
-
-    fifo_put (ACK);                                     /* fake ACK from terminal */
-    update_status ();                                   /* update FIFO status */
+        fifo_put (ACK);   /* fake ACK from terminal */
+        update_status (); /* update FIFO status */
     }
 
-if (is_attached)                                        /* attached to network? */
-    tmxr_poll_tx (&baci_desc);                          /* output any accumulated chars */
+    if (is_attached)               /* attached to network? */
+        tmxr_poll_tx (&baci_desc); /* output any accumulated chars */
 
-if ((baci_uart_thr & IN_VALID) || baci_enq_seen ||      /* more to transmit? */
-    tmxr_rqln (&baci_ldsc))                             /*  or more to receive? */
-    sim_activate (uptr, uptr->wait);                    /* reschedule service */
-else
-    tprintf (baci_dev, DEB_CMDS, "Terminal service stopped\n");
+    if ((baci_uart_thr & IN_VALID) || baci_enq_seen || /* more to transmit? */
+        tmxr_rqln (&baci_ldsc))                        /*  or more to receive? */
+        sim_activate (uptr, uptr->wait);               /* reschedule service */
+    else
+        tprintf (baci_dev, DEB_CMDS, "Terminal service stopped\n");
 
-return status;
+    return status;
 }
-
 
 /* BACI line poll service.
 
@@ -1131,41 +1111,41 @@ return status;
    An examination of the schematic, though, shows that it sets SRQ instead.
 */
 
-static void master_reset (void)
+static void
+master_reset(void)
 {
-baci_fput = baci_fget = 0;                              /* clear FIFO indexes */
-baci_fcount = 0;                                        /* clear FIFO counter */
-memset (baci_fifo, 0, sizeof (baci_fifo));              /* clear FIFO data */
+    baci_fput = baci_fget = 0;               /* clear FIFO indexes */
+    baci_fcount           = 0;               /* clear FIFO counter */
+    memset(baci_fifo, 0, sizeof(baci_fifo)); /* clear FIFO data */
 
-baci_uart_thr = CLEAR_HR;                               /* clear transmitter holding register */
+    baci_uart_thr = CLEAR_HR; /* clear transmitter holding register */
 
-if (!(baci_term.flags & UNIT_FASTTIME))                 /* real time mode? */
-    baci_uart_rhr = CLEAR_HR;                           /* clear receiver holding register */
+    if (!(baci_term.flags & UNIT_FASTTIME)) /* real time mode? */
+        baci_uart_rhr = CLEAR_HR;           /* clear receiver holding register */
 
-baci_uart_tr = CLEAR_R;                                 /* clear transmitter register */
-baci_uart_rr = CLEAR_R;                                 /* clear receiver register */
+    baci_uart_tr = CLEAR_R; /* clear transmitter register */
+    baci_uart_rr = CLEAR_R; /* clear receiver register */
 
-baci_uart_clk = 0;                                      /* clear UART clock */
-baci_bcount   = 0;                                      /* clear break counter */
+    baci_uart_clk = 0; /* clear UART clock */
+    baci_bcount   = 0; /* clear break counter */
 
-baci.control = CLEAR;                                   /* clear control */
-baci.flag = baci.flagbuf = SET;                         /* set flag and flag buffer */
-baci.srq = SET;                                         /* set SRQ */
-baci.lockout = SET;                                     /* set lockout flip-flop */
+    baci.control = CLEAR;           /* clear control */
+    baci.flag = baci.flagbuf = SET; /* set flag and flag buffer */
+    baci.srq                 = SET; /* set SRQ */
+    baci.lockout             = SET; /* set lockout flip-flop */
 
-baci_edsiw = 0;                                         /* clear interrupt enables */
-baci_dsrw = 0;                                          /* clear status reference */
-baci_cfcw = baci_cfcw & ~OUT_ECHO;                      /* clear echo flag */
-baci_icw = baci_icw & OUT_BAUDRATE;                     /* clear interface control */
+    baci_edsiw = 0;                       /* clear interrupt enables */
+    baci_dsrw  = 0;                       /* clear status reference */
+    baci_cfcw  = baci_cfcw & ~OUT_ECHO;   /* clear echo flag */
+    baci_icw   = baci_icw & OUT_BAUDRATE; /* clear interface control */
 
-if (baci_term.flags & UNIT_DIAG) {                      /* diagnostic mode? */
-    baci_status = baci_status & ~IN_MODEM | IN_SPARE;   /* clear loopback status, set BA */
-    baci_ldsc.xmte = 1;                                 /* enable transmitter */
+    if (baci_term.flags & UNIT_DIAG) {                         /* diagnostic mode? */
+        baci_status    = (baci_status & ~IN_MODEM) | IN_SPARE; /* clear loopback status, set BA */
+        baci_ldsc.xmte = 1;                                    /* enable transmitter */
     }
 
-return;
+    return;
 }
-
 
 /* Update status.
 
@@ -1186,71 +1166,66 @@ return;
    (transmit mode) or data (receive mode) in the FIFO.
 */
 
-static void update_status (void)
+static void
+update_status(void)
 {
-if (baci_term.flags & UNIT_DIAG) {                      /* diagnostic mode? */
-    baci_status = baci_status & ~IN_DIAG;               /* clear loopback flags */
+    if (baci_term.flags & UNIT_DIAG) {        /* diagnostic mode? */
+        baci_status = baci_status & ~IN_DIAG; /* clear loopback flags */
 
-    if (baci_icw & OUT_SXX)                             /* SCA to SCF and CF */
-        baci_status = baci_status | IN_SXX | IN_CF;
-    if ((baci_icw & OUT_CA) && (baci_fcount < 128))     /* CA to CC and CE */
-        baci_status = baci_status | IN_CC | IN_CE;
-    if (baci_icw & OUT_CD)                              /* CD to CB */
-        baci_status = baci_status | IN_CB;
-    else {
-        baci_status = baci_status | IN_TEST;            /* BB is inversion of CD */
-        if (baci_cfcw & OUT_ECHO)
-            baci_status = baci_status | IN_SPARE;       /* BB couples to BA with echo */
+        if (baci_icw & OUT_SXX) /* SCA to SCF and CF */
+            baci_status = baci_status | IN_SXX | IN_CF;
+        if ((baci_icw & OUT_CA) && (baci_fcount < 128)) /* CA to CC and CE */
+            baci_status = baci_status | IN_CC | IN_CE;
+        if (baci_icw & OUT_CD) /* CD to CB */
+            baci_status = baci_status | IN_CB;
+        else {
+            baci_status = baci_status | IN_TEST; /* BB is inversion of CD */
+            if (baci_cfcw & OUT_ECHO)
+                baci_status = baci_status | IN_SPARE; /* BB couples to BA with echo */
         }
 
-    if (!(baci_cfcw & OUT_ECHO) && (baci_uart_tr & 1))  /* no echo and UART TR set? */
-        baci_status = baci_status | IN_SPARE;           /* BA to SPARE */
+        if (!(baci_cfcw & OUT_ECHO) && (baci_uart_tr & 1)) /* no echo and UART TR set? */
+            baci_status = baci_status | IN_SPARE;          /* BA to SPARE */
     }
 
-if (baci_edsiw & (baci_status ^ baci_dsrw) & IN_MODEM)  /* device interrupt? */
-    baci_status = baci_status | IN_DEVINT;              /* set flag */
+    if (baci_edsiw & (baci_status ^ baci_dsrw) & IN_MODEM) /* device interrupt? */
+        baci_status = baci_status | IN_DEVINT;             /* set flag */
 
-if ((baci_status & IN_STDIRQ) ||                        /* standard interrupt? */
-    !(baci_icw & OUT_DCPC) &&                           /* or under program control */
-     (baci_status & IN_FIFOIRQ) ||                      /*   and FIFO interrupt? */
-     (IO_MODE == RECV) &&                               /* or receiving */
-     (baci_edsiw & OUT_ENCM) &&                         /*   and char mode */
-     (baci_fget != baci_fput)) {                        /*   and FIFO not empty? */
+    if ((baci_status & IN_STDIRQ) ||    /* standard interrupt? */
+        (!(baci_icw & OUT_DCPC) &&      /* or under program control */
+         (baci_status & IN_FIFOIRQ)) || /*   and FIFO interrupt? */
+        ((IO_MODE == RECV) &&           /* or receiving */
+         (baci_edsiw & OUT_ENCM) &&     /*   and char mode */
+         (baci_fget != baci_fput))) {   /*   and FIFO not empty? */
 
-    if (baci.lockout)                                   /* interrupt lockout? */
-        tprintf (baci_dev, DEB_CMDS, "Lockout prevents flag set, status = %06o\n",
-                 baci_status);
+        if (baci.lockout) { /* interrupt lockout? */
+            tprintf(baci_dev, DEB_CMDS, "Lockout prevents flag set, status = %06o\n", baci_status);
+        } else {
+            if (baci.srq) { /* SRQ set? */
+                tprintf(baci_dev, DEB_CMDS, "SRQ prevents flag set, status = %06o\n", baci_status);
+            } else {
+                baci_io(&baci_dib, ioENF, 0); /* set flag */
 
-    else if (baci.srq)                                  /* SRQ set? */
-        tprintf (baci_dev, DEB_CMDS, "SRQ prevents flag set, status = %06o\n",
-                 baci_status);
-
-    else {
-        baci_io (&baci_dib, ioENF, 0);                  /* set flag */
-
-        tprintf (baci_dev, DEB_CMDS, "Flag and lockout set, status = %06o\n",
-                 baci_status);
+                tprintf(baci_dev, DEB_CMDS, "Flag and lockout set, status = %06o\n", baci_status);
+            }
         }
     }
 
-if ((baci_icw & OUT_DCPC) &&                            /* DCPC enabled? */
-    ((IO_MODE == XMIT) && (baci_fcount < 128) ||        /*   and xmit and room in FIFO */
-     (IO_MODE == RECV) && (baci_fcount > 0)))           /*   or recv and data in FIFO? */
-    if (baci.lockout)                                   /* interrupt lockout? */
-        tprintf (baci_dev, DEB_CMDS, "Lockout prevents SRQ set, status = %06o\n",
-                 baci_status);
+    if ((baci_icw & OUT_DCPC) &&                       /* DCPC enabled? */
+        (((IO_MODE == XMIT) && (baci_fcount < 128)) || /*   and xmit and room in FIFO */
+         ((IO_MODE == RECV) && (baci_fcount > 0)))) {  /*   or recv and data in FIFO? */
+        if (baci.lockout) {                            /* interrupt lockout? */
+            tprintf(baci_dev, DEB_CMDS, "Lockout prevents SRQ set, status = %06o\n", baci_status);
+        } else {
+            baci.srq = SET;               /* set SRQ */
+            baci_io(&baci_dib, ioSIR, 0); /* set interrupt request */
 
-    else {
-        baci.srq = SET;                                 /* set SRQ */
-        baci_io (&baci_dib, ioSIR, 0);                  /* set interrupt request */
-
-        tprintf (baci_dev, DEB_CMDS, "SRQ set, status = %06o\n",
-                 baci_status);
+            tprintf(baci_dev, DEB_CMDS, "SRQ set, status = %06o\n", baci_status);
         }
+    }
 
-return;
+    return;
 }
-
 
 /* Calculate service time from baud rate.
 
@@ -1423,12 +1398,13 @@ else {                                                  /* RECV or THR occupied 
 
 baci_fcount = baci_fcount + 1;                          /* increment occupancy counter */
 
-if (pass_thru)
+if (pass_thru) {
     tprintf (baci_dev, DEB_BUF, "Character %s put to UART transmitter holding register, "
                                 "character counter = 1\n", fmt_char (ch));
-else
+} else {
     tprintf (baci_dev, DEB_BUF, "Character %s put to FIFO [%d], "
                                 "character counter = %d\n", fmt_char (ch), index, baci_fcount);
+}
 
 if ((IO_MODE == RECV) && (baci_spchar [ch]))            /* receive mode and special character? */
     baci_status = baci_status | IN_SPCHAR;              /* set special char seen flag */
@@ -1481,135 +1457,139 @@ return;
    This routine is not used in terminal mode.
 */
 
-static void clock_uart (void)
+static void
+clock_uart(void)
 {
-uint32 uart_bits, data_bits, data_mask, parity, bit_low, i;
+    uint32 uart_bits, data_bits, data_mask, parity, bit_low, i;
 
-if (baci_uart_clk > 0) {                                /* transfer in progress? */
-    bit_low = (baci_icw & OUT_CD);                      /* get current receive bit */
+    if (baci_uart_clk > 0) {           /* transfer in progress? */
+        bit_low = (baci_icw & OUT_CD); /* get current receive bit */
 
-    if ((baci_uart_clk & 017) == 0)                     /* end of a bit? */
-        if (IO_MODE == XMIT)                            /* transmit? */
-            baci_uart_tr = baci_uart_tr >> 1;           /* shift new bit onto line */
-        else                                            /* receive? */
-            baci_uart_rr = (baci_uart_rr >> 1) &        /* shift new bit in */
-                           (bit_low ? ~SIGN : -1);      /* (inverted sense) */
+        if ((baci_uart_clk & 017) == 0) {              /* end of a bit? */
+            if (IO_MODE == XMIT)                       /* transmit? */
+                baci_uart_tr = baci_uart_tr >> 1;      /* shift new bit onto line */
+            else                                       /* receive? */
+                baci_uart_rr = (baci_uart_rr >> 1) &   /* shift new bit in */
+                               (bit_low ? ~SIGN : -1); /* (inverted sense) */
+        }
 
-    if (bit_low) {                                      /* another low bit? */
-        baci_bcount = baci_bcount + 1;                  /* update break counter */
+        if (bit_low) {                     /* another low bit? */
+            baci_bcount = baci_bcount + 1; /* update break counter */
 
-        if (baci_bcount == 160) {                       /* break held long enough? */
-            baci_status = baci_status | IN_BREAK;       /* set break flag */
+            if (baci_bcount == 160) {                 /* break held long enough? */
+                baci_status = baci_status | IN_BREAK; /* set break flag */
 
-            tprintf (baci_dev, DEB_XFER, "Break detected\n");
+                tprintf(baci_dev, DEB_XFER, "Break detected\n");
             }
+        } else               /* high bit? */
+            baci_bcount = 0; /* reset break counter */
+
+        baci_uart_clk = baci_uart_clk - 1; /* decrement clocks remaining */
+
+        if (((IO_MODE == XMIT) &&                  /* transmit mode? */
+             (baci_uart_clk == 0)) ||              /* and end of character? */
+            ((baci_uart_clk == 8) &&               /*   or last stop bit */
+             (baci_cfcw & OUT_STBITS) &&           /*     and extra stop bit requested */
+             ((baci_cfcw & OUT_CHARSIZE) == 0))) { /*     and 1.5 stop bits used? */
+
+            baci_uart_clk = 0; /* clear clock count */
+
+            baci_fcount   = baci_fcount - 1; /* decrement occupancy counter */
+            baci_uart_thr = fifo_get();      /* get next char into THR */
+            update_status();                 /* update FIFO status */
+
+            tprintf(baci_dev, DEB_XFER,
+                    "UART transmitter empty, "
+                    "holding register = %06o\n",
+                    baci_uart_thr);
         }
 
-    else                                                /* high bit? */
-        baci_bcount = 0;                                /* reset break counter */
+        else if ((IO_MODE == RECV) &&    /* receive mode? */
+                 (baci_uart_clk == 0)) { /* and end of character? */
 
-    baci_uart_clk = baci_uart_clk - 1;                  /* decrement clocks remaining */
+            data_bits = 5 + (baci_cfcw & OUT_CHARSIZE); /* calculate number of data bits */
+            data_mask = (1 << data_bits) - 1;           /* generate mask for data bits */
 
-    if ((IO_MODE == XMIT) &&                            /* transmit mode? */
-        ((baci_uart_clk == 0) ||                        /* and end of character? */
-         (baci_uart_clk == 8) &&                        /*   or last stop bit */
-         (baci_cfcw & OUT_STBITS) &&                    /*     and extra stop bit requested */
-         ((baci_cfcw & OUT_CHARSIZE) == 0))) {          /*     and 1.5 stop bits used? */
+            uart_bits = data_bits +                       /* calculate UART bits as data bits */
+                        ((baci_cfcw & OUT_PARITY) != 0) + /*   plus parity bit if used */
+                        ((baci_cfcw & OUT_STBITS) != 0);  /*   plus extra stop bit if used */
 
-        baci_uart_clk = 0;                              /* clear clock count */
+            baci_uart_rhr = (uint16)(baci_uart_rr >> (16 - uart_bits)); /* position data to right align */
+            baci_uart_rr  = CLEAR_R;                                    /* clear receiver register */
 
-        baci_fcount = baci_fcount - 1;                  /* decrement occupancy counter */
-        baci_uart_thr = fifo_get ();                    /* get next char into THR */
-        update_status ();                               /* update FIFO status */
+            tprintf(baci_dev, DEB_XFER, "UART receiver = %06o (%s)\n", baci_uart_rhr,
+                    fmt_char((uint8)(baci_uart_rhr & data_mask)));
 
-        tprintf (baci_dev, DEB_XFER, "UART transmitter empty, "
-                                     "holding register = %06o\n", baci_uart_thr);
-        }
+            fifo_put((uint8)(baci_uart_rhr & data_mask)); /* put data in FIFO */
+            update_status();                              /* update FIFO status */
 
-    else if ((IO_MODE == RECV) &&                       /* receive mode? */
-             (baci_uart_clk == 0)) {                    /* and end of character? */
+            if (baci_cfcw & OUT_PARITY) {              /* parity present? */
+                data_mask = data_mask << 1 | 1;        /* widen mask to encompass parity */
+                uart_bits = baci_uart_rhr & data_mask; /* get data plus parity */
 
-        data_bits = 5 + (baci_cfcw & OUT_CHARSIZE);     /* calculate number of data bits */
-        data_mask = (1 << data_bits) - 1;               /* generate mask for data bits */
+                parity = (baci_cfcw & OUT_PAREVEN) == 0; /* preset for even/odd parity */
 
-        uart_bits = data_bits +                         /* calculate UART bits as data bits */
-                    ((baci_cfcw & OUT_PARITY) != 0) +   /*   plus parity bit if used */
-                    ((baci_cfcw & OUT_STBITS) != 0);    /*   plus extra stop bit if used */
-
-        baci_uart_rhr = (uint16) (baci_uart_rr >> (16 - uart_bits));    /* position data to right align */
-        baci_uart_rr = CLEAR_R;                                         /* clear receiver register */
-
-        tprintf (baci_dev, DEB_XFER, "UART receiver = %06o (%s)\n",
-                 baci_uart_rhr, fmt_char ((uint8) (baci_uart_rhr & data_mask)));
-
-        fifo_put ((uint8) (baci_uart_rhr & data_mask)); /* put data in FIFO */
-        update_status ();                               /* update FIFO status */
-
-        if (baci_cfcw & OUT_PARITY) {                   /* parity present? */
-            data_mask = data_mask << 1 | 1;             /* widen mask to encompass parity */
-            uart_bits = baci_uart_rhr & data_mask;      /* get data plus parity */
-
-            parity = (baci_cfcw & OUT_PAREVEN) == 0;    /* preset for even/odd parity */
-
-            for (i = 0; i < data_bits + 1; i++) {       /* calc parity of data + parity bit */
-                parity = parity ^ uart_bits;            /* parity calculated in LSB */
-                uart_bits = uart_bits >> 1;
+                for (i = 0; i < data_bits + 1; i++) { /* calc parity of data + parity bit */
+                    parity    = parity ^ uart_bits;   /* parity calculated in LSB */
+                    uart_bits = uart_bits >> 1;
                 }
 
-            if (parity & 1) {                           /* parity error? */
-                baci_status = baci_status | IN_OVRUNPE; /* report it */
+                if (parity & 1) {                           /* parity error? */
+                    baci_status = baci_status | IN_OVRUNPE; /* report it */
 
-                tprintf (baci_dev, DEB_XFER, "Parity error detected\n");
+                    tprintf(baci_dev, DEB_XFER, "Parity error detected\n");
                 }
             }
         }
     }
 
-if ((baci_uart_clk == 0) &&                             /* start of transfer? */
-    ((IO_MODE == RECV) ||                               /* and receive mode */
-     (baci_uart_thr & IN_VALID))) {                     /*   or character ready to transmit? */
+    if ((baci_uart_clk == 0) &&         /* start of transfer? */
+        ((IO_MODE == RECV) ||           /* and receive mode */
+         (baci_uart_thr & IN_VALID))) { /*   or character ready to transmit? */
 
-    data_bits = 5 + (baci_cfcw & OUT_CHARSIZE);         /* calculate number of data bits */
+        data_bits = 5 + (baci_cfcw & OUT_CHARSIZE); /* calculate number of data bits */
 
-    uart_bits = data_bits +                             /* calculate UART bits as data bits */
-                ((baci_cfcw & OUT_PARITY) != 0) +       /*   plus parity bit if used */
-                2 + ((baci_cfcw & OUT_STBITS) != 0);    /*   plus start/stop and extra stop if used */
+        uart_bits = data_bits +                          /* calculate UART bits as data bits */
+                    ((baci_cfcw & OUT_PARITY) != 0) +    /*   plus parity bit if used */
+                    2 + ((baci_cfcw & OUT_STBITS) != 0); /*   plus start/stop and extra stop if used */
 
-    baci_uart_clk = 16 * uart_bits;                     /* calculate clocks pulses expected */
+        baci_uart_clk = 16 * uart_bits; /* calculate clocks pulses expected */
 
-    if (IO_MODE == XMIT) {                              /* transmit mode? */
-        data_mask = (1 << data_bits) - 1;               /* generate mask for data bits */
-        baci_uart_tr = baci_uart_thr & data_mask;       /* mask data into holding register */
+        if (IO_MODE == XMIT) {                        /* transmit mode? */
+            data_mask    = (1 << data_bits) - 1;      /* generate mask for data bits */
+            baci_uart_tr = baci_uart_thr & data_mask; /* mask data into holding register */
 
-        if (baci_cfcw & OUT_PARITY) {                   /* add parity to this transmission? */
-            uart_bits = baci_uart_tr;                   /* copy data bits */
-            parity = (baci_cfcw & OUT_PAREVEN) == 0;    /* preset for even/odd parity */
+            if (baci_cfcw & OUT_PARITY) {                   /* add parity to this transmission? */
+                uart_bits = baci_uart_tr;                   /* copy data bits */
+                parity    = (baci_cfcw & OUT_PAREVEN) == 0; /* preset for even/odd parity */
 
-            for (i = 0; i < data_bits; i++) {           /* calculate parity of data */
-                parity = parity ^ uart_bits;            /* parity calculated in LSB */
-                uart_bits = uart_bits >> 1;
+                for (i = 0; i < data_bits; i++) {   /* calculate parity of data */
+                    parity    = parity ^ uart_bits; /* parity calculated in LSB */
+                    uart_bits = uart_bits >> 1;
                 }
 
-            data_mask = data_mask << 1 | 1;             /* extend mask for the parity bit */
-            baci_uart_tr = baci_uart_tr |               /* include parity in transmission register */
-                           (parity & 1) << data_bits;   /* (mask to parity bit and position it) */
+                data_mask    = data_mask << 1 | 1;        /* extend mask for the parity bit */
+                baci_uart_tr = baci_uart_tr |             /* include parity in transmission register */
+                               (parity & 1) << data_bits; /* (mask to parity bit and position it) */
             }
 
-        baci_uart_tr = (~data_mask | baci_uart_tr) << 2 | 1;    /* form serial data stream */
+            baci_uart_tr = (~data_mask | baci_uart_tr) << 2 | 1; /* form serial data stream */
 
-        tprintf (baci_dev, DEB_XFER, "UART transmitter = %06o (%s), "
-                                     "clock count = %d\n", baci_uart_tr & DMASK,
-                                     fmt_char ((uint8) (baci_uart_thr & data_mask)),
-                                     baci_uart_clk);
+            tprintf(baci_dev, DEB_XFER,
+                    "UART transmitter = %06o (%s), "
+                    "clock count = %d\n",
+                    baci_uart_tr & DMASK, fmt_char((uint8)(baci_uart_thr & data_mask)), baci_uart_clk);
         }
 
-    else {
-        baci_uart_rr = CLEAR_R;                         /* clear receiver register */
+        else {
+            baci_uart_rr = CLEAR_R; /* clear receiver register */
 
-        tprintf (baci_dev, DEB_XFER, "UART receiver empty, "
-                                     "clock count = %d\n", baci_uart_clk);
+            tprintf(baci_dev, DEB_XFER,
+                    "UART receiver empty, "
+                    "clock count = %d\n",
+                    baci_uart_clk);
         }
     }
 
-return;
+    return;
 }

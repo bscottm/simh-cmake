@@ -107,8 +107,8 @@ typedef uint16              DL_BUFFER;          /* a buffer containing 16-bit di
 
 #define UNIT_MODEL          (UNIT_MODEL_MASK << UNIT_MODEL_SHIFT)
 #define UNIT_PROT           (UNIT_PROT_MASK  << UNIT_PROT_SHIFT)
-#define UNIT_PROT_L         (1u << UNIT_PROT_SHIFT + 0)
-#define UNIT_PROT_U         (1u << UNIT_PROT_SHIFT + 1)
+#define UNIT_PROT_L         (1u << (UNIT_PROT_SHIFT + 0))
+#define UNIT_PROT_U         (1u << (UNIT_PROT_SHIFT + 1))
 #define UNIT_UNLOAD         (1u << UNIT_UNLOAD_SHIFT)
 #define UNIT_FMT            (1u << UNIT_FMT_SHIFT)
 

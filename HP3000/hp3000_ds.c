@@ -244,7 +244,7 @@
 /* Debug flags (interface-specific) */
 
 #define DEB_IOB             DL_DEB_IOB                  /* trace I/O bus signals and data words */
-#define DEB_CSRW            (1u << DL_DEB_V_UF + 0)     /* trace control, status, read, and write commands */
+#define DEB_CSRW            (1u << (DL_DEB_V_UF + 0))   /* trace control, status, read, and write commands */
 
 
 /* Control word.
@@ -1095,7 +1095,7 @@ data_wait = CLEAR;                                      /*     and wait flip-flo
 
 retry_counter = 0;                                      /* clear the retry counter */
 
-flags = flags & ~(CMRDY | DTRDY) | INTOK | EOD;         /* clear CMRDY and DTRDY and set INTOK and EOD flags */
+flags = (flags & ~(CMRDY | DTRDY)) | INTOK | EOD;       /* clear CMRDY and DTRDY and set INTOK and EOD flags */
 
 return;
 }

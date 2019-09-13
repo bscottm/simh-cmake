@@ -448,7 +448,7 @@ save_area = ReadW (xsusp);                              /* addr of PABEO save ar
 WriteW (save_area + 0, PR);                             /* save P */
 WriteW (save_area + 1, AR);                             /* save A */
 WriteW (save_area + 2, BR);                             /* save B */
-WriteW (save_area + 3, (E << 15) & SIGN | O & 1);       /* save E and O */
+WriteW (save_area + 3, ((E << 15) & SIGN) | (O & 1));   /* save E and O */
 
 save_area = ReadW (xi);                                 /* addr of XY save area */
 WriteWA (save_area + 0, XR);                            /* save X (in user map) */
@@ -836,8 +836,8 @@ switch (entry) {                                        /* decode IR<3:0> */
                 break;
                 }
 
-            WriteW (ma, ReadW (ma) & ~I_DEVMASK | AR);  /* set SC into instruction */
-            PR = (PR + 1) & VAMASK;                     /* bump to next */
+            WriteW (ma, ReadW ((ma) & ~I_DEVMASK) | AR);  /* set SC into instruction */
+            PR = (PR + 1) & VAMASK;                       /* bump to next */
             }
         break;
 
@@ -901,8 +901,8 @@ switch (entry) {                                        /* decode IR<3:0> */
         while ((AR != 0) && ((AR & SIGN) == 0)) {       /* end of list or bad list? */
             key = ReadW ((AR + op[1].word) & VAMASK);   /* get key value */
 
-            if ((E == 0) && (key == op[0].word) ||      /* for E = 0, key = arg? */
-                (E != 0) && (key >  op[0].word))        /* for E = 1, key > arg? */
+            if (((E == 0) && (key == op[0].word)) ||      /* for E = 0, key = arg? */
+                ((E != 0) && (key >  op[0].word)))        /* for E = 1, key > arg? */
                 break;                                  /* search is done */
 
             BR = AR;                                    /* B = last link */

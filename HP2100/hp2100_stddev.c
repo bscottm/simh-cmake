@@ -632,67 +632,64 @@ return stat_data;
 
 /* Unit service */
 
-t_stat ptr_svc (UNIT *uptr)
+t_stat
+ptr_svc (UNIT *uptr)
 {
-int byte;
+    int byte;
 
-if ((ptr_unit.flags & UNIT_ATT) == 0)                   /* if the reader is not attached */
-    if (cpu_ss_ioerr != SCPE_OK) {                      /*   then if the I/O error stop is enabled */
-        sim_activate (uptr, uptr->wait);                /*     then reschedule the operation */
+    if ((ptr_unit.flags & UNIT_ATT) == 0) {  /* if the reader is not attached */
+        if (cpu_ss_ioerr != SCPE_OK) {       /*   then if the I/O error stop is enabled */
+            sim_activate (uptr, uptr->wait); /*     then reschedule the operation */
 
-        cpu_ioerr_uptr = uptr;                          /* save the failing unit */
-        return STOP_NOTAPE;                             /*   and report that the tape isn't loaded */
-        }
-
-    else                                                /* otherwise no tape in the reader */
-        return SCPE_OK;                                 /*   just hangs the input operation */
-
-byte = fgetc (uptr->fileref);                           /* get the next byte from the paper tape file */
-
-if (feof (uptr->fileref))                               /* if the file is positioned at the EOF */
-    if (uptr->flags & UNIT_DIAG && uptr->pos > 0) {     /*   then if DIAG mode is enabled and the tape isn't empty */
-        rewind (uptr->fileref);                         /*     then rewind the tape */
-        uptr->pos = 0;                                  /*       to simulate loop mode */
-
-        byte = fgetc (uptr->fileref);                   /* get the first byte from the tape */
-        }
-
-    else                                                /* otherwise READER mode is enabled or the tape is empty */
-        if (ptr_trlcnt < ptr_trllim) {                  /*   so if trailer remains to be added */
-            ptr_trlcnt++;                               /*     then count the trailer byte */
-            byte = 0;                                   /*       and return a NUL */
-            }
-
-        else if (cpu_ss_ioerr != SCPE_OK) {             /* otherwise trailer is complete; if the I/O stop is enabled */
-            sim_activate (uptr, uptr->wait);            /*   then reschedule the operation */
-
-            cpu_ioerr_uptr = uptr;                      /* save the failing unit */
-            return STOP_EOT;                            /*   and report that the tape is at EOF */
-            }
-
-        else                                            /* otherwise tape exhaustion */
-            return SCPE_OK;                             /*   just hangs the input operation */
-
-if (ferror (uptr->fileref)) {                                   /* if a host file I/O error occurred */
-    cprintf ("%s simulator paper tape reader I/O error: %s\n",  /*   then report the error to the console */
-             sim_name, strerror (errno));
-
-    clearerr (uptr->fileref);                           /* clear the error */
-    return SCPE_IOERR;                                  /*   and stop the simulator */
+            cpu_ioerr_uptr = uptr; /* save the failing unit */
+            return STOP_NOTAPE;    /*   and report that the tape isn't loaded */
+        } else                     /* otherwise no tape in the reader */
+            return SCPE_OK;        /*   just hangs the input operation */
     }
 
-else {                                                  /* otherwise the read was successful */
-    uptr->buf = LOWER_BYTE (byte);                      /*   so put the byte in the buffer */
-    uptr->pos = ftell (uptr->fileref);                  /*     and update the file position */
+    byte = fgetc (uptr->fileref); /* get the next byte from the paper tape file */
 
-    if (byte != 0)                                      /* if the byte is not a NUL */
-        ptr_trlcnt = 0;                                 /*   then clear the trailing NUL counter */
+    if (feof (uptr->fileref)) {                         /* if the file is positioned at the EOF */
+        if (uptr->flags & UNIT_DIAG && uptr->pos > 0) { /*   then if DIAG mode is enabled and the tape isn't empty */
+            rewind (uptr->fileref);                     /*     then rewind the tape */
+            uptr->pos = 0;                              /*       to simulate loop mode */
 
-    ptrio (&ptr_dib, ioENF, 0);                         /* set the device flag */
-    return SCPE_OK;                                     /*   and return success */
+            byte = fgetc (uptr->fileref);  /* get the first byte from the tape */
+        } else {                           /* otherwise READER mode is enabled or the tape is empty */
+            if (ptr_trlcnt < ptr_trllim) { /*   so if trailer remains to be added */
+                ptr_trlcnt++;              /*     then count the trailer byte */
+                byte = 0;                  /*       and return a NUL */
+            } else {
+                if (cpu_ss_ioerr != SCPE_OK) {       /* otherwise trailer is complete; if the I/O stop is enabled */
+                    sim_activate (uptr, uptr->wait); /*   then reschedule the operation */
+                }
+
+                cpu_ioerr_uptr = uptr; /* save the failing unit */
+                return STOP_EOT;       /*   and report that the tape is at EOF */
+            }
+        }
+    } else              /* otherwise tape exhaustion */
+        return SCPE_OK; /*   just hangs the input operation */
+
+    if (ferror (uptr->fileref)) {                                  /* if a host file I/O error occurred */
+        cprintf ("%s simulator paper tape reader I/O error: %s\n", /*   then report the error to the console */
+                 sim_name, strerror (errno));
+
+        clearerr (uptr->fileref); /* clear the error */
+        return SCPE_IOERR;        /*   and stop the simulator */
+    }
+
+    else {                                 /* otherwise the read was successful */
+        uptr->buf = LOWER_BYTE (byte);     /*   so put the byte in the buffer */
+        uptr->pos = ftell (uptr->fileref); /*     and update the file position */
+
+        if (byte != 0)      /* if the byte is not a NUL */
+            ptr_trlcnt = 0; /*   then clear the trailing NUL counter */
+
+        ptrio (&ptr_dib, ioENF, 0); /* set the device flag */
+        return SCPE_OK;             /*   and return success */
     }
 }
-
 
 /* Attach routine - clear the trailer counter */
 
@@ -1030,25 +1027,24 @@ return stat_data;
 
 /* Unit service */
 
-t_stat ptp_svc (UNIT *uptr)
+t_stat
+ptp_svc (UNIT *uptr)
 {
-if (uptr->flags & UNIT_ATT)                                         /* if the punch is attached */
-    if (fputc (uptr->buf, uptr->fileref) == EOF) {                  /*   then write the byte; if the write fails */
-        cprintf ("%s simulator paper tape punch I/O error: %s\n",   /*     then report the error to the console */
-                 sim_name, strerror (errno));
+    if (uptr->flags & UNIT_ATT) {                                     /* if the punch is attached */
+        if (fputc (uptr->buf, uptr->fileref) == EOF) {                /*   then write the byte; if the write fails */
+            cprintf ("%s simulator paper tape punch I/O error: %s\n", /*     then report the error to the console */
+                     sim_name, strerror (errno));
 
-        clearerr (uptr->fileref);                       /* clear the error */
-        return SCPE_IOERR;                              /*   and stop the simulator */
+            clearerr (uptr->fileref);          /* clear the error */
+            return SCPE_IOERR;                 /*   and stop the simulator */
+        } else {                               /* otherwise the write succeeds */
+            uptr->pos = ftell (uptr->fileref); /*   so update the file position */
+            ptpio (&ptp_dib, ioENF, 0);        /*     and set the device flag */
         }
+    }
 
-    else {                                              /* otherwise the write succeeds */
-        uptr->pos = ftell (uptr->fileref);              /*   so update the file position */
-        ptpio (&ptp_dib, ioENF, 0);                     /*     and set the device flag */
-        }
-
-return SCPE_OK;
+    return SCPE_OK;
 }
-
 
 /* Reset routine */
 
@@ -1346,39 +1342,38 @@ else {                                                  /* otherwise an error oc
    simulator follows this behavior.
 */
 
-t_stat tto_out (int32 c)
+t_stat
+tto_out (int32 c)
 {
-t_stat r = SCPE_OK;
+    t_stat r = SCPE_OK;
 
-if (tty_mode & TM_PUN                                               /* if punching is enabled */
-  && tty_unit [TTP].flags & UNIT_ATT)                               /*   and the punch is attached */
-    if (fputc (c, tty_unit [TTP].fileref) == EOF) {                 /*     then write the byte; if the write fails */
-        cprintf ("%s simulator teleprinter punch I/O error: %s\n",  /*       then report the error to the console */
-                 sim_name, strerror (errno));
+    if (tty_mode & TM_PUN                                              /* if punching is enabled */
+        && tty_unit[TTP].flags & UNIT_ATT) {                           /*   and the punch is attached */
+        if (fputc (c, tty_unit[TTP].fileref) == EOF) {                 /*     then write the byte; if the write fails */
+            cprintf ("%s simulator teleprinter punch I/O error: %s\n", /*       then report the error to the console */
+                     sim_name, strerror (errno));
 
-        clearerr (tty_unit [TTP].fileref);                      /* clear the error */
-        r = SCPE_IOERR;                                         /*   and stop the simulator */
-        }
+            clearerr (tty_unit[TTP].fileref);                  /* clear the error */
+            r = SCPE_IOERR;                                    /*   and stop the simulator */
+        } else                                                 /* otherwise the output succeeded */
+            tty_unit[TTP].pos = ftell (tty_unit[TTP].fileref); /*   so update the file position */
+    }
 
-    else                                                        /* otherwise the output succeeded */
-        tty_unit [TTP].pos = ftell (tty_unit [TTP].fileref);    /*   so update the file position */
+    if (tty_mode & TM_PRI                                         /* if printing is enabled */
+        || (tty_mode & TM_PUN                                     /*   or punching is enabled */
+            && (tty_unit[TTP].flags & UNIT_ATT) == 0)) {          /*     and the punch is not attached */
+        c = sim_tt_outcvt (c, TT_GET_MODE (tty_unit[TTO].flags)); /*       then convert the character */
 
-if (tty_mode & TM_PRI                                           /* if printing is enabled */
-  || tty_mode & TM_PUN                                          /*   or punching is enabled */
-  && (tty_unit [TTP].flags & UNIT_ATT) == 0) {                  /*     and the punch is not attached */
-    c = sim_tt_outcvt (c, TT_GET_MODE (tty_unit [TTO].flags));  /*       then convert the character */
+        if (c >= 0) {              /* if the character is valid */
+            r = sim_putchar_s (c); /*   then output it to the console */
 
-    if (c >= 0) {                                           /* if the character is valid */
-        r = sim_putchar_s (c);                              /*   then output it to the console */
-
-        if (r == SCPE_OK)                                   /* if the output succeeded */
-            tty_unit [TTO].pos = tty_unit [TTO].pos + 1;    /*   then update the file position */
+            if (r == SCPE_OK)                              /* if the output succeeded */
+                tty_unit[TTO].pos = tty_unit[TTO].pos + 1; /*   then update the file position */
         }
     }
 
-return r;                                               /* return the result */
+    return r; /* return the result */
 }
-
 
 /* TTY reset routine */
 
@@ -1675,125 +1670,113 @@ DEVICE clk_dev = {
    expected.
 */
 
-static uint32 clk_interface (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+static uint32
+clk_interface (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-uint16   status;
-int32    tick_count;
-IOSIGNAL signal;
-IOCYCLE  working_set = IOADDSIR (signal_set);           /* add ioSIR if needed */
+    uint16   status;
+    int32    tick_count;
+    IOSIGNAL signal;
+    IOCYCLE  working_set = IOADDSIR (signal_set); /* add ioSIR if needed */
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate next signal */
+    while (working_set) {
+        signal = IONEXT (working_set); /* isolate next signal */
 
-    switch (signal) {                                   /* dispatch I/O signal */
+        switch (signal) { /* dispatch I/O signal */
 
-        case ioCLF:                                     /* clear flag flip-flop */
+        case ioCLF: /* clear flag flip-flop */
             clk.flag = clk.flagbuf = CLEAR;
             break;
 
-
-        case ioSTF:                                     /* set flag flip-flop */
-        case ioENF:                                     /* enable flag */
+        case ioSTF: /* set flag flip-flop */
+        case ioENF: /* enable flag */
             clk.flag = clk.flagbuf = SET;
             break;
 
-
-        case ioSFC:                                     /* skip if flag is clear */
+        case ioSFC: /* skip if flag is clear */
             setstdSKF (clk);
             break;
 
-
-        case ioSFS:                                     /* skip if flag is set */
+        case ioSFS: /* skip if flag is set */
             setstdSKF (clk);
             break;
 
+        case ioIOI:                 /* I/O data input */
+            if (lost_tick == SET) { /* if the lost-tick flip-flop is set */
+                status = ST_ERROR;  /*   then indicate an error */
 
-        case ioIOI:                                     /* I/O data input */
-            if (lost_tick == SET) {                     /* if the lost-tick flip-flop is set */
-                status = ST_ERROR;                      /*   then indicate an error */
+                if (clk_unit[0].flags & UNIT_W1B) /* if W1 is in position B */
+                    status |= ST_ERROR_W1B;       /*   then set the status in bit 5 as well */
+            }
 
-                if (clk_unit [0].flags & UNIT_W1B)      /* if W1 is in position B */
-                    status |= ST_ERROR_W1B;             /*   then set the status in bit 5 as well */
-                }
+            else            /* otherwise the error flip-flop is clear */
+                status = 0; /*   so clear the error status */
 
-            else                                        /* otherwise the error flip-flop is clear */
-                status = 0;                             /*   so clear the error status */
+            stat_data = IORETURN (SCPE_OK, status); /* merge in the return status */
 
-            stat_data = IORETURN (SCPE_OK, status);     /* merge in the return status */
-
-            tprintf (clk_dev, TRACE_CSRW, "Status is %s\n",
-                     fmt_bitset (status, status_format));
+            tprintf (clk_dev, TRACE_CSRW, "Status is %s\n", fmt_bitset (status, status_format));
             break;
 
+        case ioIOO:                                    /* I/O data output */
+            clk_select = CN_RATE (IODATA (stat_data)); /* save select */
+            sim_cancel (&clk_unit[0]);                 /* stop the clock */
+            clk.control = CLEAR;                       /* clear control */
+            working_set = working_set | ioSIR;         /* set interrupt request (IOO normally doesn't) */
 
-        case ioIOO:                                     /* I/O data output */
-            clk_select = CN_RATE (IODATA (stat_data));  /* save select */
-            sim_cancel (&clk_unit [0]);                 /* stop the clock */
-            clk.control = CLEAR;                        /* clear control */
-            working_set = working_set | ioSIR;          /* set interrupt request (IOO normally doesn't) */
-
-            tprintf (clk_dev, TRACE_CSRW, "Control is %s rate\n",
-                     rate_name [clk_select]);
+            tprintf (clk_dev, TRACE_CSRW, "Control is %s rate\n", rate_name[clk_select]);
             break;
 
-
-        case ioPOPIO:                                   /* power-on preset to I/O */
-            clk.flag = clk.flagbuf = SET;               /* set flag and flag buffer */
+        case ioPOPIO:                     /* power-on preset to I/O */
+            clk.flag = clk.flagbuf = SET; /* set flag and flag buffer */
             break;
 
-
-        case ioCRS:                                     /* control reset */
-        case ioCLC:                                     /* clear control flip-flop */
+        case ioCRS: /* control reset */
+        case ioCLC: /* clear control flip-flop */
             clk.control = CLEAR;
-            sim_cancel (&clk_unit [0]);                 /* deactivate unit */
+            sim_cancel (&clk_unit[0]); /* deactivate unit */
             break;
 
-
-        case ioSTC:                                     /* set control flip-flop */
+        case ioSTC: /* set control flip-flop */
             clk.control = SET;
 
-            if (!sim_is_active (&clk_unit [0])) {               /* clock running? */
-                tick_count = clk_delay (0);                     /* get tick count */
+            if (!sim_is_active (&clk_unit[0])) { /* clock running? */
+                tick_count = clk_delay (0);      /* get tick count */
 
-                if (clk_unit [0].flags & UNIT_CALTIME)          /* calibrated? */
-                    if (clk_select == 2)                        /* 10 msec. interval? */
-                        tick_count = sync_poll (INITIAL);       /* sync poll */
+                if (clk_unit[0].flags & UNIT_CALTIME) {   /* calibrated? */
+                    if (clk_select == 2)                  /* 10 msec. interval? */
+                        tick_count = sync_poll (INITIAL); /* sync poll */
                     else
-                        sim_rtcn_init (tick_count, TMR_CLK);    /* initialize timer */
-
-                tprintf (clk_dev, TRACE_PSERV, "Rate %s delay %d service rescheduled\n",
-                         rate_name [clk_select], tick_count);
-
-                sim_activate (&clk_unit [0], tick_count);       /* start clock */
-                clk_ctr = clk_delay (1);                        /* set repeat ctr */
+                        sim_rtcn_init (tick_count, TMR_CLK); /* initialize timer */
                 }
 
-            lost_tick = CLEAR;                                  /* clear error */
+                tprintf (clk_dev, TRACE_PSERV, "Rate %s delay %d service rescheduled\n", rate_name[clk_select],
+                         tick_count);
+
+                sim_activate (&clk_unit[0], tick_count); /* start clock */
+                clk_ctr = clk_delay (1);                 /* set repeat ctr */
+            }
+
+            lost_tick = CLEAR; /* clear error */
             break;
 
-
-        case ioSIR:                                     /* set interrupt request */
-            setstdPRL (clk);                            /* set standard PRL signal */
-            setstdIRQ (clk);                            /* set standard IRQ signal */
-            setstdSRQ (clk);                            /* set standard SRQ signal */
+        case ioSIR:          /* set interrupt request */
+            setstdPRL (clk); /* set standard PRL signal */
+            setstdIRQ (clk); /* set standard IRQ signal */
+            setstdSRQ (clk); /* set standard SRQ signal */
             break;
 
-
-        case ioIAK:                                     /* interrupt acknowledge */
+        case ioIAK: /* interrupt acknowledge */
             clk.flagbuf = CLEAR;
             break;
 
-
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+        default:   /* all other signals */
+            break; /*   are ignored */
         }
 
-    working_set = working_set & ~signal;                /* remove current signal from set */
+        working_set = working_set & ~signal; /* remove current signal from set */
     }
 
-return stat_data;
+    return stat_data;
 }
-
 
 /* CLK unit service.
 

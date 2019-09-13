@@ -622,131 +622,114 @@ static DEVICE *dptrs [CARD_COUNT] = {
        intrusive.
 */
 
-static uint32 ipl_interface (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+static uint32
+ipl_interface(DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-const char *iotype [] = { "Status", "Command" };
-const CARD_INDEX card = (CARD_INDEX) dibptr->card_index;    /* set card selector */
-UNIT *const uptr = &(ipl_unit [card]);                      /* associated unit pointer */
-IOSIGNAL signal;
-IOCYCLE  working_set = IOADDSIR (signal_set);           /* add ioSIR if needed */
+    const char *     iotype[] = {"Status", "Command"};
+    const CARD_INDEX card     = (CARD_INDEX)dibptr->card_index; /* set card selector */
+    UNIT *const      uptr     = &(ipl_unit[card]);              /* associated unit pointer */
+    IOSIGNAL         signal;
+    IOCYCLE          working_set = IOADDSIR(signal_set); /* add ioSIR if needed */
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate next signal */
+    while (working_set) {
+        signal = IONEXT(working_set); /* isolate next signal */
 
-    switch (signal) {                                   /* dispatch I/O signal */
+        switch (signal) { /* dispatch I/O signal */
 
-        case ioCLF:                                     /* clear flag flip-flop */
-            ipl [card].flag    = CLEAR;
-            ipl [card].flagbuf = CLEAR;
+        case ioCLF: /* clear flag flip-flop */
+            ipl[card].flag    = CLEAR;
+            ipl[card].flagbuf = CLEAR;
             break;
 
-
-        case ioSTF:                                     /* set flag flip-flop */
-        case ioENF:                                     /* enable flag */
-            ipl [card].flag    = SET;
-            ipl [card].flagbuf = SET;
+        case ioSTF: /* set flag flip-flop */
+        case ioENF: /* enable flag */
+            ipl[card].flag    = SET;
+            ipl[card].flagbuf = SET;
             break;
 
-
-        case ioSFC:                                     /* skip if flag is clear */
-            setstdSKF (ipl [card]);
+        case ioSFC: /* skip if flag is clear */
+            setstdSKF(ipl[card]);
             break;
 
-
-        case ioSFS:                                     /* skip if flag is set */
-            setstdSKF (ipl [card]);
+        case ioSFS: /* skip if flag is set */
+            setstdSKF(ipl[card]);
             break;
 
+        case ioIOI:                                              /* I/O data input */
+            stat_data = IORETURN(SCPE_OK, ipl[card].input_word); /* get return data */
 
-        case ioIOI:                                     /* I/O data input */
-            stat_data = IORETURN (SCPE_OK, ipl [card].input_word); /* get return data */
-
-            tpprintf (dptrs [card], TRACE_CSRW, "%s input word is %06o\n",
-                      iotype [card ^ 1], ipl [card].input_word);
+            tpprintf(dptrs[card], TRACE_CSRW, "%s input word is %06o\n", iotype[card ^ 1], ipl[card].input_word);
             break;
 
+        case ioIOO:                                    /* I/O data output */
+            ipl[card].output_word = IODATA(stat_data); /* clear supplied status */
 
-        case ioIOO:                                         /* I/O data output */
-            ipl [card].output_word = IODATA (stat_data);    /* clear supplied status */
+            io_ptrs[card].output->data_out = ipl[card].output_word;
 
-            io_ptrs [card].output->data_out = ipl [card].output_word;
-
-            tpprintf (dptrs [card], TRACE_CSRW, "%s output word is %06o\n",
-                      iotype [card], ipl [card].output_word);
+            tpprintf(dptrs[card], TRACE_CSRW, "%s output word is %06o\n", iotype[card], ipl[card].output_word);
             break;
 
+        case ioPOPIO:                    /* power-on preset to I/O */
+            ipl[card].flag        = SET; /* set flag buffer and flag */
+            ipl[card].flagbuf     = SET;
+            ipl[card].output_word = 0; /* clear output buffer */
 
-        case ioPOPIO:                                   /* power-on preset to I/O */
-            ipl [card].flag        = SET;               /* set flag buffer and flag */
-            ipl [card].flagbuf     = SET;
-            ipl [card].output_word = 0;                 /* clear output buffer */
-
-            io_ptrs [card].output->data_out = 0;
+            io_ptrs[card].output->data_out = 0;
             break;
 
-
-        case ioCRS:                                     /* control reset */
-        case ioCLC:                                     /* clear control flip-flop */
-            ipl [card].control = CLEAR;                 /* clear ctl */
+        case ioCRS:                    /* control reset */
+        case ioCLC:                    /* clear control flip-flop */
+            ipl[card].control = CLEAR; /* clear ctl */
             break;
 
+        case ioSTC:                  /* set control flip-flop */
+            ipl[card].control = SET; /* set ctl */
 
-        case ioSTC:                                     /* set control flip-flop */
-            ipl [card].control = SET;                   /* set ctl */
+            io_ptrs[card].output->device_command_out = TRUE; /* assert Device Command */
 
-            io_ptrs [card].output->device_command_out = TRUE;   /* assert Device Command */
-
-            if (uptr->flags & UNIT_DIAG)                        /* if this card is in the diagnostic mode */
-                if (ipl_unit [card ^ 1].flags & UNIT_DIAG) {    /*   then if both cards are in diagnostic mode */
-                    ipl_unit [card ^ 1].wait = 1;               /*     then schedule the other card */
-                    activate_unit (&ipl_unit [card ^ 1]);       /*       for immediate reception */
-                    }
-
-                else {                                          /*   otherwise simulate a loopback */
-                    uptr->wait = 1;                             /*     by scheduling this card */
-                    activate_unit (uptr);                       /*       for immediate reception */
-                    }
-
-            tpprintf (dptrs [card], TRACE_XFER, "Word %06o sent to link\n",
-                      ipl [card].output_word);
-            break;
-
-
-        case ioEDT:                                     /* end data transfer */
-            if (cpu_is_iop                              /* if this is the IOP instance */
-              && signal_set & ioIOO                     /*   and the card is doing output */
-              && card == ipli) {                        /*     on the input card */
-
-                tprintf (ipli_dev, TRACE_CMD, "Delaying DMA completion interrupt for %d msec\n",
-                         edt_delay);
-
-                sim_os_ms_sleep (edt_delay);            /*       then delay DMA completion */
+            if (uptr->flags & UNIT_DIAG) {                  /* if this card is in the diagnostic mode */
+                if (ipl_unit[card ^ 1].flags & UNIT_DIAG) { /*   then if both cards are in diagnostic mode */
+                    ipl_unit[card ^ 1].wait = 1;            /*     then schedule the other card */
+                    activate_unit(&ipl_unit[card ^ 1]);     /*       for immediate reception */
+                } else {                                    /*   otherwise simulate a loopback */
+                    uptr->wait = 1;                         /*     by scheduling this card */
+                    activate_unit(uptr);                    /*       for immediate reception */
                 }
+            }
+
+            tpprintf(dptrs[card], TRACE_XFER, "Word %06o sent to link\n", ipl[card].output_word);
             break;
 
+        case ioEDT:                   /* end data transfer */
+            if (cpu_is_iop            /* if this is the IOP instance */
+                && signal_set & ioIOO /*   and the card is doing output */
+                && card == ipli) {    /*     on the input card */
 
-        case ioSIR:                                     /* set interrupt request */
-            setstdPRL (ipl [card]);
-            setstdIRQ (ipl [card]);
-            setstdSRQ (ipl [card]);
+                tprintf(ipli_dev, TRACE_CMD, "Delaying DMA completion interrupt for %d msec\n", edt_delay);
+
+                sim_os_ms_sleep(edt_delay); /*       then delay DMA completion */
+            }
             break;
 
-
-        case ioIAK:                                     /* interrupt acknowledge */
-            ipl [card].flagbuf = CLEAR;
+        case ioSIR: /* set interrupt request */
+            setstdPRL(ipl[card]);
+            setstdIRQ(ipl[card]);
+            setstdSRQ(ipl[card]);
             break;
 
+        case ioIAK: /* interrupt acknowledge */
+            ipl[card].flagbuf = CLEAR;
+            break;
 
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+        default:   /* all other signals */
+            break; /*   are ignored */
         }
 
-    working_set = working_set & ~signal;                /* remove current signal from set */
+        working_set = working_set & ~signal; /* remove current signal from set */
     }
 
-return stat_data;
+    return stat_data;
 }
-
 
 /* Unit service - poll for input */
 
@@ -1037,57 +1020,58 @@ else {                                                  /* otherwise a single nu
    status to indicate that the error code register should be checked.
 */
 
-static t_stat ipl_detach (UNIT *uptr)
+static t_stat
+ipl_detach(UNIT *uptr)
 {
-UNIT *optr;
+    UNIT *optr;
 
-if ((uptr->flags & UNIT_ATT) == 0)                      /* if the unit is not attached */
-    if (sim_switches & SIM_SW_REST)                     /*   then if this is a restoration call */
-        return SCPE_OK;                                 /*     then return success */
-    else                                                /*   otherwise this is a manual request */
-        return SCPE_UNATT;                              /*     so complain that the unit is not attached */
-
-if (ipli_unit.filename == iplo_unit.filename) {         /* if both units are attached to the same object */
-    if (uptr == &ipli_unit)                             /*   then if we are detaching the input unit */
-        optr = &iplo_unit;                              /*     then point at the output unit */
-    else                                                /*   otherwise we are detaching the output unit */
-        optr = &ipli_unit;                              /*     so point at the input unit */
-
-    optr->filename = NULL;                              /* clear the other unit's attached object name */
-
-    optr->flags &= ~UNIT_ATT;                           /* clear the other unit's attached flag */
-    optr->ID = 0;                                       /*   and the ID number */
-
-    sim_cancel (optr);                                  /* cancel the other unit's poll */
+    if ((uptr->flags & UNIT_ATT) == 0) { /* if the unit is not attached */
+        if (sim_switches & SIM_SW_REST)  /*   then if this is a restoration call */
+            return SCPE_OK;              /*     then return success */
+        else                             /*   otherwise this is a manual request */
+            return SCPE_UNATT;           /*     so complain that the unit is not attached */
     }
 
-free (uptr->filename);                                  /* free the memory holding the ID number */
-uptr->filename = NULL;                                  /*   and clear the attached object name */
+    if (ipli_unit.filename == iplo_unit.filename) { /* if both units are attached to the same object */
+        if (uptr == &ipli_unit)                     /*   then if we are detaching the input unit */
+            optr = &iplo_unit;                      /*     then point at the output unit */
+        else                                        /*   otherwise we are detaching the output unit */
+            optr = &ipli_unit;                      /*     so point at the input unit */
 
-uptr->flags &= ~UNIT_ATT;                               /* clear the unit attached flag */
-uptr->ID = 0;                                           /*   and the ID number */
+        optr->filename = NULL; /* clear the other unit's attached object name */
 
-sim_cancel (uptr);                                      /* cancel the poll */
+        optr->flags &= ~UNIT_ATT; /* clear the other unit's attached flag */
+        optr->ID = 0;             /*   and the ID number */
 
-io_ptrs [ipli].output->cable_connected = FALSE;         /* disconnect the cables */
-io_ptrs [iplo].output->cable_connected = FALSE;         /*   from both cards */
+        sim_cancel(optr); /* cancel the other unit's poll */
+    }
 
-io_ptrs [ipli].input  = &dev_bus [ipli].forward.input;  /* restore local control */
-io_ptrs [ipli].output = &dev_bus [ipli].forward.output; /*   over the I/O state */
-io_ptrs [iplo].input  = &dev_bus [iplo].forward.input;  /*     for both cards */
-io_ptrs [iplo].output = &dev_bus [iplo].forward.output;
+    free(uptr->filename);  /* free the memory holding the ID number */
+    uptr->filename = NULL; /*   and clear the attached object name */
 
-sim_shmem_close (memory_region);                        /* deallocate the shared memory region */
-memory_region = NULL;                                   /*   and clear the region pointer */
+    uptr->flags &= ~UNIT_ATT; /* clear the unit attached flag */
+    uptr->ID = 0;             /*   and the ID number */
 
-event_error = destroy_event (event_name, &event_id);    /* destroy the event */
+    sim_cancel(uptr); /* cancel the poll */
 
-if (event_error == 0)                                   /* if the destruction succeeded */
-    return SCPE_OK;                                     /*   then report success */
-else                                                    /* otherwise */
-    return SCPE_INCOMP;                                 /*   report that the command did not complete */
+    io_ptrs[ipli].output->cable_connected = FALSE; /* disconnect the cables */
+    io_ptrs[iplo].output->cable_connected = FALSE; /*   from both cards */
+
+    io_ptrs[ipli].input  = &dev_bus[ipli].forward.input;  /* restore local control */
+    io_ptrs[ipli].output = &dev_bus[ipli].forward.output; /*   over the I/O state */
+    io_ptrs[iplo].input  = &dev_bus[iplo].forward.input;  /*     for both cards */
+    io_ptrs[iplo].output = &dev_bus[iplo].forward.output;
+
+    sim_shmem_close(memory_region); /* deallocate the shared memory region */
+    memory_region = NULL;           /*   and clear the region pointer */
+
+    event_error = destroy_event(event_name, &event_id); /* destroy the event */
+
+    if (event_error == 0)   /* if the destruction succeeded */
+        return SCPE_OK;     /*   then report success */
+    else                    /* otherwise */
+        return SCPE_INCOMP; /*   report that the command did not complete */
 }
-
 
 /* Set the diagnostic or link mode.
 

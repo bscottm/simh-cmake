@@ -341,165 +341,150 @@ DEVICE lps_dev = {
        assertion of STC and CLC simultaneously will not.
 */
 
-static uint32 lpsio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
+static uint32
+lpsio (DIB *dibptr, IOCYCLE signal_set, uint32 stat_data)
 {
-int32 current_line, current_char;
-IOSIGNAL signal;
-IOCYCLE  working_set = IOADDSIR (signal_set);           /* add ioSIR if needed */
+    int32    current_line, current_char;
+    IOSIGNAL signal;
+    IOCYCLE  working_set = IOADDSIR (signal_set); /* add ioSIR if needed */
 
-while (working_set) {
-    signal = IONEXT (working_set);                      /* isolate next signal */
+    while (working_set) {
+        signal = IONEXT (working_set); /* isolate next signal */
 
-    switch (signal) {                                   /* dispatch I/O signal */
+        switch (signal) { /* dispatch I/O signal */
 
-        case ioCLF:                                     /* clear flag flip-flop */
+        case ioCLF: /* clear flag flip-flop */
             lps.flag = lps.flagbuf = CLEAR;
             break;
 
-
-        case ioSTF:                                     /* set flag flip-flop */
-        case ioENF:                                     /* enable flag */
+        case ioSTF: /* set flag flip-flop */
+        case ioENF: /* enable flag */
             lps.flag = lps.flagbuf = SET;
             break;
 
-
-        case ioSFC:                                     /* skip if flag is clear */
+        case ioSFC: /* skip if flag is clear */
             setstdSKF (lps);
             break;
 
-
-        case ioSFS:                                     /* skip if flag is set */
+        case ioSFS: /* skip if flag is set */
             setstdSKF (lps);
             break;
 
-
-        case ioIOI:                                             /* I/O data input */
-            if ((lps_unit.flags & UNIT_DIAG) == 0) {            /* real lpt? */
-                if (lps_power == LPS_ON) {                      /* power on? */
-                    if (((lps_unit.flags & UNIT_ATT) == 0) ||   /* paper out? */
-                        (lps_unit.flags & UNIT_OFFLINE) ||      /* offline? */
-                        sim_is_active (&lps_unit)) lps_sta = LPS_BUSY;
+        case ioIOI:                                           /* I/O data input */
+            if ((lps_unit.flags & UNIT_DIAG) == 0) {          /* real lpt? */
+                if (lps_power == LPS_ON) {                    /* power on? */
+                    if (((lps_unit.flags & UNIT_ATT) == 0) || /* paper out? */
+                        (lps_unit.flags & UNIT_OFFLINE) ||    /* offline? */
+                        sim_is_active (&lps_unit))
+                        lps_sta = LPS_BUSY;
 
                     else
                         lps_sta = 0;
-                    }
+                }
 
                 else
                     lps_sta = LPS_PWROFF;
-                }
+            }
 
-            stat_data = IORETURN (SCPE_OK, lps_sta);    /* diag, rtn status */
+            stat_data = IORETURN (SCPE_OK, lps_sta); /* diag, rtn status */
 
             tprintf (lps_dev, DEB_CPU, "Status %06o returned\n", lps_sta);
             break;
 
-
-        case ioIOO:                                     /* I/O data output */
+        case ioIOO: /* I/O data output */
             lps_unit.buf = IODATA (stat_data);
 
-            tprintf (lps_dev, DEB_CPU, "Control %06o (%s) output\n",
-                     lps_unit.buf, fmt_char (lps_unit.buf & DATA_MASK));
+            tprintf (lps_dev, DEB_CPU, "Control %06o (%s) output\n", lps_unit.buf, fmt_char (lps_unit.buf & DATA_MASK));
             break;
 
-
-        case ioPOPIO:                                   /* power-on preset to I/O */
-            lps.flag = lps.flagbuf = SET;               /* set flag and flag buffer */
-            lps_unit.buf = 0;                           /* clear output buffer */
+        case ioPOPIO:                     /* power-on preset to I/O */
+            lps.flag = lps.flagbuf = SET; /* set flag and flag buffer */
+            lps_unit.buf           = 0;   /* clear output buffer */
             break;
 
-
-        case ioCRS:                                     /* control reset */
-            lps.control = CLEAR;                        /* clear control */
-            sim_cancel (&lps_unit);                     /* deactivate unit */
+        case ioCRS:                 /* control reset */
+            lps.control = CLEAR;    /* clear control */
+            sim_cancel (&lps_unit); /* deactivate unit */
             break;
 
-
-        case ioCLC:                                     /* clear control flip-flop */
+        case ioCLC: /* clear control flip-flop */
             lps.control = CLEAR;
             break;
 
+        case ioSTC:            /* set control flip-flop */
+            lps.control = SET; /* set control */
 
-        case ioSTC:                                     /* set control flip-flop */
-            lps.control = SET;                          /* set control */
+            if (lps_unit.flags & UNIT_DIAG) { /* diagnostic? */
+                lps_sta = lps_unit.buf;       /* loop back data */
 
-            if (lps_unit.flags & UNIT_DIAG) {           /* diagnostic? */
-                lps_sta = lps_unit.buf;                 /* loop back data */
-
-                if (!(signal_set & ioCLC))                  /* CLC not asserted simultaneously? */
-                    if (UNIT_CPU_TYPE == UNIT_TYPE_211X)    /* 2114/15/16 CPU? */
-                        sim_activate (&lps_unit, 3);        /* schedule flag after two instructions */
-                    else                                    /* 2100 or 1000 */
-                        sim_activate (&lps_unit, 2);        /* schedule flag after next instruction */
+                if (!(signal_set & ioCLC)) {             /* CLC not asserted simultaneously? */
+                    if (UNIT_CPU_TYPE == UNIT_TYPE_211X) /* 2114/15/16 CPU? */
+                        sim_activate (&lps_unit, 3);     /* schedule flag after two instructions */
+                    else                                 /* 2100 or 1000 */
+                        sim_activate (&lps_unit, 2);     /* schedule flag after next instruction */
                 }
-
-            else {                                      /* real lpt, sched */
+            } else { /* real lpt, sched */
                 current_char = lps_ccnt + 1;
                 current_line = lps_lcnt + 1;
 
-                if ((lps_unit.buf != FF) &&
-                    (lps_unit.buf != LF) &&
-                    (lps_unit.buf != CR)) {             /* normal char */
-                    lps_ccnt = lps_ccnt + 1;            /* incr char counter */
-                    if (lps_ccnt % LPS_ZONECNT == 0)    /* end of zone? */
-                        lps_unit.wait = lps_ptime;      /* print zone */
+                if ((lps_unit.buf != FF) && (lps_unit.buf != LF) && (lps_unit.buf != CR)) { /* normal char */
+                    lps_ccnt = lps_ccnt + 1;                                                /* incr char counter */
+                    if (lps_ccnt % LPS_ZONECNT == 0)                                        /* end of zone? */
+                        lps_unit.wait = lps_ptime;                                          /* print zone */
                     else
-                        lps_unit.wait = lps_ctime;      /* xfer char */
-                    }
+                        lps_unit.wait = lps_ctime; /* xfer char */
+                }
 
-                else {                                  /* print cmd */
-                    if (lps_ccnt % LPS_ZONECNT == 0)    /* last zone printed? */
-                        lps_unit.wait = lps_ctime;      /* yes, so just char time */
+                else {                               /* print cmd */
+                    if (lps_ccnt % LPS_ZONECNT == 0) /* last zone printed? */
+                        lps_unit.wait = lps_ctime;   /* yes, so just char time */
                     else
-                        lps_unit.wait = lps_ptime;      /* no, so print needed */
+                        lps_unit.wait = lps_ptime; /* no, so print needed */
 
-                    lps_ccnt = 0;                       /* reset char counter */
+                    lps_ccnt = 0; /* reset char counter */
 
-                    if (lps_unit.buf == LF) {           /* line advance */
+                    if (lps_unit.buf == LF) { /* line advance */
                         lps_lcnt = (lps_lcnt + 1) % LPS_PAGELNT;
 
                         if (lps_lcnt > 0)
                             lps_unit.wait += lps_stime;
                         else
-                            lps_unit.wait +=            /* allow for perf skip */
-                              lps_stime * (LPS_FORMLNT - LPS_PAGELNT);
-                        }
+                            lps_unit.wait += /* allow for perf skip */
+                                lps_stime * (LPS_FORMLNT - LPS_PAGELNT);
+                    }
 
-                    else if (lps_unit.buf == FF) {      /* form advance */
+                    else if (lps_unit.buf == FF) { /* form advance */
                         lps_unit.wait += lps_stime * (LPS_FORMLNT - lps_lcnt);
                         lps_lcnt = 0;
-                        }
                     }
+                }
 
                 sim_activate (&lps_unit, lps_unit.wait);
 
                 tprintf (lps_dev, DEB_CMDS, "Character %s scheduled for line %d, column %d, time = %d\n",
                          fmt_char (lps_unit.buf & DATA_MASK), current_line, current_char, lps_unit.wait);
-                }
+            }
             break;
 
-
-        case ioSIR:                                     /* set interrupt request */
-            setstdPRL (lps);                            /* set standard PRL signal */
-            setstdIRQ (lps);                            /* set standard IRQ signal */
-            setstdSRQ (lps);                            /* set standard SRQ signal */
+        case ioSIR:          /* set interrupt request */
+            setstdPRL (lps); /* set standard PRL signal */
+            setstdIRQ (lps); /* set standard IRQ signal */
+            setstdSRQ (lps); /* set standard SRQ signal */
             break;
 
-
-        case ioIAK:                                     /* interrupt acknowledge */
+        case ioIAK: /* interrupt acknowledge */
             lps.flagbuf = CLEAR;
             break;
 
-
-        default:                                        /* all other signals */
-            break;                                      /*   are ignored */
+        default:   /* all other signals */
+            break; /*   are ignored */
         }
 
-    working_set = working_set & ~signal;                /* remove current signal from set */
+        working_set = working_set & ~signal; /* remove current signal from set */
     }
 
-return stat_data;
+    return stat_data;
 }
-
 
 /* Unit service.
 

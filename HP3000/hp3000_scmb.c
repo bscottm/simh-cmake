@@ -863,8 +863,9 @@ while (working_set) {                                   /* while there are signa
         case TOGGLESIOOK:
             TOGGLE (scmb [card].sio_busy);              /* set or clear the SIO busy flip-flop */
 
-            if (scmb [card].sio_busy == CLEAR)          /* if the channel is now idle */
+            if (scmb [card].sio_busy == CLEAR) {        /* if the channel is now idle */
                 dprintf (scmb_dev [card], DEB_CSRW, "Channel program ended\n");
+	    }
             break;
 
 
@@ -1017,20 +1018,21 @@ while (working_set) {                                   /* while there are signa
     IOCLEARSIG (working_set, signal);                   /* remove the current signal from the set */
     }
 
+if (scmb[card].flags & END_CONDITION) {                 /* if a termination condition is present */
+    if ((scmb[card].control_word & CN_CLEAR_IF) == 0) { /* then if we want a device end */
+	scmb[card].device_end = SET;                    /* then indicate a device end abort */
+    } else {
+	if (scmb[card].stop_transfer == CLEAR) {        /* otherwise if we haven't stopped yet */
+	    clear_logic(card);                          /* then clear the interface and abort the transfer */
 
-if (scmb [card].flags & END_CONDITION)                  /* if a termination condition is present */
-    if ((scmb [card].control_word & CN_CLEAR_IF) == 0)  /*   then if we want a device end */
-        scmb [card].device_end = SET;                   /*     then indicate a device end abort */
+	    scmb[card].stop_transfer = SET;             /* inhibit another interface clear */
+	    scmb[card].flags |= ST_CLEAR_IF;            /* and set the clear interface status */
 
-    else if (scmb [card].stop_transfer == CLEAR) {      /* otherwise if we haven't stopped yet */
-        clear_logic (card);                             /*   then clear the interface and abort the transfer */
-
-        scmb [card].stop_transfer = SET;                /* inhibit another interface clear */
-        scmb [card].flags |= ST_CLEAR_IF;               /*   and set the clear interface status */
-
-        dibptr->interrupt_request = SET;                /* set the request flip-flop */
-        outbound_signals |= INTREQ;                     /*   and request the interrupt */
-        }
+	    dibptr->interrupt_request = SET;            /* set the request flip-flop */
+	    outbound_signals |= INTREQ;                 /* and request the interrupt */
+	}
+    }
+}
 
 if (scmb [card].control_word & CN_HSREQ)                /* if high-speed requests are enabled */
     assert_sr = D_FF (scmb [card].channel_sr            /*   then assert SR immediately if indicated */
@@ -1039,10 +1041,10 @@ if (scmb [card].control_word & CN_HSREQ)                /* if high-speed request
 else {                                                  /* otherwise assert SR immediately */
     assert_sr = scmb [card].channel_sr;                 /*   only if the channel is requesting service */
 
-    if ((! assert_sr & scmb [card].device_sr)           /* if a delayed device SR assertion is requested */
-      && (MPX_BUS (card) || outbound_signals & CHANACK) /*   and we're on the MPX bus or CHANACK is not inhibited */
-      && (scmb [card].control_word & CN_NOSR) == 0) {   /*     and channel service is not inhibited */
-        sim_activate (&scmb_unit [card],                /*       then schedule SR assertion in 5 microseconds */
+    if (((! (assert_sr & scmb [card].device_sr))          /* if a delayed device SR assertion is requested */
+      && (MPX_BUS (card))) || ((outbound_signals & CHANACK) /* and we're on the MPX bus or CHANACK is not inhibited */
+      && (scmb [card].control_word & CN_NOSR) == 0)) {    /* and channel service is not inhibited */
+        sim_activate (&scmb_unit [card],                  /* then schedule SR assertion in 5 microseconds */
                       scmb_unit [card].wait);
 
         dprintf (scmb_dev [card], DEB_SERV, "Delay %u SR service scheduled\n",
@@ -1051,11 +1053,12 @@ else {                                                  /* otherwise assert SR i
     }
 
 
-if (assert_sr)                                          /* if a service request is indicated */
+if (assert_sr) {                                        /* if a service request is indicated */
     if (MPX_BUS (card))                                 /*   then if we're on the multiplexer bus */
         outbound_signals |= SRn;                        /*     then assert the SRn signal */
     else if ((scmb [card].control_word & CN_NOSR) == 0) /*   otherwise if channel service is not inhibited */
         outbound_signals |= CHANSR;                     /*     then assert the CHANSR signal */
+}
 
 if (scmb [card].jump_met == SET)                        /* if the jump met flip-flop is set */
     outbound_signals |= JMPMET;                         /*   then assert the JMPMET signal */
@@ -1215,13 +1218,14 @@ return;
    condition is enabled, then set the end-on-terminal-count status.
 */
 
-static void increment_counter (CARD_ID card)
+static void
+increment_counter(CARD_ID card)
 {
-scmb [card].counter = scmb [card].counter + 1 & R_MASK; /* increment the counter with rollover */
+    scmb[card].counter = (scmb[card].counter + 1) & R_MASK; /* increment the counter with rollover */
 
-if (scmb [card].counter == 0                            /* if the counter rolled over */
-  && scmb [card].control_word & CN_TERM_COUNT)          /*   and termination is enabled */
-    scmb [card].flags |= ST_END_COUNT;                  /*     then set the terminal count flag */
+    if (scmb[card].counter == 0                             /* if the counter rolled over */
+        && scmb[card].control_word & CN_TERM_COUNT)         /* and termination is enabled */
+        scmb[card].flags |= ST_END_COUNT;                   /* then set the terminal count flag */
 
-return;
+    return;
 }

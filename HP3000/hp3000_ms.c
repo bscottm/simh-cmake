@@ -272,7 +272,7 @@
 
 #define DEB_IOB             TL_DEB_IOB                  /* trace I/O bus signals and data words */
 #define DEB_SERV            TL_DEB_SERV                 /* trace unit service scheduling calls */
-#define DEB_CSRW            (1u << TL_DEB_V_UF + 0)     /* trace control, status, read, and write actions */
+#define DEB_CSRW            (1u << (TL_DEB_V_UF + 0))   /* trace control, status, read, and write actions */
 
 
 /* Control word.
@@ -782,7 +782,7 @@ while (working_set) {
 
             if (unit_interrupt)                         /* if a unit interrupt is pending */
                 outbound_value =                        /*   then replace the selected unit */
-                   outbound_value & ~ST_UNIT_MASK       /*     with the interrupting unit */
+                   (outbound_value & ~ST_UNIT_MASK)     /*     with the interrupting unit */
                    | ST_UNIT (attention_unit)           /*       and set the status code */
                    | ST_UNITIRQ;
 
@@ -1295,7 +1295,7 @@ while (command_set) {                                   /* process the set of re
 
 
         case IFGTC:                                         /* Interface Get Command */
-            flags = flags & INTOK | EOD;                    /* clear the interface transfer flags and set EOD */
+            flags = (flags & INTOK) | EOD;                  /* clear the interface transfer flags and set EOD */
 
             command_class = (CNTLR_CLASS) TLIBUS (result);  /* save the command classification */
             break;

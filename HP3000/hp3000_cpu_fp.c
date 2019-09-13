@@ -122,7 +122,7 @@
 #define UNPACKED_BITS       54                  /* the number of significant bits in the unpacked mantissa */
 
 #define IMPLIED_BIT         ((t_uint64) 1uL << UNPACKED_BITS)       /* the implied MSB in the mantissa */
-#define CARRY_BIT           ((t_uint64) 1uL << UNPACKED_BITS + 1)   /* the carry from the MSB in the mantissa */
+#define CARRY_BIT           ((t_uint64) 1uL << (UNPACKED_BITS + 1)) /* the carry from the MSB in the mantissa */
 
 #define DELTA_ALIGNMENT     (D64_WIDTH - UNPACKED_BITS)             /* net shift to align the binary point */
 
@@ -132,7 +132,7 @@
 #define MANTISSA(w)         ((t_uint64) (((w) & MANTISSA_MASK) >> MANTISSA_SHIFT))
 #define EXPONENT(w)         ((int32)    (((w) & EXPONENT_MASK) >> EXPONENT_SHIFT))
 
-#define TO_EXPONENT(w)      ((w) + EXPONENT_BIAS << EXPONENT_SHIFT & EXPONENT_MASK)
+#define TO_EXPONENT(w)      (((w) + EXPONENT_BIAS) << EXPONENT_SHIFT & EXPONENT_MASK)
 
 #define DENORMALIZED(m)     (((m) & IMPLIED_BIT) == 0)
 
@@ -160,11 +160,11 @@ static const int32 mantissa_bits [] = {         /* the number of mantissa bits, 
     };
 
 static const t_uint64 mantissa_mask [] = {      /* the mask to the mantissa bits, indexed by FP_OPSIZE */
-    ((t_uint64) 1 << 16) - 1 <<  0,             /*   in_s 16-bit mantissa */
-    ((t_uint64) 1 << 32) - 1 <<  0,             /*   in_d 32-bit mantissa */
-    ((t_uint64) 1 << 22) - 1 << 32,             /*   fp_f 22-bit mantissa */
-    ((t_uint64) 1 << 38) - 1 << 16,             /*   fp_x 38-bit mantissa */
-    ((t_uint64) 1 << 54) - 1 <<  0              /*   fp_e 54-bit mantissa */
+    (((t_uint64) 1 << 16) - 1) <<  0,           /*   in_s 16-bit mantissa */
+    (((t_uint64) 1 << 32) - 1) <<  0,           /*   in_d 32-bit mantissa */
+    (((t_uint64) 1 << 22) - 1) << 32,           /*   fp_f 22-bit mantissa */
+    (((t_uint64) 1 << 38) - 1) << 16,           /*   fp_x 38-bit mantissa */
+    (((t_uint64) 1 << 54) - 1) <<  0            /*   fp_e 54-bit mantissa */
     };
 
 
@@ -439,10 +439,10 @@ else if (unpacked.precision <= in_d)                                /* if packin
         packed.trap = trap_Integer_Overflow;                        /*         and an overflow trap */
         }
 
-    else {                                                          /* otherwise */
-        integer = (int32)                                           /*   convert the value to an integer */
-           (unpacked.mantissa >> UNPACKED_BITS - unpacked.exponent  /*     by shifting right to align */
-           & mantissa_mask [unpacked.precision]);                   /*       and masking to the desired precision */
+    else {                                                           /* otherwise */
+        integer = (int32)                                            /* convert the value to an integer */
+           (unpacked.mantissa >> (UNPACKED_BITS - unpacked.exponent) /* by shifting right to align */
+           & mantissa_mask [unpacked.precision]);                    /* and masking to the desired precision */
 
         if (unpacked.negative)                          /* if the value is negative */
             integer = - integer;                        /*   then negate the result */
@@ -474,7 +474,7 @@ else {                                                  /* otherwise a real numb
 
     unpacked.mantissa &= mantissa_mask [unpacked.precision];    /* mask the mantissa to the specified precision */
 
-    packed.words [0] = (HP_WORD) (unpacked.mantissa >> 48) & DV_MASK    /* pack the first word of the mantissa */
+    packed.words [0] = (HP_WORD) ((unpacked.mantissa >> 48) & DV_MASK)  /* pack the first word of the mantissa */
                        | TO_EXPONENT (unpacked.exponent)                /*   with the exponent */
                        | (unpacked.negative ? D16_SIGN : 0);            /*     and the sign bit */
 
@@ -483,7 +483,7 @@ else {                                                  /* otherwise a real numb
     packed.words [3] = (HP_WORD) (unpacked.mantissa >>  0) & DV_MASK;   /*     and fourth words */
 
     if (unpacked.exponent < MIN_EXPONENT                                /* if the exponent is too small */
-      || unpacked.exponent == MIN_EXPONENT && unpacked.mantissa == 0)   /*   or the result would be all zeros */
+      || (unpacked.exponent == MIN_EXPONENT && unpacked.mantissa == 0)) /*   or the result would be all zeros */
         packed.trap = trap_Float_Underflow;                             /*     then report an underflow trap */
 
     else if (unpacked.exponent > MAX_EXPONENT)                          /* otherwise if the exponent is too large */
@@ -819,7 +819,7 @@ else {                                                  /* otherwise both operan
         c2 = c2 + divisor.mantissa;                     /*     so reduce it and increase the remainder */
         }
 
-    quotient->mantissa = (q1 << D32_WIDTH - DELTA_ALIGNMENT)    /* sum the quotient digits */
+    quotient->mantissa = (q1 << (D32_WIDTH - DELTA_ALIGNMENT))  /* sum the quotient digits */
                            + (q2 >> DELTA_ALIGNMENT);           /*   and align the result */
 
     quotient->negative =                                /* set the quotient sign negative */

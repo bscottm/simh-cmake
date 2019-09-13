@@ -388,10 +388,10 @@
 #define PROP_UNIT_SHIFT     10                  /* bits 12-10 */
 #define PROP_MODEL_SHIFT    13                  /* bits 15-13 */
 
-#define PROP_INDEX_MASK     ((1u << PROP_INDEX_WIDTH) - 1 << PROP_INDEX_SHIFT)
-#define PROP_REEL_MASK      ((1u << PROP_REEL_WIDTH)  - 1 << PROP_REEL_SHIFT)
-#define PROP_UNIT_MASK      ((1u << PROP_UNIT_WIDTH)  - 1 << PROP_UNIT_SHIFT)
-#define PROP_MODEL_MASK     ((1u << PROP_MODEL_WIDTH) - 1 << PROP_MODEL_SHIFT)
+#define PROP_INDEX_MASK     (((1u << PROP_INDEX_WIDTH) - 1) << PROP_INDEX_SHIFT)
+#define PROP_REEL_MASK      (((1u << PROP_REEL_WIDTH)  - 1) << PROP_REEL_SHIFT)
+#define PROP_UNIT_MASK      (((1u << PROP_UNIT_WIDTH)  - 1) << PROP_UNIT_SHIFT)
+#define PROP_MODEL_MASK     (((1u << PROP_MODEL_WIDTH) - 1) << PROP_MODEL_SHIFT)
 
 #define PROP_INDEX(u)       (((u)->PROP & PROP_INDEX_MASK) >> PROP_INDEX_SHIFT)
 #define PROP_REEL(u)        (((u)->PROP & PROP_REEL_MASK)  >> PROP_REEL_SHIFT)
@@ -1126,108 +1126,106 @@ return SCPE_OK;
        controller unit.
 */
 
-void tl_clear (CVPTR cvptr)
-{
-uint32   unit;
-int32    remaining_time;
-UNIT     *uptr;
-t_addr   reset_position, relative_position;
-t_mtrlnt marker;
+void
+tl_clear(CVPTR cvptr) {
+    uint32   unit;
+    int32    remaining_time;
+    UNIT *   uptr;
+    t_addr   reset_position, relative_position;
+    t_mtrlnt marker;
 
-for (unit = 0; unit < cvptr->device->numunits; unit++) {    /* look for a write or gap traverse in progress */
-    uptr = cvptr->device->units + unit;                     /* get a pointer to the unit */
+    for (unit = 0; unit < cvptr->device->numunits; unit++) { /* look for a write or gap traverse in progress */
+        uptr = cvptr->device->units + unit;                  /* get a pointer to the unit */
 
-    remaining_time = sim_activate_time (uptr);              /* get the remaining unit delay time, if any */
+        remaining_time = sim_activate_time(uptr); /* get the remaining unit delay time, if any */
 
-    if (remaining_time) {                                   /* if the unit is currently active */
-        if (uptr->flags & UNIT_REWINDING)                   /*   then a clear does not affect a rewind in progress */
-            dpprintf (cvptr->device, TL_DEB_INCO,
-                      "Unit %u controller clear allowed %s to continue\n",
-                      unit, opcode_names [uptr->OPCODE]);
+        if (remaining_time) {                   /* if the unit is currently active */
+            if (uptr->flags & UNIT_REWINDING) { /*   then a clear does not affect a rewind in progress */
+                dpprintf(cvptr->device, TL_DEB_INCO, "Unit %u controller clear allowed %s to continue\n", unit,
+                         opcode_names[uptr->OPCODE]);
 
-        else {                                              /* but all other commands are aborted */
-            sim_cancel (uptr);                              /*   so cancel any scheduled event */
+            } else {              /* but all other commands are aborted */
+                sim_cancel(uptr); /*   so cancel any scheduled event */
 
-            if ((cvptr->device->flags & DEV_REALTIME)       /* if REALTIME mode is selected */
-              && uptr->PHASE == Traverse_Phase) {           /*   and a gap is being traversed */
-                relative_position = cvptr->gaplen           /*     then calculate the relative progress */
-                                      - remaining_time / cvptr->dlyptr->data_xfer;
+                if ((cvptr->device->flags & DEV_REALTIME) /* if REALTIME mode is selected */
+                    && uptr->PHASE == Traverse_Phase) {   /*   and a gap is being traversed */
+                    relative_position = cvptr->gaplen     /*     then calculate the relative progress */
+                                        - remaining_time / cvptr->dlyptr->data_xfer;
 
-                if (uptr->pos < cvptr->initial_position)                            /* if the motion is backward */
-                    reset_position = cvptr->initial_position - relative_position;   /*   then move toward the BOT */
-                else                                                                /* otherwise */
-                    reset_position = cvptr->initial_position + relative_position;   /*   move toward the EOT */
+                    if (uptr->pos < cvptr->initial_position)                          /* if the motion is backward */
+                        reset_position = cvptr->initial_position - relative_position; /*   then move toward the BOT */
+                    else                                                              /* otherwise */
+                        reset_position = cvptr->initial_position + relative_position; /*   move toward the EOT */
 
-                cvptr->gaplen -= (t_mtrlnt) relative_position;  /* reduce the gap length by the amount not traversed */
+                    cvptr->gaplen -= (t_mtrlnt)relative_position; /* reduce the gap length by the amount not traversed */
 
-                while (cvptr->gaplen > sizeof (t_mtrlnt)) {     /* align the reset position to a gap marker */
-                    if (sim_fseek (uptr->fileref,               /* seek to the reset position */
-                                   reset_position, SEEK_SET)    /*   and if the seek succeeds */
-                      || sim_fread (&marker, sizeof (t_mtrlnt), /*     then read the marker */
-                                    1, uptr->fileref) == 0) {                   /* if either call fails */
-                        cprintf ("%s simulator tape library I/O error: %s\n",   /*   then report the error */
-                                 sim_name, strerror (errno));                   /*     to the console */
+                    while (cvptr->gaplen > sizeof(t_mtrlnt)) {      /* align the reset position to a gap marker */
+                        if (sim_fseek(uptr->fileref,                /* seek to the reset position */
+                                      reset_position, SEEK_SET)     /*   and if the seek succeeds */
+                            || sim_fread(&marker, sizeof(t_mtrlnt), /*     then read the marker */
+                                         1, uptr->fileref) == 0) {  /* if either call fails */
+                            cprintf("%s simulator tape library I/O error: %s\n", /*   then report the error */
+                                    sim_name, strerror(errno));                  /*     to the console */
 
-                        clearerr (uptr->fileref);                               /* clear the error and leave the file */
-                        break;                                                  /*   at the original position */
+                            clearerr(uptr->fileref); /* clear the error and leave the file */
+                            break;                   /*   at the original position */
                         }
 
-                    else if (marker == MTR_GAP) {           /* otherwise if a gap marker was read */
-                        uptr->pos = reset_position;         /*   then set the new position */
-                        break;                              /*     and repositioning is complete */
+                        else if (marker == MTR_GAP) {   /* otherwise if a gap marker was read */
+                            uptr->pos = reset_position; /*   then set the new position */
+                            break;                      /*     and repositioning is complete */
                         }
 
-                    else {                                  /* otherwise */
-                        reset_position--;                   /*   back up a byte and try again */
-                        cvptr->gaplen--;                    /*     until the gap is exhausted */
+                        else {                /* otherwise */
+                            reset_position--; /*   back up a byte and try again */
+                            cvptr->gaplen--;  /*     until the gap is exhausted */
                         }
                     };
 
-                dpprintf (cvptr->device, TL_DEB_INCO,
-                          "Unit %u controller clear stopped tape motion at position %" T_ADDR_FMT "u\n",
-                          unit, uptr->pos);
+                    dpprintf(cvptr->device, TL_DEB_INCO,
+                             "Unit %u controller clear stopped tape motion at position %" T_ADDR_FMT "u\n", unit,
+                             uptr->pos);
                 }
 
-            else                                            /* otherwise FASTTIME mode is selected */
-                dpprintf (cvptr->device, TL_DEB_INCO,
-                          "Unit %u controller clear aborted %s after partial completion\n",
-                          unit, opcode_names [uptr->OPCODE]);
+                else /* otherwise FASTTIME mode is selected */
+                    dpprintf(cvptr->device, TL_DEB_INCO, "Unit %u controller clear aborted %s after partial completion\n",
+                             unit, opcode_names[uptr->OPCODE]);
 
-            if (cmd_props [uptr->OPCODE].class == Class_Write   /* if the last command was a write */
-              && cmd_props [uptr->OPCODE].transfer == TRUE      /*   that involves a data transfer */
-              && uptr->PHASE == Data_Phase)                     /*   that was not completed */
-                cvptr->call_status = MTSE_RECE;                 /*     then the record will be bad */
+                if (cmd_props[uptr->OPCODE].class == Class_Write /* if the last command was a write */
+                    && cmd_props[uptr->OPCODE].transfer == TRUE  /*   that involves a data transfer */
+                    && uptr->PHASE == Data_Phase)                /*   that was not completed */
+                    cvptr->call_status = MTSE_RECE;              /*     then the record will be bad */
 
-            uptr->PHASE = Stop_Phase;                           /* execute the stop phase of the command */
-            continue_command (cvptr, uptr, NO_FLAGS, NO_DATA);  /*   to ensure a partial record is written */
+                uptr->PHASE = Stop_Phase;                         /* execute the stop phase of the command */
+                continue_command(cvptr, uptr, NO_FLAGS, NO_DATA); /*   to ensure a partial record is written */
 
-            sim_tape_reset (uptr);                              /* reset the tape support library status */
+                sim_tape_reset(uptr); /* reset the tape support library status */
             }
         }
 
-    else if (uptr->PHASE != Idle_Phase) {               /* otherwise if the controller unit is executing */
-        uptr->PHASE = Idle_Phase;                       /*   then idle it */
+        else {
+            if (uptr->PHASE != Idle_Phase) { /* otherwise if the controller unit is executing */
+                uptr->PHASE = Idle_Phase;    /*   then idle it */
 
-        if (uptr->OPCODE != Clear_Controller)           /* report the abort only if this isn't a clear command */
-            dpprintf (cvptr->device, TL_DEB_INCO,
-                      "Unit %u controller clear aborted %s after partial completion\n",
-                      unit, opcode_names [uptr->OPCODE]);
+                if (uptr->OPCODE != Clear_Controller) { /* report the abort only if this isn't a clear command */
+                    dpprintf(cvptr->device, TL_DEB_INCO, "Unit %u controller clear aborted %s after partial completion\n",
+                             unit, opcode_names[uptr->OPCODE]);
+                }
+            }
         }
     }
 
-cvptr->status = 0;                                      /* clear the controller status */
-cvptr->state = Idle_State;                              /*   and idle it */
-cvptr->unit_attention = 0;                              /* clear any pending unit attention */
+    cvptr->status         = 0;          /* clear the controller status */
+    cvptr->state          = Idle_State; /*   and idle it */
+    cvptr->unit_attention = 0;          /* clear any pending unit attention */
 
-if (cvptr->type == HP_30215)                            /* if this is the 3000 controller */
-    cvptr->unit_selected = 0;                           /*   then a clear selects unit 0 */
+    if (cvptr->type == HP_30215)  /* if this is the 3000 controller */
+        cvptr->unit_selected = 0; /*   then a clear selects unit 0 */
 
-dpprintf (cvptr->device, TL_DEB_CMD, "Controller cleared\n");
+    dpprintf(cvptr->device, TL_DEB_CMD, "Controller cleared\n");
 
-return;
+    return;
 }
-
-
 
 /* Tape library global utility routines */
 
@@ -1456,7 +1454,7 @@ if (value == 0) {                                           /* if the capacity i
     status = sim_tape_set_capac (uptr, value, cptr, desc);  /*   then set it using the supplied size in megabytes */
 
     if (status == SCPE_OK)                                  /* if the supplied capacity is OK */
-        uptr->PROP = uptr->PROP & ~PROP_REEL_MASK           /*   then clear any prior reel size setting */
+        uptr->PROP = (uptr->PROP & ~PROP_REEL_MASK)         /*   then clear any prior reel size setting */
                        | PROP_REEL_UNLIM;
     return status;
     }
@@ -1475,25 +1473,25 @@ else {                                                  /* otherwise a size is s
 
             case 0:                                         /* an unlimited-length reel */
                 uptr->capac = 0;                            /*   so set the capacity  */
-                uptr->PROP = uptr->PROP & ~PROP_REEL_MASK   /*     and reel property to "unlimited" */
+                uptr->PROP = (uptr->PROP & ~PROP_REEL_MASK) /*     and reel property to "unlimited" */
                                | PROP_REEL_UNLIM;
                 break;
 
             case 600:                                       /* a 600 foot reel */
                 uptr->capac = 600 * 12 * tape_bpi;          /*   so set the capacity in bytes */
-                uptr->PROP = uptr->PROP & ~PROP_REEL_MASK   /*     and set the reel property ID */
+                uptr->PROP = (uptr->PROP & ~PROP_REEL_MASK) /*     and set the reel property ID */
                                | PROP_REEL_600;
                 break;
 
             case 1200:                                      /* a 1200 foot reel */
                 uptr->capac = 1200 * 12 * tape_bpi;
-                uptr->PROP = uptr->PROP & ~PROP_REEL_MASK
+                uptr->PROP = (uptr->PROP & ~PROP_REEL_MASK)
                                | PROP_REEL_1200;
                 break;
 
             case 2400:                                      /* a 2400 foot reel */
                 uptr->capac = 2400 * 12 * tape_bpi;
-                uptr->PROP = uptr->PROP & ~PROP_REEL_MASK
+                uptr->PROP = (uptr->PROP & ~PROP_REEL_MASK)
                                | PROP_REEL_2400;
                 break;
 
@@ -1684,97 +1682,91 @@ return status;
        rewinding.
 */
 
-static CNTLR_IFN_IBUS start_command (CVPTR cvptr, CNTLR_FLAG_SET flags, CNTLR_OPCODE opcode)
+static CNTLR_IFN_IBUS
+start_command(CVPTR cvptr, CNTLR_FLAG_SET flags, CNTLR_OPCODE opcode)
 {
-UNIT *const uptr = cvptr->device->units + cvptr->unit_selected;   /* a pointer to the currently selected unit */
-CNTLR_IFN_IBUS outbound;
+    UNIT *const    uptr = cvptr->device->units + cvptr->unit_selected; /* a pointer to the currently selected unit */
+    CNTLR_IFN_IBUS outbound;
 
-if (cvptr->device->flags & DEV_REALTIME)                /* if realistic timing is selected */
-    cvptr->dlyptr = &real_times [PROP_INDEX (uptr)];    /*   then get the real times pointer for this drive */
-else                                                    /* otherwise optimized timing is selected */
-    cvptr->dlyptr = cvptr->fastptr;                     /*   so use the fast times pointer */
+    if (cvptr->device->flags & DEV_REALTIME)                      /* if realistic timing is selected */
+        cvptr->dlyptr = &real_times[PROP_INDEX(uptr)];            /* then get the real times pointer for this drive */
+    else                                                          /* otherwise optimized timing is selected */
+        cvptr->dlyptr = cvptr->fastptr;                           /* so use the fast times pointer */
 
-if ((flags & CMRDY)                                     /* if command validity is to be checked */
-  && (opcode >= Invalid_Opcode                          /*   and the opcode is invalid */
-  || cvptr->type > LAST_CNTLR                           /*   or the controller type is undefined */
-  || cmd_props [opcode].valid [cvptr->type] == FALSE    /*   or the opcode is not valid for this controller */
-  || cmd_props [opcode].ready                           /*   or it requires a ready drive */
-    && uptr->flags & (UNIT_OFFLINE | UNIT_REWINDING)    /*     but it's offline or rewinding */
-  || cmd_props [opcode].class == Class_Write            /*   or this is a write command */
-    && sim_tape_wrp (uptr)                              /*     but the drive is write-protected */
-  || opcode != Clear_Controller                         /*   or it's not a controller clear */
-    && cvptr->state != Idle_State)) {                   /*     and the controller is busy */
-    CNTLR_UPTR->OPCODE = opcode;                        /*   then save the rejected code */
-    reject_command (cvptr, NULL);                       /*     and reject the command */
-    outbound = NO_ACTION;                               /*       with no further action */
+    if ((flags & CMRDY)                                           /* if command validity is to be checked */
+        && (opcode >= Invalid_Opcode                              /* and the opcode is invalid */
+            || cvptr->type > LAST_CNTLR                           /* or the controller type is undefined */
+            || cmd_props[opcode].valid[cvptr->type] == FALSE      /* or the opcode is not valid for this controller */
+            || (cmd_props[opcode].ready                           /* or it requires a ready drive */
+                && uptr->flags & (UNIT_OFFLINE | UNIT_REWINDING)) /* but it's offline or rewinding */
+            || (cmd_props[opcode].class == Class_Write            /* or this is a write command */
+                && sim_tape_wrp(uptr))                            /* but the drive is write-protected */
+            || (opcode != Clear_Controller                        /* or it's not a controller clear */
+                && cvptr->state != Idle_State))) {                /* and the controller is busy */
+        CNTLR_UPTR->OPCODE = opcode;                              /* then save the rejected code */
+        reject_command(cvptr, NULL);                              /* and reject the command */
+        outbound = NO_ACTION;                                     /* with no further action */
+    } else {                                                      /* otherwise the command is (assumed to be) OK */
+        if (cmd_props[opcode].class == Class_Write)               /* if this is a write command */
+            uptr->STATUS |= UST_WRSTAT;                           /* then set write status */
+        else                                                      /* otherwise */
+            uptr->STATUS &= ~UST_WRSTAT;                          /* clear it */
+
+        cvptr->status = 0; /* clear the controller status for the new command */
+
+        cvptr->call_status = MTSE_OK; /* clear the last library call status code */
+        cvptr->index       = 0;       /* set up the */
+        cvptr->length      = 0;       /*   buffer access */
+        cvptr->gaplen      = 0;       /*     and clear the gap length */
+
+        if (opcode >= Select_Unit_0 && opcode <= Select_Unit_3) {    /* if the opcode is a Select Unit command */
+            cvptr->unit_selected = (uint32)(opcode - Select_Unit_0); /*   then select the indicated unit */
+
+            dpprintf(cvptr->device, TL_DEB_INCO, "%s completed\n", opcode_names[opcode]);
+
+            dpprintf(cvptr->device, TL_DEB_CMD, "%s succeeded\n", opcode_names[opcode]);
+
+            outbound = IFGTC | RQSRV | Class_Control; /* indicate that a control command was executed */
+        } else {
+            if (flags & CMXEQ) {                     /* otherwise if the command is to be executed */
+                cvptr->state  = Busy_State;          /* then set the controller */
+                cvptr->status = CST_IFBUSY;          /* and the interface to the busy state */
+
+                uptr->OPCODE = opcode;               /* save the opcode in the selected unit */
+
+                if (cmd_props[opcode].transfer) {    /* if this command transfers data */
+                    CNTLR_UPTR->PHASE  = Wait_Phase; /* then set up the wait phase */
+                    CNTLR_UPTR->OPCODE = opcode;     /* and command opcode on the controller unit */
+
+                    outbound = IFGTC | RQSRV | cmd_props[opcode].class; /* return the transfer class (read or write) */
+                } else {                                                /* otherwise it's a control command */
+                    uptr->PHASE = Start_Phase;                          /* so set up the start phase */
+                    uptr->wait  = cvptr->dlyptr->overhead;              /* and the initial controller delay */
+
+                    if (cmd_props[opcode].ready) {                      /* if the command accesses the drive */
+                        if (cmd_props[opcode].class != Class_Rewind) {  /* then if this is not a rewind command */
+                            if (sim_tape_bot(uptr))                     /* then if the tape is positioned at the BOT */
+                                uptr->wait += cvptr->dlyptr->bot_start; /* then the start delay is longer */
+                            else                                        /* than it would be if the position */
+                                uptr->wait += cvptr->dlyptr->ir_start;  /* is between two records */
+                        } else {
+                            if (!sim_tape_bot(uptr)         /* otherwise if the rewind is not from the load point */
+                                || cvptr->type != HP_30215) /*   or this is not the 3000 controller */
+                                uptr->wait += cvptr->dlyptr->rewind_start; /*     then add the rewind start delay */
+                        }
+                    }
+
+                    activate_unit(cvptr, uptr); /* schedule the start phase */
+
+                    outbound = IFGTC | Class_Control; /* indicate a control command is executing */
+                }
+            } else                    /* otherwise */
+                outbound = NO_ACTION; /*   command execution was not requested */
+        }
     }
 
-else {                                                  /* otherwise the command is (assumed to be) OK */
-    if (cmd_props [opcode].class == Class_Write)        /* if this is a write command */
-        uptr->STATUS |= UST_WRSTAT;                     /*   then set write status */
-    else                                                /* otherwise */
-        uptr->STATUS &= ~UST_WRSTAT;                    /*   clear it */
-
-    cvptr->status = 0;                                  /* clear the controller status for the new command */
-
-    cvptr->call_status = MTSE_OK;                       /* clear the last library call status code */
-    cvptr->index  = 0;                                  /* set up the */
-    cvptr->length = 0;                                  /*   buffer access */
-    cvptr->gaplen = 0;                                  /*     and clear the gap length */
-
-    if (opcode >= Select_Unit_0 && opcode <= Select_Unit_3) {       /* if the opcode is a Select Unit command */
-        cvptr->unit_selected = (uint32) (opcode - Select_Unit_0);   /*   then select the indicated unit */
-
-        dpprintf (cvptr->device, TL_DEB_INCO, "%s completed\n",
-                  opcode_names [opcode]);
-
-        dpprintf (cvptr->device, TL_DEB_CMD, "%s succeeded\n",
-                  opcode_names [opcode]);
-
-        outbound = IFGTC | RQSRV | Class_Control;       /* indicate that a control command was executed */
-        }
-
-    else if (flags & CMXEQ) {                           /* otherwise if the command is to be executed */
-        cvptr->state = Busy_State;                      /*   then set the controller */
-        cvptr->status = CST_IFBUSY;                     /*     and the interface to the busy state */
-
-        uptr->OPCODE = opcode;                          /* save the opcode in the selected unit */
-
-        if (cmd_props [opcode].transfer) {              /* if this command transfers data */
-            CNTLR_UPTR->PHASE = Wait_Phase;             /*   then set up the wait phase */
-            CNTLR_UPTR->OPCODE = opcode;                /*     and command opcode on the controller unit */
-
-            outbound = IFGTC | RQSRV | cmd_props [opcode].class;    /* return the transfer class (read or write) */
-            }
-
-        else {                                          /* otherwise it's a control command */
-            uptr->PHASE = Start_Phase;                  /*   so set up the start phase */
-            uptr->wait = cvptr->dlyptr->overhead;       /*     and the initial controller delay */
-
-            if (cmd_props [opcode].ready)                       /* if the command accesses the drive */
-                if (cmd_props [opcode].class != Class_Rewind)   /*   then if this is not a rewind command */
-                    if (sim_tape_bot (uptr))                    /*      then if the tape is positioned at the BOT */
-                        uptr->wait += cvptr->dlyptr->bot_start; /*        then the start delay is longer */
-                    else                                        /*          than it would be if the position */
-                        uptr->wait += cvptr->dlyptr->ir_start;  /*            is between two records */
-
-                else if (! sim_tape_bot (uptr)                  /* otherwise if the rewind is not from the load point */
-                  || cvptr->type != HP_30215)                   /*   or this is not the 3000 controller */
-                    uptr->wait += cvptr->dlyptr->rewind_start;  /*     then add the rewind start delay */
-
-            activate_unit (cvptr, uptr);                /* schedule the start phase */
-
-            outbound = IFGTC | Class_Control;           /* indicate a control command is executing */
-            }
-        }
-
-    else                                                /* otherwise */
-        outbound = NO_ACTION;                           /*   command execution was not requested */
-    }
-
-return outbound;                                        /* return the functions and data word */
+    return outbound; /* return the functions and data word */
 }
-
 
 /* Continue the current command.
 
@@ -2133,10 +2125,10 @@ switch (phase) {                                        /* dispatch the phase */
                            2 * cvptr->dlyptr->data_xfer;
                         }
 
-                    if (pptr->bpi <= 800                        /* if this is an NRZI drive */
-                      && opcode == Read_Record_with_CRCC        /*   and the CRCC was requested */
-                      || cvptr->device->flags & DEV_REALTIME    /* or the mode is REALTIME */
-                      && cvptr->type == HP_13181)               /*   for the 13181 controller */
+                    if ((pptr->bpi <= 800                        /* if this is an NRZI drive */
+                      && opcode == Read_Record_with_CRCC)        /*   and the CRCC was requested */
+                      || (cvptr->device->flags & DEV_REALTIME    /* or the mode is REALTIME */
+                      && cvptr->type == HP_13181))               /*   for the 13181 controller */
                         add_crcc_lrcc (cvptr, opcode);          /*     then add the CRCC/LRCC to the buffer */
                     }
                 break;
@@ -2176,7 +2168,7 @@ switch (phase) {                                        /* dispatch the phase */
                 outbound =                                  /* space forward over the next record in the file */
                    call_tapelib (cvptr, uptr, lib_space_fwd, 0);
 
-                if ((outbound & SCPE) == NO_FLAGS)          /* if the spacing succeeded */
+                if ((outbound & SCPE) == NO_FLAGS) {        /* if the spacing succeeded */
                     if (cvptr->gaplen > 0) {                /*   then if a gap is present */
                         uptr->PHASE = Traverse_Phase;       /*     then schedule the traversal phase */
                         uptr->wait =                        /*       for the gap */
@@ -2188,6 +2180,7 @@ switch (phase) {                                        /* dispatch the phase */
                         uptr->wait =                        /*     to space over the record */
                            cvptr->length * cvptr->dlyptr->data_xfer;
                         }
+		}
                 break;
 
 
@@ -2196,18 +2189,17 @@ switch (phase) {                                        /* dispatch the phase */
                 outbound =                                  /* space in reverse over the previous record in the file */
                    call_tapelib (cvptr, uptr, lib_space_rev, 0);
 
-                if ((outbound & SCPE) == NO_FLAGS)          /* if the spacing succeeded */
-                    if (cvptr->gaplen > 0) {                /*   then if a gap is present */
-                        uptr->PHASE = Traverse_Phase;       /*     then schedule the traversal phase */
-                        uptr->wait =                        /*       for the gap */
-                           cvptr->gaplen * cvptr->dlyptr->data_xfer;
-                        }
-
-                    else {                                  /* otherwise no gap intervenes */
-                        uptr->PHASE = Data_Phase;           /*   so schedule the data phase */
-                        uptr->wait =                        /*     to space over the record */
-                           cvptr->length * cvptr->dlyptr->data_xfer;
-                        }
+                if ((outbound & SCPE) == NO_FLAGS) {                  /* if the spacing succeeded */
+                    if (cvptr->gaplen > 0) {                          /* then if a gap is present */
+                        uptr->PHASE = Traverse_Phase;                 /* then schedule the traversal phase */
+                        uptr->wait  =                                 /* for the gap */
+                            cvptr->gaplen * cvptr->dlyptr->data_xfer;
+                    } else {                                          /* otherwise no gap intervenes */
+                        uptr->PHASE = Data_Phase;                     /* so schedule the data phase */
+                        uptr->wait  =                                 /* to space over the record */
+                            cvptr->length * cvptr->dlyptr->data_xfer;
+                    }
+                }
                 break;
 
 
@@ -2846,7 +2838,7 @@ switch (cvptr->call_status) {                           /* dispatch on the call 
 
     case MTSE_OK:                                       /* operation succeeded */
         if (cvptr->length > 0)                          /* if data is present */
-            cvptr->gaplen -= (cvptr->length + 1 & ~1)   /*   then reduce the calculated gap length */
+            cvptr->gaplen -= ((cvptr->length + 1) & ~1) /*   then reduce the calculated gap length */
                              + 2 * sizeof (t_mtrlnt);   /*     by the rounded record length and marker sizes */
         break;
 
@@ -3186,7 +3178,7 @@ for (entry = 0; entry < PROPS_COUNT; entry++)           /* check each property t
       && drive_props [entry].drive == new_drive         /*   and the model is supported */
       && (new_bpi == 0                                  /*   and the density is not specified */
       || drive_props [entry].bpi == new_bpi)) {         /*     or the density is supported */
-        uptr->PROP = uptr->PROP & ~PROP_INDEX_MASK      /*   then set the unit's property table index */
+        uptr->PROP = (uptr->PROP & ~PROP_INDEX_MASK)    /*   then set the unit's property table index */
                        | entry << PROP_INDEX_SHIFT;
 
         sim_tape_set_dens (uptr,                        /* tell the tape library the density in use */
