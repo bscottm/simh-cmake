@@ -262,7 +262,9 @@ static void ctc_cmd(uint8 cid,
                     cio_entry *cqe, uint8 *capp_data)
 {
     uint32 vtoc_addr, pdinfo_addr, ctjob_addr;
-    uint32 maxpass, blkno, delay, last_byte;
+    /* Initialize maxpass to something reasonable to squelch GCC warning about
+     * potentially unintialized variables. */
+    uint32 maxpass = 1, blkno, delay, last_byte;
     uint8  dev, c;
     uint8  sec_buf[512];
     int32  b, i, j;
