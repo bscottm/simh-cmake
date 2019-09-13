@@ -153,8 +153,11 @@ char*   pszX;                                               /* work pointer */
 
     memset(p_szOut, 0, p_iLen);                             /* zero out output area */
 
-    if (iI > 0)                                             /* q. any chars? */
-        strncpy(p_szOut, *p_pszToken, MIN(iI, p_iLen-1));   /* a. yes.. copy max of p_iLen-1 */
+    if (iI > 0) {                                            /* q. any chars? */
+        size_t eos = MIN(iI, p_iLen-1);
+        strncpy(p_szOut, *p_pszToken, eos);   /* a. yes.. copy max of p_iLen-1 */
+        p_szOut[eos] = '\0';
+    }
 
     *p_pszToken += iI;                                      /* point beyond token */
     return p_szOut;                                         /* .. return token pointer */

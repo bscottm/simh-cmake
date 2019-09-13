@@ -1222,6 +1222,8 @@ static char * skipbl (char *str)
     return str;
 }
 
+#if 0
+/* Unused. */
 static char * trim (char *str)
 {
     char *s, *lastnb;
@@ -1234,6 +1236,7 @@ static char * trim (char *str)
 
     return str;
 }
+#endif
 
 /* alltrim - remove all leading and trailing whitespace from a string */
 
@@ -1621,6 +1624,7 @@ static t_stat cr_attach (UNIT *uptr, CONST char *iptr)
 
         list_arg[list_nargs] = list_save[list_nargs];   /* set pointer to permanent storage location */
         strncpy(list_arg[list_nargs], arg, MAXARGLEN);  /* store copy */
+        list_arg[list_nargs][MAXARGLEN-1] = '\0';
     }
     list_arg[list_nargs] = NULL;                    /* NULL terminate the end of the argument list */
 
@@ -2343,7 +2347,7 @@ static void report_error (char *msg, DWORD err)
 static DWORD CALLBACK pcr_thread (LPVOID arg)
 {
     DWORD event;
-    long nrcvd, nread, nwritten;
+    DWORD nrcvd, nread, nwritten;
     HANDLE objs[4];
     BOOL pick_queued = FALSE, reset_queued = FALSE;
 
@@ -2382,7 +2386,7 @@ static DWORD CALLBACK pcr_thread (LPVOID arg)
                 if (! GetOverlappedResult(hpcr, &ovRd, &nrcvd, TRUE))
                     report_error("PCR_Read", GetLastError());
                 else if (cr_unit.flags & UNIT_DEBUG)
-                    printf("PCR_Read: event, %d rcvd\n", nrcvd);
+                    printf("PCR_Read: event, %ld rcvd\n", nrcvd);
                 break;
 
             case WAIT_OBJECT_0+1:                       /* write complete */
@@ -2391,7 +2395,7 @@ static DWORD CALLBACK pcr_thread (LPVOID arg)
                 if (! GetOverlappedResult(hpcr, &ovWr, &nwritten, TRUE))
                     report_error("PCR_Write", GetLastError());
                 else if (cr_unit.flags & UNIT_DEBUG)
-                    printf("PCR_Write: event, %d sent\n", nwritten);
+                    printf("PCR_Write: event, %ld sent\n", nwritten);
                 continue;
 
             case WAIT_OBJECT_0+2:                       /* reset request from simulator */
@@ -2414,6 +2418,9 @@ static DWORD CALLBACK pcr_thread (LPVOID arg)
                     ovRd.Offset = ovRd.OffsetHigh = 0;
                     pcr_cmd('S');
                 }
+                continue;
+
+            case PCR_STATE_CLOSED:
                 continue;
 
             default:
@@ -2473,7 +2480,7 @@ static DWORD CALLBACK pcr_thread (LPVOID arg)
 
             case PCR_STATE_WAIT_DATA:                   /* waiting for data from P command */
                 if (cr_unit.flags & UNIT_DEBUG)
-                    printf((nrcvd <= 0) ? "PCR: NO RESP!\n" : "PCR: GOT %d BYTES\n", nrcvd);
+                    printf((nrcvd <= 0) ? "PCR: NO RESP!\n" : "PCR: GOT %ld BYTES\n", nrcvd);
 
                 if (nrcvd > 0) {
                     pcr_nleft -= nrcvd;
@@ -2501,6 +2508,9 @@ static DWORD CALLBACK pcr_thread (LPVOID arg)
                     pcr_done  = TRUE;
                 }
                 break;
+
+            case PCR_STATE_CLOSED:
+                break;
         }
     }
 
@@ -2514,7 +2524,7 @@ static DWORD CALLBACK pcr_thread (LPVOID arg)
 
 static void pcr_cmd (char cmd)
 {
-    long nwritten, nrcvd;
+    DWORD nwritten, nrcvd;
     int status;
 
     if (cmd != '\0') {

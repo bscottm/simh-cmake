@@ -144,7 +144,9 @@ static void   StartGDUUpdates(void);
 static void   StopGDUUpdates(void);
 static void   GetMouseCoordinates(void);
 static void   UpdateGDUIndicators(void);
+#ifdef DEBUG_LIGHTPEN
 static void   ShowPenHit (int x, int y);
+#endif
 static void   EraseGDUScreen (void);
 
 /* -------------------------------------------------------------------------------------- */
@@ -343,7 +345,7 @@ static void draw (int32 newx, int32 newy, t_bool beam)
                 }
                 else {
                     // line is diagonal. See if the mouse is inside the box lpen_dist wider than the line segment's bounding rectangle
-                    if (xmouse >= (xmin-lpen_dist) && xmouse <= (xmax+lpen_dist) && ymouse >= (ymin-lpen_dist) || ymouse <= (ymax+lpen_dist)) {
+                    if (xmouse >= ((xmin-lpen_dist) && xmouse <= (xmax+lpen_dist) && ymouse >= (ymin-lpen_dist)) || ymouse <= (ymax+lpen_dist)) {
                         // compute the point at the intersection of the line through the line segment and the normal
                         // to that line through the mouse. This is the point on the line through the line segment
                         // nearest the mouse

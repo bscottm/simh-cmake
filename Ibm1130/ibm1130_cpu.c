@@ -249,8 +249,11 @@ extern UNIT cr_unit, prt_unit[];
 #  define ARFSET(v)                         /* without GUI, no need for setting ARF */
 #endif
 
+#if 0
+/* Never defined */
 static void   init_console_window (void);
 static void   destroy_console_window (void);
+#endif
 static t_stat view_cmd (int32 flag, CONST char *cptr);
 static t_stat cpu_attach (UNIT *uptr, CONST char *cptr);
 static t_bool bsctest (int32 DSPLC, t_bool reset_V);
@@ -501,9 +504,12 @@ t_stat sim_instr (void)
     int32 i, eaddr, INDIR, IR, F, DSPLC, word2, oldval, newval, src, src2, dst, abit, xbit;
     int32 iocc_addr, iocc_op, iocc_dev, iocc_func, iocc_mod, result;
     char msg[50];
-    int cwincount = 0, status;
+    int status;
     static long ninstr = 0;
     static const char *intlabel[] = {"INT0","INT1","INT2","INT3","INT4","INT5"};
+#if defined(GUI_SUPPORT) && !defined(UPDATE_BY_TIMER) && defined(UPDATE_INTERVAL) && UPDATE_INTERVAL > 0
+    int cwincount = 0;
+#endif
 
     /* the F bit indicates a two-word instruction for most instructions except the ones marked FALSE below */
     static t_bool F_bit_used[] = {                                  /* FALSE for those few instructions that don't have a long instr version */
@@ -625,7 +631,9 @@ t_stat sim_instr (void)
             ibkpt_addr = ibkpt_addr | ILL_ADR_FLAG;     /* disable */
             sim_activate(&cpu_unit, 1);                 /* sched re-enable after next instruction */
             reason = STOP_IBKPT;                        /* stop simulation */
+#if defined(GUI_SUPPORT) && !defined(UPDATE_BY_TIMER) && defined(UPDATE_INTERVAL) && UPDATE_INTERVAL > 0
             cwincount = 0;
+#endif
             continue;
         }
 
@@ -940,7 +948,9 @@ t_stat sim_instr (void)
 
                 if (DSPLC & 0x40) {     /* BOSC = exit from interrupt handler */
                     exit_irq();
+#if defined(GUI_SUPPORT) && !defined(UPDATE_BY_TIMER) && defined(UPDATE_INTERVAL) && UPDATE_INTERVAL > 0
                     cwincount = 0;
+#endif
                 }
                 break;
 
