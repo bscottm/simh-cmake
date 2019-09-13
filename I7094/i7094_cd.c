@@ -224,18 +224,18 @@ switch (cdr_sta) {                                      /* case on state */
             clearerr (uptr->fileref);
             return SCPE_IOERR;                          /* stop */
             }
-        uptr->pos = ftell (uptr->fileref);              /* update position */
-        for (i = 0; i < (2 * CD_CHRLNT); i++)           /* convert to BCD */
+        uptr->pos = ftell (uptr->fileref);                       /* update position */
+        for (i = 0; i < (2 * CD_CHRLNT); i++)                    /* convert to BCD */
             cdr_cbuf[i] = ascii_to_bcd[cdr_cbuf[i] & 0177] & 077;
-        for (col = 0; col < 72; col++) {                /* process 72 columns */
-            if (uptr->flags & UNIT_CBN)                 /* column binary? */
+        for (col = 0; col < 72; col++) {                         /* process 72 columns */
+            if (uptr->flags & UNIT_CBN)                          /* column binary? */
                 colbin = (((uint32) cdr_cbuf[2 * col]) << 6) |
-                ((uint32) cdr_cbuf[(2 * col) + 1]);     /* 2 chars -> col bin */
-            else colbin = bcd_to_colbin[cdr_cbuf[col]]; /* cvt to col binary */
-            dat = bit_masks[35 - (col % 36)];           /* mask for column */
-            for (row = 0; row < 12; row++) {            /* rows 9..0, 11, 12 */
-                bufw = (row * 2) + (col / 36);          /* index to buffer */
-                if (colbin & col_masks[row])            /* row bit set? */
+                ((uint32) cdr_cbuf[(2 * col) + 1]);              /* 2 chars -> col bin */
+            else colbin = bcd_to_colbin[(size_t) cdr_cbuf[col]]; /* cvt to col binary */
+            dat = bit_masks[35 - (col % 36)];                    /* mask for column */
+            for (row = 0; row < 12; row++) {                     /* rows 9..0, 11, 12 */
+                bufw = (row * 2) + (col / 36);                   /* index to buffer */
+                if (colbin & col_masks[row])                     /* row bit set? */
                     cdr_bbuf[bufw] |= dat;
                 }
             }
@@ -440,7 +440,7 @@ for (col = 0; col < 72; col++) {                        /* process 72 columns */
         }
     else {                                              /* text */
         bcd = colbin_to_bcd (colbin);                   /* column bin -> BCD */
-        cdp_cbuf[col] = pch[bcd];                       /* -> ASCII */
+        cdp_cbuf[col] = pch[(size_t) bcd];              /* -> ASCII */
         }
     }
 for (i = ((2 * CD_CHRLNT) + 1); (i > 0) &&

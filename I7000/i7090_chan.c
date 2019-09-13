@@ -329,10 +329,12 @@ void
 chan_proc()
 {
     int                 chan;
-    int                 cmask;
 
     /* Scan channels looking for work */
     for (chan = 0; chan < NUM_CHAN; chan++) {
+#ifdef I7090
+        int                 cmask = 0x0100 << chan;
+#endif
         /* Skip if channel is disabled */
         if (chan_unit[chan].flags & UNIT_DIS)
             continue;
@@ -341,7 +343,6 @@ chan_proc()
         if (chan_flags[chan] & DEV_DISCO)
             continue;
 
-        cmask = 0x0100 << chan;
         switch (CHAN_G_TYPE(chan_unit[chan].flags)) {
         case CHAN_PIO:
             if ((chan_flags[chan] & (DEV_REOR|DEV_SEL|DEV_FULL)) ==
@@ -359,7 +360,7 @@ chan_proc()
                 hsdrm_addr = M[location[chan] - 1];
                 chan_info[chan] |= CHAINF_RUN;
                 if (chan_dev.dctrl & cmask)
-                    sim_debug(DEBUG_DETAIL, &chan_dev, "chan %d HDaddr %012llo\n",
+                    sim_debug(DEBUG_DETAIL, &chan_dev, "chan %d HDaddr %012"LL_FMT"o\n",
                               chan, hsdrm_addr);
                 chan_fetch(chan);
                 continue;
@@ -439,12 +440,12 @@ chan_proc()
                 /* If we are not waiting EOR save it in memory */
                 if ((cmd[chan] & 1) == 0) {
                     if (chan_dev.dctrl & cmask)
-                         sim_debug(DEBUG_DATA, &chan_dev, "chan %d data < %012llo\n",
+                         sim_debug(DEBUG_DATA, &chan_dev, "chan %d data < %012"LL_FMT"o\n",
                                chan, assembly[chan]);
                     M[caddr[chan]] = assembly[chan];
                 } else {
                     if (chan_dev.dctrl & cmask)
-                         sim_debug(DEBUG_DATA, &chan_dev, "chan %d data * %012llo\n",
+                         sim_debug(DEBUG_DATA, &chan_dev, "chan %d data * %012"LL_FMT"o\n",
                                chan, assembly[chan]);
                 }
                 nxt_chan_addr(chan);
@@ -631,7 +632,7 @@ chan_proc()
                         assembly[chan] = M[caddr[chan]];
                         if (chan_dev.dctrl & cmask)
                             sim_debug(DEBUG_DATA, &chan_dev,
-                                      "chan %d data > %012llo\n", chan,
+                                      "chan %d data > %012"LL_FMT"o\n", chan,
                                       assembly[chan]);
                     }
                     nxt_chan_addr(chan);
@@ -881,7 +882,7 @@ chan_proc()
                         assembly[chan] = M[caddr[chan]];
                         if (chan_dev.dctrl & cmask)
                             sim_debug(DEBUG_CMD, &chan_dev,
-                                      "chan %d cmd > %012llo\n",
+                                      "chan %d cmd > %012"LL_FMT"o\n",
                                       chan, assembly[chan]);
                         nxt_chan_addr(chan);
                         bcnt[chan] = 6;
@@ -897,7 +898,7 @@ chan_proc()
                     assembly[chan] = M[caddr[chan]];
                     if (chan_dev.dctrl & cmask)
                          sim_debug(DEBUG_CMD, &chan_dev,
-                                      "chan %d LAR > %012llo\n",
+                                      "chan %d LAR > %012"LL_FMT"o\n",
                                       chan, assembly[chan]);
                     break;
                 case SAR:
@@ -907,7 +908,7 @@ chan_proc()
                     }
                     if (chan_dev.dctrl & cmask)
                          sim_debug(DEBUG_CMD, &chan_dev,
-                                      "chan %d SAR < %012llo\n",
+                                      "chan %d SAR < %012"LL_FMT"o\n",
                                       chan, assembly[chan]);
                     M[caddr[chan]] = assembly[chan];
                     break;
@@ -1002,7 +1003,7 @@ chan_proc()
                         assembly[chan] = M[caddr[chan]];
                         if (chan_dev.dctrl & cmask)
                             sim_debug(DEBUG_DATA, &chan_dev,
-                                      "chan %d data > %012llo\n",
+                                      "chan %d data > %012"LL_FMT"o\n",
                                       chan, assembly[chan]);
                         if (sms[chan] & 020)    /* BCD Xlat mode */
                             bcd_xlat(chan, 0);
@@ -1024,7 +1025,7 @@ chan_proc()
                             bcd_xlat(chan, 1);
                         if (chan_dev.dctrl & cmask)
                             sim_debug(DEBUG_DATA, &chan_dev,
-                                      "chan %d data < %012llo\n",
+                                      "chan %d data < %012"LL_FMT"o\n",
                                       chan, assembly[chan]);
                         M[caddr[chan]] = assembly[chan];
                         if (sms[chan] & 040) {  /* Read backward */
@@ -1410,7 +1411,7 @@ chan_store(int chan, uint16 loc)
         }
     }
     if (chan_dev.dctrl & (0x0100 << chan))
-        sim_debug(DEBUG_SNS, &chan_dev, "chan %d status %012llo\n\r",
+        sim_debug(DEBUG_SNS, &chan_dev, "chan %d status %012"LL_FMT"o\n\r",
                  chan,reg);
     M[loc & (MEMMASK | 0100000)] = reg;
 }
@@ -1432,7 +1433,7 @@ chan_store_diag(int chan, uint16 loc)
             results |= 1;
         reg |= ((t_uint64) (results)) << 19;
         if (chan_dev.dctrl & (0x0100 << chan))
-            sim_debug(DEBUG_SNS, &chan_dev, "chan %d diags %012llo\n\r",
+            sim_debug(DEBUG_SNS, &chan_dev, "chan %d diags %012"LL_FMT"o\n\r",
                          chan,reg);
         M[loc & (MEMMASK | 0100000)] = reg;
     }

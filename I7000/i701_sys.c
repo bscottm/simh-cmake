@@ -400,7 +400,7 @@ t_stat
 parse_sym(CONST char *cptr, t_addr addr, UNIT * uptr, t_value * val, int32 sw)
 {
     int                 i;
-    int                 f;
+    /*int                 f;*/
     t_value             d;
     t_addr              tag;
     int                 sign;
@@ -415,7 +415,7 @@ parse_sym(CONST char *cptr, t_addr addr, UNIT * uptr, t_value * val, int32 sw)
 
         i = 0;
         sign = 0;
-        f = 0;
+        /*f = 0;*/
 next:
         /* Skip blanks */
         while (isspace(*cptr))

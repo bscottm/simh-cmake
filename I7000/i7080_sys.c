@@ -273,7 +273,6 @@ sim_load(FILE * fileref, CONST char *cptr, CONST char *fnam, int flag)
         }
         return SCPE_OK;
      } else if (match_ext(fnam, "dck")) {
-        extern char             ascii_to_six[128];
         while (fgets(buffer, 160, fileref) != 0) {
             uint8               image[80];
             /* Convert bits into image */
@@ -452,7 +451,7 @@ t_stat fprint_addr (FILE *of, uint32 addr) {
 t_stat
 fprint_reg (FILE *of, uint32 rdx, t_value *val, UNIT *uptr, int32 sw)
 {
-    fprintf(of, "Register(%d, %x)", rdx, *val);
+    fprintf(of, "Register(%d, %"T_VALUE_FMT"x)", rdx, *val);
     return SCPE_OK;
 }
 
@@ -566,7 +565,7 @@ if (sw & SWMASK ('M')) {                                /* machine code? */
     }
     return -(i - 1);
 }
-fprintf (of, " %02o ", val[0] & 077);
+fprintf (of, " %02"T_VALUE_FMT"o ", val[0] & 077);
 return SCPE_OK;
 }
 
@@ -599,7 +598,6 @@ parse_sym(CONST char *cptr, t_addr addr, UNIT * uptr, t_value * val, int32 sw)
     int                 i;
     t_value             d;
     char                buffer[100];
-    extern char         ascii_to_six[];
 
     while (isspace(*cptr))
         cptr++;

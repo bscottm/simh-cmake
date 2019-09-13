@@ -364,7 +364,7 @@ t_stat
 sim_instr(void)
 {
     t_stat              reason;
-    int                 opcode;
+    int                 opcode = 0;
     uint8               reg;
     uint16              fmsk;
     uint8               zone;

@@ -150,7 +150,7 @@ t_stat drm_srv(UNIT * uptr)
         }
         switch (r) {
         case DATA_OK:
-            sim_debug(DEBUG_DATA, &drm_dev, "loc %6o data %012llo\n", addr,
+            sim_debug(DEBUG_DATA, &drm_dev, "loc %6o data %012"LL_FMT"o\n", addr,
                                  buf[addr]);
             addr++;
             addr &= DRMMASK;
@@ -262,9 +262,9 @@ drm_detach(UNIT * uptr)
 t_stat
 drm_help (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, const char *cptr)
 {
-   const char *cpu = cpu_description(&cpu_dev);
-   DIB        *dibp = (DIB *) dptr->ctxt;
-   int        ctype = dibp->ctype;
+   /*const char *cpu = cpu_description(&cpu_dev);*/
+   /*DIB        *dibp = (DIB *) dptr->ctxt;*/
+   /*int        ctype = dibp->ctype;*/
 
    fprintf (st, "%s\n\n", drm_description(dptr));
    fprintf (st, "Up to %d units of drum could be used\n", NUM_UNITS_DR);

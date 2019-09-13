@@ -418,10 +418,11 @@ switch (cpuio_opc) {                                    /* decode op */
         ttc = alp_to_tto[d];                            /* translate */
         if (ttc < 0) {                                  /* bad char? */
             ind[IN_WRCHK] = 1;                          /* set write check */
-            if (io_stop)                                /* set return status */
+            if (io_stop) {                              /* set return status */
                 sta = STOP_INVCHR;
                 break;
-                }
+            }
+        }
         tto_write (ttc & 0x7F);                         /* write */
         PAR = ADDR_A (PAR, 2);                          /* incr mem addr */
         cpuio_cnt = cpuio_cnt + 2;

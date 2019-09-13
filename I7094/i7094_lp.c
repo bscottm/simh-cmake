@@ -323,7 +323,7 @@ for (col = 0; col < 72; col++) {                        /* proc 72 columns */
             colbin |= col_masks[row];
         }
     bcd = colbin_to_bcd (colbin);                       /* column bin -> BCD */
-    lpt_cbuf[col] = pch[bcd];                           /* -> ASCII */
+    lpt_cbuf[col] = pch[(size_t) bcd];                  /* -> ASCII */
     }
 for (i = LPT_CHRLNT; (i > 0) &&
     (lpt_cbuf[i - 1] == ' '); --i) ;                    /* trim spaces */
