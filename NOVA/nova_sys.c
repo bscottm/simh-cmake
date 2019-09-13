@@ -178,7 +178,7 @@ internal state machine:
 
 t_stat sim_load (FILE *fileref, CONST char *cptr, CONST char *fnam, int flag)
 {
-int32 data, csum, count, state, i;
+int32 data = 0, csum, count, state, i;
 int32 origin;
 int pos;
 int block_start;

@@ -973,17 +973,19 @@ while (reason == 0) {                                   /* loop until halted */
         else if (device == DEV_CPU) {                   /* CPU control */
             switch (code) {                             /* decode IR<5:7> */
 
-        case ioNIO:                                     /* NIOP <x> CPU ? */
-            if ( pulse == iopP )
-                if ( MODE_64K )
-                    {
-                    /*  Keronix/Point4/SCI/INI/IDP (and others)    */
-                    /*  64 KW memory extension:                    */
-                    /*  NIOP - set memory mode (32/64 KW) per AC:  */
-                    /*  B15: 0 = 32 KW, 1 = 64 KW mode             */
-                    AMASK = (AC[dstAC] & 0x0001) ? 0177777 : 077777 ;
-                    }
-                break ;
+	    case ioNIO:                                 /* NIOP <x> CPU ? */
+		if ( pulse == iopP )
+		{
+		    if ( MODE_64K )
+			{
+			    /*  Keronix/Point4/SCI/INI/IDP (and others)    */
+			    /*  64 KW memory extension:                    */
+			    /*  NIOP - set memory mode (32/64 KW) per AC:  */
+			    /*  B15: 0 = 32 KW, 1 = 64 KW mode             */
+			    AMASK = (AC[dstAC] & 0x0001) ? 0177777 : 077777 ;
+			}
+		}
+		break;
 
             case ioDIA:                                 /* read switches */
                 AC[dstAC] = SR;

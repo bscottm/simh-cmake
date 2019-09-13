@@ -1769,7 +1769,7 @@ if ((IR & 0100017) == 0100010) {                        /* This pattern for all 
     
     if (((IR & 0100077) == 0100030) ||
         ((IR & 0102077) == 0100070)) {                  /* XOP: Extended Operation */
-        register int32 op, d, sa, da;
+        register int32 op, d, sa = 0, da = 0;
         op = (IR >> 6) & 037;
         if ((IR & 077) == 070) op += 32;
         t = GetMap(040) & AMASK;                                
@@ -5431,7 +5431,7 @@ int32 LEFmode(int32 PC, int32 index, int32 disp, int32 indirect)
 
 int32 Bytepointer(int32 PC, int32 index)
 {
-    register int32 MA;
+    register int32 MA = 0;
 
     switch (index) {                                    /* decode IR<6:7> */
     case 0:                                             /* page zero */
