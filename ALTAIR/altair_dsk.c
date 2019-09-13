@@ -310,7 +310,7 @@ int32 dsk11(int32 io, int32 data)
 
 int32 dsk12(int32 io, int32 data)
 {
-    static int32 rtn, i;
+    static int32 /*rtn,*/ i;
     static long pos;
     UNIT *uptr;
 
@@ -327,8 +327,8 @@ int32 dsk12(int32 io, int32 data)
         pos += DSK_SECTSIZE * cur_sect[cur_disk];
         if ((uptr == NULL) || (uptr->fileref == NULL))
             return 0;
-        rtn = fseek(uptr -> fileref, pos, 0);
-        rtn = fread(dskbuf, 137, 1, uptr -> fileref);
+        /*rtn =*/ fseek(uptr -> fileref, pos, 0);
+        /*rtn =*/ fread(dskbuf, 137, 1, uptr -> fileref);
         cur_byte[cur_disk] = 1;
         return (dskbuf[0] & 0xFF);
     } else {
@@ -350,7 +350,7 @@ int32 dsk12(int32 io, int32 data)
 void writebuf()
 {
     long pos;
-    int32 rtn, i;
+    int32 /*rtn,*/ i;
 
     i = cur_byte[cur_disk];                             /* null-fill rest of sector if any */
     while (i < 138) {
@@ -361,8 +361,8 @@ void writebuf()
                         cur_sect[cur_disk]); i = getch(); */
     pos = DSK_TRACSIZE * cur_track[cur_disk];           /* calc file pos */
     pos += DSK_SECTSIZE * cur_sect[cur_disk];
-    rtn = fseek(dptr -> fileref, pos, 0);
-    rtn = fwrite(dskbuf, 137, 1, dptr -> fileref);
+    /*rtn =*/ fseek(dptr -> fileref, pos, 0);
+    /*rtn =*/ fwrite(dskbuf, 137, 1, dptr -> fileref);
     cur_flags[cur_disk] &= 0xFE;                        /* ENWD off */
     cur_byte[cur_disk] = 0377;
     dirty = 0;

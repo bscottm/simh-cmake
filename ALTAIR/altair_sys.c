@@ -183,9 +183,9 @@ return (SCPE_OK);
 t_stat fprint_sym (FILE *of, t_addr addr, t_value *val,
     UNIT *uptr, int32 sw)
 {
-int32 cflag, c1, c2, inst, adr;
+int32 /*cflag,*/ c1, c2, inst, adr;
 
-cflag = (uptr == NULL) || (uptr == &cpu_unit);
+/*cflag = (uptr == NULL) || (uptr == &cpu_unit);*/
 c1 = (val[0] >> 8) & 0177;
 c2 = val[0] & 0177;
 if (sw & SWMASK ('A')) {
@@ -231,11 +231,11 @@ return -(oplen[inst] - 1);
 
 t_stat parse_sym (CONST char *cptr, t_addr addr, UNIT *uptr, t_value *val, int32 sw)
 {
-int32 cflag, i = 0, j, r;
+int32 /*cflag,*/ i = 0, j, r;
 char gbuf[CBUFSIZE];
 
 memset (gbuf, 0, sizeof (gbuf));
-cflag = (uptr == NULL) || (uptr == &cpu_unit);
+/*cflag = (uptr == NULL) || (uptr == &cpu_unit);*/
 while (isspace (*cptr)) cptr++;                         /* absorb spaces */
 if ((sw & SWMASK ('A')) || ((*cptr == '\'') && cptr++)) { /* ASCII char? */
     if (cptr[0] == 0) return SCPE_ARG;                  /* must have 1 char */
