@@ -1415,7 +1415,7 @@ saved_capac = uptr->capac;
 uptr->capac = (t_addr)(temp_capac / (capac_factor * ((dptr->flags & DEV_SECTORS) ? 512 : 1)));
 
 for (part = 0; part < RT11_MAXPARTITIONS; part++) {
-    uint16 seg_highest;
+    uint16 seg_highest = 0;  /* Squelch GCC warning */
     int type;
 
     base = part << 16;
@@ -1988,7 +1988,6 @@ if (container_size && (container_size != (t_offset)-1)) {
         t_addr saved_capac = uptr->capac;
 
         if (filesystem_size != (t_offset)-1) {
-            const char *drive_type = NULL;
 
             while ((filesystem_size > current_unit_size) &&
                    ((drivetypes ? *drivetypes : NULL) != NULL)) {
@@ -1996,7 +1995,6 @@ if (container_size && (container_size != (t_offset)-1)) {
                 t_stat st;
 
                 uptr->flags &= ~UNIT_ATT;   /* temporarily mark as un-attached */
-                drive_type = *drivetypes;
                 sprintf (cmd, "%s %s", sim_uname (uptr), *drivetypes);
                 st = set_cmd (0, cmd);
                 uptr->flags |= UNIT_ATT;    /* restore attached indicator */
@@ -2548,6 +2546,8 @@ struct _device_type {
 #endif
         {0,                                 NULL}};
 
+#if 0
+/* Unused static function */
 static const char *_device_type_name (int DeviceType)
 {
 int i;
@@ -2557,6 +2557,7 @@ for (i=0; DeviceTypes[i].desc; i++)
         return DeviceTypes[i].desc;
 return "Unknown";
 }
+#endif
 
 static t_stat sim_os_disk_implemented_raw (void)
 {

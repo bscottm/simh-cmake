@@ -143,6 +143,18 @@ extern int sim_vax_snprintf(char *buf, size_t buf_size, const char *fmt, ...);
 #include <process.h>
 #endif
 
+/* Get size_t printing properly configured and avoid compiler warnings. */
+#ifdef _WIN32
+#  include <inttypes.h>
+#  ifdef _WIN64
+#    define PRI_SIZET PRIu64
+#  else
+#    define PRI_SIZET PRIu32
+#  endif
+#else
+#  define PRI_SIZET "zu"
+#endif
+
 #ifdef USE_REGEX
 #undef USE_REGEX
 #endif
@@ -254,11 +266,13 @@ typedef t_int64         t_svalue;                       /* signed value */
 typedef t_uint64        t_value;                        /* value */
 #define T_VALUE_MAX     0xffffffffffffffffuLL
 #define T_SVALUE_MAX    0x7fffffffffffffffLL
+#define T_VALUE_FMT     LL_FMT
 #else                                                   /* 32b data */
 typedef int32           t_svalue;
 typedef uint32          t_value;
 #define T_VALUE_MAX     0xffffffffUL
 #define T_SVALUE_MAX    0x7fffffffL
+#define T_VALUE_FMT     ""
 #endif                                                  /* end 64b data */
 
 #if defined (USE_INT64) && defined (USE_ADDR64)         /* 64b address */

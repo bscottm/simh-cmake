@@ -134,6 +134,8 @@ static void png_write_SDL(png_structp png_ptr, png_bytep data, png_size_t length
     SDL_RWwrite(rw, data, sizeof(png_byte), length);
 }
 
+#if 0
+/* Unused function */
 static SDL_Surface *SDL_PNGFormatAlpha(SDL_Surface *src) 
 {
     SDL_Surface *surf;
@@ -154,6 +156,7 @@ static SDL_Surface *SDL_PNGFormatAlpha(SDL_Surface *src)
 
     return surf;
 }
+#endif
 
 static int SDL_SavePNG_RW(SDL_Surface *surface, SDL_RWops *dst, int freedst) 
 {
@@ -513,7 +516,6 @@ return SCPE_OK;
 t_stat vid_open (DEVICE *dptr, const char *title, uint32 width, uint32 height, int flags)
 {
 if (!vid_active) {
-    int wait_count = 0;
     t_stat stat;
 
     if ((strlen(sim_name) + 7 + (dptr ? strlen (dptr->name) : 0) + (title ? strlen (title) : 0)) < sizeof (vid_title))
@@ -703,7 +705,7 @@ if (sim_deb) {
             int bit = 7 - ((j + i*width) & 0x7);
             static char mode[] = "TWIB";
 
-            sim_debug (SIM_VID_DBG_CURSOR, vid_dev, "%c", mode[(((data[byte]>>bit)&1)<<1)|(mask[byte]>>bit)&1]);
+            sim_debug (SIM_VID_DBG_CURSOR, vid_dev, "%c", mode[(((data[byte]>>bit)&1)<<1)|((mask[byte]>>bit)&1)]);
             }
         sim_debug (SIM_VID_DBG_CURSOR, vid_dev, "\n");
         }
@@ -1366,12 +1368,14 @@ if (SDL_SemWait (vid_mouse_events.sem) == 0) {
 
 void vid_update (void)
 {
+#if SDL_MAJOR_VERSION == 1
 SDL_Rect vid_dst;
 
 vid_dst.x = 0;
 vid_dst.y = 0;
 vid_dst.w = vid_width;
 vid_dst.h = vid_height;
+#endif
 
 sim_debug (SIM_VID_DBG_VIDEO, vid_dev, "Video Update Event: \n");
 if (sim_deb)
@@ -2271,7 +2275,6 @@ static int vid_beep_samples;
 
 static void vid_audio_callback(void *ctx, Uint8 *stream, int length)
 {
-int16 *data = (int16 *)stream;
 int i, sum, remnant = ((vid_beep_samples - vid_beep_offset) * sizeof (*vid_beep_data));
 
 if (length > remnant) {

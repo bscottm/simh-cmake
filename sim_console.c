@@ -146,7 +146,9 @@
 /* Forward Declaraations of Platform specific routines */
 
 static t_stat sim_os_poll_kbd (void);
+#if defined(SIM_ASYNCH_IO) && defined(SIM_ASYNCH_MUX)
 static t_bool sim_os_poll_kbd_ready (int ms_timeout);
+#endif
 static t_stat sim_os_putchar (int32 out);
 static t_stat sim_os_ttinit (void);
 static t_stat sim_os_ttrun (void);
@@ -870,7 +872,6 @@ static void _sim_rem_log_out (TMLN *lp)
 {
 char cbuf[4*CBUFSIZE];
 REMOTE *rem = &sim_rem_consoles[(int)(lp - sim_rem_con_tmxr.ldsc)];
-int line = rem->line;
 
 if ((!sim_oline) && (sim_log)) {
     fflush (sim_log);
@@ -2027,7 +2028,7 @@ else
     return sim_messagef (SCPE_INVREM, "Can't enable Remote Console Master mode with Remote Console disabled\n");
 
 if (sim_rem_master_mode) {
-    t_stat stat_nomessage;
+    t_stat stat_nomessage = 0;
 
     sim_messagef (SCPE_OK, "Command input starting on Master Remote Console Session\n");
     stat = sim_run_boot_prep (0);
@@ -2266,7 +2267,7 @@ t_stat sim_set_debon (int32 flag, CONST char *cptr)
 char gbuf[CBUFSIZE];
 t_stat r;
 time_t now;
-size_t buffer_size;
+size_t buffer_size = 0;                                 /* squelch GCC warning */
 
 if ((cptr == NULL) || (*cptr == 0))                     /* need arg */
     return SCPE_2FARG;
@@ -3535,6 +3536,8 @@ if ((sim_brk_char && ((c & 0177) == sim_brk_char)) || (c & SCPE_BREAK))
 return c | SCPE_KFLAG;
 }
 
+#if 0
+/* Unused static function */
 static t_bool sim_os_poll_kbd_ready (int ms_timeout)
 {
 sim_debug (DBG_TRC, &sim_con_telnet, "sim_os_poll_kbd_ready()\n");
@@ -3545,6 +3548,7 @@ if ((std_input == NULL) ||                              /* No keyboard for */
     }
 return (WAIT_OBJECT_0 == WaitForSingleObject (std_input, ms_timeout));
 }
+#endif
 
 
 #define BELL_CHAR           7       /* Bell Character */

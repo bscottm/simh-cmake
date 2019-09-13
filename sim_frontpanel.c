@@ -277,6 +277,11 @@ return p;
 #if !defined(GCC_FMT_ATTR)
 #define GCC_FMT_ATTR(n, m) __attribute__ ((format (__printf__, n, m)))
 #endif
+#if defined _WIN32
+#define LL_FMT "I64"
+#else
+#define LL_FMT "ll"
+#endif
 
 static void __panel_debug (PANEL *p, int dbits, const char *fmt, const char *buf, int bufsize, ...) GCC_FMT_ATTR(3, 6);
 #define _panel_debug(p, dbits, fmt, buf, bufsize, ...) do { if (p && p->Debug && ((dbits) & p->debug)) __panel_debug (p, dbits, fmt, buf, bufsize, ##__VA_ARGS__);} while (0)
@@ -293,7 +298,7 @@ while (p && p->Debug && (dbits & p->debug)) {
     char *obuf = (char *)_panel_malloc (obufsize);
 
     clock_gettime(CLOCK_REALTIME, &time_now);
-    sprintf (timestamp, "%lld.%03d ", (long long)(time_now.tv_sec), (int)(time_now.tv_nsec/1000000));
+    sprintf (timestamp, "%"LL_FMT"d.%03d ", (long long)(time_now.tv_sec), (int)(time_now.tv_nsec/1000000));
     sprintf (threadname, "%s:%s ", p->parent ? p->device_name : "CPU", (pthread_getspecific (panel_thread_id)) ? (char *)pthread_getspecific (panel_thread_id) : ""); 
     
     obuf[obufsize - 1] = '\0';
@@ -592,7 +597,7 @@ return 0;
 static int
 _panel_establish_register_bits_collection (PANEL *panel)
 {
-size_t i, buf_data, buf_needed = 0, reg_count = 0, bit_reg_count = 0;
+size_t i, buf_data, buf_needed = 0;
 int cmd_stat, bits_count = 0;
 char *buf, *response = NULL;
 
@@ -702,7 +707,7 @@ struct stat statb;
 char *buf = NULL;
 int port;
 int cmd_stat;
-size_t i, device_num;
+size_t i, device_num = 0;
 char hostport[64];
 union {int i; char c[sizeof (int)]; } end_test;
 
@@ -2448,7 +2453,6 @@ int sched_policy;
 struct sched_param sched_priority;
 char *buf = NULL;
 size_t buf_data = 0;
-unsigned int callback_count = 0;
 int cmd_stat;
 
 /* 
@@ -2470,7 +2474,6 @@ pthread_mutex_lock (&p->io_lock);
 while ((p->sock != INVALID_SOCKET) && 
        (p->usecs_between_callbacks) &&
        (p->State != Error)) {
-    int interval = p->usecs_between_callbacks;
     int new_register = p->new_register;
 
     p->new_register = 0;

@@ -747,8 +747,6 @@ void eth_zero(ETH_DEV* dev)
   dev->reflections = -1;                          /* not established yet */
 }
 
-static char*   (*p_pcap_lib_version) (void);
-
 static ETH_DEV **eth_open_devices = NULL;
 static int eth_open_device_count = 0;
 
@@ -1644,7 +1642,7 @@ static int _eth_get_system_id (char *buf, size_t buf_size)
   if ((status = RegOpenKeyExA (HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Cryptography", 0, KEY_QUERY_VALUE|KEY_WOW64_64KEY, &reghnd)) != ERROR_SUCCESS)
     return -1;
   reglen = buf_size;
-  if ((status = RegQueryValueExA (reghnd, "MachineGuid", NULL, &regtype, buf, &reglen)) != ERROR_SUCCESS) {
+  if ((status = RegQueryValueExA (reghnd, "MachineGuid", NULL, &regtype, (LPBYTE) buf, &reglen)) != ERROR_SUCCESS) {
     RegCloseKey (reghnd);
     return -1;
     }
@@ -1994,8 +1992,6 @@ if (bufsz < ETH_MAX_JUMBO_FRAME)
 /* attempt to connect device */
 memset(errbuf, 0, PCAP_ERRBUF_SIZE);
 if (0 == strncmp("tap:", savname, 4)) {
-  int  tun = -1;    /* TUN/TAP Socket */
-  int  on = 1;
   const char *devname = savname + 4;
 
   while (isspace(*devname))
@@ -4206,7 +4202,7 @@ ETH_MAC filter_address[3] = {
     {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
   };
 int addr_count;
-ETH_MAC physical_addr = {0x04, 0x05, 0x06, 0x07, 0x08, 0x09};
+/*ETH_MAC physical_addr = {0x04, 0x05, 0x06, 0x07, 0x08, 0x09};*/
 ETH_MAC host_nic_phy_hw_addr = {0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
 ETH_MAC *host_phy_addr_list[2] = {&host_nic_phy_hw_addr, NULL};
 int host_phy_addr_listindex;

@@ -506,10 +506,10 @@ void scsi_mode_sense (SCSI_BUS *bus, uint8 *data, uint32 len)
 {
 UNIT *uptr = bus->dev[bus->target];
 SCSI_DEV *dev = (SCSI_DEV *)uptr->up7;
-uint32 pc, pctl;
+uint32 pc;
 
 pc = data[2] & 0x3F;                                    /* page code */
-pctl = (data[2] >> 6) & 0x3F;                           /* page control */
+/* pctl = (data[2] >> 6) & 0x3F;                        * page control */
 
 bus->buf[bus->buf_b++] = 0x00;                          /* density code */
 bus->buf[bus->buf_b++] = ((uptr->capac - 1) >> 16) & 0xFF; /* # blocks (23:16) */
@@ -622,12 +622,12 @@ void scsi_mode_sense6 (SCSI_BUS *bus, uint8 *data, uint32 len)
 {
 UNIT *uptr = bus->dev[bus->target];
 SCSI_DEV *dev = (SCSI_DEV *)uptr->up7;
-uint32 pc, pctl;
+uint32 pc;
 
 sim_debug (SCSI_DBG_CMD, bus->dptr, "Mode Sense(6)\n");
 
 pc = data[2] & 0x3F;                                    /* page code */
-pctl = (data[2] >> 6) & 0x3F;                           /* page control */
+/*pctl = (data[2] >> 6) & 0x3F;                         * page control */
 
 if (pc == 0x8) {
     scsi_status (bus, STS_CHK, KEY_ILLREQ, ASC_INVCDB);
@@ -656,12 +656,12 @@ scsi_set_req (bus);                                     /* request to send data 
 
 void scsi_mode_sense10 (SCSI_BUS *bus, uint8 *data, uint32 len)
 {
-uint32 pc, pctl;
+uint32 pc;
 
 sim_debug (SCSI_DBG_CMD, bus->dptr, "Mode Sense(10)\n");
 
 pc = data[2] & 0x3F;                                    /* page code */
-pctl = (data[2] >> 6) & 0x3F;                           /* page control */
+/* pctl = (data[2] >> 6) & 0x3F;                         * page control */
 
 if (pc == 0x8) {
     scsi_status (bus, STS_CHK, KEY_ILLREQ, ASC_INVCDB);
@@ -733,7 +733,6 @@ UNIT *uptr = bus->dev[bus->target];
 SCSI_DEV *dev = (SCSI_DEV *)uptr->up7;
 t_lba lba;
 t_seccnt sects, sectsread;
-t_stat r;
 
 lba = GETW (data, 2) | ((data[1] & 0x1F) << 16);
 sects = data[4];
@@ -743,7 +742,7 @@ if (sects == 0)
 sim_debug (SCSI_DBG_CMD, bus->dptr, "Read(6) lba %d blks %d\n", lba, sects);
 
 if (uptr->flags & UNIT_ATT)
-    r = sim_disk_rdsect (uptr, lba, &bus->buf[0], &sectsread, sects);
+    (void) sim_disk_rdsect (uptr, lba, &bus->buf[0], &sectsread, sects);
 else {
     memset (&bus->buf[0], 0, (sects * dev->block_size));
     sectsread = sects;
@@ -849,7 +848,6 @@ UNIT *uptr = bus->dev[bus->target];
 SCSI_DEV *dev = (SCSI_DEV *)uptr->up7;
 t_lba lba;
 t_seccnt sects, sectsread;
-t_stat r;
 
 lba = GETL (data, 2);
 sects = GETW (data, 7);
@@ -862,7 +860,7 @@ if (sects == 0) {                                       /* no data to read */
     }
 
 if (uptr->flags & UNIT_ATT)
-    r = sim_disk_rdsect (uptr, lba, &bus->buf[0], &sectsread, sects);
+    (void) sim_disk_rdsect (uptr, lba, &bus->buf[0], &sectsread, sects);
 else {
     memset (&bus->buf[0], 0, (sects * dev->block_size));
     sectsread = sects;
@@ -882,7 +880,6 @@ void scsi_read_long (SCSI_BUS *bus, uint8 *data, uint32 len)
 UNIT *uptr = bus->dev[bus->target];
 t_lba lba;
 t_seccnt sects, sectsread;
-t_stat r;
 
 lba = GETL (data, 2);
 sects = GETW (data, 7);
@@ -890,7 +887,7 @@ sects = GETW (data, 7);
 sim_debug (SCSI_DBG_CMD, bus->dptr, "Read Long lba %d bytes %d\n", lba, sects);
 
 if (uptr->flags & UNIT_ATT)
-    r = sim_disk_rdsect (uptr, lba, &bus->buf[0], &sectsread, ((sects >> 9) + 1));
+    (void) sim_disk_rdsect (uptr, lba, &bus->buf[0], &sectsread, ((sects >> 9) + 1));
 else {
     memset (&bus->buf[0], 0, sects);
     }
@@ -908,7 +905,6 @@ UNIT *uptr = bus->dev[bus->target];
 SCSI_DEV *dev = (SCSI_DEV *)uptr->up7;
 t_lba lba;
 t_seccnt sects, sectswritten;
-t_stat r;
 
 if (bus->phase == SCSI_CMD) {
     sim_debug (SCSI_DBG_CMD, bus->dptr, "Write(6) - CMD\n");
@@ -926,7 +922,7 @@ else if (bus->phase == SCSI_DATO) {
     sim_debug (SCSI_DBG_CMD, bus->dptr, "Write(6) - DATO, lba %d bytes %d\n", lba, sects);
 
     if (uptr->flags & UNIT_ATT)
-        r = sim_disk_wrsect (uptr, lba, &bus->buf[0], &sectswritten, sects);
+        (void) sim_disk_wrsect (uptr, lba, &bus->buf[0], &sectswritten, sects);
 
     memset (&bus->cmd[0], 0, 10);
     scsi_status (bus, STS_OK, KEY_OK, ASC_OK);
@@ -982,7 +978,6 @@ UNIT *uptr = bus->dev[bus->target];
 SCSI_DEV *dev = (SCSI_DEV *)uptr->up7;
 t_lba lba;
 t_seccnt sects, sectswritten;
-t_stat r;
 
 if (bus->phase == SCSI_CMD) {
     sim_debug (SCSI_DBG_CMD, bus->dptr, "Write(10) - CMD\n");
@@ -1002,7 +997,7 @@ else if (bus->phase == SCSI_DATO) {
     sim_debug (SCSI_DBG_CMD, bus->dptr, "Write(10) - DATO, lba %d bytes %d\n", lba, sects);
 
     if (uptr->flags & UNIT_ATT)
-        r = sim_disk_wrsect (uptr, lba, &bus->buf[0], &sectswritten, sects);
+        (void) sim_disk_wrsect (uptr, lba, &bus->buf[0], &sectswritten, sects);
 
     memset (&bus->cmd[0], 0, 10);
     scsi_status (bus, STS_OK, KEY_OK, ASC_OK);
@@ -1078,7 +1073,7 @@ void scsi_space (SCSI_BUS *bus, uint8 *data, uint32 len)
 UNIT *uptr = bus->dev[bus->target];
 uint32 code, skipped;
 t_seccnt sects;
-t_stat r;
+t_stat r = 0;                                          /* squelch GCC warning */
 
 code = data[1] & 0x7;
 sects = GETW (data, 3) | (data[2] << 16);

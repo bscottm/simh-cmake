@@ -4,7 +4,13 @@
 
 #if !defined(SIMH_ISO_NAMES_H)
 
-#  ifdef USE_ISO_C99_NAMES
+#if defined(__MINGW__)
+#define	NO_OLDNAMES
+#endif
+
+/* 0x0502 -> Windows Server 2003. This is apparently when the ISO names came into
+ * existance. MinGW defines _WIN32_WINNT at this value. */
+#  if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0502
 #    define simh_chdir  _chdir
 #    define simh_unlink _unlink
 #    define simh_mkdir  _mkdir

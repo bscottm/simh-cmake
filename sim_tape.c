@@ -2964,7 +2964,7 @@ t_stat sim_tape_spfilebyrecr (UNIT *uptr, uint32 count, uint32 *skipped, uint32 
 {
 struct tape_context *ctx = (struct tape_context *)uptr->tape_ctx;
 t_stat st;
-uint32 filerecsskipped;
+uint32 filerecsskipped = 0;
 
 if (ctx == NULL)                                        /* if not properly attached? */
     return sim_messagef (SCPE_IERR, "Bad Attach\n");    /*   that's a problem */
@@ -3233,7 +3233,7 @@ return SCPE_OK;
 
 static uint32 sim_tape_tpc_map (UNIT *uptr, t_addr *map, uint32 mapsize)
 {
-t_addr tpos, leot;
+t_addr tpos, leot = 0;
 t_addr tape_size;
 t_tpclnt bc, last_bc = TPC_EOM;
 uint32 had_double_tape_mark = 0;
@@ -3347,7 +3347,6 @@ return msgbuf;
 static t_stat sim_tape_validate_tape (UNIT *uptr)
 {
 t_addr saved_pos = uptr->pos;
-uint32 record_in_file = 0;
 uint32 data_total = 0;
 uint32 tapemark_total = 0;
 uint32 record_total = 0;
@@ -3360,7 +3359,7 @@ t_stat r_r;
 t_stat r_s;
 uint8 *buf_f = NULL;
 uint8 *buf_r = NULL;
-t_mtrlnt bc_f;
+t_mtrlnt bc_f = 0; /* squelch GCC warning */
 t_mtrlnt bc_r;
 t_mtrlnt bc_s;
 t_mtrlnt bc;
@@ -3720,7 +3719,6 @@ t_awslnt awsrec_typ = AWS_REC;
 char name[256];
 t_stat stat = SCPE_OPENERR;
 uint8 *buf = NULL;
-t_stat aws_stat;
 int32 saved_switches = sim_switches;
 
 srand (0);                      /* All devices use the same random sequence for file data */
@@ -3783,7 +3781,7 @@ sprintf (name, "aws %s.aws.tape", filename);
 sim_switches = SWMASK ('F') | (sim_switches & SWMASK ('D')) | SWMASK ('N');
 if (sim_switches & SWMASK ('D'))
     uptr->dctrl = MTSE_DBG_STR | MTSE_DBG_DAT;
-aws_stat = sim_tape_attach_ex (uptr, name, (saved_switches & SWMASK ('D')) ? MTSE_DBG_STR | MTSE_DBG_DAT: 0, 0);
+(void) sim_tape_attach_ex (uptr, name, (saved_switches & SWMASK ('D')) ? MTSE_DBG_STR | MTSE_DBG_DAT: 0, 0);
 sim_switches = saved_switches;
 stat = SCPE_OK;
 for (i=0; i<files; i++) {
@@ -4164,7 +4162,7 @@ static void ansi_make_HDR1 (HDR1 *hdr1, VOL1 *vol, HDR4 *hdr4, const char *filen
     to_ansi_a (hdr1->file_ident, fn, sizeof (hdr1->file_ident));
     if (strlen (fn) > 17) {
         to_ansi_a (hdr4->extra_name, fn + 17, sizeof (hdr4->extra_name));
-        sprintf (extra_name_used, "%02d", (int)(strlen (fn) - 17));
+        sprintf (extra_name_used, "%02u", strlen (fn) - 17);
         }
     memcpy (hdr4->extra_name_used, extra_name_used, 2);
     memcpy (hdr1->file_set, vol->ident, sizeof (hdr1->file_set));
@@ -4303,7 +4301,6 @@ static int tape_classify_file_contents (FILE *f, size_t *max_record_size, t_bool
 {
 long pos = -1;
 long last_cr = -1;
-long last_lf = -1;
 long line_start = 0;
 int chr;
 long non_print_chars = 0;
@@ -4334,7 +4331,6 @@ while (EOF != (chr = fgetc (f))) {
         if ((line_size + 4) > (long)(*max_record_size + 4))
             *max_record_size = line_size + 4;
         line_start = pos + 1;
-        last_lf = pos;
         }
     }
 rewind (f);
