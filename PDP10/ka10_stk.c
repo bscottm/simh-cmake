@@ -359,7 +359,7 @@ static t_stat stk_svc (UNIT *uptr)
 
 t_stat stk_devio(uint32 dev, uint64 *data)
 {
-    DEVICE *dptr = &stk_dev;
+    /*DEVICE *dptr = &stk_dev;*/
 
     switch(dev & 07) {
     case CONO:

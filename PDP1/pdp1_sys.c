@@ -595,9 +595,9 @@ if ((sw & SWMASK ('A')) || ((*cptr == '\'') && cptr++)) { /* ASCII char? */
 if ((sw & SWMASK ('C')) || ((*cptr == '"') && cptr++)) { /* sixbit string? */
     if (cptr[0] == 0)                                   /* must have 1 char */
         return SCPE_ARG;
-    val[0] = ((ASCTOSIX (cptr[0]) & 077) << 12) |
-             ((ASCTOSIX (cptr[1]) & 077) << 6) |
-              (ASCTOSIX (cptr[2]) & 077);
+    val[0] = ((ASCTOSIX ((int) cptr[0]) & 077) << 12) |
+             ((ASCTOSIX ((int) cptr[1]) & 077) << 6) |
+              (ASCTOSIX ((int) cptr[2]) & 077);
     return SCPE_OK;
     }
 

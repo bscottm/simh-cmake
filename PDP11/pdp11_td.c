@@ -607,7 +607,7 @@ static int32 td_ctime = 150;                            /* command time */
 static int32 td_xtime = 180;                            /* tr set time */
 static int32 td_itime = 180;                            /* init time */
 
-static int32 td_regval;                                 /* temp location used in reg declarations */
+/* static int32 td_regval;                               * temp location used in reg declarations */
 
 static int32 td_ctrls = 1;                              /* number of enabled controllers */
 

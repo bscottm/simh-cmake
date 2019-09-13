@@ -313,7 +313,7 @@ int ten11_read (int addr, uint64 *data)
     limit = mapping & T11LIMIT;
     if ((mapping & T11VALID) == 0 || offset > limit) {
       sim_debug (DBG_TRC, &ten11_dev,
-                 "(%o) %07o >= 4,,000000 / %llo / %o > %o\n",
+                 "(%o) %07o >= 4,,000000 / %"LL_FMT"o / %o > %o\n",
                  page, addr, (mapping & T11VALID), offset, limit);
       return 1;
     }
@@ -327,7 +327,7 @@ int ten11_read (int addr, uint64 *data)
     *data = ((uint64)word1 << 20) | (word2 << 4);
     
     sim_debug (DBG_TRC, &ten11_dev,
-               "Read: (%o) %06o -> %012llo\n",
+               "Read: (%o) %06o -> %012"LL_FMT"o\n",
                unibus, uaddr, *data);
   }
   return 0;
@@ -385,7 +385,7 @@ int ten11_write (int addr, uint64 data)
     }
     ten11_pager[offset] = data;
     sim_debug (DBG_TRC, &ten11_dev,
-               "Page %03o: %s %s (%llo) %06llo/%04llo\n",
+               "Page %03o: %s %s (%"LL_FMT"o) %06"LL_FMT"o/%04"LL_FMT"o\n",
                offset,
                (data & T11VALID) ? "V" : "I",
                (data & T11WRITE) ? "RW" : "R",
@@ -400,7 +400,7 @@ int ten11_write (int addr, uint64 data)
     limit = mapping & T11LIMIT;
     if ((mapping & T11VALID) == 0 || offset > limit) {
       sim_debug (DBG_TRC, &ten11_dev,
-                 "(%o) %07o >= 4,,000000 / %llo / %o > %o\n",
+                 "(%o) %07o >= 4,,000000 / %"LL_FMT"o / %o > %o\n",
                  page, addr, (mapping & T11VALID), offset, limit);
       return 1;
     }
@@ -408,7 +408,7 @@ int ten11_write (int addr, uint64 data)
     uaddr = ((mapping & T11ADDR) >> 10) + offset;
     uaddr <<= 2;
     sim_debug (DBG_TRC, &ten11_dev,
-               "Write: (%o) %06o <- %012llo\n",
+               "Write: (%o) %06o <- %012"LL_FMT"o\n",
                unibus, uaddr, data);
 
     if ((data & 010) == 0)

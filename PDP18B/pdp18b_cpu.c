@@ -923,14 +923,19 @@ while (reason == 0) {                                   /* loop until halted */
         else MA = (PC & B_EPCMASK) | 020;               /* else bank-rel 20 */
 #endif
 #if defined (PDP9) || defined (PDP15)
-        usmd = usmd_buf = 0;                            /* clear user mode */
-        if ((cpu_unit.flags & UNIT_NOAPI) == 0) {       /* if API, act lvl 4 */
+	{
+	  unsigned int do_level4;
+	  usmd = usmd_buf = 0;                          /* clear user mode */
+          do_level4 = (cpu_unit.flags & UNIT_NOAPI) == 0; /* if API, act lvl 4 */
 #if defined (PDP15)                                     /* PDP15: if 0-3 inactive */
-          if ((api_act & (API_ML0|API_ML1|API_ML2|API_ML3)) == 0)
+          do_level4 |= (api_act & (API_ML0|API_ML1|API_ML2|API_ML3)) == 0;
 #endif
+	  if (do_level4) {
             api_act = api_act | API_ML4;
-            api_int = api_eval (&int_pend);
-            }
+	  }
+
+	  api_int = api_eval (&int_pend);
+	}
 #endif
         if (IR & I_IND) {                               /* indirect? */
             if (Ia (MA, &MA, 0))

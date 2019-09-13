@@ -384,7 +384,7 @@ static void channel_special (uint64 data)
         }
         break;
     default:
-        sim_debug(DEBUG_CMD, &ai_dev, "(unknown special: %012llo)\n", data);
+        sim_debug(DEBUG_CMD, &ai_dev, "(unknown special: %012"LL_FMT"o)\n", data);
         break;
     }
 }
@@ -410,7 +410,7 @@ static void print_data (uint64 *data, int n)
 {
     int i;
     for (i = 0; i < n; i++)
-        sim_debug(DEBUG_DATA, &ai_dev, "Data %012llo\n",
+        sim_debug(DEBUG_DATA, &ai_dev, "Data %012"LL_FMT"o\n",
                   *data++);
 }
 
@@ -507,11 +507,11 @@ static void decode_fm (int bit, FILE *f)
     state = 0;
     n += 2;
 
-    //sim_debug(DEBUG_DETAIL, &ai_dev, "FM: %o, %d, %012llo\n",
+    //sim_debug(DEBUG_DETAIL, &ai_dev, "FM: %o, %d, %012"LL_FMT"o\n",
     //          bits, n, word);
 
     if (n == 36) {
-        //sim_debug(DEBUG_DETAIL, &ai_dev, "Data: %012llo\n", word);
+        //sim_debug(DEBUG_DETAIL, &ai_dev, "Data: %012"LL_FMT"o\n", word);
         (void)sim_fwrite (&word, sizeof word, 1, f);
         n = 0;
         word = 0;
@@ -562,21 +562,21 @@ static void decode_bit (int bit, FILE *f)
             (void)sim_fseeko(channel_unit->fileref, pos - 2 * sizeof(uint64), SEEK_SET);
             (void)sim_fread(header, sizeof(uint64), 2, channel_unit->fileref);
             (void)sim_fseeko(channel_unit->fileref, pos, SEEK_SET);
-            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: key %03llo\n",
+            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: key %03"LL_FMT"o\n",
                       (header[0] >> 28) & 0377);
-            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: cylinder %lld\n",
+            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: cylinder %"LL_FMT"d\n",
                       (header[0] >> 19) & 0777);
-            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: surface %lld\n",
+            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: surface %"LL_FMT"d\n",
                       (header[0] >> 14) & 037);
-            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: sector %lld\n",
+            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: sector %"LL_FMT"d\n",
                       (header[0] >> 8) & 077);
-            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: indirect %llo\n",
+            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: indirect %"LL_FMT"o\n",
                       (header[0] >> 7) & 1);
-            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: software protect %llo\n",
+            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: software protect %"LL_FMT"o\n",
                       (header[0] >> 6) & 1);
-            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: hardware protect %llo\n",
+            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: hardware protect %"LL_FMT"o\n",
                       (header[0] >> 5) & 1);
-            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: parity %llo\n",
+            sim_debug(DEBUG_DETAIL, &ai_dev, "Header: parity %"LL_FMT"o\n",
                       header[0] & 3);
             image_sector_length = 040000 - ((header[1] >> 16) & 037777);
             sim_debug(DEBUG_DETAIL, &ai_dev, "Header: length %o\n",
@@ -711,7 +711,7 @@ static void channel_command (uint64 data)
         if (n == 0)
             n = channel_wc;
         n = 010000 - n;
-        sim_debug(DEBUG_CMD, &ai_dev, "COPY %d words to/from %012llo.\n",
+        sim_debug(DEBUG_CMD, &ai_dev, "COPY %d words to/from %012"LL_FMT"o.\n",
                   n, data & ADDR);
         if ((channel_unit->flags & UNIT_ATT) == 0) {
             sim_debug(DEBUG_EXP, &ai_dev, "Drive offline\n");
@@ -802,7 +802,7 @@ static void channel_command (uint64 data)
             channel_unit = &ai_unit[(data >> 033) & 017];
       
         sim_debug(DEBUG_CMD, &ai_dev,
-                  "DSDRST, store unit %d status in %012llo.\n",
+                  "DSDRST, store unit %d status in %012"LL_FMT"o.\n",
                   (int)(channel_unit - ai_unit), data & ADDR);
 
         n = 1;
@@ -867,7 +867,7 @@ static void channel_command (uint64 data)
         channel_special (data);
         break;
     default:
-        sim_debug(DEBUG_CMD, &ai_dev, "(unknown command: %012llo)\n", data);
+        sim_debug(DEBUG_CMD, &ai_dev, "(unknown command: %012"LL_FMT"o)\n", data);
         break;
     }
 }
@@ -880,7 +880,7 @@ static void channel_run (void)
     if (check_nxm (channel_pc, &n, &data2, &n2))
         return;
     data = M[channel_pc];
-    //sim_debug(DEBUG_CMD, &ai_dev, "Channel PC=%06o %012llo\n",
+    //sim_debug(DEBUG_CMD, &ai_dev, "Channel PC=%06o %012"LL_FMT"o\n",
     //          channel_pc, data);
     channel_pc++;
     channel_command (data);
@@ -893,11 +893,11 @@ t_stat ai_devio(uint32 dev, uint64 *data) {
     switch(dev & 7) {
     case CONI:
         *data = channel_status;
-        sim_debug(DEBUG_CONI, &ai_dev, "DC0, PC=%06o %012llo\n", PC, *data);
+        sim_debug(DEBUG_CONI, &ai_dev, "DC0, PC=%06o %012"LL_FMT"o\n", PC, *data);
         return SCPE_OK;
 
     case CONO:
-        sim_debug(DEBUG_CONO, &ai_dev, "DC0, PC=%06o %012llo\n", PC, *data);
+        sim_debug(DEBUG_CONO, &ai_dev, "DC0, PC=%06o %012"LL_FMT"o\n", PC, *data);
         if ((*data & DCCSET) == DCCSET) {
           sim_debug(DEBUG_CMD, &ai_dev, "Reset controller then set selected.\n");
           ai_reset (&ai_dev);
@@ -908,11 +908,11 @@ t_stat ai_devio(uint32 dev, uint64 *data) {
           channel_status |= *data & SET_MASK;
           if (*data & DCSSRQ)
             channel_status |= DSSRQ;
-          sim_debug(DEBUG_CMD, &ai_dev, "Set bits: %012llo -> %06o\n",
+          sim_debug(DEBUG_CMD, &ai_dev, "Set bits: %012"LL_FMT"o -> %06o\n",
                     *data & SET_MASK, channel_status);
         } else if (*data & DCCLR) {
           channel_status &= ~(*data & CLEAR_MASK);
-          sim_debug(DEBUG_CMD, &ai_dev, "Clear bits: %012llo -> %06o\n",
+          sim_debug(DEBUG_CMD, &ai_dev, "Clear bits: %012"LL_FMT"o -> %06o\n",
                     *data & CLEAR_MASK, channel_status);
           if (*data & DCERR)
             channel_errors = 0;
@@ -922,12 +922,12 @@ t_stat ai_devio(uint32 dev, uint64 *data) {
 
     case DATAI:
         *data = 0;
-        sim_debug(DEBUG_DATAIO, &ai_dev, "DATAI DC0, PC=%06o %012llo\n",
+        sim_debug(DEBUG_DATAIO, &ai_dev, "DATAI DC0, PC=%06o %012"LL_FMT"o\n",
                   PC, *data);
         return SCPE_OK;
 
     case DATAO:
-        sim_debug(DEBUG_DATAIO, &ai_dev, "DATAO DC0, PC=%06o %012llo\n",
+        sim_debug(DEBUG_DATAIO, &ai_dev, "DATAO DC0, PC=%06o %012"LL_FMT"o\n",
                   PC, *data);
         if (channel_status & (DSSRUN|DSSACT)) {
             sim_debug(DEBUG_EXP, &ai_dev, "DATAO when busy\n");
@@ -943,23 +943,23 @@ t_stat ai_devio(uint32 dev, uint64 *data) {
         latency_timer %= 254;
         *data = (latency_timer << 022)
           | (latency_unit << 032) | channel_errors;
-        sim_debug(DEBUG_CONI, &ai_dev, "DC1, PC=%06o %012llo\n", PC, *data);
+        sim_debug(DEBUG_CONI, &ai_dev, "DC1, PC=%06o %012"LL_FMT"o\n", PC, *data);
         return SCPE_OK;
 
     case CONO|4:
-        sim_debug(DEBUG_CONO, &ai_dev, "DC1, PC=%06o %012llo\n", PC, *data);
-        sim_debug(DEBUG_CMD, &ai_dev, "Latency timer set to unit %llo\n", *data);
+        sim_debug(DEBUG_CONO, &ai_dev, "DC1, PC=%06o %012"LL_FMT"o\n", PC, *data);
+        sim_debug(DEBUG_CMD, &ai_dev, "Latency timer set to unit %"LL_FMT"o\n", *data);
         latency_unit = *data & 7;
         return SCPE_OK;
 
     case DATAI|4:
         *data = 0;
-        sim_debug(DEBUG_DATAIO, &ai_dev, "DATAI DC1, PC=%06o %012llo\n",
+        sim_debug(DEBUG_DATAIO, &ai_dev, "DATAI DC1, PC=%06o %012"LL_FMT"o\n",
                   PC, *data);
         return SCPE_OK;
 
     case DATAO|4:
-        sim_debug(DEBUG_DATAIO, &ai_dev, "DATAO DC1, PC=%06o %012llo\n",
+        sim_debug(DEBUG_DATAIO, &ai_dev, "DATAO DC1, PC=%06o %012"LL_FMT"o\n",
                   PC, *data);
         return SCPE_OK;
     }

@@ -2840,26 +2840,26 @@ return SCPE_OK;
 
 /* Set unit plug */
 
-t_stat rq_set_plug (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
+t_stat
+rq_set_plug(UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 {
-MSC *cp = rq_ctxmap[uptr->cnum];
-int32 plug;
-uint32 i;
-t_stat r;
-DEVICE *dptr = find_dev_from_unit (uptr);
+    int32   plug;
+    uint32  i;
+    t_stat  r;
+    DEVICE *dptr = find_dev_from_unit(uptr);
 
-if (cptr == NULL)
-    return sim_messagef (SCPE_ARG, "Must specify UNIT=value\n");
-plug = (int32) get_uint (cptr, 10, 0xFFFFFFFF, &r);
-if ((r != SCPE_OK) || (plug > 65534))
-    return sim_messagef (SCPE_ARG, "Invalid Unit Plug Number: %s\n", cptr);
-if (uptr->unit_plug == plug)
+    if (cptr == NULL)
+        return sim_messagef(SCPE_ARG, "Must specify UNIT=value\n");
+    plug = (int32)get_uint(cptr, 10, 0xFFFFFFFF, &r);
+    if ((r != SCPE_OK) || (plug > 65534))
+        return sim_messagef(SCPE_ARG, "Invalid Unit Plug Number: %s\n", cptr);
+    if (uptr->unit_plug == plug)
+        return SCPE_OK;
+    for (i = 0; i < dptr->numunits - 2; i++)
+        if (dptr->units[i].unit_plug == plug)
+            return sim_messagef(SCPE_ARG, "Unit Plug %d Already In Use on %s\n", plug, sim_uname(&dptr->units[i]));
+    uptr->unit_plug = plug;
     return SCPE_OK;
-for (i=0; i < dptr->numunits - 2; i++)
-    if (dptr->units[i].unit_plug == plug)
-        return sim_messagef (SCPE_ARG, "Unit Plug %d Already In Use on %s\n", plug, sim_uname (&dptr->units[i]));
-uptr->unit_plug = plug;
-return SCPE_OK;
 }
 
 /* Set number of drives */
@@ -2983,11 +2983,15 @@ if (cp->ctype == DEFAULT_CTYPE)
     cp->ctype = (UNIBUS? UDA50_CTYPE : RQDX3_CTYPE);
 
 if (!plugs_inited ) {
-    uint32 d, u = 0;
     char uname[16];
 
     plugs_inited  = TRUE;
     for (i = 0; i < RQ_NUMCT; i++) {
+        uint32 d;
+#if !defined (VM_VAX)
+        uint32 u = 0;
+#endif
+
         rq_devmap[i]->units[RQ_TIMER].action = &rq_tmrsvc;
         rq_devmap[i]->units[RQ_TIMER].flags = UNIT_IDLE|UNIT_DIS;
         sprintf (uname, "%s-TIMER", rq_devmap[i]->name);
@@ -3001,7 +3005,7 @@ if (!plugs_inited ) {
                 rq_devmap[i]->units[d] = rq_devmap[i]->units[0];
                 rq_devmap[i]->units[d].flags |= UNIT_DIS;
                 rq_devmap[i]->units[d].flags &= ~UNIT_DISABLE;
-                }
+            }
             rq_devmap[i]->units[d].unit_plug = 
 #if defined (VM_VAX)
                 d;          /* VAX default units */

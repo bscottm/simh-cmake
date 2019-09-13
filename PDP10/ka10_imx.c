@@ -83,7 +83,7 @@ static int imx_sample (void)
 
 t_stat imx_devio(uint32 dev, uint64 *data)
 {
-    DEVICE *dptr = &imx_dev;
+    /* DEVICE *dptr = &imx_dev; */
 
     switch(dev & 07) {
     case CONO|4:

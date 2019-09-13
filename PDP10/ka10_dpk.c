@@ -115,12 +115,12 @@ DEVICE dpk_dev = {
 
 static t_stat dpk_devio(uint32 dev, uint64 *data)
 {
-    DEVICE *dptr = &dpk_dev;
+    /*DEVICE *dptr = &dpk_dev;*/
     int port;
 
     switch(dev & 07) {
     case CONO|4:
-        sim_debug(DEBUG_CONO, &dpk_dev, "%012llo\n", *data);
+        sim_debug(DEBUG_CONO, &dpk_dev, "%012"LL_FMT"o\n", *data);
         port = (*data & DPK_ILINE) >> 12;
         if (*data & DPK_RESET)
             dpk_reset (&dpk_dev);
@@ -151,7 +151,7 @@ static t_stat dpk_devio(uint32 dev, uint64 *data)
             dpk_status &= ~DPK_ODONE;
             break;
         case DPK_OSPEED:
-            sim_debug(DEBUG_CMD, &dpk_dev, "Set port %d output speed %lld\n",
+            sim_debug(DEBUG_CMD, &dpk_dev, "Set port %d output speed %"LL_FMT"d\n",
                       port, (*data & DPK_SPEED) >> 9);
             dpk_port[port] |= PORT_OUTPUT;
             break;
@@ -161,11 +161,11 @@ static t_stat dpk_devio(uint32 dev, uint64 *data)
         case DPK_ISPEED_START:
             dpk_port[port] |= PORT_INPUT;
         ispeed:
-            sim_debug(DEBUG_CMD, &dpk_dev, "Set port %d input speed %lld\n",
+            sim_debug(DEBUG_CMD, &dpk_dev, "Set port %d input speed %"LL_FMT"d\n",
                       port, (*data & DPK_SPEED) >> 9);
             break;
         default:
-            fprintf (stderr, "Unknown function: %llo\n", *data);
+            fprintf (stderr, "Unknown function: %"LL_FMT"o\n", *data);
             exit (1);
             break;
         }
@@ -174,13 +174,13 @@ static t_stat dpk_devio(uint32 dev, uint64 *data)
         break;
     case CONI|4:
         *data = dpk_status & DPK_CONI_BITS;
-        sim_debug(DEBUG_CONI, &dpk_dev, "%07llo\n", *data);
+        sim_debug(DEBUG_CONI, &dpk_dev, "%07"LL_FMT"o\n", *data);
         break;
     case DATAO|4:
         dpk_base = *data & 03777777;
         if (*data & DPK_IEN)
           dpk_ien = 1;
-        sim_debug(DEBUG_DATAIO, &dpk_dev, "DATAO %06llo\n", *data);
+        sim_debug(DEBUG_DATAIO, &dpk_dev, "DATAO %06"LL_FMT"o\n", *data);
         break;
     case DATAI|4:
         if (dpk_ird == dpk_iwr) {
@@ -189,7 +189,7 @@ static t_stat dpk_devio(uint32 dev, uint64 *data)
         }
         *data = dpk_ibuf[dpk_ird++];
         dpk_ird &= 15;
-        sim_debug(DEBUG_DATAIO, &dpk_dev, "DATAI %06llo\n", *data);
+        sim_debug(DEBUG_DATAIO, &dpk_dev, "DATAI %06"LL_FMT"o\n", *data);
         if (dpk_ird == dpk_iwr) {
             dpk_status &= ~DPK_IDONE;
         }

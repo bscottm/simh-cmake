@@ -250,7 +250,7 @@ t_stat dc_devio(uint32 dev, uint64 *data) {
              }
          }
          dc_doscan(uptr);
-         sim_debug(DEBUG_DATAIO, &dc_dev, "DC %03o DATO %012llo PC=%06o\n",
+         sim_debug(DEBUG_DATAIO, &dc_dev, "DC %03o DATO %012"LL_FMT"o PC=%06o\n",
                     dev, *data, PC);
          break;
 
@@ -287,7 +287,7 @@ t_stat dc_devio(uint32 dev, uint64 *data) {
              }
          }
          dc_doscan(uptr);
-         sim_debug(DEBUG_DATAIO, &dc_dev, "DC %03o DATI %012llo PC=%06o\n",
+         sim_debug(DEBUG_DATAIO, &dc_dev, "DC %03o DATI %012"LL_FMT"o PC=%06o\n",
                     dev, *data, PC);
          break;
     }

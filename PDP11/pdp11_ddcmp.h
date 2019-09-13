@@ -394,7 +394,7 @@ if (size > DDCMP_HEADER_SIZE) {
 return ddcmp_tmxr_put_packet_ln (lp, buf, size, corruptrate);
 }
 
-static void ddcmp_build_data_packet (uint8 *buf, size_t size, uint8 flags, uint8 sequence, uint8 ack)
+static SIM_INLINE void ddcmp_build_data_packet (uint8 *buf, size_t size, uint8 flags, uint8 sequence, uint8 ack)
 {
 buf[0] = DDCMP_SOH;
 buf[1] = size & 0xFF;
@@ -404,7 +404,7 @@ buf[4] = sequence;
 buf[5] = 1;
 }
 
-static void ddcmp_build_maintenance_packet (uint8 *buf, size_t size)
+static SIM_INLINE void ddcmp_build_maintenance_packet (uint8 *buf, size_t size)
 {
 buf[0] = DDCMP_DLE;
 buf[1] = size & 0xFF;
@@ -414,13 +414,13 @@ buf[4] = 0;
 buf[5] = 1;
 }
 
-static t_stat ddcmp_tmxr_put_data_packet_ln (TMLN *lp, uint8 *buf, size_t size, uint8 flags, uint8 sequence, uint8 ack)
+static SIM_INLINE t_stat ddcmp_tmxr_put_data_packet_ln (TMLN *lp, uint8 *buf, size_t size, uint8 flags, uint8 sequence, uint8 ack)
 {
 ddcmp_build_data_packet (buf, size, flags, sequence, ack);
 return ddcmp_tmxr_put_packet_crc_ln (lp, buf, size, 0);
 }
 
-static void ddcmp_build_control_packet (uint8 *buf, uint8 type, uint8 subtype, uint8 flags, uint8 sndr, uint8 rcvr)
+static SIM_INLINE void ddcmp_build_control_packet (uint8 *buf, uint8 type, uint8 subtype, uint8 flags, uint8 sndr, uint8 rcvr)
 {
 buf[0] = DDCMP_ENQ;                 /* Control Message */
 buf[1] = type;                      /* STACK type */
@@ -431,60 +431,60 @@ buf[4] = sndr;                      /* SNDR */
 buf[5] = 1;                         /* ADDR */
 }
 
-static t_stat ddcmp_tmxr_put_control_packet_ln (TMLN *lp, uint8 *buf, uint8 type, uint8 subtype, uint8 flags, uint8 sndr, uint8 rcvr)
+static SIM_INLINE t_stat ddcmp_tmxr_put_control_packet_ln (TMLN *lp, uint8 *buf, uint8 type, uint8 subtype, uint8 flags, uint8 sndr, uint8 rcvr)
 {
 ddcmp_build_control_packet (buf, type, subtype, flags, sndr, rcvr);
 return ddcmp_tmxr_put_packet_crc_ln (lp, buf, DDCMP_HEADER_SIZE, 0);
 }
 
-static void ddcmp_build_ack_packet (uint8 *buf, uint8 ack, uint8 flags)
+static SIM_INLINE void ddcmp_build_ack_packet (uint8 *buf, uint8 ack, uint8 flags)
 {
 ddcmp_build_control_packet (buf, DDCMP_CTL_ACK, 0, flags, 0, ack);
 }
 
-static t_stat ddcmp_tmxr_put_ack_packet_ln (TMLN *lp, uint8 *buf, uint8 ack, uint8 flags)
+static SIM_INLINE t_stat ddcmp_tmxr_put_ack_packet_ln (TMLN *lp, uint8 *buf, uint8 ack, uint8 flags)
 {
 ddcmp_build_ack_packet (buf, ack, flags);
 return ddcmp_tmxr_put_packet_crc_ln (lp, buf, DDCMP_HEADER_SIZE, 0);
 }
 
-static void ddcmp_build_nak_packet (uint8 *buf, uint8 reason, uint8 nack, uint8 flags)
+static SIM_INLINE void ddcmp_build_nak_packet (uint8 *buf, uint8 reason, uint8 nack, uint8 flags)
 {
 ddcmp_build_control_packet (buf, DDCMP_CTL_NAK, reason, flags, 0, nack);
 }
 
-static t_stat ddcmp_tmxr_put_nak_packet_ln (TMLN *lp, uint8 *buf, uint8 reason, uint8 nack, uint8 flags)
+static SIM_INLINE t_stat ddcmp_tmxr_put_nak_packet_ln (TMLN *lp, uint8 *buf, uint8 reason, uint8 nack, uint8 flags)
 {
 return ddcmp_tmxr_put_control_packet_ln (lp, buf, DDCMP_CTL_NAK, reason, flags, 0, nack);
 }
 
-static void ddcmp_build_rep_packet (uint8 *buf, uint8 ack, uint8 flags)
+static SIM_INLINE void ddcmp_build_rep_packet (uint8 *buf, uint8 ack, uint8 flags)
 {
 ddcmp_build_control_packet (buf, DDCMP_CTL_REP, 0, flags, ack, 0);
 }
 
-static t_stat ddcmp_tmxr_put_rep_packet_ln (TMLN *lp, uint8 *buf, uint8 ack, uint8 flags)
+static SIM_INLINE t_stat ddcmp_tmxr_put_rep_packet_ln (TMLN *lp, uint8 *buf, uint8 ack, uint8 flags)
 {
 return ddcmp_tmxr_put_control_packet_ln (lp, buf, DDCMP_CTL_REP, 0, flags, ack, 0);
 }
 
-static void ddcmp_build_start_packet (uint8 *buf)
+static SIM_INLINE void ddcmp_build_start_packet (uint8 *buf)
 {
 ddcmp_build_control_packet (buf, DDCMP_CTL_STRT, 0, DDCMP_FLAG_SELECT|DDCMP_FLAG_QSYNC, 0, 0);
 }
 
-static t_stat ddcmp_tmxr_put_start_packet_ln (TMLN *lp, uint8 *buf)
+static SIM_INLINE t_stat ddcmp_tmxr_put_start_packet_ln (TMLN *lp, uint8 *buf)
 {
 ddcmp_build_start_packet (buf);
 return ddcmp_tmxr_put_packet_crc_ln (lp, buf, DDCMP_HEADER_SIZE, 0);
 }
 
-static void ddcmp_build_start_ack_packet (uint8 *buf)
+static SIM_INLINE void ddcmp_build_start_ack_packet (uint8 *buf)
 {
 ddcmp_build_control_packet (buf, DDCMP_CTL_STACK, 0, DDCMP_FLAG_SELECT|DDCMP_FLAG_QSYNC, 0, 0);
 }
 
-static t_stat ddcmp_tmxr_put_start_ack_packet_ln (TMLN *lp, uint8 *buf)
+static SIM_INLINE t_stat ddcmp_tmxr_put_start_ack_packet_ln (TMLN *lp, uint8 *buf)
 {
 ddcmp_build_start_ack_packet (buf);
 return ddcmp_tmxr_put_packet_crc_ln (lp, buf, DDCMP_HEADER_SIZE, 0);

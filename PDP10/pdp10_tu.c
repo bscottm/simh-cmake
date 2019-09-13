@@ -814,7 +814,7 @@ int32 fnc, fmt, i, j, k, wc10, ba10;
 int32 ba, fc, wc, drv, mpa10 = 0, vpn;
 d10 val, v[4];
 t_mtrlnt tbc;
-t_stat st, r = SCPE_OK;
+t_stat st;
 
 drv = (int32) (uptr - tu_dev.units);                    /* get drive # */
 
@@ -854,7 +854,7 @@ switch (fnc) {                                          /* case on function */
         do {
             tufc = (tufc + 1) & 0177777;                /* incr fc */
             if ((st = sim_tape_sprecf (uptr, &tbc))) {  /* space rec fwd, err? */
-                r = tu_map_err (uptr, st, 0);           /* map error */
+                (void) tu_map_err (uptr, st, 0);        /* map error */
                 break;
                 }
             } while ((tufc != 0) && !sim_tape_eot (uptr));
@@ -868,7 +868,7 @@ switch (fnc) {                                          /* case on function */
         do {
             tufc = (tufc + 1) & 0177777;                /* incr wc */
             if ((st = sim_tape_sprecr (uptr, &tbc))) {  /* space rec rev, err? */
-                r = tu_map_err (uptr, st, 0);           /* map error */
+                (void) tu_map_err (uptr, st, 0);        /* map error */
                 break;
                 }
             } while (tufc != 0);
@@ -880,13 +880,13 @@ switch (fnc) {                                          /* case on function */
 
     case FNC_WREOF:                                     /* write end of file */
         if ((st = sim_tape_wrtmk (uptr)))               /* write tmk, err? */
-            r = tu_map_err (uptr, st, 0);               /* map error */
+            (void) tu_map_err (uptr, st, 0);            /* map error */
         tufs = tufs | FS_ATA;
         break;
 
     case FNC_ERASE:
         if (sim_tape_wrp (uptr))                        /* write protected? */
-            r = tu_map_err (uptr, MTSE_WRP, 0);         /* map error */
+            (void) tu_map_err (uptr, MTSE_WRP, 0);      /* map error */
         tufs = tufs | FS_ATA;
         break;
 
@@ -910,7 +910,7 @@ switch (fnc) {                                          /* case on function */
             tufs = tufs | FS_ID;                        /* PE BOT? ID burst */
         TXFR (ba, wc, 0);                               /* validate transfer */
         if ((st = sim_tape_rdrecf (uptr, xbuf, &tbc, MT_MAXFR))) {/* read fwd */
-            r = tu_map_err (uptr, st, 1);               /* map error */
+            (void) tu_map_err (uptr, st, 1);            /* map error */
             break;                                      /* done */
             }
         for (i = j = 0; (i < wc10) && (j < ((int32) tbc)); i++) {
@@ -955,7 +955,7 @@ switch (fnc) {                                          /* case on function */
         if (j < fc)                                     /* short record? */
             fc = j;
         if ((st = sim_tape_wrrecf (uptr, xbuf, fc)))    /* write rec, err? */
-            r = tu_map_err (uptr, st, 1);               /* map error */
+            (void) tu_map_err (uptr, st, 1);            /* map error */
         else {
             tufc = (tufc + fc) & 0177777;
             if (tufc == 0)
@@ -970,7 +970,7 @@ switch (fnc) {                                          /* case on function */
         tufc = 0;                                       /* clear frame count */
         TXFR (ba, wc, 1);                               /* validate xfer rev */
         if ((st = sim_tape_rdrecr (uptr, xbuf + 4, &tbc, MT_MAXFR))) {/* read rev */
-            r = tu_map_err (uptr, st, 1);               /* map error */
+            (void) tu_map_err (uptr, st, 1);            /* map error */
             break;                                      /* done */
             }
         for (i = 0; i < 4; i++)

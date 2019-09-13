@@ -822,10 +822,10 @@ for (more = 1; more != 0; ) {                           /* loop until ctrl */
         ccnt = 5;
         }
     for (i = 0; i < ccnt; i++) {                        /* loop through */
-        if ((c[i] <= 037) && ctrl[c[i]]) {              /* control char? */
+        if ((c[i] <= 037) && ctrl[(int) c[i]]) {        /* control char? */
             lp15_buf[lp15_bp] = 0;                      /* append nul */
             fputs (lp15_buf, uptr->fileref);            /* print line */
-            fputs (ctrl[c[i]], uptr->fileref);          /* space */
+            fputs (ctrl[(int) c[i]], uptr->fileref);    /* space */
             uptr->pos = ftell (uptr->fileref);
             if (ferror (uptr->fileref)) {               /* error? */
                 sim_perror ("LPT I/O error");

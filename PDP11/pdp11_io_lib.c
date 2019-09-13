@@ -796,126 +796,125 @@ AUTO_CON auto_tab[] = {/*c  #v  am vm  fxa   fxv */
 
 #define MAX(a,b) (((a)>(b))? (a) : (b))
 
-static void build_vector_tab (void)
+static void
+build_vector_tab(void)
 {
-int32 ilvl, ibit;
-static t_bool done = FALSE;
-AUTO_CON *autp;
-DEVICE *dptr;
-DIB *dibp;
-uint32 j, k;
+    static t_bool done = FALSE;
+    AUTO_CON *    autp;
+    DEVICE *      dptr;
+    uint32        j, k;
 
-if (done)
-    return;
-/* Locate all Unibus/Qbus devices and make sure vector masks are set */
-for (j = 0; (dptr = sim_devices[j]) != NULL; j++) {
-    if ((dptr->flags & (DEV_UBUS | DEV_QBUS)) == 0)
-        continue;
-    for (autp = auto_tab; autp->valid >= 0; autp++) {
-        for (k=0; autp->dnam[k]; k++) {
-            if (!strcmp(dptr->name, autp->dnam[k])) {
-                dibp = (DIB *)dptr->ctxt;
-                ilvl = dibp->vloc / 32;
-                ibit = dibp->vloc % 32;
+    if (done)
+        return;
+    /* Locate all Unibus/Qbus devices and make sure vector masks are set */
+    for (j = 0; (dptr = sim_devices[j]) != NULL; j++) {
+        if ((dptr->flags & (DEV_UBUS | DEV_QBUS)) == 0)
+            continue;
+        for (autp = auto_tab; autp->valid >= 0; autp++) {
+            for (k = 0; autp->dnam[k]; k++) {
+                if (!strcmp(dptr->name, autp->dnam[k])) {
 #if (VEC_SET != 0)
-                if (1) {
-                    int v;
-                    
-                    for (v=0; v<MAX(dibp->vnum, 1); v++)
-                        int_vec_set[ilvl][ibit+v] = VEC_SET;
+                    DIB * dibp = (DIB *)dptr->ctxt;
+                    int32 ilvl = dibp->vloc / 32;
+                    int32 ibit = dibp->vloc % 32;
+
+                    if (1) {
+                        int v;
+
+                        for (v = 0; v < MAX(dibp->vnum, 1); v++)
+                            int_vec_set[ilvl][ibit + v] = VEC_SET;
                     }
 #endif
-                break;
+                    break;
                 }
             }
         }
     }
-done = TRUE;
+    done = TRUE;
 }
 
-t_stat auto_config (const char *name, int32 nctrl)
+t_stat
+auto_config(const char *name, int32 nctrl)
 {
-uint32 csr = IOPAGEBASE + AUTO_CSRBASE;
-uint32 vec = AUTO_VECBASE;
-int32 ilvl, ibit, numc;
-AUTO_CON *autp;
-DEVICE *dptr;
-DIB *dibp;
-uint32 j, k, jena, vmask, amask;
+    uint32    csr = IOPAGEBASE + AUTO_CSRBASE;
+    uint32    vec = AUTO_VECBASE;
+    int32     /*ilvl, ibit,*/ numc;
+    AUTO_CON *autp;
+    DEVICE *  dptr;
+    DIB *     dibp;
+    uint32    j, k, jena, vmask, amask;
 
-if (autcon_enb == 0)                                    /* enabled? */
-    return SCPE_OK;
-if (name) {                                             /* updating? */
-    dptr = find_dev (name);
-    if (dptr == NULL)
-        return SCPE_ARG;
-    dibp = (DIB *) dptr->ctxt;                          /* get DIB */
-    if ((nctrl < 0) || (dibp == NULL))
-        return SCPE_ARG;
-    dibp->numc = nctrl;
+    if (autcon_enb == 0) /* enabled? */
+        return SCPE_OK;
+    if (name) { /* updating? */
+        dptr = find_dev(name);
+        if (dptr == NULL)
+            return SCPE_ARG;
+        dibp = (DIB *)dptr->ctxt; /* get DIB */
+        if ((nctrl < 0) || (dibp == NULL))
+            return SCPE_ARG;
+        dibp->numc = nctrl;
     }
-for (autp = auto_tab; autp->valid >= 0; autp++) {       /* loop thru table */
-    if (autp->amod) {                                   /* floating csr? */
-        amask = autp->amod - 1;
-        csr = (csr + amask) & ~amask;                   /* align csr */
+    for (autp = auto_tab; autp->valid >= 0; autp++) {        /* loop thru table */
+        if (autp->amod) {                                    /* floating csr? */
+            amask = autp->amod - 1;
+            csr   = (csr + amask) & ~amask;                  /* align csr */
         }
-    for (j = 0; (j < AUTO_MAXC) && autp->dnam[j]; j++) {
-        if (autp->dnam[j] == NULL)                      /* no device? */
-            break;
-        dptr = find_dev (autp->dnam[j]);                /* find ctrl */
-        if ((dptr == NULL) ||                           /* enabled, not (nexus or unibus or qbus)? */
-            (dptr->flags & DEV_DIS) ||
-            (dptr->flags & DEV_NEXUS) ||
-            !(dptr->flags & (DEV_UBUS | DEV_QBUS | DEV_Q18)) )
-            continue;
-        /* Sanity check that enabled devices can work on the current bus */
-        if (!((UNIBUS && (dptr->flags & (DEV_UBUS | DEV_Q18))) ||
-             ((!UNIBUS) && ((dptr->flags & DEV_QBUS) || 
-                            ((dptr->flags & DEV_Q18) && (MEMSIZE <= UNIMEMSIZE)))))) {
-            dptr->flags |= DEV_DIS;
-            if (sim_switches & SWMASK ('P'))
+        for (j = 0; (j < AUTO_MAXC) && autp->dnam[j]; j++) {
+            if (autp->dnam[j] == NULL)                       /* no device? */
+                break;
+            dptr = find_dev(autp->dnam[j]);                  /* find ctrl */
+            if ((dptr == NULL) ||                            /* enabled, not (nexus or unibus or qbus)? */
+                (dptr->flags & DEV_DIS) || (dptr->flags & DEV_NEXUS) || !(dptr->flags & (DEV_UBUS | DEV_QBUS | DEV_Q18)))
                 continue;
-            return sim_messagef (SCPE_NOFNC, "%s device not compatible with system bus\n", sim_dname(dptr));
+            /* Sanity check that enabled devices can work on the current bus */
+            if (!((UNIBUS && (dptr->flags & (DEV_UBUS | DEV_Q18))) ||
+                  ((!UNIBUS) && ((dptr->flags & DEV_QBUS) || ((dptr->flags & DEV_Q18) && (MEMSIZE <= UNIMEMSIZE)))))) {
+                dptr->flags |= DEV_DIS;
+                if (sim_switches & SWMASK('P'))
+                    continue;
+                return sim_messagef(SCPE_NOFNC, "%s device not compatible with system bus\n", sim_dname(dptr));
             }
-        dibp = (DIB *) dptr->ctxt;                      /* get DIB */
-        if (dibp == NULL)                               /* not there??? */
-            return SCPE_IERR;
-        numc = dibp->numc ? dibp->numc : 1;
-        ilvl = dibp->vloc / 32;
-        ibit = dibp->vloc % 32;
-        /* Identify how many devices earlier in the device list are 
-           enabled and use that info to determine fixed address assignments */
-        for (k=jena=0; k<j; k++) {
-            DEVICE *kdptr = find_dev (autp->dnam[k]);
-            
-            if (kdptr && (!(kdptr->flags & DEV_DIS)))
-                jena += ((DIB *)kdptr->ctxt)->numc ? ((DIB *)kdptr->ctxt)->numc : 1;
+            dibp = (DIB *)dptr->ctxt; /* get DIB */
+            if (dibp == NULL)         /* not there??? */
+                return SCPE_IERR;
+            numc = dibp->numc ? dibp->numc : 1;
+#if 0
+            ilvl = dibp->vloc / 32;
+            ibit = dibp->vloc % 32;
+#endif
+            /* Identify how many devices earlier in the device list are
+               enabled and use that info to determine fixed address assignments */
+            for (k = jena = 0; k < j; k++) {
+                DEVICE *kdptr = find_dev(autp->dnam[k]);
+
+                if (kdptr && (!(kdptr->flags & DEV_DIS)))
+                    jena += ((DIB *)kdptr->ctxt)->numc ? ((DIB *)kdptr->ctxt)->numc : 1;
             }
-        if (autp->fixa[jena])                           /* fixed csr avail? */
-            dibp->ba = IOPAGEBASE + autp->fixa[jena];   /* use it */
-        else {                                          /* no fixed left */
-            dibp->ba = csr;                             /* set CSR */
-            csr += (numc * autp->amod);                 /* next CSR */
-            }                                           /* end else */
-        if (autp->numv) {                               /* vec needed? */
-            if (autp->fixv[jena]) {                     /* fixed vec avail? */
-                if (autp->numv > 0)
-                    dibp->vec = autp->fixv[jena];       /* use it */
-                }
-            else {                                      /* no fixed left */
-                uint32 numv = abs (autp->numv);         /* get num vec */
-                vmask = autp->vmod - 1;
-                vec = (vec + vmask) & ~vmask;           /* align vector */
-                if (autp->numv > 0)
-                    dibp->vec = vec;                    /* set vector */
-                vec += (numc * numv * 4);
-                }                                       /* end else */
-            }                                           /* end vec needed */
-        }                                               /* end for j */
-    if (autp->amod)                                     /* flt CSR? gap */
-        csr = csr + 2;
-    }                                                   /* end for i */
-return SCPE_OK;
+            if (autp->fixa[jena])                         /* fixed csr avail? */
+                dibp->ba = IOPAGEBASE + autp->fixa[jena]; /* use it */
+            else {                                        /* no fixed left */
+                dibp->ba = csr;                           /* set CSR */
+                csr += (numc * autp->amod);               /* next CSR */
+            }                                             /* end else */
+            if (autp->numv) {                             /* vec needed? */
+                if (autp->fixv[jena]) {                   /* fixed vec avail? */
+                    if (autp->numv > 0)
+                        dibp->vec = autp->fixv[jena];     /* use it */
+                } else {                                  /* no fixed left */
+                    uint32 numv = abs(autp->numv);        /* get num vec */
+                    vmask       = autp->vmod - 1;
+                    vec         = (vec + vmask) & ~vmask; /* align vector */
+                    if (autp->numv > 0)
+                        dibp->vec = vec;                  /* set vector */
+                    vec += (numc * numv * 4);
+                }                                         /* end else */
+            }                                             /* end vec needed */
+        }                                                 /* end for j */
+        if (autp->amod)                                   /* flt CSR? gap */
+            csr = csr + 2;
+    } /* end for i */
+    return SCPE_OK;
 }
 
 /* Factory bad block table creation routine

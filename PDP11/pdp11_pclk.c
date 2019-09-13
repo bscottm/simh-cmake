@@ -369,27 +369,27 @@ return val;
 
 /* Clock service */
 
-t_stat pclk_svc (UNIT *uptr)
+t_stat
+pclk_svc(UNIT *uptr)
 {
-int32 rv;
+    sim_debug(DBG_TICK, &pclk_dev, "pclk_svc()\n");
+    (void) CSR_GETRATE(pclk_csr);                              /* get rate */
+    if (pclk_csr & CSR_DONE)                                   /* done already set? */
+        pclk_csr = pclk_csr | CSR_ERR;                         /* set error */
+    else
+        pclk_csr = pclk_csr | CSR_DONE;                        /* else set done */
+    if (pclk_csr & CSR_IE) {                                   /* if IE, set int */
+        sim_debug(DBG_INT, &pclk_dev, "pclk_svc() - INT=1\n");
+        SET_INT(PCLK);
+    }
+    if (pclk_csr & CSR_MODE) {                                 /* if rpt, reload */
+        pclk_set_ctr(pclk_csb);
+    } else {
+        pclk_csb = 0;                                          /* else clr ctr */
+        pclk_csr = pclk_csr & ~CSR_GO;                         /* and clr go */
+    }
+    return SCPE_OK;
 
-sim_debug (DBG_TICK, &pclk_dev, "pclk_svc()\n");
-rv = CSR_GETRATE (pclk_csr);                            /* get rate */
-if (pclk_csr & CSR_DONE)                                /* done already set? */
-    pclk_csr = pclk_csr | CSR_ERR;                      /* set error */
-else
-    pclk_csr = pclk_csr | CSR_DONE;                     /* else set done */
-if (pclk_csr & CSR_IE) {                                /* if IE, set int */
-    sim_debug (DBG_INT, &pclk_dev, "pclk_svc() - INT=1\n");
-    SET_INT (PCLK);
-    }
-if (pclk_csr & CSR_MODE)                                /* if rpt, reload */
-    pclk_set_ctr (pclk_csb);
-else {
-    pclk_csb = 0;                                       /* else clr ctr */
-    pclk_csr = pclk_csr & ~CSR_GO;                      /* and clr go */
-    }
-return SCPE_OK;
 }
 
 /* Clock reset */

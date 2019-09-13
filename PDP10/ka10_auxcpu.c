@@ -56,7 +56,10 @@ static int pia = 0;
 static int status = 0;
 t_value auxcpu_base = 03000000;
 
+#if 0
+/* Unused */
 static t_stat auxcpu_devio(uint32 dev, t_uint64 *data);
+#endif
 static t_stat auxcpu_svc (UNIT *uptr);
 static t_stat auxcpu_reset (DEVICE *dptr);
 static t_stat auxcpu_attach (UNIT *uptr, CONST char *ptr);
@@ -362,13 +365,14 @@ static int auxcpu_interrupt (void)
   return 0;
 }
 
+#if 0
 t_stat auxcpu_devio(uint32 dev, t_uint64 *data)
 {
-    DEVICE *dptr = &auxcpu_dev;
+    /*DEVICE *dptr = &auxcpu_dev;*/
 
     switch(dev & 07) {
     case CONO:
-        sim_debug(DEBUG_CONO, &auxcpu_dev, "CONO %012llo\n", *data);
+        sim_debug(DEBUG_CONO, &auxcpu_dev, "CONO %012"LL_FMT"o\n", *data);
         pia = *data & 7;
         if (*data & 010)
           {
@@ -381,19 +385,20 @@ t_stat auxcpu_devio(uint32 dev, t_uint64 *data)
         break;
     case CONI:
         *data = (status & 010) | pia;
-        sim_debug(DEBUG_CONI, &auxcpu_dev, "CONI %012llo\n", *data);
+        sim_debug(DEBUG_CONI, &auxcpu_dev, "CONI %012"LL_FMT"o\n", *data);
         break;
     case DATAI:
         *data = 0;
-        sim_debug(DEBUG_CONI, &auxcpu_dev, "DATAI %012llo\n", *data);
+        sim_debug(DEBUG_CONI, &auxcpu_dev, "DATAI %012"LL_FMT"o\n", *data);
         break;
     case DATAO:
-        sim_debug(DEBUG_CONI, &auxcpu_dev, "DATAO %012llo\n", *data);
+        sim_debug(DEBUG_CONI, &auxcpu_dev, "DATAO %012"LL_FMT"o\n", *data);
         break;
     }
 
     return SCPE_OK;
 }
+#endif
 
 static t_stat auxcpu_set_base (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 {
@@ -413,7 +418,7 @@ static t_stat auxcpu_set_base (UNIT *uptr, int32 val, CONST char *cptr, void *de
 
 static t_stat auxcpu_show_base (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-    fprintf (st, "Base: %llo", auxcpu_base);
+    fprintf (st, "Base: %"LL_FMT"o", auxcpu_base);
     return SCPE_OK;
 }
 #endif

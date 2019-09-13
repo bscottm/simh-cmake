@@ -93,7 +93,7 @@ DEVICE mty_dev = {
 
 static t_stat mty_devio(uint32 dev, uint64 *data)
 {
-    DEVICE *dptr = &mty_dev;
+    /* DEVICE *dptr = &mty_dev; */
     TMLN *lp;
     int line;
     uint64 word;
@@ -101,7 +101,7 @@ static t_stat mty_devio(uint32 dev, uint64 *data)
 
     switch(dev & 07) {
     case CONO:
-        sim_debug(DEBUG_CONO, &mty_dev, "%06llo\n", *data);
+        sim_debug(DEBUG_CONO, &mty_dev, "%06"LL_FMT"o\n", *data);
         status &= ~MTY_CONO_BITS;
         status |= *data & MTY_CONO_BITS;
         line = (status & MTY_LINE) >> 12;
@@ -124,12 +124,12 @@ static t_stat mty_devio(uint32 dev, uint64 *data)
         break;
     case CONI:
         *data = status & MTY_CONI_BITS;
-        sim_debug(DEBUG_CONI, &mty_dev, "%06llo\n", *data);
+        sim_debug(DEBUG_CONI, &mty_dev, "%06"LL_FMT"o\n", *data);
         break;
     case DATAO:
         line = (status & MTY_LINE) >> 12;
         word = *data;
-        sim_debug(DEBUG_DATAIO, &mty_dev, "DATAO line %d -> %012llo\n",
+        sim_debug(DEBUG_DATAIO, &mty_dev, "DATAO line %d -> %012"LL_FMT"o\n",
                   line, *data);
         lp = &mty_ldsc[line];
         if (!mty_ldsc[line].conn)
@@ -151,7 +151,7 @@ static t_stat mty_devio(uint32 dev, uint64 *data)
         line = (status & MTY_LINE) >> 12;
         lp = &mty_ldsc[line];
         *data = tmxr_getc_ln (lp) & 0177;
-        sim_debug(DEBUG_DATAIO, &mty_dev, "DATAI line %d -> %012llo\n",
+        sim_debug(DEBUG_DATAIO, &mty_dev, "DATAI line %d -> %012"LL_FMT"o\n",
                   line, *data);
         status &= ~MTY_IDONE;
         break;

@@ -397,7 +397,7 @@ dtc_devio(uint32 dev, uint64 *data) {
 
      case CONI|04:
           *data = dtc_dtsb;
-          sim_debug(DEBUG_CONI, &dtc_dev, "DTB %03o CONI %012llo PC=%o\n",
+          sim_debug(DEBUG_CONI, &dtc_dev, "DTB %03o CONI %012"LL_FMT"o PC=%o\n",
                dev, *data, PC);
           break;
 
@@ -640,7 +640,7 @@ dtc_svc (UNIT *uptr)
                        break;
                   }
                   sim_debug(DEBUG_DETAIL, &dtc_dev,
-                             "DTC %o rev data word %o:%o %012llo %d %06o %06o\n",
+                             "DTC %o rev data word %o:%o %012"LL_FMT"o %d %06o %06o\n",
                                 u, blk, word, data, off, fbuf[off], fbuf[off+1]);
                   break;
 
@@ -894,7 +894,7 @@ dtc_svc (UNIT *uptr)
                        break;
                   }
                   sim_debug(DEBUG_DETAIL, &dtc_dev,
-                            "DTC %o data word %o:%o %012llo %d %06o %06o\n",
+                            "DTC %o data word %o:%o %012"LL_FMT"o %d %06o %06o\n",
                              u, blk, word, data, off, fbuf[off], fbuf[off+1]);
                   break;
 
@@ -1059,36 +1059,36 @@ dtc_svc (UNIT *uptr)
 
 /* Boot from given device */
 t_stat
-dtc_boot(int32 unit_num, DEVICE * dptr)
+dtc_boot(int32 unit_num, DEVICE *dptr)
 {
-    UNIT               *uptr = &dptr->units[unit_num];
-    uint32             *fbuf = (uint32 *) uptr->filebuf;    /* file buffer */
-    uint64              word;
-    int                 off;
-    int                 wc, addr;
+    UNIT *  uptr = &dptr->units[unit_num];
+    uint32 *fbuf = (uint32 *)uptr->filebuf; /* file buffer */
+    uint64  word = 0;
+    int     off;
+    int     wc, addr;
 
     if ((uptr->flags & UNIT_ATT) == 0)
-        return SCPE_UNATT;      /* attached? */
+        return SCPE_UNATT; /* attached? */
 
-    off = 0;
-    wc = fbuf[off++]+1;
+    off  = 0;
+    wc   = fbuf[off++] + 1;
     addr = fbuf[off++];
     while (wc != 0777777) {
-        wc = (wc + 1) & RMASK;
+        wc   = (wc + 1) & RMASK;
         addr = (addr + 1) & RMASK;
         word = ((uint64)fbuf[off++]) << 18;
         word |= (uint64)fbuf[off++];
         if (addr < 020)
-           FM[addr] = word;
+            FM[addr] = word;
         else
-           M[addr] = word;
+            M[addr] = word;
     }
     if (addr < 020)
-       FM[addr] = word;
+        FM[addr] = word;
     else
-       M[addr] = word;
+        M[addr] = word;
     uptr->DSTATE = (1 << DTC_V_BLK) | DTC_BLOCK | DTC_MOT;
-    sim_activate(uptr,30000);
+    sim_activate(uptr, 30000);
     PC = word & RMASK;
     return SCPE_OK;
 }

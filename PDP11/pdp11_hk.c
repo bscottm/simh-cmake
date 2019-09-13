@@ -1058,189 +1058,190 @@ return;
    Unit must be attached - detach cancels in progress operations
 */
 
-t_stat hk_svc (UNIT *uptr)
+t_stat
+hk_svc(UNIT *uptr)
 {
-int32 i, t, dc, fnc;
-t_seccnt sectsread;
-t_stat err;
-int32 wc, awc, da;
-uint32 drv, ba;
-uint16 comp;
-DEVICE *dptr = find_dev_from_unit (uptr);
+    int32    i, t, dc, fnc;
+    t_seccnt sectsread;
+    t_stat   err = 0;
+    int32    wc, awc, da;
+    uint32   drv, ba;
+    uint16   comp;
+    DEVICE * dptr = find_dev_from_unit(uptr);
 
-drv = (uint32) (uptr - hk_dev.units);                   /* get drv number */
-fnc = uptr->FNC & CS1_M_FNC;                            /* get function */
-sim_debug (HKDEB_TRC, &hk_dev, "hk_svc(HK%d, fnc=%s)\n", drv, hk_funcs[fnc]);
-switch (fnc) {                                          /* case on function */
+    drv = (uint32)(uptr - hk_dev.units);                                         /* get drv number */
+    fnc = uptr->FNC & CS1_M_FNC;                                                 /* get function */
+    sim_debug(HKDEB_TRC, &hk_dev, "hk_svc(HK%d, fnc=%s)\n", drv, hk_funcs[fnc]);
+    switch (fnc) {                                                               /* case on function */
 
-/* Fast commands - start spindle only provides one interrupt
-   because ATTACH implicitly spins up the drive */
+        /* Fast commands - start spindle only provides one interrupt
+           because ATTACH implicitly spins up the drive */
 
-    case FNC_UNLOAD:                                    /* unload */
-        hk_detach (uptr);                               /* detach unit */
-    case FNC_START:                                     /* start spindle */
-        update_hkcs (CS1_DONE, drv);                    /* done */
+    case FNC_UNLOAD:                /* unload */
+        hk_detach(uptr);            /* detach unit */
+    case FNC_START:                 /* start spindle */
+        update_hkcs(CS1_DONE, drv); /* done */
         break;
 
-/* Positioning commands provide two interrupts, an immediate controller done
-   and a delayed drive interrupt */
+        /* Positioning commands provide two interrupts, an immediate controller done
+           and a delayed drive interrupt */
 
     case FNC_OFFSET:                                    /* offset */
         if (uptr->FNC & FNC_2ND) {                      /* 2nd int? */
             hkds[drv] = (hkds[drv] & ~DS_PIP) | DS_ATA; /* upd sta */
-            update_hkcs (CS1_DI, drv);                  /* ATN set */
-            }
-        else {
-            uptr->FNC = uptr->FNC | FNC_2ND;            /* second state */
+            update_hkcs(CS1_DI, drv);                   /* ATN set */
+        } else {
+            uptr->FNC   = uptr->FNC | FNC_2ND;          /* second state */
             hk_off[drv] = hkof & AS_OF;                 /* save offset */
-            sim_activate (uptr, hk_min2wait);           /* wait for compl */
-            update_hkcs (CS1_DONE, drv);                /* done */
-            }           
+            sim_activate(uptr, hk_min2wait);            /* wait for compl */
+            update_hkcs(CS1_DONE, drv);                 /* done */
+        }
         break;
 
     case FNC_RECAL:                                     /* recalibrate */
     case FNC_SEEK:                                      /* seek */
         if (uptr->FNC & FNC_2ND) {                      /* 2nd int? */
             hkds[drv] = (hkds[drv] & ~DS_PIP) | DS_ATA; /* upd sta */
-            update_hkcs (CS1_DI, drv);                  /* ATN set */
-            }
-        else {
-            uptr->FNC = uptr->FNC | FNC_2ND;            /* second state */
+            update_hkcs(CS1_DI, drv);                   /* ATN set */
+        } else {
+            uptr->FNC   = uptr->FNC | FNC_2ND;          /* second state */
             hk_off[drv] = 0;                            /* clr offset */
-            dc = (fnc == FNC_SEEK)? hkdc: 0;            /* get cyl */
+            dc          = (fnc == FNC_SEEK) ? hkdc : 0; /* get cyl */
             hk_dif[drv] = (int16)(dc - uptr->CYL);      /* cyl diff */
-            t = abs (hk_dif[drv]) * hk_swait;           /* |cyl diff| */
+            t           = abs(hk_dif[drv]) * hk_swait;  /* |cyl diff| */
             if (t < hk_min2wait)                        /* min time */
                 t = hk_min2wait;
-            uptr->CYL = dc;                             /* save cyl */          
-            sim_activate (uptr, t);                     /* schedule */
-            update_hkcs (CS1_DONE, drv);                /* done */
-            }
+            uptr->CYL = dc;                             /* save cyl */
+            sim_activate(uptr, t);                      /* schedule */
+            update_hkcs(CS1_DONE, drv);                 /* done */
+        }
         break;
 
-/* Data transfer commands only generate one interrupt */
+        /* Data transfer commands only generate one interrupt */
 
     case FNC_READH:
-        hkdb[0] = (int16)(uptr->CYL << RDH1_V_CYL);     /* first word */
-        hkdb[1] = (GET_SC (hkda) << RDH2_V_SEC) |       /* second word */
-            (1 << (GET_SF (hkda) + RDH2_V_DHA)) | RDH2_GOOD;
-        hkdb[2] = hkdb[0] ^ hkdb[1];                    /* checksum */
-        update_hkcs (CS1_DONE, drv);                    /* done */
+        hkdb[0] = (int16)(uptr->CYL << RDH1_V_CYL);               /* first word */
+        hkdb[1] = (GET_SC(hkda) << RDH2_V_SEC) |                  /* second word */
+                  (1 << (GET_SF(hkda) + RDH2_V_DHA)) | RDH2_GOOD;
+        hkdb[2] = hkdb[0] ^ hkdb[1];                              /* checksum */
+        update_hkcs(CS1_DONE, drv);                               /* done */
         break;
 
-    case FNC_WRITE:                                     /* write */
-        if (uptr->flags & UNIT_WPRT) {                  /* write locked? */
-            hk_err (CS1_ERR|CS1_DONE, 0, ER_WLE, drv);  /* set err, stop op */
+    case FNC_WRITE:                                               /* write */
+        if (uptr->flags & UNIT_WPRT) {                            /* write locked? */
+            hk_err(CS1_ERR | CS1_DONE, 0, ER_WLE, drv);           /* set err, stop op */
             return SCPE_OK;
-            }
-    case FNC_WCHK:                                      /* write check */
-    case FNC_READ:                                      /* read */
-        if (SC02C)                                      /* 22b addr? */
+        }
+    case FNC_WCHK:                                                /* write check */
+    case FNC_READ:                                                /* read */
+        if (SC02C)                                                /* 22b addr? */
             ba = ((hkspr & XM_MMASK) << 16) | hkba;
-        else ba = (GET_UAE (hkcs1) << 16) | hkba;       /* no, 18b addr */
-        da = GET_DA (hkdc, hkda) * HK_NUMWD;            /* get disk addr */
-        wc = 0200000 - hkwc;                            /* get true wc */
+        else
+            ba = (GET_UAE(hkcs1) << 16) | hkba;                   /* no, 18b addr */
+        da = GET_DA(hkdc, hkda) * HK_NUMWD;                       /* get disk addr */
+        wc = 0200000 - hkwc;                                      /* get true wc */
 
-        if ((da + wc) > HK_SIZE (uptr)) {               /* disk overrun? */
-            hker[drv] = hker[drv] | ER_AOE;             /* set err */
-            hkds[drv] = hkds[drv] | DS_ATA;             /* set attn */
-            wc = HK_SIZE (uptr) - da;                   /* trim xfer */
-            if (da >= HK_SIZE (uptr)) {                 /* none left? */
-                update_hkcs (CS1_DONE, drv);            /* then done */
+        if ((da + wc) > HK_SIZE(uptr)) {                          /* disk overrun? */
+            hker[drv] = hker[drv] | ER_AOE;                       /* set err */
+            hkds[drv] = hkds[drv] | DS_ATA;                       /* set attn */
+            wc        = HK_SIZE(uptr) - da;                       /* trim xfer */
+            if (da >= HK_SIZE(uptr)) {                            /* none left? */
+                update_hkcs(CS1_DONE, drv);                       /* then done */
                 break;
-                }
             }
+        }
 
-        if (uptr->FNC == FNC_WRITE) {                   /* write? */
-            if (hkcs2 & CS2_UAI) {                      /* no addr inc? */
-                if ((t = Map_ReadW (ba, 2, &comp))) {   /* get 1st wd */
-                    wc = 0;                             /* NXM, no xfr */
-                    hk_err (CS1_ERR, CS2_NEM, 0, drv);
-                    }
+        if (uptr->FNC == FNC_WRITE) {                             /* write? */
+            if (hkcs2 & CS2_UAI) {                                /* no addr inc? */
+                if ((t = Map_ReadW(ba, 2, &comp))) {              /* get 1st wd */
+                    wc = 0;                                       /* NXM, no xfr */
+                    hk_err(CS1_ERR, CS2_NEM, 0, drv);
+                }
                 for (i = 0; i < wc; i++)
                     hkxb[i] = comp;
+            } else {                                              /* normal */
+                if ((t = Map_ReadW(ba, wc << 1, hkxb))) {         /* get buf */
+                    wc = wc - (t >> 1);                           /* NXM, adj wc */
+                    hk_err(CS1_ERR, CS2_NEM, 0, drv);
                 }
-            else {                                      /* normal */
-                if ((t = Map_ReadW (ba, wc << 1, hkxb))) {/* get buf */
-                    wc = wc - (t >> 1);                 /* NXM, adj wc */
-                     hk_err (CS1_ERR, CS2_NEM, 0, drv);
-                    }
-                ba = ba + (wc << 1);                    /* adv ba */
-                }
+                ba = ba + (wc << 1);                              /* adv ba */
+            }
             awc = (wc + (HK_NUMWD - 1)) & ~(HK_NUMWD - 1);
-            for (i = wc; i < awc; i++)                  /* fill buf */
+            for (i = wc; i < awc; i++)                            /* fill buf */
                 hkxb[i] = 0;
-            if (wc) {                           /* write buf */
-                sim_disk_data_trace (uptr, (uint8 *)hkxb, da/HK_NUMWD, awc, "sim_disk_wrsect", HKDEB_DAT & dptr->dctrl, HKDEB_OPS);
-                err = sim_disk_wrsect (uptr, da/HK_NUMWD, (uint8 *)hkxb, NULL, awc/HK_NUMWD);
-                }
-            }                                           /* end if wr */
-        else if (uptr->FNC == FNC_READ) {               /* read? */
-            err = sim_disk_rdsect (uptr, da/HK_NUMWD, (uint8 *)hkxb, &sectsread, ((wc + (HK_NUMWD - 1)) & ~(HK_NUMWD - 1))/HK_NUMWD);
-            if ((err == SCPE_OK) &&
-                (sectsread != (((wc + (HK_NUMWD - 1)) & ~(HK_NUMWD - 1))/HK_NUMWD)))
+            if (wc) {                                             /* write buf */
+                sim_disk_data_trace(uptr, (uint8 *)hkxb, da / HK_NUMWD, awc, "sim_disk_wrsect", HKDEB_DAT & dptr->dctrl,
+                                    HKDEB_OPS);
+                err = sim_disk_wrsect(uptr, da / HK_NUMWD, (uint8 *)hkxb, NULL, awc / HK_NUMWD);
+            }
+        }                                                          /* end if wr */
+        else if (uptr->FNC == FNC_READ) {                          /* read? */
+            err = sim_disk_rdsect(uptr, da / HK_NUMWD, (uint8 *)hkxb, &sectsread,
+                                  ((wc + (HK_NUMWD - 1)) & ~(HK_NUMWD - 1)) / HK_NUMWD);
+            if ((err == SCPE_OK) && (sectsread != (((wc + (HK_NUMWD - 1)) & ~(HK_NUMWD - 1)) / HK_NUMWD)))
                 err = -1;
-            sim_disk_data_trace (uptr, (uint8 *)hkxb, da/HK_NUMWD, sectsread*HK_NUMWD*sizeof(*hkxb), "sim_disk_rdsect", HKDEB_DAT & dptr->dctrl, HKDEB_OPS);
-            if (hkcs2 & CS2_UAI) {                      /* no addr inc? */
-                if ((t = Map_WriteW (ba, 2, &hkxb[wc - 1]))) {
-                    wc = 0;                             /* NXM, no xfr */
-                    hk_err (CS1_ERR, CS2_NEM, 0, drv);
-                    }
+            sim_disk_data_trace(uptr, (uint8 *)hkxb, da / HK_NUMWD, sectsread * HK_NUMWD * sizeof(*hkxb), "sim_disk_rdsect",
+                                HKDEB_DAT & dptr->dctrl, HKDEB_OPS);
+            if (hkcs2 & CS2_UAI) { /* no addr inc? */
+                if ((t = Map_WriteW(ba, 2, &hkxb[wc - 1]))) {
+                    wc = 0; /* NXM, no xfr */
+                    hk_err(CS1_ERR, CS2_NEM, 0, drv);
                 }
-            else {                                      /* normal */
-                if ((t = Map_WriteW (ba, wc << 1, hkxb))) {/* put buf */
-                    wc = wc - (t >> 1);                 /* NXM, adj wc */
-                    hk_err (CS1_ERR, CS2_NEM, 0, drv);
-                    }
-                ba = ba + (wc << 1);                    /* adv ba */
+            } else {                                       /* normal */
+                if ((t = Map_WriteW(ba, wc << 1, hkxb))) { /* put buf */
+                    wc = wc - (t >> 1);                    /* NXM, adj wc */
+                    hk_err(CS1_ERR, CS2_NEM, 0, drv);
                 }
-            }                                           /* end if read */
-        else {                                          /* wchk */                  
-            err = sim_disk_rdsect (uptr, da/HK_NUMWD, (uint8 *)hkxb, &sectsread, ((wc + (HK_NUMWD - 1)) & ~(HK_NUMWD - 1))/HK_NUMWD);
-            if ((err == SCPE_OK) &&
-                (sectsread != (((wc + (HK_NUMWD - 1)) & ~(HK_NUMWD - 1))/HK_NUMWD)))
+                ba = ba + (wc << 1); /* adv ba */
+            }
+        }      /* end if read */
+        else { /* wchk */
+            err = sim_disk_rdsect(uptr, da / HK_NUMWD, (uint8 *)hkxb, &sectsread,
+                                  ((wc + (HK_NUMWD - 1)) & ~(HK_NUMWD - 1)) / HK_NUMWD);
+            if ((err == SCPE_OK) && (sectsread != (((wc + (HK_NUMWD - 1)) & ~(HK_NUMWD - 1)) / HK_NUMWD)))
                 err = -1;
-            sim_disk_data_trace (uptr, (uint8 *)hkxb, da/HK_NUMWD, sectsread*HK_NUMWD*sizeof(*hkxb), "sim_disk_rdsect", HKDEB_DAT & dptr->dctrl, HKDEB_OPS);
+            sim_disk_data_trace(uptr, (uint8 *)hkxb, da / HK_NUMWD, sectsread * HK_NUMWD * sizeof(*hkxb), "sim_disk_rdsect",
+                                HKDEB_DAT & dptr->dctrl, HKDEB_OPS);
             awc = wc;
-            for (wc = 0; wc < awc; wc++) {              /* loop thru buf */
-                if (Map_ReadW (ba, 2, &comp)) {         /* read word */
-                    hk_err (CS1_ERR, CS2_NEM, 0, drv);
+            for (wc = 0; wc < awc; wc++) {     /* loop thru buf */
+                if (Map_ReadW(ba, 2, &comp)) { /* read word */
+                    hk_err(CS1_ERR, CS2_NEM, 0, drv);
                     break;
-                    }
-                if (comp != hkxb[wc]) {                 /* compare wd */
-                    hk_err (CS1_ERR, CS2_WCE, 0, drv);
+                }
+                if (comp != hkxb[wc]) { /* compare wd */
+                    hk_err(CS1_ERR, CS2_WCE, 0, drv);
                     break;
-                    }
+                }
                 if ((hkcs2 & CS2_UAI) == 0)
                     ba = ba + 2;
-                }
-            }                                           /* end else wchk */
+            }
+        } /* end else wchk */
 
-        hkwc = (hkwc + wc) & 0177777;                   /* final word count */
-        hkba = (ba & 0177777) & ~BA_MBZ;                /* lower 16b */
-        hkcs1 = PUT_UAE (hkcs1, ba >> 16);              /* upper 2b */
-        if (SC02C)                                      /* SC02C? upper 6b */
+        hkwc  = (hkwc + wc) & 0177777;    /* final word count */
+        hkba  = (ba & 0177777) & ~BA_MBZ; /* lower 16b */
+        hkcs1 = PUT_UAE(hkcs1, ba >> 16); /* upper 2b */
+        if (SC02C)                        /* SC02C? upper 6b */
             hkspr = (hkspr & ~XM_MMASK) | ((ba >> 16) & XM_MMASK);
-        da = da + wc + (HK_NUMWD - 1);
-        da = da / HK_NUMWD;
+        da   = da + wc + (HK_NUMWD - 1);
+        da   = da / HK_NUMWD;
         hkda = da % HK_NUMSC;
-        da = da / HK_NUMSC;
+        da   = da / HK_NUMSC;
         hkda = hkda | ((da % HK_NUMSF) << DA_V_SF);
         hkdc = da / HK_NUMSF;
 
         if (err != 0) {                                 /* error? */
-            hk_err (CS1_ERR|CS1_DONE, 0, ER_PAR, drv);  /* set drive error */
-            sim_perror ("HK I/O error");
-            sim_disk_clearerr (uptr);
+            hk_err(CS1_ERR | CS1_DONE, 0, ER_PAR, drv); /* set drive error */
+            sim_perror("HK I/O error");
+            sim_disk_clearerr(uptr);
             return SCPE_IOERR;
-            }
+        }
 
-    case FNC_WRITEH:                                    /* write headers stub */
-        update_hkcs (CS1_DONE, drv);                    /* set done */
+    case FNC_WRITEH:                /* write headers stub */
+        update_hkcs(CS1_DONE, drv); /* set done */
         break;
-        }                                               /* end case func */
+    } /* end case func */
 
-return SCPE_OK;
+    return SCPE_OK;
 }
 
 /* Controller status update

@@ -388,12 +388,12 @@ t_stat tu_devio(uint32 dev, uint64 *data) {
               *data |= ((uint64)(tu_drive[ctlr])) << 18;
         }
         *data |= ((uint64)(tu_reg[ctlr])) << 30;
-        sim_debug(DEBUG_DATAIO, dptr, "TU %03o DATI %012llo, %d %d PC=%06o\n",
+        sim_debug(DEBUG_DATAIO, dptr, "TU %03o DATI %012"LL_FMT"o, %d %d PC=%06o\n",
                     dev, *data, ctlr, tu_drive[ctlr], PC);
         return SCPE_OK;
 
      case DATAO:
-         sim_debug(DEBUG_DATAIO, dptr, "TU %03o DATO %012llo, %d PC=%06o %06o\n",
+         sim_debug(DEBUG_DATAIO, dptr, "TU %03o DATO %012"LL_FMT"o, %d PC=%06o %06o\n",
                     dev, *data, ctlr, PC, df10->status);
          tu_reg[ctlr] = ((int)(*data >> 30)) & 077;
          if (tu_reg[ctlr] < 040 && tu_reg[ctlr] != 04) {
@@ -407,7 +407,7 @@ t_stat tu_devio(uint32 dev, uint64 *data) {
                 if (df10->status & BUSY) {
                     df10->status |= CC_CHAN_ACT;
                     sim_debug(DEBUG_DATAIO, dptr,
-                         "TU %03o command busy %012llo, %d[%d] PC=%06o %06o\n",
+                         "TU %03o command busy %012"LL_FMT"o, %d[%d] PC=%06o %06o\n",
                          dev, *data, ctlr, tu_drive[ctlr], PC, df10->status);
                     return SCPE_OK;
                 }
@@ -418,7 +418,7 @@ t_stat tu_devio(uint32 dev, uint64 *data) {
                    df10->status |= CXR_ILC;
                    df10_setirq(df10);
                    sim_debug(DEBUG_DATAIO, dptr,
-                       "TU %03o command abort %012llo, %d[%d] PC=%06o %06o\n",
+                       "TU %03o command abort %012"LL_FMT"o, %d[%d] PC=%06o %06o\n",
                        dev, *data, ctlr, tu_drive[ctlr], PC, df10->status);
                    return SCPE_OK;
                 }
@@ -432,7 +432,7 @@ t_stat tu_devio(uint32 dev, uint64 *data) {
                 tu_xfer_drive[ctlr] = (int)(*data >> 18) & 07;
                 tu_write(ctlr, tu_drive[ctlr], 0, (uint32)(*data & 077));
                 sim_debug(DEBUG_DATAIO, dptr,
-                    "TU %03o command %012llo, %d[%d] PC=%06o %06o\n",
+                    "TU %03o command %012"LL_FMT"o, %d[%d] PC=%06o %06o\n",
                     dev, *data, ctlr, tu_drive[ctlr], PC, df10->status);
              } else if (tu_reg[ctlr] == 044) {
                 /* Set KI10 Irq vector */
@@ -810,7 +810,7 @@ t_stat tu_srv(UNIT * uptr)
                      tu_error(uptr, MTSE_OK);
                      return SCPE_OK;
                   }
-                  sim_debug(DEBUG_DATA, dptr, "TU%o readrev %012llo\n", 
+                  sim_debug(DEBUG_DATA, dptr, "TU%o readrev %012"LL_FMT"o\n", 
                             unit, df->buf);
                   df->buf = 0;
               }
@@ -859,13 +859,13 @@ t_stat tu_srv(UNIT * uptr)
                       tu_error(uptr, MTSE_OK);
                       return SCPE_OK;
                   }
-                  sim_debug(DEBUG_DATA, dptr, "TU%o read %012llo\n", 
+                  sim_debug(DEBUG_DATA, dptr, "TU%o read %012"LL_FMT"o\n", 
                             unit, df->buf);
                   df->buf = 0;
               }
           } else {
             if (uptr->CPOS != 0) {
-                sim_debug(DEBUG_DATA, dptr, "TU%o read %012llo\n",
+                sim_debug(DEBUG_DATA, dptr, "TU%o read %012"LL_FMT"o\n",
                              unit, df->buf);
                 df10_write(df);
             }
@@ -904,7 +904,7 @@ t_stat tu_srv(UNIT * uptr)
 
          if ((uptr->CMD & CS_MOTION) != 0) {
              if (uptr->CPOS == 0)
-                  sim_debug(DEBUG_DATA, dptr, "TU%o write %012llo\n",
+                  sim_debug(DEBUG_DATA, dptr, "TU%o write %012"LL_FMT"o\n",
                              unit, df->buf);
              /* Write next char out */
              cc = (8 * (3 - (uptr->CPOS & 07))) + 4;

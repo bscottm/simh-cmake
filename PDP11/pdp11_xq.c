@@ -1313,7 +1313,8 @@ t_stat xq_process_mop(CTLR* xq)
     return SCPE_NOFNC;
 
   while ((meb->type != 0) && (meb < limit)) {
-    address = (meb->add_hi << 16) || (meb->add_mi << 8) || meb->add_lo;
+    /* Very questionable: "||" instead of "|". Replaced with "|" */
+    address = (meb->add_hi << 16) | (meb->add_mi << 8) | meb->add_lo;
 
     /* MOP stuff here - NOT YET FULLY IMPLEMENTED */
     sim_debug (DBG_WRN, xq->dev, "Processing MEB type: %d\n", meb->type);
@@ -3143,20 +3144,20 @@ void xq_debug_turbo_setup(CTLR* xq)
             xq->dev->name, xq->var->init.tdra_h, xq->var->init.tdra_l);
 }
 
-t_stat xq_boot (int32 unitno, DEVICE *dptr)
+t_stat
+xq_boot(int32 unitno, DEVICE *dptr)
 {
 #ifdef VM_PDP11
-size_t i;
-DIB *dib = (DIB *)dptr->ctxt;
-extern int32 REGFILE[6][2];                 /* R0-R5, two sets */
+    size_t       i;
+    extern int32 REGFILE[6][2]; /* R0-R5, two sets */
 
-for (i = 0; i < BOOT_LEN; i++)
-    WrMemW (BOOT_START + (2 * i), boot_rom[i]);
-cpu_set_boot (BOOT_ENTRY);
-REGFILE[0][0] = ((dptr == &xq_dev) ? 4 : 5);
-return SCPE_OK;
+    for (i = 0; i < BOOT_LEN; i++)
+        WrMemW(BOOT_START + (2 * i), boot_rom[i]);
+    cpu_set_boot(BOOT_ENTRY);
+    REGFILE[0][0] = ((dptr == &xq_dev) ? 4 : 5);
+    return SCPE_OK;
 #else
-return SCPE_NOFNC;
+    return SCPE_NOFNC;
 #endif
 }
 

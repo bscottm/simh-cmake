@@ -200,7 +200,7 @@ dsk_devio(uint32 dev, uint64 *data) {
           if (uptr->flags & UNIT_WLK)
               res |= WLE;
           *data = res;
-          sim_debug(DEBUG_CONI, &dsk_dev, "DSK %03o CONI %012llo PC=%o\n", dev,
+          sim_debug(DEBUG_CONI, &dsk_dev, "DSK %03o CONI %012"LL_FMT"o PC=%o\n", dev,
                             *data, PC);
           break;
      case CONO:
@@ -228,11 +228,11 @@ dsk_devio(uint32 dev, uint64 *data) {
                     (uint32)*data, PC, dsk_status);
           break;
      case DATAI:
-          sim_debug(DEBUG_DATAIO, &dsk_dev, "DSK %03o DATI %012llo PC=%o\n",
+          sim_debug(DEBUG_DATAIO, &dsk_dev, "DSK %03o DATI %012"LL_FMT"o PC=%o\n",
                    dev, *data, PC);
           break;
      case DATAO:
-          sim_debug(DEBUG_DATAIO, &dsk_dev, "DSK %03o DATO %012llo, PC=%o %03o\n",
+          sim_debug(DEBUG_DATAIO, &dsk_dev, "DSK %03o DATO %012"LL_FMT"o, PC=%o %03o\n",
                    dev, *data, PC, dsk_octflp);
           /* If not in right state we can't change it */
           if (dsk_octflp & (SCE|SCS|CMS|ALS))
@@ -258,157 +258,154 @@ dsk_devio(uint32 dev, uint64 *data) {
 t_stat
 dsk_svc (UNIT *uptr)
 {
-   int           ctlr  = (dsk_addr >> 16) & 03;
-   int           cyl;
-   int           sec;
-   int           wc;
-   uint64        data;
-   DEVICE       *dptr;
-   t_stat        err;
+    int     ctlr = (dsk_addr >> 16) & 03;
+    int     cyl;
+    int     sec;
+    int     wc;
+    uint64  data;
+    DEVICE *dptr;
 
-   dptr = &dsk_dev;
+    dptr = &dsk_dev;
 
-   /* Check if we need to seek */
-   if (dsk_octflp == SCE) {
-       if ((dsk_cmd & CMD) == WR_CMD && (uptr->flags & UNIT_WLK) == 0) {
-           /* Write the block */
-           int da;
-           for (; uptr->DATAPTR < DSK_WDS; uptr->DATAPTR++)
+    /* Check if we need to seek */
+    if (dsk_octflp == SCE) {
+        if ((dsk_cmd & CMD) == WR_CMD && (uptr->flags & UNIT_WLK) == 0) {
+            /* Write the block */
+            int da;
+            for (; uptr->DATAPTR < DSK_WDS; uptr->DATAPTR++)
                 dsk_buf[uptr->DATAPTR] = 0;
-           cyl = (dsk_addr >> 6) & 01777;
-           sec = dsk_addr & 077;
-           if (sec > DSK_SECS)
-              sec -= DSK_SECS;
-           da = (sec + (cyl * DSK_SECS)) * DSK_WDS;
-           err = sim_fseek(uptr->fileref, da * sizeof(uint64), SEEK_SET);
-           (void)sim_fwrite (&dsk_buf[0], sizeof(uint64),
-                        DSK_WDS, uptr->fileref);
-           sim_debug(DEBUG_DETAIL, dptr, "DSK %d Write %d %d\n", ctlr, da, cyl);
-       }
-       uptr->DATAPTR = 0;
-       sec = (dsk_addr + 1) & 077;
-       if (sec >= DSK_SECS)
-           sec = 0;
-       dsk_addr = (dsk_addr & ~077) | sec;
-       if (dsk_cmd & CLR)
-          dsk_cmd &= ~(CMD|CLR);
-       dsk_octflp = CMS;
-       if (dsk_cmd & END || (dsk_cmd & CMD) == 0 || dct_is_connect(dsk_dct) == 0) {
-          dsk_cmd &= ~(CMD|CLR|END);
-          dsk_octflp = IDS;
-       }
-    } else
+            cyl = (dsk_addr >> 6) & 01777;
+            sec = dsk_addr & 077;
+            if (sec > DSK_SECS)
+                sec -= DSK_SECS;
+            da  = (sec + (cyl * DSK_SECS)) * DSK_WDS;
+            (void) sim_fseek(uptr->fileref, da * sizeof(uint64), SEEK_SET);
+            (void) sim_fwrite(&dsk_buf[0], sizeof(uint64), DSK_WDS, uptr->fileref);
+            sim_debug(DEBUG_DETAIL, dptr, "DSK %d Write %d %d\n", ctlr, da, cyl);
+        }
 
-   /* Do transfer */
-   if (dsk_octflp == SCS) {
-       if (dsk_cmd & END) {
-           dsk_octflp = SCE;
-       } else if ((dsk_status & DRL) == 0) {
-           if (dsk_cmd & WR_CMD) {
-               if (dct_read(dsk_dct, &data, 2) == 0) {
-                   dsk_status |= DRL;
-               } else if (dsk_cmd & RD_CMD) {
-                   if (dsk_buf[uptr->DATAPTR] != data)
-                       dsk_status |= RCE;
-               } else {
-                   sim_debug(DEBUG_DETAIL, dptr, "DSK %d Write %012llo %d\n",
-                               ctlr, data, uptr->DATAPTR);
-                   if ((uptr->flags & UNIT_WLK) != 0)
-                       dsk_status |= DCE|PER|FER;
-                   dsk_buf[uptr->DATAPTR] = data;
-               }
-           } else if (dsk_cmd & RD_CMD) {
-               data = dsk_buf[uptr->DATAPTR];
-               if (dct_write(dsk_dct, &data, 2) == 0)
-                   dsk_status |= DRL;
-           }
-      }
-      uptr->DATAPTR++;
-      if (uptr->DATAPTR == DSK_WDS)
-          dsk_octflp = SCE;
-   }
+        uptr->DATAPTR = 0;
+        sec           = (dsk_addr + 1) & 077;
+        if (sec >= DSK_SECS)
+            sec = 0;
+        dsk_addr = (dsk_addr & ~077) | sec;
+        if (dsk_cmd & CLR)
+            dsk_cmd &= ~(CMD | CLR);
+        dsk_octflp = CMS;
+        if (dsk_cmd & END || (dsk_cmd & CMD) == 0 || dct_is_connect(dsk_dct) == 0) {
+            dsk_cmd &= ~(CMD | CLR | END);
+            dsk_octflp = IDS;
+        }
+    } else {
+        /* Do transfer */
+        if (dsk_octflp == SCS) {
+            if (dsk_cmd & END) {
+                dsk_octflp = SCE;
+            } else if ((dsk_status & DRL) == 0) {
+                if (dsk_cmd & WR_CMD) {
+                    if (dct_read(dsk_dct, &data, 2) == 0) {
+                        dsk_status |= DRL;
+                    } else if (dsk_cmd & RD_CMD) {
+                        if (dsk_buf[uptr->DATAPTR] != data)
+                            dsk_status |= RCE;
+                    } else {
+                        sim_debug(DEBUG_DETAIL, dptr, "DSK %d Write %012" LL_FMT "o %d\n", ctlr, data, uptr->DATAPTR);
+                        if ((uptr->flags & UNIT_WLK) != 0)
+                            dsk_status |= DCE | PER | FER;
+                        dsk_buf[uptr->DATAPTR] = data;
+                    }
+                } else if (dsk_cmd & RD_CMD) {
+                    data = dsk_buf[uptr->DATAPTR];
+                    if (dct_write(dsk_dct, &data, 2) == 0)
+                        dsk_status |= DRL;
+                }
+            }
+            uptr->DATAPTR++;
+            if (uptr->DATAPTR == DSK_WDS)
+                dsk_octflp = SCE;
+        }
+    }
 
-   if (dsk_octflp == CMS) {
-       sim_debug(DEBUG_DETAIL, dptr, "DSK %d CMS\n", ctlr);
-       if (dsk_cmd & RD_CMD) {
-           /* Read the block */
-           int da;
-           cyl = (dsk_addr >> 6) & 01777;
-           sec = dsk_addr & 077;
-           if (sec > DSK_SECS)
-              sec -= DSK_SECS;
-           da = (sec + (cyl * DSK_SECS)) * DSK_WDS;
-           err = sim_fseek(uptr->fileref, da * sizeof(uint64), SEEK_SET);
-           wc = sim_fread (&dsk_buf[0], sizeof(uint64),
-                        DSK_WDS, uptr->fileref);
-           sim_debug(DEBUG_DETAIL, dptr, "DSK %d Read %d %d\n", ctlr, da, cyl);
-           for (; wc < DSK_WDS; wc++)
+    if (dsk_octflp == CMS) {
+        sim_debug(DEBUG_DETAIL, dptr, "DSK %d CMS\n", ctlr);
+        if (dsk_cmd & RD_CMD) {
+            /* Read the block */
+            int da;
+            cyl = (dsk_addr >> 6) & 01777;
+            sec = dsk_addr & 077;
+            if (sec > DSK_SECS)
+                sec -= DSK_SECS;
+            da  = (sec + (cyl * DSK_SECS)) * DSK_WDS;
+            (void) sim_fseek(uptr->fileref, da * sizeof(uint64), SEEK_SET);
+            wc  = sim_fread(&dsk_buf[0], sizeof(uint64), DSK_WDS, uptr->fileref);
+            sim_debug(DEBUG_DETAIL, dptr, "DSK %d Read %d %d\n", ctlr, da, cyl);
+            for (; wc < DSK_WDS; wc++)
                 dsk_buf[wc] = 0;
-       } else if (dsk_cmd & WR_CMD) {
-           /* Check if we can write disk */
-           if (uptr->flags & UNIT_WLK) {
-              dsk_status |= CME|FER;
-           }
-       }
-       uptr->DATAPTR = 0;
-       dsk_octflp = SCS;
-   }
+        } else if (dsk_cmd & WR_CMD) {
+            /* Check if we can write disk */
+            if (uptr->flags & UNIT_WLK) {
+                dsk_status |= CME | FER;
+            }
+        }
+        uptr->DATAPTR = 0;
+        dsk_octflp    = SCS;
+    }
 
-   /* Ready for data transfer */
-   if (dsk_octflp == DFR) {
-       if (dsk_cmd & CMD) {
-          dsk_octflp = ALS;
-       } else {
-          dsk_octflp = ADT;
-       }
-       sim_activate(uptr, 100);
-       return SCPE_OK;
-   }
+    /* Ready for data transfer */
+    if (dsk_octflp == DFR) {
+        if (dsk_cmd & CMD) {
+            dsk_octflp = ALS;
+        } else {
+            dsk_octflp = ADT;
+        }
+        sim_activate(uptr, 100);
+        return SCPE_OK;
+    }
 
-   /* If at ADT then seek to correct cylinder */
-   if (dsk_octflp == ADT) {
-       if ((uptr->flags & UNIT_ATT) == 0) {
-           dsk_status |= ADE|FER;
-       } else {
-           cyl = (dsk_addr >> 6) & 077;
-           if (cyl != uptr->CUR_CYL) {
-               cyl -= uptr->CUR_CYL;
-               if (cyl < 0)
-                   cyl = -cyl;
-               uptr->CUR_CYL = (dsk_addr >> 6) & 077;
-               sim_activate(uptr, 10000 * cyl);
-               return SCPE_OK;
-           }
-       }
-       dsk_octflp = DFR;
-   }
+    /* If at ADT then seek to correct cylinder */
+    if (dsk_octflp == ADT) {
+        if ((uptr->flags & UNIT_ATT) == 0) {
+            dsk_status |= ADE | FER;
+        } else {
+            cyl = (dsk_addr >> 6) & 077;
+            if (cyl != uptr->CUR_CYL) {
+                cyl -= uptr->CUR_CYL;
+                if (cyl < 0)
+                    cyl = -cyl;
+                uptr->CUR_CYL = (dsk_addr >> 6) & 077;
+                sim_activate(uptr, 10000 * cyl);
+                return SCPE_OK;
+            }
+        }
+        dsk_octflp = DFR;
+    }
 
-   /* Address is correct and we have a command */
-   if (dsk_octflp == ALS) {
-       sim_debug(DEBUG_DETAIL, dptr, "DSK %d Alarm\n", ctlr);
-       dsk_octflp = CMS;
-   }
+    /* Address is correct and we have a command */
+    if (dsk_octflp == ALS) {
+        sim_debug(DEBUG_DETAIL, dptr, "DSK %d Alarm\n", ctlr);
+        dsk_octflp = CMS;
+    }
 
-   /* If at SNA the switch to ADT */
-   if (dsk_octflp == SNA) {
-       sim_debug(DEBUG_DETAIL, dptr, "DSK %d Sna\n", ctlr);
-       dsk_octflp = ADT;
-       if (uptr->flags & UNIT_WLK)
-           dsk_status |= WLE|FER;
-   }
+    /* If at SNA the switch to ADT */
+    if (dsk_octflp == SNA) {
+        sim_debug(DEBUG_DETAIL, dptr, "DSK %d Sna\n", ctlr);
+        dsk_octflp = ADT;
+        if (uptr->flags & UNIT_WLK)
+            dsk_status |= WLE | FER;
+    }
 
-   /* If we are in idle state, just return */
-   if (dsk_octflp == IDS) {
-       sim_debug(DEBUG_DETAIL, dptr, "DSK %d Idle\n", ctlr);
-       if ((dsk_cmd & EIS) != 0)
-          set_interrupt(DSK_DEVNUM, dsk_cmd);
-       return SCPE_OK;
-   }
+    /* If we are in idle state, just return */
+    if (dsk_octflp == IDS) {
+        sim_debug(DEBUG_DETAIL, dptr, "DSK %d Idle\n", ctlr);
+        if ((dsk_cmd & EIS) != 0)
+            set_interrupt(DSK_DEVNUM, dsk_cmd);
+        return SCPE_OK;
+    }
 
     sim_activate(uptr, 100);
     if ((dsk_cmd & EIS) != 0 && dsk_octflp == IDS)
         set_interrupt(DSK_DEVNUM, dsk_cmd);
-    if ((dsk_cmd & EFE) != 0 && (dsk_status & (FER|PER|WLE|RCE|DRL)) != 0)
+    if ((dsk_cmd & EFE) != 0 && (dsk_status & (FER | PER | WLE | RCE | DRL)) != 0)
         set_interrupt(DSK_DEVNUM, dsk_cmd);
     if ((dsk_cmd & EFR) != 0 && dsk_octflp == DFR)
         set_interrupt(DSK_DEVNUM, dsk_cmd);
@@ -416,7 +413,7 @@ dsk_svc (UNIT *uptr)
         set_interrupt(DSK_DEVNUM, dsk_cmd);
     return SCPE_OK;
 }
-
+
 /* set DCT channel and unit. */
 t_stat
 dsk_set_dct (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
