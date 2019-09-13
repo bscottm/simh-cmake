@@ -297,6 +297,8 @@ void DCstate(const char *where, DEVICE *dev, IO_DEVICE *iod)
           iod->iod_CWA, iod->iod_nextAddr, iod->iod_LWA, iod->iod_reg);
 }
 
+#if 0
+/* Unused */
 /*
  * Display device description.
  */
@@ -304,6 +306,7 @@ static const char *description(DEVICE *dptr)
 {
   return "1706-A";
 }
+#endif
 
 /*
  * Unit service

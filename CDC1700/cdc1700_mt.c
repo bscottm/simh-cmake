@@ -168,6 +168,8 @@ static uint16 mtbootstrap9[] = {
 };
 #define MTBOOTLEN9      (sizeof(mtbootstrap9) / sizeof(uint16))
 
+#if 0
+/* Unused */
 /*
  * Seven-track magnetic tape bootstrap
  */
@@ -213,6 +215,7 @@ static uint16 mtbootstrap7[] = {
   0x0000                        /* 26:              */
 };
 #define MTBOOTLEN7      (sizeof(mtbootstrap7) / sizeof(uint16))
+#endif
 
 /*
  * SMM17 bootstraps
@@ -239,6 +242,8 @@ static uint16 smm17boot9[] = {
 };
 #define SMM17BOOTLEN9   (sizeof(smm17boot9) / sizeof(uint16))
 
+#if 0
+/* Unused */
 static uint16 smm17boot7[] = {
   0x68FE,                       /* xFE0: MTBOOT STA*    *-1             */
   0xE000,                       /* xFE1:        LDQ     =N$WESD         */
@@ -271,6 +276,7 @@ static uint16 smm17boot7[] = {
   0x1007                        /* xFFC:        JMP-    QL ENTRY        */
 };
 #define SMM17BOOTLEN7   (sizeof(smm17boot7) / sizeof(uint16))
+#endif
 
 /*
  * Shared I/O buffer. Note that this is larger than the max possible memory
@@ -620,7 +626,7 @@ void mt_trace(UNIT *uptr, const char *what, t_stat st, t_bool xfer)
     else fprintf(DBGOUT, "MT%d: %s - %s\r\n", u, what, status);
   } else fprintf(DBGOUT, "MT%d: %s\r\n", u, what);
   if ((mt_dev.dctrl & DBG_DLOC) != 0)
-    fprintf(DBGOUT, "MT%d: Inst: %llu\r\n", u, Instructions);
+    fprintf(DBGOUT, "MT%d: Inst: %"PRIu64"\r\n", u, Instructions);
 }
 
 /* MT trace routine (DSA mode) */
@@ -961,7 +967,7 @@ t_stat mt_svc(UNIT *uptr)
   uint16 mask = IO_1732_STMSK;
   uint16 delay = MTdev.iod_delay;
   uint16 result;
-  t_stat status;
+  t_stat status = 0;
   t_mtrlnt temp;
   int32 tmo;
 
@@ -1720,7 +1726,7 @@ enum IOstatus doMTFunction(DEVICE *dev)
 {
   UNIT *uptr;
   t_stat st;
-  t_mtrlnt count = 1;
+  /*t_mtrlnt count = 1;*/
 
   /*
    * Handle commands in the following order:
@@ -1868,7 +1874,7 @@ enum IOstatus MTin(IO_DEVICE *iod, uint8 reg)
 enum IOstatus MTout(IO_DEVICE *iod, uint8 reg)
 {
   UNIT *uptr = MTdev.iod_unit;
-  uint16 unit;
+  uint16 unit = 0;
 
   switch (reg) {
     case 0x00:

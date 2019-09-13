@@ -132,14 +132,14 @@ static uint16 instInter[] = {
 
 t_stat parse_sym(CONST char *cptr, t_addr addr, UNIT *uptr, t_value *val, int32 sw)
 {
-  int32 cflag, i, j, l, rdx;
-  t_bool neg, cons;
+  int32 /*cflag,*/ i, j, l, rdx;
+  t_bool neg /*, cons*/;
   t_value temp;
-  t_stat r, sta = SCPE_OK;
+  t_stat r /*, sta = SCPE_OK*/;
   char gbuf[CBUFSIZE], mode;
   const char *cptr2;
 
-  cflag = (uptr == NULL) || (uptr == &cpu_unit);
+  /*cflag = (uptr == NULL) || (uptr == &cpu_unit);*/
   while (isspace(*cptr))
     cptr++;
 
@@ -174,7 +174,7 @@ t_stat parse_sym(CONST char *cptr, t_addr addr, UNIT *uptr, t_value *val, int32 
   while (isspace(*cptr))
     cptr++;
 
-  cons = neg = FALSE;
+  /*cons =*/ neg = FALSE;
   rdx = 10;
 
   switch (opc_val[i] & I_MASK) {
@@ -182,7 +182,7 @@ t_stat parse_sym(CONST char *cptr, t_addr addr, UNIT *uptr, t_value *val, int32 
     case I_ARITH:
     case I_LOG:
       if (*cptr == '=') {
-        cons = TRUE;
+        /*cons = TRUE;*/
         cptr++;
 
         if (*cptr == '-') {
