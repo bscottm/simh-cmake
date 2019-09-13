@@ -225,8 +225,9 @@ switch (inst) {                                         /* case on opcode */
             ((fnc == 001) && !fhd_busy) ||              /* 1 = skip if !busy */
             ((fnc == 002) && !fhd_dte) ||               /* 2 = skip if !data err */
             ((fnc == 003) && !fhd_ace) ||               /* 3 = skip if !access err */
-            ((fnc == 004) && !TST_INTREQ (INT_FHD)))    /* 4 = skip if !interrupt */
+            ((fnc == 004) && !TST_INTREQ (INT_FHD))) {  /* 4 = skip if !interrupt */
             return IOSKIP (dat);
+            }
             break;
 
     case ioEND:

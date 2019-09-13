@@ -447,7 +447,7 @@ if (sim_interval <= 0) {                                /* check clock queue */
 /* Channel breaks (DMA and DMC) */
 
 if (chan_req) {                                         /* channel request? */
-    int32 i, t, ch, dev, st, end, ad, dmcad;
+    int32 i, t, ch, dev, st, end, ad, dmcad = 0;
     t_stat r;
     for (i = 0, ch = chan_req; ch != 0; i++, ch = ch >> 1) {
         if (ch & 1) {                                   /* req on chan i? */
@@ -1103,13 +1103,13 @@ t_stat Write (int32 addr, int32 val)
 // [RLA] Write() now checks for address breaks ...
 if (((addr == 0) || (addr >= 020)) && MEM_ADDR_OK (addr))
     M[addr] = val;
-if (addr == M_XR)                                       /* write XR loc? */
+if (addr == M_XR) {                                     /* write XR loc? */
     XR = val;
     // [RLA] Implement "break on memory write" ...
     if (sim_brk_summ && sim_brk_test (addr, SWMASK ('W')))
         return STOP_IBKPT;
-    else
-        return SCPE_OK;
+}
+return SCPE_OK;
 }
 
 /* Add */
