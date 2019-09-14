@@ -1079,6 +1079,7 @@ static const char* no_pcap =
 #endif
 
 /* define pointers to pcap functions needed */
+static char*   (*p_pcap_lib_version) (void);
 static void    (*p_pcap_close) (pcap_t *);
 static int     (*p_pcap_compile) (pcap_t *, struct bpf_program *, const char *, int, bpf_u_int32);
 static int     (*p_pcap_datalink) (pcap_t *);
@@ -1571,10 +1572,10 @@ static void eth_get_nic_hw_addr(ETH_DEV* dev, const char *devname)
 
     memset(command, 0, sizeof(command));
     /* try to force an otherwise unused interface to be turned on */
-    snprintf(command, sizeof(command)-1, "ifconfig %s up", devname);
+    snprintf(command, sizeof(command)-1, "ifconfig %.*s up", (int)(sizeof(command) - 14), devname);
     (void)system(command);
     for (i=0; patterns[i] && (0 == dev->have_host_nic_phy_addr); ++i) {
-      snprintf(command, sizeof(command)-1, "ifconfig %s | %s  >NIC.hwaddr", devname, patterns[i]);
+      snprintf(command, sizeof(command)-1, "ifconfig %.*s | %s  >NIC.hwaddr", (int)(sizeof(command) - (26 + strlen(patterns[i]))), devname, patterns[i]);
       (void)system(command);
       if (NULL != (f = fopen("NIC.hwaddr", "r"))) {
         while (0 == dev->have_host_nic_phy_addr) {
@@ -1706,7 +1707,7 @@ int status = 0;
 int sel_ret = 0;
 int do_select = 0;
 SOCKET select_fd = 0;
-#if defined (_WIN32) && defined(HAVE_PCAP_NETWORK)
+#if defined (_WIN32) && defined (HAVE_PCAP_NETWORK)
 HANDLE hWait = (dev->eth_api == ETH_API_PCAP) ? pcap_getevent ((pcap_t*)dev->handle) : NULL;
 #endif
 
@@ -1866,7 +1867,7 @@ while (dev->handle) {
       ++dev->receive_packet_errors;
       _eth_error (dev, "_eth_reader");
       if (dev->handle) { /* Still attached? */
-#if defined (_WIN32) && defined(HAVE_PCAP_NETWORK)
+#if defined (_WIN32)
         hWait = (dev->eth_api == ETH_API_PCAP) ? pcap_getevent ((pcap_t*)dev->handle) : NULL;
 #endif
         if (do_select) {
@@ -1992,6 +1993,10 @@ if (bufsz < ETH_MAX_JUMBO_FRAME)
 /* attempt to connect device */
 memset(errbuf, 0, PCAP_ERRBUF_SIZE);
 if (0 == strncmp("tap:", savname, 4)) {
+#if defined(HAVE_TAP_NETWORK)
+  int  tun = -1;    /* TUN/TAP Socket */
+  int  on = 1;
+#endif
   const char *devname = savname + 4;
 
   while (isspace(*devname))
@@ -2115,7 +2120,7 @@ else { /* !tap: */
 
       while (isspace(*devname))
         ++devname;
-      if (!(*handle = (void*) sim_slirp_open(devname, opaque, &_slirp_callback, dptr, dbit)))
+      if (!(*handle = (void*) sim_slirp_open(devname, opaque, &_slirp_callback, dptr, dbit, errbuf, PCAP_ERRBUF_SIZE)))
         strlcpy(errbuf, strerror(errno), PCAP_ERRBUF_SIZE);
       else {
         *eth_api = ETH_API_NAT;
@@ -2437,7 +2442,7 @@ return SCPE_OK;
 
 const char *eth_version (void)
 {
-#if defined HAVE_PCAP_NETWORK
+#if defined(HAVE_PCAP_NETWORK)
 return pcap_lib_version();
 #else
 return NULL;
@@ -4202,7 +4207,10 @@ ETH_MAC filter_address[3] = {
     {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
   };
 int addr_count;
-/*ETH_MAC physical_addr = {0x04, 0x05, 0x06, 0x07, 0x08, 0x09};*/
+#if 0
+/* Apparently unused: either passed as a parameter or embedded as a structure member. */
+ETH_MAC physical_addr = {0x04, 0x05, 0x06, 0x07, 0x08, 0x09};
+#endif
 ETH_MAC host_nic_phy_hw_addr = {0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
 ETH_MAC *host_phy_addr_list[2] = {&host_nic_phy_hw_addr, NULL};
 int host_phy_addr_listindex;
