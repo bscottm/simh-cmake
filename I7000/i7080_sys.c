@@ -480,7 +480,7 @@ t_stat fprint_sym (FILE *of, t_addr addr, t_value *val, UNIT *uptr, int32 sw)
 
     if (sw & SWMASK('C')) { /* character? */
         t = val[0];
-        fprintf(of, " %c<%02o> ", mem_to_ascii[t & 077], t & 077);
+        fprintf(of, " %c<%02"T_VALUE_FMT"o> ", mem_to_ascii[t & 077], t & 077);
         return SCPE_OK;
     }
     if ((uptr != NULL) && (uptr != &cpu_unit))
@@ -553,12 +553,12 @@ t_stat fprint_sym (FILE *of, t_addr addr, t_value *val, UNIT *uptr, int32 sw)
 
         switch (tab->type) {
         case TYPE_A:
-            fprintf(of, "%d", addr);
+            fprintf(of, "%" T_VALUE_FMT "d", addr);
             if (reg != 0)
                 fprintf(of, ",%d", reg);
             break;
         case TYPE_B:
-            fprintf(of, "%d", addr);
+            fprintf(of, "%" T_VALUE_FMT "d", addr);
             break;
         case TYPE_C: /* No operand required for type C or D */
         case TYPE_D:

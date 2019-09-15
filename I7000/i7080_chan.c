@@ -1178,7 +1178,7 @@ chan_read_char(int chan, uint8 * data, int flags)
     case CHAN_7908:
         if (bcnt[chan] > 4)
            return TIME_ERROR;
-        *data = assembly[chan] >> (6 * bcnt[chan]);
+        *data = (char) ((assembly[chan] >> (6 * (t_value) bcnt[chan])) & 0xff);
         if (*data == CHR_BLANK)
             *data = CHR_ABLANK;
         if (chan_flags[chan] & CTL_CNTL && *data == CHR_GM) {

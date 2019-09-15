@@ -39,6 +39,16 @@
 #include "sim_frontpanel.h"
 #include <signal.h>
 
+#if defined (_WIN32) /* Actually, a GCC issue */
+#define LL_FMT "I64"
+#else
+#if defined (__VAX) /* No 64 bit ints on VAX */
+#define LL_FMT "l"
+#else
+#define LL_FMT "ll"
+#endif
+#endif
+
 #if defined(_WIN32)
 #include <windows.h>
 #include <winerror.h>
@@ -115,7 +125,7 @@ static const char *states[] = {"Halt", "Run "};
 
 buf1[sizeof(buf1)-1] = buf2[sizeof(buf2)-1] = buf3[sizeof(buf3)-1] = buf4[sizeof(buf4)-1] = 0;
 sprintf (buf1, "%4s PC: %08X   SP: %08X   AP: %08X   FP: %08X  @PC: %08X\n", states[sim_panel_get_state (panel)], PC, SP, AP, FP, atPC);
-sprintf (buf2, "PSL: %08X                               Instructions Executed: %lld\n", PSL, simulation_time);
+sprintf (buf2, "PSL: %08X                               Instructions Executed: %"LL_FMT"d\n", PSL, simulation_time);
 sprintf (buf3, "R0:%08X  R1:%08X  R2:%08X  R3:%08X   R4:%08X   R5:%08X\n", R0, R1, R2, R3, R4, R5);
 sprintf (buf4, "R6:%08X  R7:%08X  R8:%08X  R9:%08X  R10:%08X  R11:%08X\n", R6, R7, R8, R9, R10, R11);
 #if defined(_WIN32)
@@ -123,7 +133,7 @@ if (1) {
     static HANDLE out = NULL;
     static CONSOLE_SCREEN_BUFFER_INFO info;
     static COORD origin = {0, 0};
-    int written;
+    DWORD written;
 
     if (out == NULL)
         out = GetStdHandle (STD_OUTPUT_HANDLE);
@@ -393,7 +403,7 @@ if (sim_panel_get_registers (panel, NULL)) {
     goto Done;
     }
 if (1) {
-    unsigned int deadbeef = 0xdeadbeef, beefdead = 0xbeefdead, addr200 = 0x00000200, beefdata;
+    unsigned int deadbeef = 0xdeadbeef, /*beefdead = 0xbeefdead,*/ addr200 = 0x00000200, beefdata;
 
     if (sim_panel_set_register_value (panel, "R0", "DEADBEEF")) {
         printf ("Error setting R0 to DEADBEEF: %s\n", sim_panel_get_error());
@@ -627,7 +637,6 @@ return -1;
 int
 match_command (const char *command, const char *string, const char **arg)
 {
-int match_chars = 0;
 size_t i;
 
 while (isspace (*string))

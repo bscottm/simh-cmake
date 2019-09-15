@@ -587,7 +587,7 @@ uint8   op, mod, flags;
 
 if (sw & SWMASK ('C')) {                                /* character? */
     t = val[0];
-    fprintf (of, (t & WM)? "`%c<%02o> ": " %c<%02o> ", mem_to_ascii[t & 077],
+    fprintf (of, (t & WM)? "`%c<%02"T_VALUE_FMT"o> ": " %c<%02"T_VALUE_FMT"o> ", mem_to_ascii[t & 077],
                          t & 077);
     return SCPE_OK;
     }
@@ -913,7 +913,7 @@ if (sw & SWMASK ('M')) {                                /* machine code? */
     return -(i - 1);
 }
 t = val[0];
-fprintf (of, (t & WM)? "~%02o ": " %02o ", t & 077);
+fprintf (of, (t & WM)? "~%02"T_VALUE_FMT"o ": " %02"T_VALUE_FMT"o ", t & 077);
 return 0;
 }
 

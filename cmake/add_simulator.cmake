@@ -212,12 +212,6 @@ endif ()
 ## From all evidence in makefile, sim_frontpanel isn't used yet by any targets.
 ##
 ## Needs curses...
-
-set(FRONTPANEL_EXE "")
-if (WIN32)
-  set(FRONTPANEL_EXE "WIN32")
-endif ()
-
 add_executable(frontpaneltest
     ${CMAKE_SOURCE_DIR}/frontpanel/FrontPanelTest.c
     ${CMAKE_SOURCE_DIR}/sim_sock.c
@@ -225,6 +219,8 @@ add_executable(frontpaneltest
 
 target_link_libraries(frontpaneltest PUBLIC thread_lib wsock32)
 
-if (MINGW)
-  target_compile_options(frontpaneltest PUBLIC "-fms-extensions" "-mconsole")
+if (MSVC)
+	target_link_options(frontpaneltest PUBLIC "/SUBSYSTEM:CONSOLE")
+elseif (MINGW)
+	target_link_options(frontpaneltest PUBLIC "-mconsole")
 endif ()

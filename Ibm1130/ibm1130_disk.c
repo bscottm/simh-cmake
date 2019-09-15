@@ -35,6 +35,7 @@ commands may NOT be accurate. This should probably be fixed.
 
 #include "ibm1130_defs.h"
 #include <memory.h>
+#include "sim_iso_names.h"
 
 #define TRACE_DMS_IO                /* define to enable debug of DMS phase IO */
 
@@ -651,7 +652,7 @@ static t_stat phdebug_cmd (int32 flag, CONST char *ptr)
 {
     int val1, val2;
 
-    if (strcmpi(ptr, "off") == 0)
+    if (simh_strcmpi(ptr, "off") == 0)
         phdebug_lo = phdebug_hi = -1;
     else {
         switch(sscanf(ptr, "%x%x", &val1, &val2)) {
