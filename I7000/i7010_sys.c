@@ -579,7 +579,9 @@ t_stat fprint_addr_1401 (FILE *of, uint32 addr) {
 
 t_stat fprint_sym (FILE *of, t_addr addr, t_value *val, UNIT *uptr, int32 sw)
 {
-int32   i, t;
+int32 i;
+    
+t_value t;
 uint32  a, b;
 uint8   op, mod, flags;
 

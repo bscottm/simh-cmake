@@ -727,10 +727,10 @@ chan_proc()
                 unit = 1024 + chan_unit[chan].u3 * 32;
                 addr = chan_next_addr(chan);
                 assembly[chan] = M[addr++] & 077;
-                assembly[chan] |= (M[addr++] & 077) << 6;
-                assembly[chan] |= (M[addr++] & 077) << 12;
-                assembly[chan] |= (M[addr++] & 077) << 18;
-                assembly[chan] |= (M[addr++] & 077) << 24;
+                assembly[chan] |= ((t_value) (M[addr++] & 077)) << 6;
+                assembly[chan] |= ((t_value) (M[addr++] & 077)) << 12;
+                assembly[chan] |= ((t_value) (M[addr++] & 077)) << 18;
+                assembly[chan] |= ((t_value) (M[addr++] & 077)) << 24;
                 if (cmd[chan] & CHAN_NOREC && (addr % 20000) == 19999)
                    cmd[chan] |= CHAN_END;
                 bcnt[chan] = 0;
@@ -1079,7 +1079,7 @@ chan_write_char(int chan, uint8 * data, int flags)
            if (*data == 0)
                 *data = 020;
         }
-        assembly[chan] |= *data << (6 * bcnt[chan]);
+        assembly[chan] |= ((t_value) *data) << (6 * bcnt[chan]);
         bcnt[chan]++;
         if (bcnt[chan] == 5)
            chan_flags[chan] |= DEV_FULL;

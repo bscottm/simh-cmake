@@ -471,102 +471,103 @@ fprint_reg (FILE *of, uint32 rdx, t_value *val, UNIT *uptr, int32 sw)
 
 t_stat fprint_sym (FILE *of, t_addr addr, t_value *val, UNIT *uptr, int32 sw)
 {
-int32   i, t;
-uint8   op;
+    int32   i;
+    t_value t;
+    uint8   op;
 
-if (sw & SIM_SW_REG)
-    return fprint_reg(of, addr, val, uptr, sw);
+    if (sw & SIM_SW_REG)
+        return fprint_reg(of, addr, val, uptr, sw);
 
-if (sw & SWMASK ('C')) {                                /* character? */
-    t = val[0];
-    fprintf (of, " %c<%02o> ", mem_to_ascii[t & 077], t & 077);
-    return SCPE_OK;
+    if (sw & SWMASK('C')) { /* character? */
+        t = val[0];
+        fprintf(of, " %c<%02o> ", mem_to_ascii[t & 077], t & 077);
+        return SCPE_OK;
     }
-if ((uptr != NULL) && (uptr != &cpu_unit)) return SCPE_ARG;     /* CPU? */
-if (sw & SWMASK ('D')) {                                /* dump? */
-    for (i = 0; i < 50; i++) fprintf (of, "%c", mem_to_ascii[val[i]&077]) ;
-    return -(i - 1);
+    if ((uptr != NULL) && (uptr != &cpu_unit))
+        return SCPE_ARG;    /* CPU? */
+    if (sw & SWMASK('D')) { /* dump? */
+        for (i = 0; i < 50; i++)
+            fprintf(of, "%c", mem_to_ascii[val[i] & 077]);
+        return -(i - 1);
     }
-if (sw & SWMASK ('S')) {                                /* string? */
-    i = 0;
-    do {
-        t = val[i++];
-        fprintf (of, "%c", mem_to_ascii[t & 077]);
-    } while (i < 50);
-    return -(i - 1);
+    if (sw & SWMASK('S')) { /* string? */
+        i = 0;
+        do {
+            t = val[i++];
+            fprintf(of, "%c", mem_to_ascii[t & 077]);
+        } while (i < 50);
+        return -(i - 1);
     }
-if (sw & SWMASK ('M')) {                                /* machine code? */
-    uint32      addr;
-    t_opcode    *tab;
-    uint8       zone;
-    uint8       reg;
-    uint16      opvalue;
+    if (sw & SWMASK('M')) { /* machine code? */
+        t_value   addr;
+        t_opcode *tab;
+        uint8     zone;
+        uint8     reg;
+        uint16    opvalue;
 
-    i = 0;
-    op = val[i++] & 077;
-    t = val[i++];       /* First address char */
-    zone = (t & 060) >> 4;
-    t &= 0xf;
-    if (t == 10)
-        t = 0;
-    addr = t * 1000;
-    t = val[i++];       /* Second address char */
-    reg = (t & 060) >> 2;
-    t &= 0xf;
-    if (t == 10)
-        t = 0;
-    addr += t * 100;
-    t = val[i++];       /* Third address char */
-    reg |= (t & 060) >> 4;
-    t &= 0xf;
-    if (t == 10)
-        t = 0;
-    addr += t * 10;
-    t = val[i++];       /* Forth address char */
-    zone |= (t & 060) >> 2;
+        i    = 0;
+        op   = val[i++] & 077;
+        t    = val[i++]; /* First address char */
+        zone = (t & 060) >> 4;
+        t &= 0xf;
+        if (t == 10)
+            t = 0;
+        addr = t * 1000;
+        t    = val[i++]; /* Second address char */
+        reg  = (t & 060) >> 2;
+        t &= 0xf;
+        if (t == 10)
+            t = 0;
+        addr += t * 100;
+        t = val[i++]; /* Third address char */
+        reg |= (t & 060) >> 4;
+        t &= 0xf;
+        if (t == 10)
+            t = 0;
+        addr += t * 10;
+        t = val[i++]; /* Forth address char */
+        zone |= (t & 060) >> 2;
         /* Switch BA bits in high zone */
-    zone = (zone & 03) | ((zone & 04) << 1) | ((zone & 010) >> 1);
-    t &= 0xf;
-    if (t == 10)
-        t = 0;
-    addr += t;
-    opvalue = op | (reg << 6);
-    addr += zone * 10000;
-    for(tab = optbl; tab->name != NULL; tab++) {
-        if (tab->type == TYPE_A && op == tab->opbase)
-            break;
-        if (tab->type == TYPE_B && opvalue == tab->opbase)
-            break;
-        if (tab->type == TYPE_C && addr < 100 &&
-                 (op|(addr << 12)) == tab->opbase)
-            break;
-        if (tab->type == TYPE_D && addr < 100 &&
-                 (opvalue|(addr << 12)) == tab->opbase)
-            break;
-    }
+        zone = (zone & 03) | ((zone & 04) << 1) | ((zone & 010) >> 1);
+        t &= 0xf;
+        if (t == 10)
+            t = 0;
+        addr += t;
+        opvalue = op | (reg << 6);
+        addr += (t_value) zone * 10000;
+        for (tab = optbl; tab->name != NULL; tab++) {
+            if (tab->type == TYPE_A && op == tab->opbase)
+                break;
+            if (tab->type == TYPE_B && opvalue == tab->opbase)
+                break;
+            if (tab->type == TYPE_C && addr < 100 && (op | (addr << 12)) == tab->opbase)
+                break;
+            if (tab->type == TYPE_D && addr < 100 && (opvalue | (addr << 12)) == tab->opbase)
+                break;
+        }
 
-    if (tab->name == NULL)
-        fprintf(of, "%c<%02o>\t", mem_to_ascii[op], op);
-    else
-        fprintf(of, "%s\t", tab->name);
+        if (tab->name == NULL)
+            fprintf(of, "%c<%02o>\t", mem_to_ascii[op], op);
+        else
+            fprintf(of, "%s\t", tab->name);
 
-    switch(tab->type) {
-    case TYPE_A:
-        fprintf(of, "%d", addr);
-        if (reg != 0)
-            fprintf(of, ",%d", reg);
-        break;
-    case TYPE_B:
-        fprintf(of, "%d", addr);
-        break;
-    case TYPE_C:        /* No operand required for type C or D */
-    case TYPE_D:
-        break;
+        switch (tab->type) {
+        case TYPE_A:
+            fprintf(of, "%d", addr);
+            if (reg != 0)
+                fprintf(of, ",%d", reg);
+            break;
+        case TYPE_B:
+            fprintf(of, "%d", addr);
+            break;
+        case TYPE_C: /* No operand required for type C or D */
+        case TYPE_D:
+            break;
+        }
+        return -(i - 1);
     }
-    return -(i - 1);
-}
-fprintf (of, " %02"T_VALUE_FMT"o ", val[0] & 077);
-return SCPE_OK;
+    fprintf(of, " %02" T_VALUE_FMT "o ", val[0] & 077);
+    return SCPE_OK;
 }
 
 t_opcode           *
@@ -709,7 +710,7 @@ parse_sym(CONST char *cptr, t_addr addr, UNIT * uptr, t_value * val, int32 sw)
             if (!(*cptr >= '0' && *cptr <= '9'))
                 return SCPE_ARG;
             while(*cptr >= '0' && *cptr <= '9') {
-                d = *cptr++ - '0';
+                d = (t_value) (*cptr++) - '0';
                 if (d == 0)
                     d = 10;
                 val[i++] = d;
