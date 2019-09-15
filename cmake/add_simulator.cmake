@@ -29,7 +29,6 @@ set(SIM_SOURCES
     ${CMAKE_SOURCE_DIR}/sim_disk.c
     ${CMAKE_SOURCE_DIR}/sim_ether.c
     ${CMAKE_SOURCE_DIR}/sim_fio.c
-    ${CMAKE_SOURCE_DIR}/sim_frontpanel.c
     ${CMAKE_SOURCE_DIR}/sim_imd.c
     ${CMAKE_SOURCE_DIR}/sim_scsi.c
     ${CMAKE_SOURCE_DIR}/sim_serial.c
@@ -206,4 +205,26 @@ if (NOT DONT_USE_ROMS)
 	COMMAND BuildROMS
 	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )
+endif ()
+
+## Front panel test.
+##
+## From all evidence in makefile, sim_frontpanel isn't used yet by any targets.
+##
+## Needs curses...
+
+set(FRONTPANEL_EXE "")
+if (WIN32)
+  set(FRONTPANEL_EXE "WIN32")
+endif ()
+
+add_executable(frontpaneltest
+    ${CMAKE_SOURCE_DIR}/frontpanel/FrontPanelTest.c
+    ${CMAKE_SOURCE_DIR}/sim_sock.c
+    ${CMAKE_SOURCE_DIR}/sim_frontpanel.c)
+
+target_link_libraries(frontpaneltest PUBLIC thread_lib wsock32)
+
+if (MINGW)
+  target_compile_options(frontpaneltest PUBLIC "-fms-extensions" "-mconsole")
 endif ()

@@ -517,17 +517,21 @@ return sim_os_msec () - stime;
 #if defined(NEED_CLOCK_GETTIME)
 int clock_gettime(int clk_id, struct timespec *tp)
 {
-t_uint64 now, unixbase;
+    FILETIME ftime_now;
+    ULARGE_INTEGER now, unixbase;
 
-if (clk_id != CLOCK_REALTIME)
-    return -1;
-unixbase = 116444736;
-unixbase *= 1000000000;
-GetSystemTimeAsFileTime((FILETIME*)&now);
-now -= unixbase;
-tp->tv_sec = (long)(now/10000000);
-tp->tv_nsec = (now%10000000)*100;
-return 0;
+    if (clk_id != CLOCK_REALTIME)
+	return -1;
+
+    GetSystemTimeAsFileTime(&ftime_now);
+    unixbase.QuadPart = 116444736;
+    unixbase.QuadPart *= 1000000000;
+    now.LowPart = ftime_now.dwLowDateTime;
+    now.HighPart = ftime_now.dwHighDateTime;
+    now.QuadPart -= unixbase.QuadPart;
+    tp->tv_sec  = (long) (now.QuadPart / 10000000);
+    tp->tv_nsec = (now.QuadPart % 10000000) * 100;
+    return 0;
 }
 #endif
 
