@@ -84,6 +84,7 @@ endif()
 
 # Places to look for CMake modules/includes
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
+
 # Places where CMake should look for the various package configuration fragments:
 set(CMAKE_PREFIX_PATH
     ${CMAKE_PREFIX_PATH}
@@ -118,6 +119,9 @@ endif (WIN32)
 # Tweak GNU's flags
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
   include(fpintrin)
+  if (NOT "${CMAKE_C_FLAGS_RELEASE}" MATCHES ".*fno-signed-overflow.*")
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fno-strict-overflow")
+  endif()
   if (NOT "${CMAKE_C_FLAGS_RELEASE}" MATCHES ".*Wall.*")
     string(REPLACE ";" " " EXTRA_CFLAGS "${EXTRA_CFLAGS}")
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall ${EXTRA_CFLAGS}"
