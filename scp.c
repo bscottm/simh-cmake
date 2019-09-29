@@ -577,7 +577,7 @@ SCHTAB *sim_schaptr = FALSE;
 DEVICE *sim_dfdev = NULL;
 UNIT *sim_dfunit = NULL;
 DEVICE **sim_internal_devices = NULL;
-uint32 sim_internal_device_count = 0;
+size_t sim_internal_device_count = 0;
 int32 sim_opt_out = 0;
 volatile t_bool sim_is_running = FALSE;
 t_bool sim_processing_event = FALSE;
@@ -2764,37 +2764,47 @@ return stat;
 
 /* Set prompt routine */
 
-t_stat set_prompt (int32 flag, CONST char *cptr)
+t_stat
+set_prompt(int32 flag, CONST char *cptr)
 {
-char gbuf[CBUFSIZE], *gptr;
+    char   gbuf[CBUFSIZE], *gptr, *sprompt;
+    size_t sprompt_len;
 
-if ((!cptr) || (*cptr == '\0'))
-    return SCPE_ARG;
+    if (cptr == NULL || *cptr == '\0')
+        return SCPE_ARG;
 
-cptr = get_glyph_nc (cptr, gbuf, '"');                  /* get quote delimited token */
-if (gbuf[0] == '\0') {                                  /* Token started with quote */
-    gbuf[sizeof (gbuf)-1] = '\0';
-    strlcpy (gbuf, cptr, sizeof (gbuf));
-    gptr = strchr (gbuf, '"');
-    if (gptr)
-        *gptr = '\0';
+    cptr = get_glyph_nc(cptr, gbuf, '"'); /* get quote delimited token */
+    if (gbuf[0] == '\0') {                /* Token started with quote */
+        gbuf[sizeof(gbuf) - 1] = '\0';
+        strlcpy(gbuf, cptr, sizeof(gbuf));
+        gptr = strchr(gbuf, '"');
+        if (gptr != NULL)
+            *gptr = '\0';
     }
-sim_prompt = (char *)realloc (sim_prompt, strlen (gbuf) + 2);   /* nul terminator and trailing blank */
-sprintf (sim_prompt, "%s ", gbuf);
-return SCPE_OK;
+    sprompt_len = strlen(gbuf) + 2;
+    sprompt     = (char *)realloc(sim_prompt, sprompt_len); /* nul terminator and trailing blank */
+    if (sprompt != NULL) {
+        sprintf(sprompt, "%s ", gbuf);
+        sim_prompt = sprompt;
+        return SCPE_OK;
+    } else {
+        sim_messagef(SCPE_MEM, "set_prompt: Could not reallocate sim_prompt to %d bytes.", sprompt_len);
+        return SCPE_MEM;
+    }
 }
 
 /* Find command routine */
 
-CTAB *find_cmd (const char *gbuf)
+CTAB *
+find_cmd(const char *gbuf)
 {
-CTAB *cmdp = NULL;
+    CTAB *cmdp = NULL;
 
-if (sim_vm_cmd)                                         /* try ext commands */
-    cmdp = find_ctab (sim_vm_cmd, gbuf);
-if (cmdp == NULL)                                       /* try regular cmds */
-    cmdp = find_ctab (cmd_table, gbuf);
-return cmdp;
+    if (sim_vm_cmd) /* try ext commands */
+        cmdp = find_ctab(sim_vm_cmd, gbuf);
+    if (cmdp == NULL) /* try regular cmds */
+        cmdp = find_ctab(cmd_table, gbuf);
+    return cmdp;
 }
 
 /* Exit command */
@@ -4147,156 +4157,156 @@ return ap;
 
 void sim_sub_args (char *instr, size_t instr_size, char *do_arg[])
 {
-char gbuf[CBUFSIZE];
-char *ip = instr, *op, *oend, *istart, *tmpbuf;
-const char *ap;
-char rbuf[CBUFSIZE];
-int i;
-size_t outstr_off = 0;
+    char        gbuf[CBUFSIZE];
+    char *      ip = instr, *op, *oend, *istart, *tmpbuf;
+    const char *ap;
+    char        rbuf[CBUFSIZE];
+    int         i;
+    size_t      outstr_off = 0;
 
-sim_exp_argv = do_arg;
-clock_gettime(CLOCK_REALTIME, &cmd_time);
-tmpbuf = (char *)malloc(instr_size);
-op = tmpbuf;
-oend = tmpbuf + instr_size - 2;
-if (instr_size > sim_sub_instr_size) {
-    sim_sub_instr = (char *)realloc (sim_sub_instr, instr_size*sizeof(*sim_sub_instr));
-    sim_sub_instr_off = (size_t *)realloc (sim_sub_instr_off, instr_size*sizeof(*sim_sub_instr_off));
-    sim_sub_instr_size = instr_size;
+    sim_exp_argv = do_arg;
+    clock_gettime(CLOCK_REALTIME, &cmd_time);
+    tmpbuf = (char *)malloc(instr_size);
+    op     = tmpbuf;
+    oend   = tmpbuf + instr_size - 2;
+    if (instr_size > sim_sub_instr_size) {
+	char *new_ssi = (char *)realloc(sim_sub_instr, instr_size * sizeof(*sim_sub_instr));;
+	size_t *new_ssio = (size_t *)realloc(sim_sub_instr_off, instr_size * sizeof(*sim_sub_instr_off));;
+
+	if (new_ssi != NULL && new_ssio != NULL) {
+	    sim_sub_instr = new_ssi;
+	    sim_sub_instr_off = new_ssio;
+	    sim_sub_instr_size = instr_size;
+	} else {
+	    sim_messagef(SCPE_MEM, "sim_sub_args: realloc() failure, no arguments substited!");
+	    return;
+	}
     }
-sim_sub_instr_buf = instr;
-strlcpy (sim_sub_instr, instr, instr_size*sizeof(*sim_sub_instr));
-while (sim_isspace (*ip)) {                                 /* skip leading spaces */
-    sim_sub_instr_off[outstr_off++] = ip - instr;
-    *op++ = *ip++;
+    sim_sub_instr_buf = instr;
+    strlcpy(sim_sub_instr, instr, instr_size * sizeof(*sim_sub_instr));
+    while (sim_isspace(*ip)) { /* skip leading spaces */
+        sim_sub_instr_off[outstr_off++] = ip - instr;
+        *op++                           = *ip++;
     }
-/* If entire string is within quotes, strip the quotes */
-if ((*ip == '"') || (*ip == '\'')) {                        /* start with a quote character? */
-    const char *cptr = ip;
-    char *tp = op;              /* use remainder of output buffer as temp buffer */
+    /* If entire string is within quotes, strip the quotes */
+    if ((*ip == '"') || (*ip == '\'')) { /* start with a quote character? */
+        const char *cptr = ip;
+        char *      tp   = op; /* use remainder of output buffer as temp buffer */
 
-    cptr = get_glyph_quoted (cptr, tp, 0);                  /* get quoted string */
-    while (sim_isspace (*cptr))
-        ++cptr;                                             /* skip over trailing spaces */
-    if (*cptr == '\0') {                                    /* full string was quoted? */
-        uint32 dsize;
+        cptr = get_glyph_quoted(cptr, tp, 0); /* get quoted string */
+        while (sim_isspace(*cptr))
+            ++cptr;          /* skip over trailing spaces */
+        if (*cptr == '\0') { /* full string was quoted? */
+            uint32 dsize;
 
-        if (SCPE_OK == sim_decode_quoted_string (tp, (uint8 *)tp, &dsize)) {
-            tp[dsize] = '\0';
-            while (sim_isspace (*tp))
-                memmove (tp, tp + 1, strlen (tp));
-            strlcpy (ip, tp, instr_size - (ip - instr));/* copy quoted contents to input buffer */
-            strlcpy (sim_sub_instr + (ip -  instr), tp, instr_size - (ip - instr));
+            if (SCPE_OK == sim_decode_quoted_string(tp, (uint8 *)tp, &dsize)) {
+                tp[dsize] = '\0';
+                while (sim_isspace(*tp))
+                    memmove(tp, tp + 1, strlen(tp));
+                strlcpy(ip, tp, instr_size - (ip - instr)); /* copy quoted contents to input buffer */
+                strlcpy(sim_sub_instr + (ip - instr), tp, instr_size - (ip - instr));
             }
         }
     }
-istart = ip;
-for (; *ip && (op < oend); ) {
-    if ((ip [0] == '%') && (ip [1] == '%')) {           /* literal % insert? */
-        sim_sub_instr_off[outstr_off++] = ip - instr;
-        ip++;                                           /* skip one */
-        *op++ = *ip++;                                  /* copy insert % */
-        }
-    else {
-        t_bool expand_it = FALSE;
-        char parts[32];
+    istart = ip;
+    for (; *ip && (op < oend);) {
+        if ((ip[0] == '%') && (ip[1] == '%')) { /* literal % insert? */
+            sim_sub_instr_off[outstr_off++] = ip - instr;
+            ip++;          /* skip one */
+            *op++ = *ip++; /* copy insert % */
+        } else {
+            t_bool expand_it = FALSE;
+            char   parts[32];
 
-        if (*ip == '%') {
-            ap = NULL;
-            ++ip;
-            if (*ip == '~') {
-                expand_it = TRUE;
+            if (*ip == '%') {
+                ap = NULL;
                 ++ip;
-                for (i=0; (i < (sizeof (parts) - 1)) && (strchr ("fpnx", *ip)); i++, ip++) {
-                    parts[i] = *ip;
-                    parts[i + 1] = '\0';
+                if (*ip == '~') {
+                    expand_it = TRUE;
+                    ++ip;
+                    for (i = 0; (i < (sizeof(parts) - 1)) && (strchr("fpnx", *ip)); i++, ip++) {
+                        parts[i]     = *ip;
+                        parts[i + 1] = '\0';
                     }
                 }
-            if ((*ip >= '0') && (*ip <= ('9'))) {       /* %n = sub */
-                ap = do_arg[*ip - '0'];
-                for (i=0; i<*ip - '0'; ++i)           /* make sure we're not past the list end */
-                    if (do_arg[i] == NULL) {
-                        ap = NULL;
-                        break;
-                        }
-                ++ip;
-                }
-            else {
-                if (*ip == '*') {                       /* %1 ... %9 = sub */
-                    memset (rbuf, '\0', sizeof(rbuf));
-                    ap = rbuf;
-                    for (i=1; i<=9; ++i) {
-                        if (do_arg[i] == NULL)
+                if ((*ip >= '0') && (*ip <= ('9'))) { /* %n = sub */
+                    ap = do_arg[*ip - '0'];
+                    for (i = 0; i < *ip - '0'; ++i) /* make sure we're not past the list end */
+                        if (do_arg[i] == NULL) {
+                            ap = NULL;
                             break;
-                        else
-                            if ((sizeof(rbuf)-strlen(rbuf)) < (2 + strlen(do_arg[i]))) {
+                        }
+                    ++ip;
+                } else {
+                    if (*ip == '*') { /* %1 ... %9 = sub */
+                        memset(rbuf, '\0', sizeof(rbuf));
+                        ap = rbuf;
+                        for (i = 1; i <= 9; ++i) {
+                            if (do_arg[i] == NULL)
+                                break;
+                            else if ((sizeof(rbuf) - strlen(rbuf)) < (2 + strlen(do_arg[i]))) {
                                 if (strchr(do_arg[i], ' ')) { /* need to surround this argument with quotes */
                                     char quote = '"';
                                     if (strchr(do_arg[i], quote))
                                         quote = '\'';
-                                    sprintf(&rbuf[strlen(rbuf)], "%s%c%s%c\"", (i != 1) ? " " : "", quote, do_arg[i], quote);
-                                    }
-                                else
+                                    sprintf(&rbuf[strlen(rbuf)], "%s%c%s%c\"", (i != 1) ? " " : "", quote, do_arg[i],
+                                            quote);
+                                } else
                                     sprintf(&rbuf[strlen(rbuf)], "%s%s", (i != 1) ? " " : "", do_arg[i]);
-                                }
-                            else
+                            } else
                                 break;
                         }
-                    ++ip;
-                    }
-                else {
-                    if (*ip == '\0') {                  /* is this a bare % at end of line? */
-                        *op++ = '%';                    /* leave it there as a literal percent sign */
-                        }
-                    else {
-                        get_glyph_nc (ip, gbuf, '%');   /* get the literal name */
-                        ap = _sim_get_env_special (gbuf, rbuf, sizeof (rbuf));
-                        ip += strlen (gbuf);
-                        if (*ip == '%') 
-                            ++ip;
+                        ++ip;
+                    } else {
+                        if (*ip == '\0') { /* is this a bare % at end of line? */
+                            *op++ = '%';   /* leave it there as a literal percent sign */
+                        } else {
+                            get_glyph_nc(ip, gbuf, '%'); /* get the literal name */
+                            ap = _sim_get_env_special(gbuf, rbuf, sizeof(rbuf));
+                            ip += strlen(gbuf);
+                            if (*ip == '%')
+                                ++ip;
                         }
                     }
                 }
-            if (ap) {                                   /* non-null arg? */
-                char *expanded = NULL;
+                if (ap) { /* non-null arg? */
+                    char *expanded = NULL;
 
-                if (expand_it) {
-                    expanded = sim_filepath_parts (ap, parts);
-                    ap = expanded;
+                    if (expand_it) {
+                        expanded = sim_filepath_parts(ap, parts);
+                        ap       = expanded;
                     }
-                while (*ap && (op < oend)) {            /* copy the argument */
-                    sim_sub_instr_off[outstr_off++] = ip - instr;
-                    *op++ = *ap++;
+                    while (*ap && (op < oend)) { /* copy the argument */
+                        sim_sub_instr_off[outstr_off++] = ip - instr;
+                        *op++                           = *ap++;
                     }
-                free (expanded);
+                    free(expanded);
                 }
-            }
-        else {
-            if (ip == istart) {                         /* at beginning of input? */
-                get_glyph (istart, gbuf, 0);            /* substitute initial token */
-                ap = getenv(gbuf);                      /* if it is an environment variable name */
-                if (!ap) {                              /* nope? */
-                    sim_sub_instr_off[outstr_off++] = ip - instr;
-                    *op++ = *ip++;                      /* press on with literal character */
-                    continue;
+            } else {
+                if (ip == istart) {             /* at beginning of input? */
+                    get_glyph(istart, gbuf, 0); /* substitute initial token */
+                    ap = getenv(gbuf);          /* if it is an environment variable name */
+                    if (!ap) {                  /* nope? */
+                        sim_sub_instr_off[outstr_off++] = ip - instr;
+                        *op++                           = *ip++; /* press on with literal character */
+                        continue;
                     }
-                while (*ap && (op < oend)) {            /* copy the translation */
-                    sim_sub_instr_off[outstr_off++] = ip - instr;
-                    *op++ = *ap++;
+                    while (*ap && (op < oend)) { /* copy the translation */
+                        sim_sub_instr_off[outstr_off++] = ip - instr;
+                        *op++                           = *ap++;
                     }
-                ip += strlen(gbuf);
-                }
-            else {
-                sim_sub_instr_off[outstr_off++] = ip - instr;
-                *op++ = *ip++;                          /* literal character */
+                    ip += strlen(gbuf);
+                } else {
+                    sim_sub_instr_off[outstr_off++] = ip - instr;
+                    *op++                           = *ip++; /* literal character */
                 }
             }
         }
     }
-*op = 0;                                                /* term buffer */
-sim_sub_instr_off[outstr_off] = 0;
-strcpy (instr, tmpbuf);
-free (tmpbuf);
+    *op                           = 0; /* term buffer */
+    sim_sub_instr_off[outstr_off] = 0;
+    strcpy(instr, tmpbuf);
+    free(tmpbuf);
 }
 
 t_stat shift_args (char *do_arg[], size_t arg_count)
@@ -5973,7 +5983,7 @@ return SCPE_OK;
 
 t_stat show_config (FILE *st, DEVICE *dnotused, UNIT *unotused, int32 flag, CONST char *cptr)
 {
-int32 i;
+size_t i;
 DEVICE *dptr;
 t_bool only_enabled = (sim_switches & SWMASK ('E'));
 
@@ -6208,7 +6218,7 @@ return SCPE_OK;
 
 t_stat show_mod_names (FILE *st, DEVICE *dnotused, UNIT *unotused, int32 flag, CONST char *cptr)
 {
-int32 i;
+size_t i;
 DEVICE *dptr;
 
 if (cptr && (*cptr != 0))                               /* now eol? */
@@ -6275,7 +6285,7 @@ return r;
 
 t_stat show_show_commands (FILE *st, DEVICE *dnotused, UNIT *unotused, int32 flag, CONST char *cptr)
 {
-int32 i;
+size_t i;
 DEVICE *dptr;
 
 if (cptr && (*cptr != 0))                               /* now eol? */
@@ -6781,7 +6791,7 @@ else return SCPE_OK;
 t_stat reset_all (uint32 start)
 {
 DEVICE *dptr;
-uint32 i;
+size_t i;
 t_stat reason;
 
 for (i = 0; i < start; i++) {
@@ -7331,7 +7341,8 @@ t_stat sim_save (FILE *sfile)
 {
 void *mbuf;
 int32 l, t;
-uint32 i, j, device_count;
+size_t i;
+uint32 j, device_count;
 t_addr k, high;
 t_value val;
 t_stat r;
@@ -9712,7 +9723,7 @@ free (string);
 
 DEVICE *find_dev (const char *cptr)
 {
-int32 i;
+size_t i;
 DEVICE *dptr;
 
 if (cptr == NULL)
@@ -9788,21 +9799,33 @@ return NULL;
         dptr    =       pointer to device
 */
 
-t_stat sim_register_internal_device (DEVICE *dptr)
+t_stat
+sim_register_internal_device(DEVICE *dptr)
 {
-uint32 i;
+    size_t   i;
+    DEVICE **sdevs;
 
-for (i = 0; i < sim_internal_device_count; i++)
-    if (sim_internal_devices[i] == dptr)
+    for (i = 0; i < sim_internal_device_count; i++)
+        if (sim_internal_devices[i] == dptr)
+            return SCPE_OK;
+    for (i = 0; (sim_devices[i] != NULL); i++)
+        if (sim_devices[i] == dptr)
+            return SCPE_OK;
+
+    /* The new size includes the trailing NULL pointer. Originally, the code incremented
+     * sim_internal_device_count, then allocated sim_internal_device_count + 1
+     * -> sim_internal_device_count + 2. */
+    i     = (sim_internal_device_count + 2) * sizeof(*sim_internal_devices);
+    sdevs = (DEVICE **)realloc(sim_internal_devices, i);
+    if (sdevs != NULL) {
+        ++sim_internal_device_count;
+        sim_internal_devices                                = sdevs;
+        sim_internal_devices[sim_internal_device_count - 1] = dptr;
+        sim_internal_devices[sim_internal_device_count]     = NULL;
         return SCPE_OK;
-for (i = 0; (sim_devices[i] != NULL); i++)
-    if (sim_devices[i] == dptr)
-        return SCPE_OK;
-++sim_internal_device_count;
-sim_internal_devices = (DEVICE **)realloc(sim_internal_devices, (sim_internal_device_count+1)*sizeof(*sim_internal_devices));
-sim_internal_devices[sim_internal_device_count-1] = dptr;
-sim_internal_devices[sim_internal_device_count] = NULL;
-return SCPE_OK;
+    }
+
+    return sim_messagef(SCPE_MEM, "sim_register_internal_device: realloc() failed. Heap corruption?");
 }
 
 /* Find_dev_from_unit   find device for unit
@@ -9813,33 +9836,34 @@ return SCPE_OK;
         result  =       pointer to device
 */
 
-DEVICE *find_dev_from_unit (UNIT *uptr)
+DEVICE *
+find_dev_from_unit(UNIT *uptr)
 {
-DEVICE *dptr;
-uint32 i, j;
+    DEVICE *dptr;
+    size_t  i, j;
 
-if (uptr == NULL)
+    if (uptr == NULL)
+        return NULL;
+    if (uptr->dptr)
+        return uptr->dptr;
+    for (i = 0; (dptr = sim_devices[i]) != NULL; i++) {
+        for (j = 0; j < dptr->numunits; j++) {
+            if (uptr == (dptr->units + j)) {
+                uptr->dptr = dptr;
+                return dptr;
+            }
+        }
+    }
+    for (i = 0; i < sim_internal_device_count; i++) {
+        dptr = sim_internal_devices[i];
+        for (j = 0; j < dptr->numunits; j++) {
+            if (uptr == (dptr->units + j)) {
+                uptr->dptr = dptr;
+                return dptr;
+            }
+        }
+    }
     return NULL;
-if (uptr->dptr)
-    return uptr->dptr;
-for (i = 0; (dptr = sim_devices[i]) != NULL; i++) {
-    for (j = 0; j < dptr->numunits; j++) {
-        if (uptr == (dptr->units + j)) {
-            uptr->dptr = dptr;
-            return dptr;
-            }
-        }
-    }
-for (i = 0; i<sim_internal_device_count; i++) {
-    dptr = sim_internal_devices[i];
-    for (j = 0; j < dptr->numunits; j++) {
-        if (uptr == (dptr->units + j)) {
-            uptr->dptr = dptr;
-            return dptr;
-            }
-        }
-    }
-return NULL;
 }
 
 /* Test for disabled device */
@@ -9864,7 +9888,7 @@ return (dptr->flags & DEV_DIS? TRUE: FALSE);
 
 REG *find_reg_glob_reason (CONST char *cptr, CONST char **optr, DEVICE **gdptr, t_stat *stat)
 {
-int32 i, j;
+size_t i, j;
 DEVICE *dptr, **devs, **dptrptr[] = {sim_devices, sim_internal_devices, NULL};
 REG *rptr, *srptr = NULL;
 
@@ -12428,84 +12452,96 @@ while (len > 0) {
 /*
  * Optionally filter debug output to summarize duplicate debug lines
  */
-static void _sim_debug_write_flush (const char *buf, size_t len, t_bool flush)
+static void
+_sim_debug_write_flush(const char *buf, size_t len, t_bool flush)
 {
-char *eol;
+    char *eol;
 
-if (sim_deb_switches & SWMASK ('F')) {              /* filtering disabled? */
-    if (len > 0)
-        _debug_fwrite (buf, len);                   /* output now. */
-    return;                                         /* done */
+    if (sim_deb_switches & SWMASK('F')) { /* filtering disabled? */
+        if (len > 0)
+            _debug_fwrite(buf, len); /* output now. */
+        return;                      /* done */
     }
-AIO_LOCK;
-if (debug_line_offset + len + 1 > debug_line_bufsize) {
-    debug_line_bufsize += MAX(1024, debug_line_offset + len + 1);
-    debug_line_buf = (char *)realloc (debug_line_buf, debug_line_bufsize);
-    debug_line_buf_last = (char *)realloc (debug_line_buf_last, debug_line_bufsize);
+    AIO_LOCK;
+    if (debug_line_offset + len + 1 > debug_line_bufsize) {
+        size_t new_bufsize = debug_line_bufsize + MAX(1024, debug_line_offset + len + 1);
+        char * new_buf     = (char *)realloc(debug_line_buf, debug_line_bufsize);
+        char * new_last    = (char *)realloc(debug_line_buf_last, debug_line_bufsize);
+
+        if (new_buf != NULL && new_last != NULL) {
+            debug_line_bufsize  = new_bufsize;
+            debug_line_buf      = new_buf;
+            debug_line_buf_last = new_last;
+        } else {
+            if (new_buf == NULL)
+                sim_messagef(SCPE_MEM, "_sim_debug_write_flush: realloc() debug_line_buf failed");
+            if (new_last == NULL)
+                sim_messagef(SCPE_MEM, "_sim_debug_write_flush: realloc() debug_line_buf_last failed");
+            AIO_UNLOCK;
+            return;
+        }
     }
-memcpy (&debug_line_buf[debug_line_offset], buf, len);
-debug_line_buf[debug_line_offset + len] = '\0';
-debug_line_offset += len;
-while ((eol = strchr (debug_line_buf, '\n')) || flush) {
-    char *endprefix = strstr (debug_line_buf, ")> ");
-    size_t linesize = (eol - debug_line_buf) + 1;
+    memcpy(&debug_line_buf[debug_line_offset], buf, len);
+    debug_line_buf[debug_line_offset + len] = '\0';
+    debug_line_offset += len;
+    while ((eol = strchr(debug_line_buf, '\n')) || flush) {
+        char * endprefix = strstr(debug_line_buf, ")> ");
+        size_t linesize  = (eol - debug_line_buf) + 1;
 
-    if ((0 != memcmp ("DBG(", debug_line_buf, 4)) || (endprefix == NULL)) {
-        if (debug_line_count > 0)
-            _debug_fwrite (debug_line_buf_last, strlen (debug_line_buf_last));
-        if (debug_line_count > 1) {
-            char countstr[32];
+        if ((0 != memcmp("DBG(", debug_line_buf, 4)) || (endprefix == NULL)) {
+            if (debug_line_count > 0)
+                _debug_fwrite(debug_line_buf_last, strlen(debug_line_buf_last));
+            if (debug_line_count > 1) {
+                char countstr[32];
 
-            sprintf (countstr, "same as above (%d time%s)\r\n", (int)(debug_line_count - 1), ((debug_line_count - 1) != 1) ? "s" : "");
-            _debug_fwrite (debug_line_last_prefix, strlen (debug_line_last_prefix));
-            _debug_fwrite (countstr, strlen (countstr));
+                sprintf(countstr, "same as above (%d time%s)\r\n", (int)(debug_line_count - 1),
+                        ((debug_line_count - 1) != 1) ? "s" : "");
+                _debug_fwrite(debug_line_last_prefix, strlen(debug_line_last_prefix));
+                _debug_fwrite(countstr, strlen(countstr));
             }
-        if (flush) {
+            if (flush) {
+                linesize = debug_line_offset;
+                flush    = FALSE; /* already flushed */
+            }
+            if (linesize)
+                _debug_fwrite(debug_line_buf, linesize);
+            debug_line_count = 0;
+        } else {
             linesize = debug_line_offset;
-            flush = FALSE;              /* already flushed */
-            }
-        if (linesize)
-            _debug_fwrite  (debug_line_buf, linesize);
-        debug_line_count = 0;
-        }
-    else {
-        linesize = debug_line_offset;
-        if (debug_line_count == 0) {
-            debug_line_buf_last_endprefix_offset = endprefix - debug_line_buf;
-            memcpy (debug_line_buf_last, debug_line_buf, linesize);
-            debug_line_buf_last[linesize] = '\0';
-            debug_line_count = 1;
-            }
-        else {
-            if (0 == memcmp (&debug_line_buf[endprefix - debug_line_buf], 
-                             &debug_line_buf_last[debug_line_buf_last_endprefix_offset], 
-                             (eol - endprefix)+ 1)) {
-                ++debug_line_count;
-                memcpy (debug_line_last_prefix, debug_line_buf, (endprefix - debug_line_buf) + 3);
-                debug_line_last_prefix[(endprefix - debug_line_buf) + 3] = '\0';
-                }
-            else {
-                _debug_fwrite (debug_line_buf_last, strlen (debug_line_buf_last));
-                if (debug_line_count > 1) {
-                    char countstr[32];
-
-                    sprintf (countstr, "same as above (%d time%s)\r\n", (int)(debug_line_count - 1), ((debug_line_count - 1) != 1) ? "s" : "");
-                    _debug_fwrite (debug_line_last_prefix, strlen (debug_line_last_prefix));
-                    _debug_fwrite (countstr, strlen (countstr));
-                    }
+            if (debug_line_count == 0) {
                 debug_line_buf_last_endprefix_offset = endprefix - debug_line_buf;
-                memcpy (debug_line_buf_last, debug_line_buf, linesize);
+                memcpy(debug_line_buf_last, debug_line_buf, linesize);
                 debug_line_buf_last[linesize] = '\0';
-                debug_line_count = 1;
+                debug_line_count              = 1;
+            } else {
+                if (0 == memcmp(&debug_line_buf[endprefix - debug_line_buf],
+                                &debug_line_buf_last[debug_line_buf_last_endprefix_offset], (eol - endprefix) + 1)) {
+                    ++debug_line_count;
+                    memcpy(debug_line_last_prefix, debug_line_buf, (endprefix - debug_line_buf) + 3);
+                    debug_line_last_prefix[(endprefix - debug_line_buf) + 3] = '\0';
+                } else {
+                    _debug_fwrite(debug_line_buf_last, strlen(debug_line_buf_last));
+                    if (debug_line_count > 1) {
+                        char countstr[32];
+
+                        sprintf(countstr, "same as above (%d time%s)\r\n", (int)(debug_line_count - 1),
+                                ((debug_line_count - 1) != 1) ? "s" : "");
+                        _debug_fwrite(debug_line_last_prefix, strlen(debug_line_last_prefix));
+                        _debug_fwrite(countstr, strlen(countstr));
+                    }
+                    debug_line_buf_last_endprefix_offset = endprefix - debug_line_buf;
+                    memcpy(debug_line_buf_last, debug_line_buf, linesize);
+                    debug_line_buf_last[linesize] = '\0';
+                    debug_line_count              = 1;
                 }
             }
         }
-    debug_line_offset -= linesize;
-    if ((debug_line_offset > 0) && (!flush))
-        memmove (debug_line_buf, eol + 1, debug_line_offset);
-    debug_line_buf[debug_line_offset] = '\0';
+        debug_line_offset -= linesize;
+        if ((debug_line_offset > 0) && (!flush))
+            memmove(debug_line_buf, eol + 1, debug_line_offset);
+        debug_line_buf[debug_line_offset] = '\0';
     }
-AIO_UNLOCK;
+    AIO_UNLOCK;
 }
 
 static void _sim_debug_write (const char *buf, size_t len)

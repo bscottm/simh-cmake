@@ -212,6 +212,15 @@ extern "C" {
 #define CONST const
 #endif
 
+/* Array bound calculation macro. The macro's idiom is used all over the place. */
+#if !defined ARRAY_LIMIT
+#  if defined(__GNUC__)
+#    define ARRAY_LIMIT(x) ({ __typeof__(x) _x = x; sizeof(_x)/sizeof(_x[0])})
+#  else
+#    define ARRAY_LIMIT(x) (sizeof((x))/sizeof((x)[0]))
+#  endif
+#endif
+
 /* Length specific integer declarations */
 
 /* Handle the special/unusual cases first with everything else leveraging stdints.h */
@@ -505,7 +514,7 @@ struct DEVICE {
     UNIT                *units;                         /* units */
     REG                 *registers;                     /* registers */
     MTAB                *modifiers;                     /* modifiers */
-    uint32              numunits;                       /* #units */
+    size_t              numunits;                       /* #units */
     uint32              aradix;                         /* address radix */
     uint32              awidth;                         /* address width */
     uint32              aincr;                          /* addr increment */

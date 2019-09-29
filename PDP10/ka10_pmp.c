@@ -2171,13 +2171,16 @@ pmp_format(UNIT * uptr, int flag) {
         hdr.highcyl = disk_type[type].cyl;
         (void)sim_fseek(uptr->fileref, 0, SEEK_SET);
         sim_fwrite(&hdr, 1, sizeof(struct pmp_header), uptr->fileref);
-        if ((data = (struct pmp_t *)calloc(1, sizeof(struct pmp_t))) == 0)
+        if ((data = (struct pmp_t *)calloc(1, sizeof(struct pmp_t))) == NULL)
             return 1;
         uptr->DATAPTR = (void *)data;
         tsize = hdr.tracksize * hdr.heads;
         data->tsize = hdr.tracksize;
-        if ((data->cbuf = (uint8 *)calloc(tsize, sizeof(uint8))) == 0)
+        if ((data->cbuf = (uint8 *)calloc(tsize, sizeof(uint8))) == NULL) {
+	    uptr->DATAPTR = NULL;
+	    free(data);
             return 1;
+	}
         for (cyl = 0; cyl <= disk_type[type].cyl; cyl++) {
             pos = 0;
             for (hd = 0; hd < disk_type[type].heads; hd++) {

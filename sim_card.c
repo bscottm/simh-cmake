@@ -66,6 +66,20 @@
 #include "sim_card.h"
 #include <ctype.h>
 
+#if !defined MIN
+#if defined(__GNUC__)
+#define MIN(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
+#elif defined(MSVC) && defined(__cplusplus)
+({ decltype(a) _a = (a); decltype(b) _b = (b); \
+   _a < _b ? a : _b })
+#else
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+#endif
+
 #if defined(USE_SIM_CARD)
 
 #define card_ctx up8
@@ -576,9 +590,9 @@ sim_card_eof(UNIT *uptr)
 }
 
 struct _card_buffer {
-    char buffer[8192 + 500]; /* Buffer data */
-    int  len;                /* Amount of data in buffer */
-    int  size;               /* Size of last card read */
+    char   buffer[8192 + 500]; /* Buffer data */
+    size_t len;                /* Amount of data in buffer */
+    size_t size;               /* Size of last card read */
 };
 
 static int
@@ -656,7 +670,7 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
         /* Check for special codes */
         if (buf->buffer[0] == '~') {
             int f = 1;
-            for (col = i = 1; col < 80 && f && i < buf->len; i++) {
+            for (col = i = 1; col < 80 && f && i < MIN(ARRAY_LIMIT(buf->buffer), buf->len); i++) {
                 c = buf->buffer[i];
                 switch (c) {
                 case '\n':
@@ -679,9 +693,9 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
             }
         }
         if (_cmpcard(&buf->buffer[0], "raw")) {
-            int j = 0;
+            size_t j = 0;
             sim_debug(DEBUG_CARD, dptr, "-octal-");
-            for (col = 0, i = 4; col < 80 && i < buf->len; i++) {
+            for (col = 0, i = 4; col < 80 && i < MIN(ARRAY_LIMIT(buf->buffer), buf->len); i++) {
                 if (buf->buffer[i] >= '0' && buf->buffer[i] <= '7') {
                     (*image)[col] = ((*image)[col] << 3) | (buf->buffer[i] - '0');
                     j++;
@@ -832,7 +846,7 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
         buf->buffer[0] &= 0x7f;
 
         /* Convert text line into card image */
-        for (col = 0, i = 0; col < 80 && i < buf->len; i++) {
+        for (col = 0, i = 0; col < 80 && i < MIN(ARRAY_LIMIT(buf->buffer), buf->len); i++) {
             if (buf->buffer[i] & 0x80)
                 break;
             c = buf->buffer[i] & 077;
@@ -848,11 +862,8 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
         }
 
         /* Record over length of card, skip until next */
-        while ((buf->buffer[i] & 0x80) == 0) {
-            if (i > buf->len)
-                break;
+        while (i < MIN(ARRAY_LIMIT(buf->buffer), buf->len) && (buf->buffer[i] & 0x80) == 0)
             i++;
-        }
 
         sim_debug(DEBUG_CARD, dptr, "]\n");
         break;

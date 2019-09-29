@@ -1916,58 +1916,78 @@ else {
 return SCPE_OK;
 }
 
-static t_stat sim_set_rem_connections (int32 flag, CONST char *cptr)
+static t_stat
+sim_set_rem_connections(int32 flag, CONST char *cptr)
 {
-int32 lines;
-REMOTE *rem;
-t_stat r;
-int32 i;
+    int32   lines;
+    REMOTE *rem;
+    t_stat  r;
+    size_t   i;
+    TMLN *m_lines;
+    UNIT *m_units;
+    REMOTE *m_remotes;
+    char *m_cmdbuf;
 
-if (cptr == NULL)
-    return SCPE_ARG;
-lines = (int32) get_uint (cptr, 10, MAX_REMOTE_SESSIONS, &r);
-if (r != SCPE_OK)
-    return r;
-if (sim_rem_con_tmxr.master)
-    return SCPE_ALATT;
-if (sim_rem_con_tmxr.lines) {
-    sim_cancel (rem_con_poll_unit);
-    sim_cancel (rem_con_data_unit);
+    if (cptr == NULL)
+        return SCPE_ARG;
+    lines = (int32)get_uint(cptr, 10, MAX_REMOTE_SESSIONS, &r);
+    if (r != SCPE_OK)
+        return r;
+    if (sim_rem_con_tmxr.master)
+        return SCPE_ALATT;
+
+    if (sim_rem_con_tmxr.lines) {
+        sim_cancel(rem_con_poll_unit);
+        sim_cancel(rem_con_data_unit);
     }
-for (i=0; i<sim_rem_con_tmxr.lines; i++) {
-    rem = &sim_rem_consoles[i];
-    free (rem->buf);
-    free (rem->act_buf);
-    free (rem->act);
-    free (rem->repeat_action);
-    sim_cancel (&rem_con_repeat_units[i]);
-    sim_cancel (&rem_con_smp_smpl_units[i]);
+    for (i = 0; i < sim_rem_con_tmxr.lines; i++) {
+        rem = &sim_rem_consoles[i];
+        free(rem->buf);
+        free(rem->act_buf);
+        free(rem->act);
+        free(rem->repeat_action);
+        sim_cancel(&rem_con_repeat_units[i]);
+        sim_cancel(&rem_con_smp_smpl_units[i]);
     }
-sim_rem_con_tmxr.lines = lines;
-sim_rem_con_tmxr.ldsc = (TMLN *)realloc (sim_rem_con_tmxr.ldsc, sizeof(*sim_rem_con_tmxr.ldsc)*lines);
-memset (sim_rem_con_tmxr.ldsc, 0, sizeof(*sim_rem_con_tmxr.ldsc)*lines);
-sim_remote_console.units = (UNIT *)realloc (sim_remote_console.units, sizeof(*sim_remote_console.units)*((2 * lines) + REM_CON_BASE_UNITS));
-memset (sim_remote_console.units, 0, sizeof(*sim_remote_console.units)*((2 * lines) + REM_CON_BASE_UNITS));
-sim_remote_console.numunits = (2 * lines) + REM_CON_BASE_UNITS;
-rem_con_poll_unit->action = &sim_rem_con_poll_svc;/* remote console connection polling unit */
-rem_con_poll_unit->flags |= UNIT_IDLE;
-rem_con_data_unit->action = &sim_rem_con_data_svc;/* console data handling unit */
-rem_con_data_unit->flags |= UNIT_IDLE|UNIT_DIS;
-sim_rem_consoles = (REMOTE *)realloc (sim_rem_consoles, sizeof(*sim_rem_consoles)*lines);
-memset (sim_rem_consoles, 0, sizeof(*sim_rem_consoles)*lines);
-sim_rem_command_buf = (char *)realloc (sim_rem_command_buf, 4*CBUFSIZE+1);
-memset (sim_rem_command_buf, 0, 4*CBUFSIZE+1);
-for (i=0; i<lines; i++) {
-    rem_con_repeat_units[i].flags = UNIT_DIS;
-    rem_con_repeat_units[i].action = &sim_rem_con_repeat_svc;
-    rem_con_smp_smpl_units[i].flags = UNIT_DIS;
-    rem_con_smp_smpl_units[i].action = &sim_rem_con_smp_collect_svc;
-    rem = &sim_rem_consoles[i];
-    rem->line = i;
-    rem->lp = &sim_rem_con_tmxr.ldsc[i];
-    rem->uptr = &rem_con_repeat_units[i];
+
+    m_lines  = (TMLN *)realloc(sim_rem_con_tmxr.ldsc, sizeof(*sim_rem_con_tmxr.ldsc) * lines);
+    if (m_lines == NULL)
+      return sim_messagef(SCPE_MEM, "sim_set_remote_connections: realloc() m_lines failed.");
+    m_units = (UNIT *)realloc(sim_remote_console.units, sizeof(*sim_remote_console.units) * ((2 * lines) + REM_CON_BASE_UNITS));
+    if (m_units == NULL)
+      return sim_messagef(SCPE_MEM, "sim_set_remote_connections: realloc() m_units failed.");
+    m_remotes = (REMOTE *)realloc(sim_rem_consoles, sizeof(*sim_rem_consoles) * lines);
+    if (m_remotes == NULL)
+      return sim_messagef(SCPE_MEM, "sim_set_remote_connections: realloc() m_remotes failed.");
+    m_cmdbuf = (char *)realloc(sim_rem_command_buf, 4 * CBUFSIZE + 1);
+    if (m_cmdbuf == NULL)
+      return sim_messagef(SCPE_MEM, "sim_set_remote_connections: realloc() m_cmdbuf failed.");
+
+    sim_rem_con_tmxr.lines = lines;
+    sim_rem_con_tmxr.ldsc  = m_lines;
+    memset(sim_rem_con_tmxr.ldsc, 0, sizeof(*sim_rem_con_tmxr.ldsc) * lines);
+    sim_remote_console.units = m_units;
+    memset(sim_remote_console.units, 0, sizeof(*sim_remote_console.units) * ((2 * lines) + REM_CON_BASE_UNITS));
+    sim_remote_console.numunits = (2 * lines) + REM_CON_BASE_UNITS;
+    rem_con_poll_unit->action   = &sim_rem_con_poll_svc; /* remote console connection polling unit */
+    rem_con_poll_unit->flags |= UNIT_IDLE;
+    rem_con_data_unit->action = &sim_rem_con_data_svc; /* console data handling unit */
+    rem_con_data_unit->flags |= UNIT_IDLE | UNIT_DIS;
+    sim_rem_consoles = m_remotes;
+    memset(sim_rem_consoles, 0, sizeof(*sim_rem_consoles) * lines);
+    sim_rem_command_buf = m_cmdbuf;
+    memset(sim_rem_command_buf, 0, 4 * CBUFSIZE + 1);
+    for (i = 0; i < lines; i++) {
+        rem_con_repeat_units[i].flags    = UNIT_DIS;
+        rem_con_repeat_units[i].action   = &sim_rem_con_repeat_svc;
+        rem_con_smp_smpl_units[i].flags  = UNIT_DIS;
+        rem_con_smp_smpl_units[i].action = &sim_rem_con_smp_collect_svc;
+        rem                              = &sim_rem_consoles[i];
+        rem->line                        = i;
+        rem->lp                          = &sim_rem_con_tmxr.ldsc[i];
+        rem->uptr                        = &rem_con_repeat_units[i];
     }
-return SCPE_OK;
+    return SCPE_OK;
 }
 
 static t_stat sim_set_rem_timeout (int32 flag, CONST char *cptr)
@@ -2262,74 +2282,82 @@ return old_deb_switches;
 
 /* Set debug routine */
 
-t_stat sim_set_debon (int32 flag, CONST char *cptr)
+t_stat
+sim_set_debon(int32 flag, CONST char *cptr)
 {
-char gbuf[CBUFSIZE];
-t_stat r;
-time_t now;
-size_t buffer_size = 0;                                 /* squelch GCC warning */
+    char   gbuf[CBUFSIZE];
+    t_stat r;
+    time_t now;
+    size_t buffer_size = 0; /* squelch GCC warning */
 
-if ((cptr == NULL) || (*cptr == 0))                     /* need arg */
-    return SCPE_2FARG;
-if (sim_switches & SWMASK ('B')) {
-    cptr = get_glyph_nc (cptr, gbuf, 0);                /* buffer size */
-    buffer_size = (size_t)strtoul (gbuf, NULL, 10);
-    if ((buffer_size == 0) || (buffer_size > 1024))
-        return sim_messagef (SCPE_ARG, "Invalid debug memory buffersize %u MB\n", (unsigned int)buffer_size);
+    if ((cptr == NULL) || (*cptr == 0)) /* need arg */
+        return SCPE_2FARG;
+    if (sim_switches & SWMASK('B')) {
+        cptr        = get_glyph_nc(cptr, gbuf, 0); /* buffer size */
+        buffer_size = (size_t)strtoul(gbuf, NULL, 10);
+        if ((buffer_size == 0) || (buffer_size > 1024))
+            return sim_messagef(SCPE_ARG, "Invalid debug memory buffersize %u MB\n", (unsigned int)buffer_size);
     }
-cptr = get_glyph_nc (cptr, gbuf, 0);                    /* get file name */
-if (*cptr != 0)                                         /* now eol? */
-    return SCPE_2MARG;
-r = sim_open_logfile (gbuf, FALSE, &sim_deb, &sim_deb_ref);
+    cptr = get_glyph_nc(cptr, gbuf, 0); /* get file name */
+    if (*cptr != 0)                     /* now eol? */
+        return SCPE_2MARG;
+    r = sim_open_logfile(gbuf, FALSE, &sim_deb, &sim_deb_ref);
 
-if (r != SCPE_OK)
-    return r;
+    if (r != SCPE_OK)
+        return r;
 
-sim_set_deb_switches (sim_switches);
+    sim_set_deb_switches(sim_switches);
 
-if (sim_deb_switches & SWMASK ('R')) {
-    struct tm loc_tm, gmt_tm;
-    time_t time_t_now;
+    if (sim_deb_switches & SWMASK('R')) {
+        struct tm loc_tm, gmt_tm;
+        time_t    time_t_now;
 
-    clock_gettime(CLOCK_REALTIME, &sim_deb_basetime);
-    time_t_now = (time_t)sim_deb_basetime.tv_sec;
-    /* Adjust the relative timebase to reflect the localtime GMT offset */
-    loc_tm = *localtime (&time_t_now);
-    gmt_tm = *gmtime (&time_t_now);
-    sim_deb_basetime.tv_sec -= mktime (&gmt_tm) - mktime (&loc_tm);
-    if (!(sim_deb_switches & (SWMASK ('A') | SWMASK ('T'))))
-        sim_deb_switches |= SWMASK ('T');
+        clock_gettime(CLOCK_REALTIME, &sim_deb_basetime);
+        time_t_now = (time_t)sim_deb_basetime.tv_sec;
+        /* Adjust the relative timebase to reflect the localtime GMT offset */
+        loc_tm = *localtime(&time_t_now);
+        gmt_tm = *gmtime(&time_t_now);
+        sim_deb_basetime.tv_sec -= mktime(&gmt_tm) - mktime(&loc_tm);
+        if (!(sim_deb_switches & (SWMASK('A') | SWMASK('T'))))
+            sim_deb_switches |= SWMASK('T');
     }
-sim_messagef (SCPE_OK, "Debug output to \"%s\"\n", sim_logfile_name (sim_deb, sim_deb_ref));
-if (sim_deb_switches & SWMASK ('P'))
-    sim_messagef (SCPE_OK, "   Debug messages contain current PC value\n");
-if (sim_deb_switches & SWMASK ('T'))
-    sim_messagef (SCPE_OK, "   Debug messages display time of day as hh:mm:ss.msec%s\n", sim_deb_switches & SWMASK ('R') ? " relative to the start of debugging" : "");
-if (sim_deb_switches & SWMASK ('A'))
-    sim_messagef (SCPE_OK, "   Debug messages display time of day as seconds.msec%s\n", sim_deb_switches & SWMASK ('R') ? " relative to the start of debugging" : "");
-if (sim_deb_switches & SWMASK ('F'))
-    sim_messagef (SCPE_OK, "   Debug messages will not be filtered to summarize duplicate lines\n");
-if (sim_deb_switches & SWMASK ('E'))
-    sim_messagef (SCPE_OK, "   Debug messages containing blob data in EBCDIC will display in readable form\n");
-if (sim_deb_switches & SWMASK ('B'))
-    sim_messagef (SCPE_OK, "   Debug messages will be written to a %u MB circular memory buffer\n", 
-                                (unsigned int)buffer_size);
-time(&now);
-if (!sim_quiet) {
-    fprintf (sim_deb, "Debug output to \"%s\" at %s", sim_logfile_name (sim_deb, sim_deb_ref), ctime(&now));
-    show_version (sim_deb, NULL, NULL, 0, NULL);
+    sim_messagef(SCPE_OK, "Debug output to \"%s\"\n", sim_logfile_name(sim_deb, sim_deb_ref));
+    if (sim_deb_switches & SWMASK('P'))
+        sim_messagef(SCPE_OK, "   Debug messages contain current PC value\n");
+    if (sim_deb_switches & SWMASK('T'))
+        sim_messagef(SCPE_OK, "   Debug messages display time of day as hh:mm:ss.msec%s\n",
+                     sim_deb_switches & SWMASK('R') ? " relative to the start of debugging" : "");
+    if (sim_deb_switches & SWMASK('A'))
+        sim_messagef(SCPE_OK, "   Debug messages display time of day as seconds.msec%s\n",
+                     sim_deb_switches & SWMASK('R') ? " relative to the start of debugging" : "");
+    if (sim_deb_switches & SWMASK('F'))
+        sim_messagef(SCPE_OK, "   Debug messages will not be filtered to summarize duplicate lines\n");
+    if (sim_deb_switches & SWMASK('E'))
+        sim_messagef(SCPE_OK, "   Debug messages containing blob data in EBCDIC will display in readable form\n");
+    if (sim_deb_switches & SWMASK('B'))
+        sim_messagef(SCPE_OK, "   Debug messages will be written to a %u MB circular memory buffer\n",
+                     (unsigned int)buffer_size);
+    time(&now);
+    if (!sim_quiet) {
+        fprintf(sim_deb, "Debug output to \"%s\" at %s", sim_logfile_name(sim_deb, sim_deb_ref), ctime(&now));
+        show_version(sim_deb, NULL, NULL, 0, NULL);
     }
-if (sim_deb_switches & SWMASK ('N'))
-    sim_deb_switches &= ~SWMASK ('N');          /* Only process the -N flag initially */
+    if (sim_deb_switches & SWMASK('N'))
+        sim_deb_switches &= ~SWMASK('N'); /* Only process the -N flag initially */
 
-if (sim_deb_switches & SWMASK ('B')) {
-    sim_deb_buffer_size = (size_t)(1024 * 1024 * buffer_size);
-    sim_deb_buffer = (char *)realloc (sim_deb_buffer, sim_deb_buffer_size);
-    sim_debug_buffer_offset = sim_debug_buffer_inuse = 0;
-    memset (sim_deb_buffer, 0, sim_deb_buffer_size);
+    if (sim_deb_switches & SWMASK('B')) {
+        char *m_dbgbuf = (char *)realloc(sim_deb_buffer, sim_deb_buffer_size);
+
+        if (m_dbgbuf != NULL) {
+            sim_deb_buffer_size     = (size_t)(1024 * 1024 * buffer_size);
+            sim_deb_buffer          = m_dbgbuf;
+            sim_debug_buffer_offset = sim_debug_buffer_inuse = 0;
+            memset(sim_deb_buffer, 0, sim_deb_buffer_size);
+        } else
+	  return sim_messagef(SCPE_MEM, "sim_set_debon: realloc() failed for circular debug buffer.");
     }
 
-return SCPE_OK;
+    return SCPE_OK;
 }
 
 /* Set nodebug routine */

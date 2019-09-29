@@ -79,6 +79,8 @@ Internal routines:
 #include "sim_disk.h"
 #include "sim_ether.h"
 #include "sim_iso_names.h"
+#include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
 #include <sys/stat.h>
 
@@ -1209,6 +1211,8 @@ uint16 CheckSum1, CheckSum2;
 uint32 ScbLbn;
 t_offset ret_val = (t_offset)-1;
 t_seccnt sects_read;
+ptrdiff_t csum1_bytes = ((char *) &Home.hm1_w_checksum1 - (char *) &Home.hm1_w_ibmapsize) / 2;
+ptrdiff_t csum2_bytes = ((char *) &Home.hm1_w_checksum2 - (char *) &Home.hm1_w_ibmapsize) / 2;
 
 if ((dptr = find_dev_from_unit (uptr)) == NULL)
     return ret_val;
@@ -1218,8 +1222,8 @@ uptr->capac = (t_addr)(temp_capac/(capac_factor*((dptr->flags & DEV_SECTORS) ? 5
 if ((sim_disk_rdsect (uptr, 512 / ctx->sector_size, (uint8 *)&Home, &sects_read, sizeof (Home) / ctx->sector_size)) ||
     (sects_read != (sizeof (Home) / ctx->sector_size)))
     goto Return_Cleanup;
-CheckSum1 = ODSChecksum (&Home, (uint16)((((char *)&Home.hm1_w_checksum1)-((char *)&Home.hm1_w_ibmapsize))/2));
-CheckSum2 = ODSChecksum (&Home, (uint16)((((char *)&Home.hm1_w_checksum2)-((char *)&Home.hm1_w_ibmapsize))/2));
+CheckSum1 = ODSChecksum (&Home, (uint16) csum1_bytes);
+CheckSum2 = ODSChecksum (&Home, (uint16) csum2_bytes);
 if ((Home.hm1_w_ibmapsize == 0) || 
     (Home.hm1_l_ibmaplbn == 0) || 
     (Home.hm1_w_maxfiles == 0) || 
@@ -3481,6 +3485,7 @@ size_t i;
 if (bytesread)
     *bytesread = 0;
 if (!err) {
+    memset(buf, 0, bufsize);
     i = fread (buf, 1, bufsize, File);
     err = ferror (File);
     if ((!err) && bytesread)
@@ -3526,20 +3531,56 @@ return ~sum;
 #define __BYTE_ORDER__ UNKNOWN
 #endif
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-static uint32
+static SIM_INLINE uint32
 NtoHl(uint32 value)
 {
-uint8 *l = (uint8 *)&value;
-return (uint32)l[3] | ((uint32)l[2]<<8) | ((uint32)l[1]<<16) | ((uint32)l[0]<<24);
+#if defined MSVC
+    return _byteswap_ulong(value);
+#elif defined(__GNUC__) && __GNUC__ > 2
+    return __builtin_bswap32(value);
+#else
+    uint8 bdata[sizeof(uint32)];
+    uint8 tmp;
+
+    memcpy(bdata, &data, sizeof(uint32));
+    tmp      = bdata[0];
+    bdata[0] = bdata[3];
+    bdata[3] = tmp;
+    tmp      = bdata[1];
+    bdata[1] = bdata[2];
+    bdata[2] = tmp;
+    memcpy(&data, bdata, sizeof(uint32));
+    return data;
+#endif
 }
 
-static uint64
+static SIM_INLINE uint64
 NtoHll(uint64 value)
 {
-uint8 *l = (uint8 *)&value;
-uint64 highresult = (uint64)l[3] | ((uint64)l[2]<<8) | ((uint64)l[1]<<16) | ((uint64)l[0]<<24);
-uint32 lowresult = (uint64)l[7] | ((uint64)l[6]<<8) | ((uint64)l[5]<<16) | ((uint64)l[4]<<24);
-return (highresult << 32) | lowresult;
+#if defined MSVC
+    return _byteswap_uint64(value);
+#elif defined(__GNUC__) && __GNUC__ > 2
+    return __builtin_bswap64(value);
+#else
+    uint8 bdata[sizeof(uint64)];
+    uint8 tmp;
+
+    memcpy(bdata, &data, sizeof(uint64));
+    tmp      = bdata[0];
+    bdata[0] = bdata[7];
+    bdata[7] = tmp;
+    tmp      = bdata[1];
+    bdata[1] = bdata[6];
+    bdata[6] = tmp;
+    tmp      = bdata[2];
+    bdata[2] = bdata[5];
+    bdata[5] = tmp;
+    tmp      = bdata[3];
+    bdata[3] = bdata[4];
+    bdata[4] = tmp;
+    memcpy(&data, bdata, sizeof(uint64));
+    return data;
+#endif
 }
 #elif  __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 static uint32
@@ -3592,7 +3633,7 @@ FILE *File = NULL;
 uint64 position;
 uint32 sum, saved_sum;
 int Return = 0;
-VHD_Footer sHeader;
+VHD_Footer sHeader = { 0 };
 struct stat statb;
 
 memset(sFooter, '\0', sizeof(*sFooter));
@@ -3878,9 +3919,9 @@ static FILE *sim_vhd_disk_open (const char *szVHDPath, const char *DesiredAccess
     if (Status)
         goto Cleanup_Return;
     if (NtoHl (hVHD->Footer.DiskType) == VHD_DT_Differencing) {
-        uint32 ParentModifiedTimeStamp;
-        VHD_Footer ParentFooter;
-        VHD_DynamicDiskHeader ParentDynamic;
+        uint32 ParentModifiedTimeStamp = 0;
+        VHD_Footer ParentFooter = { 0 };
+        VHD_DynamicDiskHeader ParentDynamic = { 0 };
 
         hVHD->Parent = (VHDHANDLE)sim_vhd_disk_open (hVHD->ParentVHDPath, "rb");
         if (!hVHD->Parent) {
@@ -4434,9 +4475,9 @@ CreateDifferencingVirtualDisk(const char *szVHDPath,
 {
 uint32 BytesPerSector = 512;
 VHDHANDLE hVHD = NULL;
-VHD_Footer ParentFooter;
-VHD_DynamicDiskHeader ParentDynamic;
-uint32 ParentTimeStamp;
+VHD_Footer ParentFooter = { 0 };
+VHD_DynamicDiskHeader ParentDynamic = { 0 };
+uint32 ParentTimeStamp = 0;
 uint32 Status = 0;
 char *RelativeParentVHDPath = NULL;
 char *FullParentVHDPath = NULL;

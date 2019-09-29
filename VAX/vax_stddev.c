@@ -620,20 +620,6 @@ const char *clk_description (DEVICE *dptr)
 return "time of year clock";
 }
 
-static uint32 sim_byteswap32 (uint32 data)
-{
-uint8 *bdata = (uint8 *)&data;
-uint8 tmp;
-
-tmp = bdata[0];
-bdata[0] = bdata[3];
-bdata[3] = tmp;
-tmp = bdata[1];
-bdata[1] = bdata[2];
-bdata[2] = tmp;
-return data;
-}
-
 /* CLK attach */
 
 t_stat clk_attach (UNIT *uptr, CONST char *cptr)

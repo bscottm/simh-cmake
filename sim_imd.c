@@ -339,33 +339,36 @@ t_stat diskClose(DISK_INFO **myDisk)
  *
  * If the IMD file already exists, the user will be given the option of overwriting it.
  */
-t_stat diskCreate(FILE *fileref, const char *ctlr_comment)
+t_stat
+diskCreate(FILE *fileref, const char *ctlr_comment)
 {
     DISK_INFO *myDisk = NULL;
-    char *comment;
-    char *curptr;
-    char *result;
-    uint8 answer;
-    int32 len, remaining;
+    char *     comment;
+    char *     curptr;
+    char *     result;
+    uint8      answer;
+    int32      len, remaining;
 
-    if(fileref == NULL) {
+    if (fileref == NULL) {
         return (SCPE_OPENERR);
     }
 
-    if(sim_fsize(fileref) != 0) {
+    if (sim_fsize(fileref) != 0) {
         sim_printf("SIM_IMD: Disk image already has data, do you want to overwrite it? ");
         answer = getchar();
 
-        if((answer != 'y') && (answer != 'Y')) {
+        if ((answer != 'y') && (answer != 'Y')) {
             return (SCPE_OPENERR);
         }
     }
 
-    if((curptr = comment = (char *)calloc(1, MAX_COMMENT_LEN)) == 0) {
-        sim_printf("Memory allocation failure.\n");
+    comment = (char *)calloc(1, MAX_COMMENT_LEN);
+    if (comment == NULL) {
+        sim_printf("Memory allocation failure for comment.\n");
         return (SCPE_MEM);
     }
 
+    curptr = comment;
     sim_printf("SIM_IMD: Enter a comment for this disk.\n"
                "SIM_IMD: Terminate with a '.' on an otherwise blank line.\n");
     remaining = MAX_COMMENT_LEN;
@@ -390,9 +393,9 @@ t_stat diskCreate(FILE *fileref, const char *ctlr_comment)
     rewind(fileref);
 
     /* Erase the contents of the IMD file in case we are overwriting an existing image. */
-    if (sim_set_fsize(fileref, (t_addr)ftell (fileref)) == -1) {
+    if (sim_set_fsize(fileref, (t_addr)ftell(fileref)) == -1) {
         sim_printf("SIM_IMD: Error overwriting disk image.\n");
-        return(SCPE_OPENERR);
+        return (SCPE_OPENERR);
     }
 
     fprintf(fileref, "IMD SIMH %s %s\n", __DATE__, __TIME__);
@@ -403,18 +406,17 @@ t_stat diskCreate(FILE *fileref, const char *ctlr_comment)
     fputc(0x1A, fileref); /* EOF marker for IMD comment. */
     fflush(fileref);
 
-    if((myDisk = diskOpen(fileref, 0)) == NULL) {
+    if ((myDisk = diskOpen(fileref, 0)) == NULL) {
         sim_printf("SIM_IMD: Error opening disk for format.\n");
-        return(SCPE_OPENERR);
+        return (SCPE_OPENERR);
     }
 
-    if(diskFormat(myDisk) != SCPE_OK) {
+    if (diskFormat(myDisk) != SCPE_OK) {
         sim_printf("SIM_IMD: error formatting disk.\n");
     }
 
     return diskClose(&myDisk);
 }
-
 
 static t_stat diskFormat(DISK_INFO *myDisk)
 {

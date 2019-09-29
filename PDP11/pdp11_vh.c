@@ -809,7 +809,7 @@ static int32 fifo_get ( int32   vh  )
             if (lp->lnctrl & LNCTRL_FORCE_XOFF)
                 continue;
             if (vh_stall[vh] & (1 << i)) {
-                vh_putc (vh, NULL, i, XON);
+                vh_putc (vh, lp, i, XON);
                 vh_stall[vh] &= ~(1 << i);
             }
         }

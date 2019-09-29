@@ -34,6 +34,20 @@
 #include "sigma_io_defs.h"
 #include <math.h>
 
+#if !defined MIN
+#if defined(__GNUC__)
+#define MIN(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
+#elif defined(MSVC) && defined(__cplusplus)
+({ decltype(a) _a = (a); decltype(b) _b = (b); \
+   _a < _b ? a : _b })
+#else
+#define MIN(a,b) ((a) < (b) ? a : b)
+#endif
+#endif
+
 /* Constants */
 
 #define RAD_7212        0                               /* ctlr type */
@@ -306,7 +320,7 @@ switch (rad_cmd) {
         c[1] = rad_ad & 0xFF;                           /* address */
         c[2] = GET_PSC (rad_time);                      /* curr sector */
         c[3] = 0;
-        for (i = 0, st = 0; (i < rad_tab[rad_model].nbys) && (st != CHS_ZBC); i++) {
+        for (i = 0, st = 0; (i < MIN(rad_tab[rad_model].nbys, ARRAY_LIMIT(c))) && (st != CHS_ZBC); i++) {
             st = chan_WrMemB (rad_dib.dva, c[i]);       /* store char */
             if (CHS_IFERR (st))                         /* channel error? */
                 return rad_chan_err (st);

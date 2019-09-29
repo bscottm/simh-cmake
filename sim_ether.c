@@ -751,10 +751,18 @@ static ETH_DEV **eth_open_devices = NULL;
 static int eth_open_device_count = 0;
 
 #if defined (USE_NETWORK) || defined (USE_SHARED)
-static void _eth_add_to_open_list (ETH_DEV* dev)
+static void
+_eth_add_to_open_list(ETH_DEV *dev)
 {
-eth_open_devices = (ETH_DEV**)realloc(eth_open_devices, (eth_open_device_count+1)*sizeof(*eth_open_devices));
-eth_open_devices[eth_open_device_count++] = dev;
+    ETH_DEV *eth_devs;
+
+    eth_devs = (ETH_DEV **)realloc(eth_open_devices, (eth_open_device_count + 1) * sizeof(*eth_open_devices));
+    if (eth_devs != NULL) {
+	eth_open_devices = eth_devs;
+	eth_open_devices[eth_open_device_count++] = dev;
+    } else {
+      sim_messagef(SCPE_MEM, "_eth_add_to_open_list: realloc() on eth_open_devices failed, new device not added.");
+    }
 }
 
 static void _eth_remove_from_open_list (ETH_DEV* dev)
@@ -3042,10 +3050,11 @@ while (size > 1) {
 }
 if (size) {
   uint16 endword;
-  uint8 *endbytes = (uint8 *)&endword;
+  uint8 *endbytes[sizeof(uint16)]; /* = (uint8 *)&endword; */
 
   endbytes[0] = *((uint8 *)buffer);
   endbytes[1] = 0;
+  memcpy(&endword, endbytes, sizeof(uint16));
   cksum += endword;
   }
 

@@ -4269,7 +4269,10 @@ rec = (TAPE_RECORD *)malloc (sizeof (*rec) + size);
 if (rec == NULL)
     return TRUE;                    /* no memory error */
 rec->size = size;
-memcpy (rec->data, block, size);
+if (block != NULL) {
+  /* EOF mark passes NULL block here. memcpy src=NULL is undefined behavior */
+  memcpy (rec->data, block, size);
+}
 tape->records[tape->record_count++] = rec;
 return FALSE;
 }
@@ -4376,10 +4379,10 @@ char file_sequence[5];
 int block_count = 0;
 char block_count_string[17];
 int error = FALSE;
-HDR1 hdr1;
-HDR2 hdr2;
-HDR3 hdr3;
-HDR4 hdr4;
+HDR1 hdr1 = { 0 };
+HDR2 hdr2 = { 0 };
+HDR3 hdr3 = { 0 };
+HDR4 hdr4 = { 0 };
 
 f = fopen (filename, "rb");
 if (f == NULL) {

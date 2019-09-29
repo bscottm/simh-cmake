@@ -734,8 +734,10 @@ if (tptr == NULL)
 strcpy(tptr, cptr);
 
 xs->var->etherface = (ETH_DEV *) malloc(sizeof(ETH_DEV));
-if (!xs->var->etherface)
+if (!xs->var->etherface) {
+    free(tptr);
     return SCPE_MEM;
+}
 
 status = eth_open(xs->var->etherface, cptr, xs->dev, DBG_ETH);
 if (status != SCPE_OK) {

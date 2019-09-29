@@ -51,6 +51,11 @@
 #include "sim_defs.h"
 #include <setjmp.h>
 
+#if defined(_WIN32)
+/* For _byteswap_* */
+#include <stdlib.h>
+#endif
+
 /* Stops and aborts */
 
 #define STOP_HALT       1                               /* halt */
@@ -1041,5 +1046,29 @@ extern int32 int_req[IPL_HLVL];                         /* intr, IPL 14-17 */
 extern uint32 *M;                                       /* Memory */
 extern DEVICE cpu_dev;                                  /* CPU */
 extern UNIT cpu_unit;                                   /* CPU */
+
+#if defined MSVC
+#define sim_byteswap32 _byteswap_ulong
+#elif defined(__GNUC__) && __GNUC__ > 2
+#define sim_byteswap32 __builtin_bswap32
+#else
+/* Default implementation: */
+static SIM_INLINE uint32
+sim_byteswap32(uint32 data)
+{
+    uint8  bdata[sizeof(uint32)];
+    uint8  tmp;
+
+    memcpy(bdata, &data, sizeof(uint32));
+    tmp      = bdata[0];
+    bdata[0] = bdata[3];
+    bdata[3] = tmp;
+    tmp      = bdata[1];
+    bdata[1] = bdata[2];
+    bdata[2] = tmp;
+    memcpy(&data, bdata, sizeof(uint32));
+    return data;
+}
+#endif
 
 #endif                                                  /* _VAX_DEFS_H */
