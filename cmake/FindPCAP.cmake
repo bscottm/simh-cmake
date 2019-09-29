@@ -23,11 +23,17 @@ find_path(PCAP_INCLUDE_DIR pcap.h
 	PATHS ${PCAP_PATH}
         )
 
+if (CMAKE_SIZEOF_VOID_P EQUAL 8)
+  set(LIB_PATH_SUFFIXES lib64 lib/x64 lib/amd64 lib/x86_64-linux-gnu lib)
+else ()
+  set(LIB_PATH_SUFFIXES lib/x86 lib)
+endif ()
+
 find_library(PCAP_LIBRARY
         NAMES pcap pcap_static libpcap libpcap_static
         HINTS
 	  ENV PCAP_DIR
-	PATH_SUFFIXES lib
+	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
         PATHS ${PCAP_PATH}
         )
 
