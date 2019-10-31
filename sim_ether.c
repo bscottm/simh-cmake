@@ -754,7 +754,7 @@ static int eth_open_device_count = 0;
 static void
 _eth_add_to_open_list(ETH_DEV *dev)
 {
-    ETH_DEV *eth_devs;
+    ETH_DEV **eth_devs;
 
     eth_devs = (ETH_DEV **)realloc(eth_open_devices, (eth_open_device_count + 1) * sizeof(*eth_open_devices));
     if (eth_devs != NULL) {
@@ -3050,7 +3050,7 @@ while (size > 1) {
 }
 if (size) {
   uint16 endword;
-  uint8 *endbytes[sizeof(uint16)]; /* = (uint8 *)&endword; */
+  uint8  endbytes[sizeof(uint16)]; /* = (uint8 *)&endword; */
 
   endbytes[0] = *((uint8 *)buffer);
   endbytes[1] = 0;

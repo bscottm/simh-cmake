@@ -375,7 +375,7 @@ extern size_t sim_debug_buffer_offset;                  /* debug memory buffer i
 extern size_t sim_debug_buffer_inuse;                   /* debug memory buffer inuse count */
 extern struct timespec sim_deb_basetime;                /* debug base time for relative time output */
 extern DEVICE **sim_internal_devices;
-extern uint32 sim_internal_device_count;
+extern size_t sim_internal_device_count;
 extern UNIT *sim_clock_queue;
 extern volatile t_bool sim_is_running;
 extern t_bool sim_processing_event;                     /* Called from sim_process_event */

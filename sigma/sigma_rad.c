@@ -320,7 +320,7 @@ switch (rad_cmd) {
         c[1] = rad_ad & 0xFF;                           /* address */
         c[2] = GET_PSC (rad_time);                      /* curr sector */
         c[3] = 0;
-        for (i = 0, st = 0; (i < MIN(rad_tab[rad_model].nbys, ARRAY_LIMIT(c))) && (st != CHS_ZBC); i++) {
+        for (i = 0, st = 0; (i < MIN(rad_tab[rad_model].nbys, ARRAY_SIZE(c))) && (st != CHS_ZBC); i++) {
             st = chan_WrMemB (rad_dib.dva, c[i]);       /* store char */
             if (CHS_IFERR (st))                         /* channel error? */
                 return rad_chan_err (st);
