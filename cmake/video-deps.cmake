@@ -61,7 +61,7 @@ if (WITH_VIDEO)
 
 	list(APPEND SIMH_BUILD_DEPS "freetype")
 	message(STATUS "Building Freetype from github repository.")
-	set(VIDEO_PKG_STATUS "F${VIDEO_PKG_STATUS}, Freetype source build")
+	set(VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}, Freetype source build")
     endif (FREETYPE_FOUND)
 
     find_package(SDL2 CONFIG)

@@ -46,6 +46,7 @@ function(build_simcore _targ)
     # Components that need to be turned on while building the library, but
     # don't export out to the dependencies (hence PRIVATE.)
     target_compile_definitions(${_targ} PRIVATE USE_SIM_CARD USE_SIM_IMD)
+    target_compile_options(${_targ} PRIVATE ${EXTRA_CFLAGS})
 
     if (DEFINED SIMH_DEFINES)
         target_compile_definitions(${_targ} PUBLIC ${SIMH_DEFINES})
@@ -94,6 +95,7 @@ function (add_simulator _targ)
     endif (NOT DEFINED SIMH_SOURCES)
 
     add_executable("${_targ}" "${SIMH_SOURCES}")
+    target_compile_options(${_targ} PRIVATE ${EXTRA_CFLAGS})
 
     if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 	target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)

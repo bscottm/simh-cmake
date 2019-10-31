@@ -33,12 +33,16 @@ option(WITH_VIDEO
        "Enable (=1)/disable (=0) simulator display and graphics support (def: enabled)"
        TRUE)
 option(WITH_ASYNC
-       "Enable (=1)/disable (=0) simulator asynchronous I/O (def: enabled)" TRUE)
+       "Enable (=1)/disable (=0) simulator asynchronous I/O (def: enabled)"
+       TRUE)
 option(PANDA_LIGHTS
        "Enable (=1)/disable (=0) KA-10/KI-11 simulator's Panda display. (def: disabled)"
        FALSE)
 option(DONT_USE_ROMS
        "Enable (=1)/disable (=0) building support ROMs. (def: disabled)"
+       FALSE)
+option(ENABLE_CPPCHECK
+       "Enable (=1)/disable (=0) 'cppcheck' static code analysis. (def: disabled.)"
        FALSE)
 
 # For 64-bit builds (and this is especially true for MSVC), set the library
@@ -117,17 +121,13 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 endif (WIN32)
 
 # Tweak GNU's flags
+set(EXTRA_CFLAGS "")
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
-  include(fpintrin)
-  if (NOT "${CMAKE_C_FLAGS_RELEASE}" MATCHES ".*fno-signed-overflow.*")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -fno-strict-overflow")
-  endif()
-  if (NOT "${CMAKE_C_FLAGS_RELEASE}" MATCHES ".*Wall.*")
-    string(REPLACE ";" " " EXTRA_CFLAGS "${EXTRA_CFLAGS}")
-    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -Wall ${EXTRA_CFLAGS}"
-	CACHE STRING "Flags used by the C compiler during RELEASE builds."
-	FORCE)
-  endif ()
+    include(fpintrin)
+    # Turn on warnings about strict overflow/potential overflows.
+    if (NOT DEFINED CMAKE_BUILD_TYPE OR ${CMAKE_BUILD_TYPE} STREQUAL "Release")
+        LIST(APPEND EXTRA_CFLAGS "-Wall" "-fstrict-overflow" "-Wstrict-overflow=3")
+    endif ()
 endif (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 
 # Find packages, arrange for dependency download/compile/install:
@@ -165,6 +165,28 @@ else (WITH_NETWORK)
     set(NETWORK_PKG_STATUS "skipped")
 endif (WITH_NETWORK)
 
+set(CPPCHECK_STATUS "disabled.")
+if (ENABLE_CPPCHECK)
+    find_program(CMAKE_C_CPPCHECK NAMES cppcheck)
+    if (CMAKE_C_CPPCHECK)
+        list(APPEND CMAKE_C_CPPCHECK
+            "--enable=warning,style,performance,portability,information,missingInclude"
+             "--std=c99")
+        set(CPPCHECK_STATUS "enabled.")
+        if (WIN32)
+            if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+                list(APPEND CMAKE_C_CPPCHECK
+                     "--platform=win64")
+                set(CPPCHECK_STATUS "enabled, Win64 platform.")
+            else ()
+                list(APPEND CMAKE_C_CPPCHECK
+                     "--platform=win32A")
+                set(CPPCHECK_STATUS "enabled, Win32 ASCII platform.")
+            endif ()
+        endif ()
+    endif ()
+endif ()
+
 message(STATUS "")
 message(STATUS "Libraries and features:")
 message(STATUS "  Thread support .................. ${THREADING_PKG_STATUS}")
@@ -183,6 +205,7 @@ else ()
     set(ROM_STATUS "Yes")
 endif ()
 message(STATUS "  Build internal ROMS .......... ${ROM_STATUS}")
+message(STATUS "  'cppcheck' ................... ${CPPCHECK_STATUS}")
 message(STATUS "")
 
 unset(ROM_STATUS)
