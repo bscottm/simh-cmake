@@ -2,9 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="isys8030"
-	ProjectGUID="{4980F98D-7887-4272-B156-8E7C8AAA4F50}"
-	RootNamespace="isys8030"
+	Name="imds-230"
+	ProjectGUID="{C81A7EA9-8043-45F9-AFBB-578A6DB98174}"
+	RootNamespace="imds-230"
 	Keyword="Win32Proj"
 	TargetFrameworkVersion="131072"
 	>
@@ -40,9 +40,10 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="../Intel-Systems/isys8030/;./;../;../slirp;../slirp_glue;../slirp_glue/qemu;../slirp_glue/qemu/win32/include;../../windows-build/include;;../../windows-build/include/SDL2"
+				AdditionalIncludeDirectories="../Intel-Systems/imds-230/;./;../;../slirp;../slirp_glue;../slirp_glue/qemu;../slirp_glue/qemu/win32/include;../../windows-build/include;;../../windows-build/include/SDL2"
 				PreprocessorDefinitions="_CRT_NONSTDC_NO_WARNINGS;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;SIM_NEED_GIT_COMMIT_ID;HAVE_PCREPOSIX_H;PCRE_STATIC"
 				KeepComments="false"
+				MinimalRebuild="true"
 				BasicRuntimeChecks="0"
 				RuntimeLibrary="1"
 				UsePrecompiledHeader="0"
@@ -93,8 +94,6 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				Description="Running Available Tests"
-				CommandLine="Post-Build-Event.cmd Intel-Systems\isys8030 &quot;$(TargetDir)$(TargetName).exe&quot;"
 			/>
 		</Configuration>
 		<Configuration
@@ -124,7 +123,7 @@
 				InlineFunctionExpansion="1"
 				OmitFramePointers="true"
 				WholeProgramOptimization="true"
-				AdditionalIncludeDirectories="../Intel-Systems/isys8030/;./;../;../slirp;../slirp_glue;../slirp_glue/qemu;../slirp_glue/qemu/win32/include;../../windows-build/include;;../../windows-build/include/SDL2"
+				AdditionalIncludeDirectories="../Intel-Systems/imds-230/;./;../;../slirp;../slirp_glue;../slirp_glue/qemu;../slirp_glue/qemu/win32/include;../../windows-build/include;;../../windows-build/include/SDL2"
 				PreprocessorDefinitions="_CRT_NONSTDC_NO_WARNINGS;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;SIM_NEED_GIT_COMMIT_ID;HAVE_PCREPOSIX_H;PCRE_STATIC"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -179,8 +178,6 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
-				Description="Running Available Tests"
-				CommandLine="Post-Build-Event.cmd Intel-Systems\isys8030 &quot;$(TargetDir)$(TargetName).exe&quot;"
 			/>
 		</Configuration>
 	</Configurations>
@@ -216,6 +213,26 @@
 				>
 			</File>
 			<File
+				RelativePath="..\Intel-Systems\imds-230\imds-230_sys.c"
+				>
+			</File>
+			<File
+				RelativePath="..\Intel-Systems\common\ioc-cont.c"
+				>
+			</File>
+			<File
+				RelativePath="..\Intel-Systems\common\ipb.c"
+				>
+			</File>
+			<File
+				RelativePath="..\Intel-Systems\common\ipbmultibus.c"
+				>
+			</File>
+			<File
+				RelativePath="..\Intel-Systems\common\ipc-cont.c"
+				>
+			</File>
+			<File
 				RelativePath="..\Intel-Systems\common\iram8.c"
 				>
 			</File>
@@ -241,18 +258,6 @@
 			</File>
 			<File
 				RelativePath="..\Intel-Systems\common\isbc464.c"
-				>
-			</File>
-			<File
-				RelativePath="..\Intel-Systems\isys8030\isbc8030.c"
-				>
-			</File>
-			<File
-				RelativePath="..\Intel-Systems\isys8030\isys8030_sys.c"
-				>
-			</File>
-			<File
-				RelativePath="..\Intel-Systems\common\multibus.c"
 				>
 			</File>
 			<File
@@ -361,7 +366,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\Intel-Systems\isys8030\system_defs.h"
+				RelativePath="..\Intel-Systems\imds-230\system_defs.h"
 				>
 			</File>
 		</Filter>
