@@ -85,21 +85,23 @@ add_simulator(isys8030
 
 add_simulator(imds-225
     SOURCES
-	common/i8080.c
-	imds-225/imds-225_sys.c
-	common/i8251.c
-	common/i8255.c
-	common/i8259.c
-	common/i8253.c
-	common/ieprom.c
-	common/iram8.c
-	common/ipcmultibus.c
-	imds-225/ipc.c
-	common/ipc-cont.c
-	common/ioc-cont.c
-	common/isbc202.c
-	common/isbc201.c
-	common/zx200a.c
+        common/i8080.c
+        imds-225/imds-225_sys.c
+        common/i8251.c
+        common/i8255.c
+        common/i8259.c
+        common/i8253.c
+        common/ieprom.c
+        common/iram8.c
+        common/ipcmultibus.c
+        common/ipc.c
+        common/ipc-cont.c
+        common/ioc-cont.c
+        common/isbc202.c
+        common/isbc201.c
+        common/zx200a.c
+        common/isbc464.c
+        common/isbc206.c
     INCLUDES
 	${CMAKE_SOURCE_DIR}/Intel-Systems/imds-225
     BUILDROMS)
