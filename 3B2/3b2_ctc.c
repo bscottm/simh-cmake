@@ -266,7 +266,7 @@ static void ctc_cmd(uint8 cid,
      * potentially unintialized variables. */
     uint32 maxpass = 1, blkno, delay, last_byte;
     uint8  dev, c;
-    uint8  sec_buf[512];
+    uint8  sec_buf[VTOC_SECSZ];
     int32  b, i, j;
     int32 block_count, read_bytes, remainder, dest;
     t_seccnt secrw = 0;
@@ -501,9 +501,9 @@ static void ctc_cmd(uint8 cid,
 
         for (b = 0; b < rqe->byte_count / VTOC_SECSZ; b++) {
             ctc_state[dev].time += 10;
-            for (j = 0; j < 512; j++) {
+            for (j = 0; j < VTOC_SECSZ; j++) {
                 /* Fill the buffer */
-                sec_buf[j] = pread_b(rqe->address + (b * 512) + j);
+                sec_buf[j] = pread_b(rqe->address + (b * VTOC_SECSZ) + j);
             }
             lba = blkno + b;
             result = sim_disk_wrsect(&ctc_unit, lba, sec_buf, &secrw, 1);
