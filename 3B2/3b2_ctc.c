@@ -499,7 +499,7 @@ static void ctc_cmd(uint8 cid,
 
         blkno = ATOW(rapp_data, 0);
 
-        for (b = 0; b < rqe->byte_count / 512; b++) {
+        for (b = 0; b < rqe->byte_count / VTOC_SECSZ; b++) {
             ctc_state[dev].time += 10;
             for (j = 0; j < 512; j++) {
                 /* Fill the buffer */
@@ -561,13 +561,13 @@ static void ctc_cmd(uint8 cid,
          * to be read, and use that to figure out how many bytes will
          * be left over to read from an "extra" block */
         last_byte = ctc_state[dev].bytnum + rqe->byte_count;
-        remainder = last_byte % 512;
+        remainder = last_byte % VTOC_SECSZ;
 
         /* The number of blocks we have to read in total is computed
          * by looking at the byte count, PLUS any remainder that will
          * be left after crossing a block boundary */
-        block_count = rqe->byte_count / 512;
-        if (((rqe->byte_count % 512) > 0 || remainder > 0)) {
+        block_count = rqe->byte_count / VTOC_SECSZ;
+        if (((rqe->byte_count % VTOC_SECSZ) > 0 || remainder > 0)) {
             block_count++;
         }
 
@@ -577,7 +577,7 @@ static void ctc_cmd(uint8 cid,
             uint32 start_byte;
             /* Add some read time to the read time counter */
             ctc_state[dev].time += 10;
-            start_byte = ctc_state[dev].bytnum % 512;
+            start_byte = ctc_state[dev].bytnum % VTOC_SECSZ;
             lba = blkno + b;
             result = sim_disk_rdsect(&ctc_unit, lba, sec_buf, &secrw, 1);
             if (result == SCPE_OK) {
@@ -587,12 +587,14 @@ static void ctc_cmd(uint8 cid,
                 if (b == (block_count - 1) && remainder > 0) {
                     read_bytes = remainder;
                 } else {
-                    read_bytes = 512 - start_byte;
+                    read_bytes = VTOC_SECSZ - start_byte;
                 }
                 for (j = 0; j < read_bytes; j++) {
                     uint32 offset;
                     /* Drain the buffer */
-                    if (b == 0 && start_byte != 0) {
+                    if (b == 0 &&
+                        start_byte > 0 &&
+                        (j + start_byte) < VTOC_SECSZ) {
                         /* This is a partial read of the first block,
                          * continuing to read from a previous partial
                          * block read. */
@@ -785,7 +787,7 @@ t_stat ctc_svc(UNIT *uptr)
 
 t_stat ctc_attach(UNIT *uptr, CONST char *cptr)
 {
-    return sim_disk_attach(uptr, cptr, 512, 1, TRUE, 0, "CIPHER23", 0, 0);
+    return sim_disk_attach(uptr, cptr, VTOC_SECSZ, 1, TRUE, 0, "CIPHER23", 0, 0);
 }
 
 t_stat ctc_detach(UNIT *uptr)
