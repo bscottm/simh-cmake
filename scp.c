@@ -2910,7 +2910,7 @@ if (dptr->registers)
         if (rptr->flags & REG_HIDDEN)
             continue;
         if (rptr->depth > 1)
-            sprintf (rangebuf, "[%d:%d]", 0, rptr->depth-1);
+            sprintf (rangebuf, "[0:%u]", rptr->depth-1);
         else
             strcpy (rangebuf, "");
         if (max_namelen < (strlen(rptr->name) + strlen (rangebuf)))
@@ -2933,7 +2933,7 @@ else {
         if (rptr->depth <= 1)
             sprintf (namebuf, "%*s", -((int)max_namelen), rptr->name);
         else {
-            sprintf (rangebuf, "[%d:%d]", 0, rptr->depth-1);
+            sprintf (rangebuf, "[0:%u]", rptr->depth-1);
             sprintf (namebuf, "%s%*s", rptr->name, (int)(strlen(rptr->name))-((int)max_namelen), rangebuf);
             }
         if (all_unique) {
@@ -5762,210 +5762,219 @@ fprintf (st, "%s", sprint_capac (dptr, uptr));
 
 /* Show <global name> processors  */
 
-t_stat show_version (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, CONST char *cptr)
+t_stat
+show_version(FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, CONST char *cptr)
 {
-int32 vmaj = SIM_MAJOR, vmin = SIM_MINOR, vpat = SIM_PATCH, vdelt = SIM_DELTA;
-char vmaj_s[12], vmin_s[12], vpat_s[12], vdelt_s[12];
-const char *cpp = "";
-const char *build = "";
-const char *arch = "";
+    int32       vmaj = SIM_MAJOR, vmin = SIM_MINOR, vpat = SIM_PATCH;
+    char        vmaj_s[12], vmin_s[12], vpat_s[12];
+    const char *cpp   = "";
+    const char *build = "";
+    const char *arch  = "";
+#if SIM_DELTA > 0
+    char vdelt_s[12];
+#endif
 
-if (cptr && (*cptr != 0))
-    return SCPE_2MARG;
-sprintf (vmaj_s, "%d", vmaj);
-setenv ("SIM_MAJOR", vmaj_s, 1);
-sprintf (vmin_s, "%d", vmin);
-setenv ("SIM_MINOR", vmin_s, 1);
-sprintf (vpat_s, "%d", vpat);
-setenv ("SIM_PATCH", vpat_s, 1);
-fprintf (st, "%s simulator V%d.%d-%d", sim_name, vmaj, vmin, vpat);
-if (vdelt) {
-    sprintf (vdelt_s, "%d", vdelt);
-    setenv ("SIM_DELTA", vdelt_s, 1);
-    fprintf (st, " delta %d", vdelt);
-    }
-#if defined (SIM_VERSION_MODE)
-fprintf (st, " %s", SIM_VERSION_MODE);
-setenv ("SIM_VERSION_MODE", SIM_VERSION_MODE, 1);
+    if (cptr && (*cptr != 0))
+        return SCPE_2MARG;
+    sprintf(vmaj_s, "%d", vmaj);
+    setenv("SIM_MAJOR", vmaj_s, 1);
+    sprintf(vmin_s, "%d", vmin);
+    setenv("SIM_MINOR", vmin_s, 1);
+    sprintf(vpat_s, "%d", vpat);
+    setenv("SIM_PATCH", vpat_s, 1);
+    fprintf(st, "%s simulator V%d.%d-%d", sim_name, vmaj, vmin, vpat);
+#if SIM_DELTA > 0
+    sprintf(vdelt_s, "%d", vdelt);
+    setenv("SIM_DELTA", vdelt_s, 1);
+    fprintf(st, " delta %d", vdelt);
 #endif
-if (flag) {
-    t_bool idle_capable;
-    uint32 os_ms_sleep_1, os_tick_size;
-    char os_type[128] = "Unknown";
+#if defined(SIM_VERSION_MODE)
+    fprintf(st, " %s", SIM_VERSION_MODE);
+    setenv("SIM_VERSION_MODE", SIM_VERSION_MODE, 1);
+#endif
+    if (flag) {
+        t_bool idle_capable;
+        uint32 os_ms_sleep_1, os_tick_size;
+        char   os_type[128] = "Unknown";
 
-    fprintf (st, "\n    Simulator Framework Capabilities:");
-    fprintf (st, "\n        %s", sim_si64);
-    fprintf (st, "\n        %s", sim_sa64);
-    fprintf (st, "\n        %s", eth_capabilities());
-    idle_capable = sim_timer_idle_capable (&os_ms_sleep_1, &os_tick_size);
-    fprintf (st, "\n        Idle/Throttling support is %savailable", idle_capable ? "" : "NOT ");
-    if (sim_disk_vhd_support())
-        fprintf (st, "\n        Virtual Hard Disk (VHD) support");
-    if (sim_disk_raw_support())
-        fprintf (st, "\n        RAW disk and CD/DVD ROM support");
-#if defined (SIM_ASYNCH_IO)
-    fprintf (st, "\n        Asynchronous I/O support (%s)", AIO_QUEUE_MODE);
+        fprintf(st, "\n    Simulator Framework Capabilities:");
+        fprintf(st, "\n        %s", sim_si64);
+        fprintf(st, "\n        %s", sim_sa64);
+        fprintf(st, "\n        %s", eth_capabilities());
+        idle_capable = sim_timer_idle_capable(&os_ms_sleep_1, &os_tick_size);
+        fprintf(st, "\n        Idle/Throttling support is %savailable", idle_capable ? "" : "NOT ");
+        if (sim_disk_vhd_support())
+            fprintf(st, "\n        Virtual Hard Disk (VHD) support");
+        if (sim_disk_raw_support())
+            fprintf(st, "\n        RAW disk and CD/DVD ROM support");
+#if defined(SIM_ASYNCH_IO)
+        fprintf(st, "\n        Asynchronous I/O support (%s)", AIO_QUEUE_MODE);
 #endif
-#if defined (SIM_ASYNCH_MUX)
-    fprintf (st, "\n        Asynchronous Multiplexer support");
+#if defined(SIM_ASYNCH_MUX)
+        fprintf(st, "\n        Asynchronous Multiplexer support");
 #endif
-#if defined (SIM_ASYNCH_CLOCKS)
-    fprintf (st, "\n        Asynchronous Clock support");
+#if defined(SIM_ASYNCH_CLOCKS)
+        fprintf(st, "\n        Asynchronous Clock support");
 #endif
-#if defined (SIM_FRONTPANEL_VERSION)
-    fprintf (st, "\n        FrontPanel API Version %d", SIM_FRONTPANEL_VERSION);
+#if defined(SIM_FRONTPANEL_VERSION)
+        fprintf(st, "\n        FrontPanel API Version %d", SIM_FRONTPANEL_VERSION);
 #endif
-    fprintf (st, "\n    Host Platform:");
-#if defined (__GNUC__) && defined (__VERSION__)
-    fprintf (st, "\n        Compiler: GCC %s", __VERSION__);
-#elif defined (__clang_version__)
-    fprintf (st, "\n        Compiler: clang %s", __clang_version__);
-#elif defined (_MSC_FULL_VER) && defined (_MSC_BUILD)
-    fprintf (st, "\n        Compiler: Microsoft Visual C++ %d.%02d.%05d.%02d", _MSC_FULL_VER/10000000, (_MSC_FULL_VER/100000)%100, _MSC_FULL_VER%100000, _MSC_BUILD);
+        fprintf(st, "\n    Host Platform:");
+#if defined(__GNUC__) && defined(__VERSION__)
+        fprintf(st, "\n        Compiler: GCC %s", __VERSION__);
+#elif defined(__clang_version__)
+        fprintf(st, "\n        Compiler: clang %s", __clang_version__);
+#elif defined(_MSC_FULL_VER) && defined(_MSC_BUILD)
+        fprintf(st, "\n        Compiler: Microsoft Visual C++ %d.%02d.%05d.%02d", _MSC_FULL_VER / 10000000,
+                (_MSC_FULL_VER / 100000) % 100, _MSC_FULL_VER % 100000, _MSC_BUILD);
 #if defined(_DEBUG)
-    build = " (Debug Build)";
+        build = " (Debug Build)";
 #else
-    build = " (Release Build)";
+        build = " (Release Build)";
 #endif
-#elif defined (__DECC_VER)
-    fprintf (st, "\n        Compiler: DEC C %c%d.%d-%03d", ("T SV")[((__DECC_VER/10000)%10)-6], __DECC_VER/10000000, (__DECC_VER/100000)%100, __DECC_VER%10000);
-#elif defined (SIM_COMPILER)
+#elif defined(__DECC_VER)
+        fprintf(st, "\n        Compiler: DEC C %c%d.%d-%03d", ("T SV")[((__DECC_VER / 10000) % 10) - 6],
+                __DECC_VER / 10000000, (__DECC_VER / 100000) % 100, __DECC_VER % 10000);
+#elif defined(SIM_COMPILER)
 #define S_xstr(a) S_str(a)
 #define S_str(a) #a
-    fprintf (st, "\n        Compiler: %s", S_xstr(SIM_COMPILER));
+        fprintf(st, "\n        Compiler: %s", S_xstr(SIM_COMPILER));
 #undef S_str
 #undef S_xstr
 #endif
 #if defined(__GNUC__)
 #if defined(__OPTIMIZE__)
-    build = " (Release Build)";
+        build = " (Release Build)";
 #else
-    build = " (Debug Build)";
+        build = " (Debug Build)";
 #endif
 #endif
 #if defined(_M_X64) || defined(_M_AMD64) || defined(__amd64__) || defined(__x86_64__)
-    arch = " arch: x64";
+        arch = " arch: x64";
 #elif defined(_M_IX86) || defined(__i386)
-    arch = " arch: x86";
+        arch = " arch: x86";
 #elif defined(_M_ARM64) || defined(__aarch64_)
-    arch = " arch: ARM64";
+        arch  = " arch: ARM64";
 #elif defined(_M_ARM) || defined(__arm__)
-    arch = " arch: ARM";
+        arch = " arch: ARM";
 #elif defined(__ia64__) || defined(_M_IA64) || defined(__itanium__)
-    arch = " arch: IA-64";
+        arch = " arch: IA-64";
 #endif
-#if defined (__DATE__) && defined (__TIME__)
-#ifdef  __cplusplus
-    cpp = "C++";
+#if defined(__DATE__) && defined(__TIME__)
+#ifdef __cplusplus
+        cpp = "C++";
 #else
-    cpp = "C";
+        cpp   = "C";
 #endif
-#if !defined (SIM_BUILD_OS)
-    fprintf (st, "\n        Simulator Compiled as %s%s%s on %s at %s", cpp, arch, build, __DATE__, __TIME__);
+#if !defined(SIM_BUILD_OS)
+        fprintf(st, "\n        Simulator Compiled as %s%s%s on %s at %s", cpp, arch, build, __DATE__, __TIME__);
 #else
 #define S_xstr(a) S_str(a)
 #define S_str(a) #a
-    fprintf (st, "\n        Simulator Compiled as %s%s%s on %s at %s %s", cpp, arch, build, __DATE__, __TIME__, S_xstr(SIM_BUILD_OS));
+        fprintf(st, "\n        Simulator Compiled as %s%s%s on %s at %s %s", cpp, arch, build, __DATE__, __TIME__,
+                S_xstr(SIM_BUILD_OS));
 #undef S_str
 #undef S_xstr
 #endif
 #endif
-    fprintf (st, "\n        Memory Access: %s Endian", sim_end ? "Little" : "Big");
-    fprintf (st, "\n        Memory Pointer Size: %d bits", (int)sizeof(dptr)*8);
-    fprintf (st, "\n        %s", sim_toffset_64 ? "Large File (>2GB) support" : "No Large File support");
-    fprintf (st, "\n        SDL Video support: %s", vid_version());
-#if defined (HAVE_PCREPOSIX_H)
-    fprintf (st, "\n        PCRE RegEx (Version %s) support for EXPECT commands", pcre_version());
+        fprintf(st, "\n        Memory Access: %s Endian", sim_end ? "Little" : "Big");
+        fprintf(st, "\n        Memory Pointer Size: %d bits", (int)sizeof(dptr) * 8);
+        fprintf(st, "\n        %s", sim_toffset_64 ? "Large File (>2GB) support" : "No Large File support");
+        fprintf(st, "\n        SDL Video support: %s", vid_version());
+#if defined(HAVE_PCREPOSIX_H)
+        fprintf(st, "\n        PCRE RegEx (Version %s) support for EXPECT commands", pcre_version());
 #elif defined(HAVE_PCRE2_POSIX_H)
-    fprintf (st, "\n        PCRE2 RegEx (Version %d.%d) support for EXPECT commands", PCRE2_MAJOR, PCRE2_MINOR);
-#elif defined (HAVE_REGEX_H)
-    fprintf (st, "\n        RegEx support for EXPECT commands");
+        fprintf(st, "\n        PCRE2 RegEx (Version %d.%d) support for EXPECT commands", PCRE2_MAJOR, PCRE2_MINOR);
+#elif defined(HAVE_REGEX_H)
+        fprintf(st, "\n        RegEx support for EXPECT commands");
 #else
-    fprintf (st, "\n        No RegEx support for EXPECT commands");
+        fprintf(st, "\n        No RegEx support for EXPECT commands");
 #endif
-    fprintf (st, "\n        OS clock resolution: %dms", os_tick_size);
-    fprintf (st, "\n        Time taken by msleep(1): %dms", os_ms_sleep_1);
-    if (eth_version ())
-        fprintf (st, "\n        Ethernet packet info: %s", eth_version());
-    fprintf (st, "\n        Time taken by msleep(1): %dms", os_ms_sleep_1);
+        fprintf(st, "\n        OS clock resolution: %dms", os_tick_size);
+        fprintf(st, "\n        Time taken by msleep(1): %dms", os_ms_sleep_1);
+        if (eth_version())
+            fprintf(st, "\n        Ethernet packet info: %s", eth_version());
+        fprintf(st, "\n        Time taken by msleep(1): %dms", os_ms_sleep_1);
 #if defined(__VMS)
-    if (1) {
-        char *arch = 
+        if (1) {
+            char *arch =
 #if defined(__ia64)
-            "I64";
+                "I64";
 #elif defined(__ALPHA)
-            "Alpha";
+                "Alpha";
 #else
-            "VAX";
+                "VAX";
 #endif
-        strlcpy (os_type, "OpenVMS ", sizeof (os_type));
-        strlcat (os_type, arch, sizeof (os_type));
-        fprintf (st, "\n        OS: OpenVMS %s %s", arch, __VMS_VERSION);
+            strlcpy(os_type, "OpenVMS ", sizeof(os_type));
+            strlcat(os_type, arch, sizeof(os_type));
+            fprintf(st, "\n        OS: OpenVMS %s %s", arch, __VMS_VERSION);
         }
 #elif defined(WIN32)
-    if (1) {
-        char *proc_id = getenv ("PROCESSOR_IDENTIFIER");
-        char *arch = getenv ("PROCESSOR_ARCHITECTURE");
-        char *procs = getenv ("NUMBER_OF_PROCESSORS");
-        char *proc_level = getenv ("PROCESSOR_LEVEL");
-        char *proc_rev = getenv ("PROCESSOR_REVISION");
-        char *proc_arch3264 = getenv ("PROCESSOR_ARCHITEW6432");
-        char osversion[PATH_MAX+1] = "";
-        FILE *f;
+        if (1) {
+            char *proc_id                 = getenv("PROCESSOR_IDENTIFIER");
+            char *arch                    = getenv("PROCESSOR_ARCHITECTURE");
+            char *procs                   = getenv("NUMBER_OF_PROCESSORS");
+            char *proc_level              = getenv("PROCESSOR_LEVEL");
+            char *proc_rev                = getenv("PROCESSOR_REVISION");
+            char *proc_arch3264           = getenv("PROCESSOR_ARCHITEW6432");
+            char  osversion[PATH_MAX + 1] = "";
+            FILE *f;
 
-        if ((f = _popen ("ver", "r"))) {
-            memset (osversion, 0, sizeof(osversion));
-            do {
-                if (NULL == fgets (osversion, sizeof(osversion)-1, f))
-                    break;
-                sim_trim_endspc (osversion);
+            if ((f = _popen("ver", "r"))) {
+                memset(osversion, 0, sizeof(osversion));
+                do {
+                    if (NULL == fgets(osversion, sizeof(osversion) - 1, f))
+                        break;
+                    sim_trim_endspc(osversion);
                 } while (osversion[0] == '\0');
-            _pclose (f);
+                _pclose(f);
             }
-        fprintf (st, "\n        OS: %s", osversion);
-        fprintf (st, "\n        Architecture: %s%s%s, Processors: %s", arch, proc_arch3264 ? " on " : "", proc_arch3264 ? proc_arch3264  : "", procs);
-        fprintf (st, "\n        Processor Id: %s, Level: %s, Revision: %s", proc_id ? proc_id : "", proc_level ? proc_level : "", proc_rev ? proc_rev : "");
-        strlcpy (os_type, "Windows", sizeof (os_type));
+            fprintf(st, "\n        OS: %s", osversion);
+            fprintf(st, "\n        Architecture: %s%s%s, Processors: %s", arch, proc_arch3264 ? " on " : "",
+                    proc_arch3264 ? proc_arch3264 : "", procs);
+            fprintf(st, "\n        Processor Id: %s, Level: %s, Revision: %s", proc_id ? proc_id : "",
+                    proc_level ? proc_level : "", proc_rev ? proc_rev : "");
+            strlcpy(os_type, "Windows", sizeof(os_type));
         }
 #else
-    if (1) {
-        char osversion[2*PATH_MAX+1] = "";
-        FILE *f;
-        
-        if ((f = popen ("uname -a", "r"))) {
-            memset (osversion, 0, sizeof (osversion));
-            do {
-                if (NULL == fgets (osversion, sizeof (osversion)-1, f))
-                    break;
-                sim_trim_endspc (osversion);
+        if (1) {
+            char  osversion[2 * PATH_MAX + 1] = "";
+            FILE *f;
+
+            if ((f = popen("uname -a", "r"))) {
+                memset(osversion, 0, sizeof(osversion));
+                do {
+                    if (NULL == fgets(osversion, sizeof(osversion) - 1, f))
+                        break;
+                    sim_trim_endspc(osversion);
                 } while (osversion[0] == '\0');
-            pclose (f);
+                pclose(f);
             }
-        fprintf (st, "\n        OS: %s", osversion);
-        if ((f = popen ("uname", "r"))) {
-            memset (os_type, 0, sizeof (os_type));
-            do {
-                if (NULL == fgets (os_type, sizeof (os_type)-1, f))
-                    break;
-                sim_trim_endspc (os_type);
+            fprintf(st, "\n        OS: %s", osversion);
+            if ((f = popen("uname", "r"))) {
+                memset(os_type, 0, sizeof(os_type));
+                do {
+                    if (NULL == fgets(os_type, sizeof(os_type) - 1, f))
+                        break;
+                    sim_trim_endspc(os_type);
                 } while (os_type[0] == '\0');
-            pclose (f);
+                pclose(f);
             }
         }
 #endif
-    if ((!strcmp (os_type, "Unknown")) && (getenv ("OSTYPE")))
-        strlcpy (os_type, getenv ("OSTYPE"), sizeof (os_type));
-    setenv ("SIM_OSTYPE", os_type, 1);
+        if ((!strcmp(os_type, "Unknown")) && (getenv("OSTYPE")))
+            strlcpy(os_type, getenv("OSTYPE"), sizeof(os_type));
+        setenv("SIM_OSTYPE", os_type, 1);
     }
 #if defined(SIM_GIT_COMMIT_ID)
 #define S_xstr(a) S_str(a)
 #define S_str(a) #a
-fprintf (st, "%sgit commit id: %8.8s", flag ? "\n        " : "        ", S_xstr(SIM_GIT_COMMIT_ID));
-setenv ("SIM_GIT_COMMIT_ID", S_xstr(SIM_GIT_COMMIT_ID), 1);
+    fprintf(st, "%sgit commit id: %8.8s", flag ? "\n        " : "        ", S_xstr(SIM_GIT_COMMIT_ID));
+    setenv("SIM_GIT_COMMIT_ID", S_xstr(SIM_GIT_COMMIT_ID), 1);
 #if defined(SIM_GIT_COMMIT_TIME)
-setenv ("SIM_GIT_COMMIT_TIME", S_xstr(SIM_GIT_COMMIT_TIME), 1);
-if (flag)
-    fprintf (st, "%sgit commit time: %s", "\n        ", S_xstr(SIM_GIT_COMMIT_TIME));
+    setenv("SIM_GIT_COMMIT_TIME", S_xstr(SIM_GIT_COMMIT_TIME), 1);
+    if (flag)
+        fprintf(st, "%sgit commit time: %s", "\n        ", S_xstr(SIM_GIT_COMMIT_TIME));
 #endif
 #undef S_str
 #undef S_xstr
@@ -5973,12 +5982,12 @@ if (flag)
 #if defined(SIM_BUILD)
 #define S_xstr(a) S_str(a)
 #define S_str(a) #a
-fprintf (st, "%sBuild: %s", flag ? "\n        " : "        ", S_xstr(SIM_BUILD));
+    fprintf(st, "%sBuild: %s", flag ? "\n        " : "        ", S_xstr(SIM_BUILD));
 #undef S_str
 #undef S_xstr
 #endif
-fprintf (st, "\n");
-return SCPE_OK;
+    fprintf(st, "\n");
+    return SCPE_OK;
 }
 
 t_stat show_config (FILE *st, DEVICE *dnotused, UNIT *unotused, int32 flag, CONST char *cptr)
@@ -6560,23 +6569,27 @@ else
     ctx->stat = st;
 }
 
-t_stat copy_cmd (int32 flg, CONST char *cptr)
+t_stat
+copy_cmd(int32 flg, CONST char *cptr)
 {
-char sname[CBUFSIZE];
-COPY_CTX copy_state;
-t_stat stat;
+    char     sname[CBUFSIZE];
+    CONST char *glyph;
+    COPY_CTX copy_state;
+    t_stat   stat;
 
-memset (&copy_state, 0, sizeof (copy_state));
-if ((!cptr) || (*cptr == 0))
-    return SCPE_2FARG;
-cptr = get_glyph_quoted (cptr, sname, 0);
-if ((!cptr) || (*cptr == 0))
-    return SCPE_2FARG;
-cptr = get_glyph_quoted (cptr, copy_state.destname, 0);
-stat = sim_dir_scan (sname, sim_copy_entry, &copy_state);
-if ((stat == SCPE_OK) && (copy_state.count))
-    return sim_messagef (SCPE_OK, "      %3d file(s) copied\n", copy_state.count);
-return copy_state.stat;
+    memset(&copy_state, 0, sizeof(copy_state));
+    if ((!cptr) || (*cptr == 0))
+        return SCPE_2FARG;
+    glyph = get_glyph_quoted(cptr, sname, 0);
+    if (glyph == NULL || *glyph == 0)
+        return SCPE_2FARG;
+    /* Called for side effect? */
+    glyph = get_glyph_quoted(glyph, copy_state.destname, 0);
+
+    stat = sim_dir_scan(sname, sim_copy_entry, &copy_state);
+    if ((stat == SCPE_OK) && (copy_state.count))
+        return sim_messagef(SCPE_OK, "      %3d file(s) copied\n", copy_state.count);
+    return copy_state.stat;
 }
 
 t_stat mkdir_cmd (int32 flg, CONST char *cptr)
@@ -8439,10 +8452,11 @@ for (rptr = lowr; rptr <= highr; rptr++) {
                         return reason;
                     }
                 else {
-                    if (val_start+1 != idx-1)
-                        fprintf (ofile, "%s[%d]-%s[%d]: same as above\n", rptr->name, val_start+1, rptr->name, idx-1);
-                    else
-                        fprintf (ofile, "%s[%d]: same as above\n", rptr->name, val_start+1);
+                    /*if (val_start+1 != idx-1)*/
+                    fprintf (ofile, "%s[%d]-%s[%d]: same as above\n", rptr->name, val_start+1, rptr->name, idx-1);
+                    /* Never, never, never executed. */
+                    /* else
+                        fprintf (ofile, "%s[%d]: same as above\n", rptr->name, val_start+1); */
                     }
                 }
             sim_last_val = last_val = val;
@@ -11315,8 +11329,7 @@ if (sim_brk_ent >= sim_brk_lnt) {                       /* out of space? */
     sim_brk_lnt = t;
     }
 if ((sim_brk_ins == sim_brk_ent) ||
-    ((sim_brk_ins != sim_brk_ent) &&
-     (sim_brk_tab[sim_brk_ins]->addr != loc))) {        /* need to open a hole? */
+     (sim_brk_tab[sim_brk_ins]->addr != loc)) {        /* need to open a hole? */
     for (i = sim_brk_ent; i > sim_brk_ins; --i)
         sim_brk_tab[i] = sim_brk_tab[i - 1];
     sim_brk_tab[sim_brk_ins] = NULL;
@@ -12584,28 +12597,30 @@ return SCPE_OK;
 
 /* Finds debug phrase matching bitmask from from device DEBTAB table */
 
-static const char *_get_dbg_verb (uint32 dbits, DEVICE* dptr, UNIT *uptr)
+static const char *
+_get_dbg_verb(uint32 dbits, DEVICE *dptr, UNIT *uptr)
 {
-static const char *debtab_none    = "DEBTAB_ISNULL";
-static const char *debtab_nomatch = "DEBTAB_NOMATCH";
-const char *some_match = NULL;
-int32 offset = 0;
+    static const char *debtab_none    = "DEBTAB_ISNULL";
+    static const char *debtab_nomatch = "DEBTAB_NOMATCH";
+    const char *       some_match     = NULL;
+    int32              offset         = 0;
 
-if (dptr->debflags == 0)
-    return debtab_none;
+    if (dptr->debflags == NULL)
+        return debtab_none;
 
-dbits &= (dptr->dctrl | (uptr ? uptr->dctrl : 0));/* Look for just the bits that matched */
+    dbits &= (dptr->dctrl | (uptr ? uptr->dctrl : 0)); /* Look for just the bits that matched */
 
-/* Find matching words for bitmask */
+    /* Find matching words for bitmask */
+    /* (why the 32 magic number?) */
 
-while (dptr->debflags[offset].name && (offset < 32)) {
-    if (dptr->debflags[offset].mask == dbits)   /* All Bits Match */
-        return dptr->debflags[offset].name;
-    if (dptr->debflags[offset].mask & dbits)
-        some_match = dptr->debflags[offset].name;
-    offset++;
+    while (offset < 32 && dptr->debflags[offset].name) {
+        if (dptr->debflags[offset].mask == dbits) /* All Bits Match */
+            return dptr->debflags[offset].name;
+        if (dptr->debflags[offset].mask & dbits)
+            some_match = dptr->debflags[offset].name;
+        offset++;
     }
-return some_match ? some_match : debtab_nomatch;
+    return some_match ? some_match : debtab_nomatch;
 }
 
 /* Prints standard debug prefix unless previous call unterminated */
@@ -13295,7 +13310,7 @@ for (hblock = astrings; (htext = *hblock) != NULL; hblock++) {
                             if (dptr) {
                                 char buf[129];
                                 n = uptr? uptr - dptr->units: 0;
-                                sprintf (buf, "%s%u", dptr->name, (int)n);
+                                sprintf (buf, "%s"PRI_SIZET, dptr->name, n);
                                 appendText (topic, buf, strlen (buf));
                                 }
                             break;

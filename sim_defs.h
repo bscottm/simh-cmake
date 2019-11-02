@@ -712,7 +712,7 @@ struct REG {
     uint32              width;                          /* width */
     uint32              offset;                         /* starting bit */
     uint32              depth;                          /* save depth */
-    const char          *desc;                          /* description */
+    CONST char          *desc;                          /* description */
     BITFIELD            *fields;                        /* bit fields */
     uint32              qptr;                           /* circ q ptr */
     size_t              str_size;                       /* structure size */

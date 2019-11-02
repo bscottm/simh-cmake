@@ -3407,43 +3407,44 @@ sim_rom_delay = delay;
  * seconds that normal clock calibration takes.
  *
  */
-void sim_timer_precalibrate_execution_rate (void)
+void
+sim_timer_precalibrate_execution_rate(void)
 {
-const char **cmd = sim_clock_precalibrate_commands;
-uint32 start, end;
-int32 saved_switches = sim_switches;
-int32 tmr;
-UNIT precalib_unit = { UDATA (&sim_timer_stop_svc, 0, 0) };
+    const char **cmd = sim_clock_precalibrate_commands;
+    uint32       start, end;
+    int32        saved_switches = sim_switches;
+    int32        tmr;
+    UNIT         precalib_unit = {UDATA(&sim_timer_stop_svc, 0, 0)};
 
-if (cmd == NULL)
-    return;
-sim_run_boot_prep (RU_GO);
-while (sim_clock_queue != QUEUE_LIST_END)
-    sim_cancel (sim_clock_queue);
-while (*cmd)
-     exdep_cmd (EX_D, *(cmd++));
-sim_switches = saved_switches;
-sim_cancel (&SIM_INTERNAL_UNIT);
-sim_activate (&precalib_unit, sim_precalibrate_ips);
-start = sim_os_msec();
-sim_instr();
-end = sim_os_msec();
-sim_precalibrate_ips = (int32)(1000.0 * (sim_precalibrate_ips / (double)(end - start)));
+    if (cmd == NULL)
+        return;
+    sim_run_boot_prep(RU_GO);
+    while (sim_clock_queue != QUEUE_LIST_END)
+        sim_cancel(sim_clock_queue);
+    while (*cmd)
+        exdep_cmd(EX_D, *(cmd++));
+    sim_switches = saved_switches;
+    sim_cancel(&SIM_INTERNAL_UNIT);
+    sim_activate(&precalib_unit, sim_precalibrate_ips);
+    start = sim_os_msec();
+    sim_instr();
+    end                  = sim_os_msec();
+    sim_precalibrate_ips = (int32)(1000.0 * (sim_precalibrate_ips / (double)(end - start)));
 
-for (tmr=0; tmr<=SIM_NTIMERS; tmr++) {
-    RTC *rtc = &rtcs[tmr];
+    for (tmr = 0; tmr <= SIM_NTIMERS; tmr++) {
+        RTC *rtc = &rtcs[tmr];
 
-    if (rtc->hz)
-        rtc->initd = rtc->currd = (int32)(((double)sim_precalibrate_ips) / rtc->hz);
+        if (rtc->hz)
+            rtc->initd = rtc->currd = (int32)(((double)sim_precalibrate_ips) / rtc->hz);
     }
-reset_all_p (0);
-sim_run_boot_prep (RU_GO);
-for (tmr=0; tmr<=SIM_NTIMERS; tmr++) {
-    RTC *rtc = &rtcs[tmr];
+    reset_all_p(0);
+    sim_run_boot_prep(RU_GO);
+    for (tmr = 0; tmr <= SIM_NTIMERS; tmr++) {
+        RTC *rtc = &rtcs[tmr];
 
-    if (rtc->calib_initializations)
-        rtc->calib_initializations = 1;
+        if (rtc->calib_initializations)
+            rtc->calib_initializations = 1;
     }
-sim_inst_per_sec_last = sim_precalibrate_ips;
-sim_idle_stable = 0;
+    sim_inst_per_sec_last = sim_precalibrate_ips;
+    sim_idle_stable       = 0;
 }

@@ -96,15 +96,19 @@ t_bool sim_toffset_64;              /* Large File (>2GB) file I/O Support availa
    Sim_fread swaps in place, sim_fwrite uses an intermediate buffer.
 */
 
-int32 sim_finit (void)
+int32
+sim_finit(void)
 {
-union {int32 i; char c[sizeof (int32)]; } end_test;
+    union {
+        int32 i;
+        char  c[sizeof(int32)];
+    } end_test;
 
-end_test.i = 1;                                         /* test endian-ness */
-sim_end = (end_test.c[0] != 0);
-sim_toffset_64 = (sizeof(t_offset) > sizeof(int32));    /* Large File (>2GB) support */
-sim_taddr_64 = sim_toffset_64 && (sizeof(t_addr) > sizeof(int32));
-return sim_end;
+    end_test.i     = 1; /* test endian-ness */
+    sim_end        = (end_test.c[0] != 0);
+    sim_toffset_64 = (sizeof(t_offset) > sizeof(int32)); /* Large File (>2GB) support */
+    sim_taddr_64   = sim_toffset_64 && (sizeof(t_addr) > sizeof(int32));
+    return sim_end;
 }
 
 void sim_buf_swap_data (void *bptr, size_t size, size_t count)
@@ -956,7 +960,7 @@ if (dir) {
     char FileName[PATH_MAX + 1];
     const char *MatchName = 1 + strrchr (cptr, '/');
     char *p_name;
-    struct tm *local;
+    /* NOTUSED struct tm *local; */
 #if defined (HAVE_GLOB)
     size_t i;
 #endif

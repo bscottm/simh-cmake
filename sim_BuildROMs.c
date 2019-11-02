@@ -141,7 +141,7 @@ while (fgets (line, sizeof(line)-1, iFile)) {
             break;
         case 'u': /* unsigned char {array_name}[] */
             *prom_array_name = (char *)calloc(512, sizeof(char));
-            if (1 == sscanf (line, "unsigned char %s[]", *prom_array_name)) {
+            if (1 == sscanf (line, "unsigned char %512s[]", *prom_array_name)) {
                 c = strchr (*prom_array_name, '[');
                 if (c)
                     *c = '\0';
