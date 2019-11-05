@@ -171,7 +171,8 @@ if (ENABLE_CPPCHECK)
     if (CMAKE_C_CPPCHECK)
         list(APPEND CMAKE_C_CPPCHECK
              "--enable=warning,style,performance,portability,information,missingInclude"
-             "--suppress=missingIncludeSystem"
+             ""--suppress=missingIncludeSystem"
+             "--inline-suppr"
              "--std=c99")
         set(CPPCHECK_STATUS "enabled.")
         if (WIN32)

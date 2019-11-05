@@ -7,7 +7,7 @@
 
 include (ExternalProject)
 
-# pcap networking (slirp is always included):
+# pcap networking (slirp is handled in its own directory):
 add_library(pcap INTERFACE)
 set(NETWORK_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/build-stage)
 
