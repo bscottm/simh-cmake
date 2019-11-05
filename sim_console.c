@@ -395,13 +395,15 @@ static int32 *cons_kmap[] = {
 
 t_stat sim_set_console (int32 flag, CONST char *cptr)
 {
-char *cvptr, gbuf[CBUFSIZE];
+char gbuf[CBUFSIZE];
 CTAB *ctptr;
 t_stat r;
 
 if ((cptr == NULL) || (*cptr == 0))
     return SCPE_2FARG;
 while (*cptr != 0) {                                    /* do all mods */
+    char *cvptr;
+
     cptr = get_glyph_nc (cptr, gbuf, ',');              /* get modifier */
     if ((cvptr = strchr (gbuf, '=')))                   /* = value? */
         *cvptr++ = 0;
@@ -418,25 +420,29 @@ return SCPE_OK;
 
 /* SHOW CONSOLE command */
 
-t_stat sim_show_console (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, CONST char *cptr)
+t_stat
+sim_show_console(FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, CONST char *cptr)
 {
-char gbuf[CBUFSIZE];
-SHTAB *shptr;
-int32 i;
+    char gbuf[CBUFSIZE];
 
-if (*cptr == 0) {                                       /* show all */
-    for (i = 0; show_con_tab[i].name; i++)
-        if (show_con_tab[i].arg != -1)
-            show_con_tab[i].action (st, dptr, uptr, show_con_tab[i].arg, cptr);
+    if (*cptr == 0) { /* show all */
+        size_t i;
+
+        for (i = 0; show_con_tab[i].name; i++)
+            if (show_con_tab[i].arg != -1)
+                show_con_tab[i].action(st, dptr, uptr, show_con_tab[i].arg, cptr);
+        return SCPE_OK;
+    }
+    while (*cptr != 0) {
+        SHTAB *shptr;
+
+        cptr = get_glyph(cptr, gbuf, ','); /* get modifier */
+        if ((shptr = find_shtab(show_con_tab, gbuf)))
+            shptr->action(st, dptr, uptr, shptr->arg, cptr);
+        else
+            return SCPE_NOPARAM;
+    }
     return SCPE_OK;
-    }
-while (*cptr != 0) {
-    cptr = get_glyph (cptr, gbuf, ',');                 /* get modifier */
-    if ((shptr = find_shtab (show_con_tab, gbuf)))
-        shptr->action (st, dptr, uptr, shptr->arg, cptr);
-    else return SCPE_NOPARAM;
-    }
-return SCPE_OK;
 }
 
 #define MAX_REMOTE_SESSIONS 40                          /* Arbitrary Session Limit */
@@ -566,13 +572,15 @@ return SCPE_OK;
 
 t_stat sim_set_remote_console (int32 flag, CONST char *cptr)
 {
-char *cvptr, gbuf[CBUFSIZE];
+char gbuf[CBUFSIZE];
 CTAB *ctptr;
 t_stat r;
 
 if ((cptr == NULL) || (*cptr == 0))
     return SCPE_2FARG;
 while (*cptr != 0) {                                    /* do all mods */
+    char *cvptr;
+
     cptr = get_glyph_nc (cptr, gbuf, ',');              /* get modifier */
     if ((cvptr = strchr (gbuf, '=')))                   /* = value? */
         *cvptr++ = 0;
@@ -632,7 +640,7 @@ for (i=connections=0; i<sim_rem_con_tmxr.lines; i++) {
         }
     if (rem->smp_reg_count) {
         uint32 reg;
-        DEVICE *dptr = NULL;
+        DEVICE *d1ptr = NULL;
 
         if (rem->smp_sample_dither_pct)
             fprintf (st, "Register Bit Sampling is occurring every %d cycles (dithered %d percent)\n", rem->smp_sample_interval, rem->smp_sample_dither_pct);
@@ -642,13 +650,13 @@ for (i=connections=0; i<sim_rem_con_tmxr.lines; i++) {
         for (reg = 0; reg < rem->smp_reg_count; reg++) {
             if (rem->smp_regs[reg].indirect)
                 fprintf (st, " indirect ");
-            if (dptr != rem->smp_regs[reg].dptr)
+            if (d1ptr != rem->smp_regs[reg].dptr)
                 fprintf (st, "%s ", rem->smp_regs[reg].dptr->name);
             if (rem->smp_regs[reg].reg->depth > 1)
                 fprintf (st, "%s[%d]%s", rem->smp_regs[reg].reg->name, rem->smp_regs[reg].idx, ((reg + 1) < rem->smp_reg_count) ? ", " : "");
             else
                 fprintf (st, "%s%s", rem->smp_regs[reg].reg->name, ((reg + 1) < rem->smp_reg_count) ? ", " : "");
-            dptr = rem->smp_regs[reg].dptr;
+            d1ptr = rem->smp_regs[reg].dptr;
             }
         fprintf (st, "\n");
         if (sim_switches & SWMASK ('D'))
@@ -829,7 +837,7 @@ static CTAB remote_only_cmds[] = {
 
 static t_stat x_help_cmd (int32 flag, CONST char *cptr)
 {
-CTAB *cmdp, *cmdph;
+CTAB *cmdp;
 
 if (*cptr) {
     int32 saved_switches = sim_switches;
@@ -842,6 +850,8 @@ if (*cptr) {
     }
 sim_printf ("Help is available for the following Remote Console commands:\r\n");
 for (cmdp=allowed_remote_cmds; cmdp->name != NULL; ++cmdp) {
+    CTAB *cmdph;
+
     cmdph = find_cmd (cmdp->name);
     if (cmdph && cmdph->help)
         sim_printf ("    %s\r\n", cmdp->name);
@@ -870,10 +880,11 @@ return stat;
 
 static void _sim_rem_log_out (TMLN *lp)
 {
-char cbuf[4*CBUFSIZE];
 REMOTE *rem = &sim_rem_consoles[(int)(lp - sim_rem_con_tmxr.ldsc)];
 
 if ((!sim_oline) && (sim_log)) {
+    char cbuf[4*CBUFSIZE];
+
     fflush (sim_log);
     (void)sim_fseeko (sim_log, sim_rem_cmd_log_start, SEEK_SET);
     cbuf[sizeof(cbuf)-1] = '\0';
@@ -959,7 +970,6 @@ else
 static char *sim_rem_getact (int32 line, char *buf, int32 size)
 {
 char *ep;
-size_t lnt;
 REMOTE *rem = &sim_rem_consoles[line];
 
 if (rem->act == NULL)                           /* any action? */
@@ -981,6 +991,8 @@ if ((ep != NULL) && (*ep != ';')) {             /* if a quoted string is present
     }
 
 if (ep != NULL) {                               /* if a semicolon is present */
+    size_t lnt;
+
     lnt = ep - rem->act;                        /* cmd length */
     memcpy (buf, rem->act, lnt + 1);            /* copy with ; */
     buf[lnt] = 0;                               /* erase ; */
@@ -1000,8 +1012,6 @@ return buf;
  */
 static t_stat sim_rem_repeat_cmd_setup (int32 line, CONST char **iptr)
 {
-char gbuf[CBUFSIZE];
-int32 val;
 t_bool all_stop = FALSE;
 t_stat stat = SCPE_OK;
 CONST char *cptr = *iptr;
@@ -1011,8 +1021,12 @@ sim_debug (DBG_REP, &sim_remote_console, "Repeat Setup: %s\n", cptr);
 if (*cptr == 0)         /* required argument? */
     stat = SCPE_2FARG;
 else {
+    char  gbuf[CBUFSIZE];
+
     cptr = get_glyph (cptr, gbuf, 0);               /* get next glyph */
     if (MATCH_CMD (gbuf, "EVERY") == 0) {
+        int32 val;
+
         cptr = get_glyph (cptr, gbuf, 0);           /* get next glyph */
         val = (int32) get_uint (gbuf, 10, INT_MAX, &stat);
         if ((stat != SCPE_OK) || (val <= 0))        /* error? */
@@ -1082,8 +1096,7 @@ return stat;
 static t_stat sim_rem_collect_cmd_setup (int32 line, CONST char **iptr)
 {
 char gbuf[CBUFSIZE];
-int32 samples, cycles, dither_pct;
-t_bool all_stop = FALSE;
+int32 samples;
 t_stat stat = SCPE_OK;
 CONST char *cptr = *iptr;
 REMOTE *rem = &sim_rem_consoles[line];
@@ -1095,6 +1108,8 @@ cptr = get_glyph (cptr, gbuf, 0);               /* get next glyph */
 samples = (int32) get_uint (gbuf, 10, INT_MAX, &stat);
 if ((stat != SCPE_OK) || (samples <= 0)) {      /* error? */
     if (MATCH_CMD (gbuf, "STOP") == 0) {
+        t_bool all_stop = FALSE;
+
         stat = SCPE_OK;
         if (*cptr) {                            /* more command arguments? */
             cptr = get_glyph (cptr, gbuf, 0);   /* get next glyph */
@@ -1129,6 +1144,7 @@ if ((stat != SCPE_OK) || (samples <= 0)) {      /* error? */
 else {
     const char *tptr;
     int32 event_time = rem->smp_sample_interval;
+    int32 cycles, dither_pct;
 
     cptr = get_glyph (cptr, gbuf, 0);               /* get next glyph */
     if (MATCH_CMD (gbuf, "SAMPLES") != 0) {
@@ -1880,9 +1896,9 @@ return SCPE_OK;
 
 static t_stat sim_set_rem_telnet (int32 flag, CONST char *cptr)
 {
-t_stat r;
-
 if (flag) {
+    t_stat r;
+
     r = sim_parse_addr (cptr, NULL, 0, NULL, NULL, 0, NULL, NULL);
     if (r == SCPE_OK) {
         if (sim_rem_con_tmxr.master)                        /* already open? */
@@ -2174,7 +2190,7 @@ if (sim_tt_pchar) {
                                    "BS(^H)" , "HT(^I)",  "LF(^J)",  "VT(^K)",  "FF(^L)",  "CR(^M)",  "SO(^N)",  "SI(^O)",
                                    "DLE(^P)", "DC1(^Q)", "DC2(^R)", "DC3(^S)", "DC4(^T)", "NAK(^U)", "SYN(^V)", "ETB(^W)",
                                    "CAN(^X)", "EM(^Y)",  "SUB(^Z)", "ESC",     "FS",      "GS",      "RS",      "US"};
-    int i;
+    uint32 i;
     t_bool found = FALSE;
 
     fprintf (st, " {");
@@ -2326,10 +2342,10 @@ sim_set_debon(int32 flag, CONST char *cptr)
         sim_messagef(SCPE_OK, "   Debug messages contain current PC value\n");
     if (sim_deb_switches & SWMASK('T'))
         sim_messagef(SCPE_OK, "   Debug messages display time of day as hh:mm:ss.msec%s\n",
-                     sim_deb_switches & SWMASK('R') ? " relative to the start of debugging" : "");
+                     (sim_deb_switches & SWMASK('R')) ? " relative to the start of debugging" : "");
     if (sim_deb_switches & SWMASK('A'))
         sim_messagef(SCPE_OK, "   Debug messages display time of day as seconds.msec%s\n",
-                     sim_deb_switches & SWMASK('R') ? " relative to the start of debugging" : "");
+                     (sim_deb_switches & SWMASK('R')) ? " relative to the start of debugging" : "");
     if (sim_deb_switches & SWMASK('F'))
         sim_messagef(SCPE_OK, "   Debug messages will not be filtered to summarize duplicate lines\n");
     if (sim_deb_switches & SWMASK('E'))
@@ -2397,19 +2413,19 @@ return sim_messagef (SCPE_OK, "Debug output disabled\n");
 
 t_stat sim_show_debug (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, CONST char *cptr)
 {
-int32 i;
-
 if (cptr && (*cptr != 0))
     return SCPE_2MARG;
 if (sim_deb) {
+    int32 i;
+
     fprintf (st, "Debug output enabled to \"%s\"\n", 
                  sim_logfile_name (sim_deb, sim_deb_ref));
     if (sim_deb_switches & SWMASK ('P'))
         fprintf (st, "   Debug messages contain current PC value\n");
     if (sim_deb_switches & SWMASK ('T'))
-        fprintf (st, "   Debug messages display time of day as hh:mm:ss.msec%s\n", sim_deb_switches & SWMASK ('R') ? " relative to the start of debugging" : "");
+        fprintf (st, "   Debug messages display time of day as hh:mm:ss.msec%s\n", (sim_deb_switches & SWMASK ('R')) ? " relative to the start of debugging" : "");
     if (sim_deb_switches & SWMASK ('A'))
-        fprintf (st, "   Debug messages display time of day as seconds.msec%s\n", sim_deb_switches & SWMASK ('R') ? " relative to the start of debugging" : "");
+        fprintf (st, "   Debug messages display time of day as seconds.msec%s\n", (sim_deb_switches & SWMASK ('R')) ? " relative to the start of debugging" : "");
     if (sim_deb_switches & SWMASK ('F'))
         fprintf (st, "   Debug messages are not being filtered to summarize duplicate lines\n");
     if (sim_deb_switches & SWMASK ('E'))
@@ -2458,13 +2474,15 @@ return SCPE_OK;
 
 t_stat sim_set_telnet (int32 flag, CONST char *cptr)
 {
-char *cvptr, gbuf[CBUFSIZE];
+char gbuf[CBUFSIZE];
 CTAB *ctptr;
 t_stat r;
 
 if ((cptr == NULL) || (*cptr == 0))
     return SCPE_2FARG;
 while (*cptr != 0) {                                    /* do all mods */
+    char *cvptr;
+
     cptr = get_glyph_nc (cptr, gbuf, ',');              /* get modifier */
     if ((cvptr = strchr (gbuf, '=')))                   /* = value? */
         *cvptr++ = 0;
@@ -2605,13 +2623,15 @@ return show_dev_debug (st, &sim_con_telnet, &sim_con_unit, flag, cptr);
 
 t_stat sim_set_serial (int32 flag, CONST char *cptr)
 {
-char *cvptr, gbuf[CBUFSIZE], ubuf[CBUFSIZE];
+char gbuf[CBUFSIZE], ubuf[CBUFSIZE];
 CTAB *ctptr;
 t_stat r;
 
 if ((cptr == NULL) || (*cptr == 0))
     return SCPE_2FARG;
 while (*cptr != 0) {                                    /* do all mods */
+    char *cvptr;
+
     cptr = get_glyph_nc (cptr, gbuf, ',');              /* get modifier */
     if ((cvptr = strchr (gbuf, '=')))                   /* = value? */
         *cvptr++ = 0;
@@ -2763,7 +2783,7 @@ return ref->name;
 
 t_stat sim_check_console (int32 sec)
 {
-int32 c, trys = 0;
+int32 trys = 0;
 
 if (sim_rem_master_mode) {
     for (;trys < sec; ++trys) {
@@ -2813,6 +2833,8 @@ if (sim_con_ldsc.conn || sim_con_ldsc.txbfd) {          /* connected or buffered
         }
     }
 for (; trys < sec; trys++) {                            /* loop */
+    int32 c;
+
     if (tmxr_poll_conn (&sim_con_tmxr) >= 0) {          /* poll connect */
         sim_con_ldsc.rcve = 1;                          /* rcv enabled */
         if (trys) {                                     /* if delayed */
@@ -3014,7 +3036,7 @@ return c;
 t_stat sim_tt_settabs (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 {
 uint8 *temptabs, *tabs = (uint8 *) desc;
-int32 i, d;
+int32 i;
 t_stat r;
 char gbuf[CBUFSIZE];
 
@@ -3027,6 +3049,8 @@ if ((temptabs = (uint8 *)malloc (val)) == NULL)
 for (i = 0; i < val; i++)
     temptabs[i] = 0;
 do {
+    int32 d;
+
     cptr = get_glyph (cptr, gbuf, ';');
     d = (int32)get_uint (gbuf, 10, val, &r);
     if ((r != SCPE_OK) || (d == 0)) {

@@ -58,7 +58,7 @@ char sim_name[] = "SWTP 6800, V2, MP-A2 CPU Board";
 
 REG *sim_PC = &m6800_reg[0];
 
-int32 sim_emax = 4;
+size_t sim_emax = 4;
 
 DEVICE *sim_devices[] = {
     &CPU_BD_dev,

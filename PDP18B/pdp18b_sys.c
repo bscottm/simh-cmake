@@ -139,7 +139,7 @@ char sim_name[] = "PDP-15";
 
 REG *sim_PC = &cpu_reg[0];
 
-int32 sim_emax = 3;
+size_t sim_emax = 3;
 
 DEVICE *sim_devices[] = {
     &cpu_dev,

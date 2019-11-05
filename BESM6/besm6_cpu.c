@@ -268,7 +268,7 @@ char sim_name[] = "БЭСМ-6";
 
 REG *sim_PC = &cpu_reg[0];
 
-int32 sim_emax = 1;     /* max number of addressable units per instruction */
+size_t sim_emax = 1;    /* max number of addressable units per instruction */
 
 DEVICE *sim_devices[] = {
     &cpu_dev,

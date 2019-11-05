@@ -51,7 +51,7 @@ extern t_bool rom_wr (t_uint64 pa, t_uint64 val, uint32 lnt);
 
 REG *sim_PC = &cpu_reg[0];
 
-int32 sim_emax = 1;
+size_t sim_emax = 1;
 
 const char *sim_stop_messages[] = {
     "Unknown error",

@@ -55,7 +55,7 @@ char sim_name[] = "GRI-909";
 
 REG *sim_PC = &cpu_reg[0];
 
-int32 sim_emax = 2;
+size_t sim_emax = 2;
 
 DEVICE *sim_devices[] = {
     &cpu_dev,

@@ -95,7 +95,7 @@ t_stat show_iobase(FILE *st, UNIT *uptr, int32 val, CONST void *desc);
 
 char        sim_name[]      = "Altair 8800 (Z80)";
 REG         *sim_PC         = &cpu_reg[CPU_INDEX_8080];
-int32       sim_emax        = SIM_EMAX;
+size_t       sim_emax       = SIM_EMAX;
 DEVICE      *sim_devices[]  = {
     /* AltairZ80 Devices */
     &cpu_dev, &sio_dev, &simh_device, &ptr_dev, &ptp_dev, &dsk_dev,

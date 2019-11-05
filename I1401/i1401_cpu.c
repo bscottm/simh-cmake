@@ -207,7 +207,7 @@ int32 hst_lnt = 0;                                      /* history length */
 InstHistory *hst = NULL;                                /* instruction history */
 t_bool conv_old = 0;                                    /* old conversions */
 
-extern int32 sim_emax;
+extern size_t sim_emax;
 
 t_stat cpu_ex (t_value *vptr, t_addr addr, UNIT *uptr, int32 sw);
 t_stat cpu_dep (t_value val, t_addr addr, UNIT *uptr, int32 sw);

@@ -70,7 +70,7 @@ char sim_name[] = "Interdata 32b";
 
 REG *sim_PC = &cpu_reg[0];
 
-int32 sim_emax = 6;
+size_t sim_emax = 6;
 
 DEVICE *sim_devices[] = {
     &cpu_dev,

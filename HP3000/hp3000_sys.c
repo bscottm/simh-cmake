@@ -1070,7 +1070,7 @@ const BITSET_FORMAT outbound_format =           /* names, offset, direction, alt
 
 char sim_name [] = "HP 3000";                   /* the simulator name */
 
-int32 sim_emax = 2;                             /* the maximum number of words in any instruction */
+size_t sim_emax = 2;                            /* the maximum number of words in any instruction */
 
 void (*sim_vm_init) (void) = &one_time_init;    /* a pointer to the one-time initializer */
 

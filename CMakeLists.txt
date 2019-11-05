@@ -170,7 +170,8 @@ if (ENABLE_CPPCHECK)
     find_program(CMAKE_C_CPPCHECK NAMES cppcheck)
     if (CMAKE_C_CPPCHECK)
         list(APPEND CMAKE_C_CPPCHECK
-            "--enable=warning,style,performance,portability,information,missingInclude"
+             "--enable=warning,style,performance,portability,information,missingInclude"
+             "--suppress=missingIncludeSystem"
              "--std=c99")
         set(CPPCHECK_STATUS "enabled.")
         if (WIN32)

@@ -36,7 +36,7 @@
 extern uint32 R[16];
 extern char sim_name[];
 extern REG *sim_PC;
-extern int32 sim_emax;
+extern size_t sim_emax;
 extern DEVICE *sim_devices[];
 
 void full_reset();

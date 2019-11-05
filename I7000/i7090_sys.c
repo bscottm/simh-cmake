@@ -45,7 +45,7 @@ char                sim_name[] = "IBM 7090";
 
 REG                *sim_PC = &cpu_reg[0];
 
-int32               sim_emax = 1;
+size_t              sim_emax = 1;
 
 DEVICE             *sim_devices[] = {
     &cpu_dev,

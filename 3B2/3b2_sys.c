@@ -47,7 +47,7 @@ REG *sim_PC = &cpu_reg[0];
 
 /* All opcodes are 1 or 2 bytes. Operands may be up to 6 bytes, and
    there may be up to 3 operands, for a maximum of 20 bytes */
-int32 sim_emax = 20;
+size_t sim_emax = 20;
 
 extern instr *cpu_instr;
 

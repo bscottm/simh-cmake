@@ -514,7 +514,6 @@ sim_card_output_hopper_count(UNIT *uptr)
 t_cdstat
 sim_read_card(UNIT *uptr, uint16 image[80])
 {
-    int                  i;
     struct card_context *data = (struct card_context *)uptr->card_ctx;
     DEVICE *             dptr;
     uint16(*img)[80];
@@ -535,6 +534,8 @@ sim_read_card(UNIT *uptr, uint16 image[80])
         } else {
             uint8 out[81];
             int   ok = 1;
+            int   i;
+
             for (i = 0; i < 80; i++) {
                 out[i] = data->hol_to_ascii[(int)(*img)[i]];
                 if (out[i] == 0xff) {
@@ -802,20 +803,20 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
 
         /* Convert card and check for errors */
         for (col = i = 0; i < buf->len && col < 80;) {
-            uint8 c;
+            uint8 uc;
 
             if (buf->buffer[i] & 0x80)
                 break;
-            c = buf->buffer[i] & 077;
-            if (sim_parity_table[(int)c] == (buf->buffer[i++] & 0100))
+            uc = buf->buffer[i] & 077;
+            if (sim_parity_table[(int)uc] == (buf->buffer[i++] & 0100))
                 (*image)[0] |= CARD_ERR;
-            (*image)[col] = ((uint16)c) << 6;
+            (*image)[col] = ((uint16)uc) << 6;
             if (buf->buffer[i] & 0x80)
                 break;
-            c = buf->buffer[i] & 077;
-            if (sim_parity_table[(int)c] == (buf->buffer[i++] & 0100))
+            uc = buf->buffer[i] & 077;
+            if (sim_parity_table[(int)uc] == (buf->buffer[i++] & 0100))
                 (*image)[0] |= CARD_ERR;
-            (*image)[col++] |= c;
+            (*image)[col++] |= uc;
         }
 
         if (i < buf->len && col >= 80 && (buf->buffer[i] & 0x80) == 0) {
@@ -886,7 +887,6 @@ _sim_read_deck(UNIT *uptr, int eof)
     struct card_context *data;
     DEVICE *             dptr;
     int                  i;
-    int                  j;
     int                  l;
     int                  cards = 0;
     t_stat               r     = SCPE_OK;
@@ -903,6 +903,8 @@ _sim_read_deck(UNIT *uptr, int eof)
 
     /* Slurp up current file */
     do {
+        int j;
+
         if (buf.len < 500 && !feof(uptr->fileref)) {
             l = sim_fread(&buf.buffer[buf.len], 1, 8192, uptr->fileref);
             if (l < 0)
@@ -987,7 +989,6 @@ sim_punch_card(UNIT *uptr, uint16 image[80])
     int                  i;
     int                  outp = 0;
     int                  mode = uptr->flags & UNIT_CARD_MODE;
-    int                  ok   = 1;
     struct card_context *data;
     DEVICE *             dptr;
 
@@ -999,6 +1000,7 @@ sim_punch_card(UNIT *uptr, uint16 image[80])
 
     /* Fix mode if in auto mode */
     if (mode == MODE_AUTO) {
+        int ok   = 1;
         /* Try to convert each column to ascii */
         for (i = 0; i < 80; i++) {
             out[i] = data->hol_to_ascii[image[i]];
@@ -1173,7 +1175,6 @@ sim_card_attach(UNIT *uptr, CONST char *cptr)
     t_stat               r   = SCPE_OK;
     int                  eof = 0;
     struct card_context *data;
-    char                 gbuf[30];
     int                  i;
     char *               saved_filename;
     t_bool               was_attached = (uptr->flags & UNIT_ATT);
@@ -1205,6 +1206,8 @@ sim_card_attach(UNIT *uptr, CONST char *cptr)
 
     cptr = get_sim_sw(cptr);             /* Pickup optional format specifier during RESTORE */
     if (sim_switches & SWMASK('F')) {    /* format spec? */
+        char gbuf[30];
+
         cptr = get_glyph(cptr, gbuf, 0); /* get spec */
         if (*cptr == 0)
             return SCPE_2FARG; /* must be more */

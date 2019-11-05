@@ -84,7 +84,7 @@ extern t_stat parse_sym_cm (const char *cptr, t_addr addr, t_value *bytes, int32
 
 REG *sim_PC = &cpu_reg[0];
 
-int32 sim_emax = 60;
+size_t sim_emax = 60;
 
 const char *sim_stop_messages[] = {
     "Unknown error",

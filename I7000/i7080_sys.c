@@ -39,7 +39,7 @@ char                sim_name[] = "IBM 7080";
 
 REG                *sim_PC = &cpu_reg[0];
 
-int32               sim_emax = 50;
+size_t              sim_emax = 50;
 
 #ifdef NUM_DEVS_CDP
 extern DEVICE       stack_dev[];

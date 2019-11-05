@@ -56,7 +56,7 @@ char sim_name[] = "Intel MDS-225";
 
 REG *sim_PC = &i8080_reg[0];
 
-int32 sim_emax = 4;
+size_t sim_emax = 4;
 
 DEVICE *sim_devices[] = {
     &i8080_dev,

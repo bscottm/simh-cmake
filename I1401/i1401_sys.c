@@ -70,7 +70,7 @@ char sim_name[] = "IBM 1401";
 
 REG *sim_PC = &cpu_reg[0];
 
-int32 sim_emax = LINE_LNT;
+size_t sim_emax = LINE_LNT;
 
 DEVICE *sim_devices[] = {
     &cpu_dev,

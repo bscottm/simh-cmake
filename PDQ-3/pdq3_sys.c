@@ -62,7 +62,7 @@ extern uint16 reg_pc;
 
 char sim_name[] = "PDQ3";
 REG *sim_PC = &cpu_reg[0]; /* note this is the artifical register PCX */
-int32 sim_emax = 6;
+size_t sim_emax = 6;
 DEVICE *sim_devices[] = {
     &cpu_dev,
     &con_dev,
