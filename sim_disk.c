@@ -131,9 +131,6 @@ if ((!callback) || !ctx->asynch_io)
 
 #define AIO_CALL(op, _lba, _buf, _rsects, _sects,  _callback)   \
     if (ctx->asynch_io) {                                       \
-        struct disk_context *ctx =                              \
-                      (struct disk_context *)uptr->disk_ctx;    \
-                                                                \
         pthread_mutex_lock (&ctx->io_lock);                     \
                                                                 \
         sim_debug_unit (ctx->dbit, uptr,                        \
@@ -549,7 +546,6 @@ static t_stat _sim_disk_rdsect (UNIT *uptr, t_lba lba, uint8 *buf, t_seccnt *sec
 {
 t_offset da;
 uint32 err, tbc;
-size_t i;
 struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 
 sim_debug_unit (ctx->dbit, uptr, "_sim_disk_rdsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr-ctx->dptr->units), lba, sects);
@@ -560,7 +556,8 @@ if (sectsread)
     *sectsread = 0;
 err = sim_fseeko (uptr->fileref, da, SEEK_SET);          /* set pos */
 if (!err) {
-    i = sim_fread (buf, ctx->xfer_element_size, tbc/ctx->xfer_element_size, uptr->fileref);
+    size_t i = sim_fread (buf, ctx->xfer_element_size, tbc/ctx->xfer_element_size, uptr->fileref);
+
     if (i < tbc/ctx->xfer_element_size)                 /* fill */
         memset (&buf[i*ctx->xfer_element_size], 0, tbc-(i*ctx->xfer_element_size));
     err = ferror (uptr->fileref);
@@ -665,7 +662,6 @@ static t_stat _sim_disk_wrsect (UNIT *uptr, t_lba lba, uint8 *buf, t_seccnt *sec
 {
 t_offset da;
 uint32 err, tbc;
-size_t i;
 struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 
 sim_debug_unit (ctx->dbit, uptr, "_sim_disk_wrsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr-ctx->dptr->units), lba, sects);
@@ -676,7 +672,8 @@ if (sectswritten)
     *sectswritten = 0;
 err = sim_fseeko (uptr->fileref, da, SEEK_SET);          /* set pos */
 if (!err) {
-    i = sim_fwrite (buf, ctx->xfer_element_size, tbc/ctx->xfer_element_size, uptr->fileref);
+    size_t i = sim_fwrite (buf, ctx->xfer_element_size, tbc/ctx->xfer_element_size, uptr->fileref);
+
     err = ferror (uptr->fileref);
     if ((!err) && (sectswritten))
         *sectswritten = (t_seccnt)((i*ctx->xfer_element_size+ctx->sector_size-1)/ctx->sector_size);
@@ -891,29 +888,47 @@ typedef struct _ODS1_HomeBlock
     uint32  hm1_l_ibmaplbn;
     uint16  hm1_w_maxfiles;
     uint16  hm1_w_cluster;
+    /* cppcheck-suppress unusedStructMember */
     uint16  hm1_w_devtype;
     uint16  hm1_w_structlev;
 #define HM1_C_LEVEL1    0401
 #define HM1_C_LEVEL2    0402
     uint8   hm1_t_volname[12];
+    /* cppcheck-suppress unusedStructMember */
     uint8   hm1_b_fill_1[4];
+    /* cppcheck-suppress unusedStructMember */
     uint16  hm1_w_volowner;
+    /* cppcheck-suppress unusedStructMember */
     uint16  hm1_w_protect;
+    /* cppcheck-suppress unusedStructMember */
     uint16  hm1_w_volchar;
+    /* cppcheck-suppress unusedStructMember */
     uint16  hm1_w_fileprot;
+    /* cppcheck-suppress unusedStructMember */
     uint8   hm1_b_fill_2[6];
+    /* cppcheck-suppress unusedStructMember */
     uint8   hm1_b_window;
+    /* cppcheck-suppress unusedStructMember */
     uint8   hm1_b_extend;
+    /* cppcheck-suppress unusedStructMember */
     uint8   hm1_b_lru_lim;
+    /* cppcheck-suppress unusedStructMember */
     uint8   hm1_b_fill_3[11];
     uint16  hm1_w_checksum1;
+    /* cppcheck-suppress unusedStructMember */
     uint8   hm1_t_credate[14];
+    /* cppcheck-suppress unusedStructMember */
     uint8   hm1_b_fill_4[382];
+    /* cppcheck-suppress unusedStructMember */
     uint32  hm1_l_serialnum;
+    /* cppcheck-suppress unusedStructMember */
     uint8   hm1_b_fill_5[12];
+    /* cppcheck-suppress unusedStructMember */
     uint8   hm1_t_volname2[12];
+    /* cppcheck-suppress unusedStructMember */
     uint8   hm1_t_ownername[12];
     uint8   hm1_t_format[12];
+    /* cppcheck-suppress unusedStructMember */
     uint8   hm1_t_fill_6[2];
     uint16  hm1_w_checksum2;
     } ODS1_HomeBlock;
@@ -928,68 +943,112 @@ typedef struct _ODS1_HomeBlock
     uint16 hm2_w_cluster;
     uint16 hm2_w_homevbn;
     uint16 hm2_w_alhomevbn;
+    /* cppcheck-suppress unusedStructMember */
     uint16 hm2_w_altidxvbn;
     uint16 hm2_w_ibmapvbn;
     uint32 hm2_l_ibmaplbn;
     uint32 hm2_l_maxfiles;
     uint16 hm2_w_ibmapsize;
     uint16 hm2_w_resfiles;
+    /* cppcheck-suppress unusedStructMember */
     uint16 hm2_w_devtype;
+    /* cppcheck-suppress unusedStructMember */
     uint16 hm2_w_rvn;
+    /* cppcheck-suppress unusedStructMember */
     uint16 hm2_w_setcount;
+    /* cppcheck-suppress unusedStructMember */
     uint16 hm2_w_volchar;
+    /* cppcheck-suppress unusedStructMember */
     uint32 hm2_l_volowner;
+    /* cppcheck-suppress unusedStructMember */
     uint32 hm2_l_reserved;
+    /* cppcheck-suppress unusedStructMember */
     uint16 hm2_w_protect;
+    /* cppcheck-suppress unusedStructMember */
     uint16 hm2_w_fileprot;
+    /* cppcheck-suppress unusedStructMember */
     uint16 hm2_w_reserved;
     uint16 hm2_w_checksum1;
+    /* cppcheck-suppress unusedStructMember */
     uint32 hm2_q_credate[2];
+    /* cppcheck-suppress unusedStructMember */
     uint8  hm2_b_window;
+    /* cppcheck-suppress unusedStructMember */
     uint8  hm2_b_lru_lim;
+    /* cppcheck-suppress unusedStructMember */
     uint16 hm2_w_extend;
+    /* cppcheck-suppress unusedStructMember */
     uint32 hm2_q_retainmin[2];
+    /* cppcheck-suppress unusedStructMember */
     uint32 hm2_q_retainmax[2];
+    /* cppcheck-suppress unusedStructMember */
     uint32 hm2_q_revdate[2];
+    /* cppcheck-suppress unusedStructMember */
     uint8  hm2_r_min_class[20];
+    /* cppcheck-suppress unusedStructMember */
     uint8  hm2_r_max_class[20];
+    /* cppcheck-suppress unusedStructMember */
     uint8  hm2_r_reserved[320];
+    /* cppcheck-suppress unusedStructMember */
     uint32 hm2_l_serialnum;
+    /* cppcheck-suppress unusedStructMember */
     uint8  hm2_t_strucname[12];
     uint8  hm2_t_volname[12];
+    /* cppcheck-suppress unusedStructMember */
     uint8  hm2_t_ownername[12];
     uint8  hm2_t_format[12];
+    /* cppcheck-suppress unusedStructMember */
     uint16 hm2_w_reserved2;
     uint16 hm2_w_checksum2;
     } ODS2_HomeBlock;
 
 typedef struct _ODS1_FileHeader
     {
+    /* cppcheck-suppress unusedStructMember */
     uint8   fh1_b_idoffset;
     uint8   fh1_b_mpoffset;
+    /* cppcheck-suppress unusedStructMember */
     uint16  fh1_w_fid_num;
+    /* cppcheck-suppress unusedStructMember */
     uint16  fh1_w_fid_seq;
+    /* cppcheck-suppress unusedStructMember */
     uint16  fh1_w_struclev;
+    /* cppcheck-suppress unusedStructMember */
     uint16  fh1_w_fileowner;
+    /* cppcheck-suppress unusedStructMember */
     uint16  fh1_w_fileprot;
+    /* cppcheck-suppress unusedStructMember */
     uint16  fh1_w_filechar;
+    /* cppcheck-suppress unusedStructMember */
     uint16  fh1_w_recattr;
+    /* cppcheck-suppress unusedStructMember */
     uint8   fh1_b_fill_1[494];
+    /* cppcheck-suppress unusedStructMember */
     uint16  fh1_w_checksum;
     } ODS1_FileHeader;
 
 typedef struct _ODS2_FileHeader
     {
+    /* cppcheck-suppress unusedStructMember */
     uint8  fh2_b_idoffset;
     uint8  fh2_b_mpoffset;
+    /* cppcheck-suppress unusedStructMember */
     uint8  fh2_b_acoffset;
+    /* cppcheck-suppress unusedStructMember */
     uint8  fh2_b_rsoffset;
+    /* cppcheck-suppress unusedStructMember */
     uint16 fh2_w_seg_num;
+    /* cppcheck-suppress unusedStructMember */
     uint16 fh2_w_structlev;
+    /* cppcheck-suppress unusedStructMember */
     uint16 fh2_w_fid[3];
+    /* cppcheck-suppress unusedStructMember */
     uint16 fh2_w_ext_fid[3];
+    /* cppcheck-suppress unusedStructMember */
     uint16 fh2_w_recattr[16];
+    /* cppcheck-suppress unusedStructMember */
     uint32 fh2_l_filechar;
+    /* cppcheck-suppress unusedStructMember */
     uint16 fh2_w_remaining[228];
     } ODS2_FileHeader;
 
@@ -997,22 +1056,31 @@ typedef union _ODS2_Retreval
     {
         struct 
             {
+            /* cppcheck-suppress unusedStructMember */
             unsigned fm2___fill   : 14;       /* type specific data               */
             unsigned fm2_v_format : 2;        /* format type code                 */
             } fm2_r_word0_bits;
         struct
             {
+            /* cppcheck-suppress unusedStructMember */
             unsigned fm2_v_exact    : 1;      /* exact placement specified        */
+            /* cppcheck-suppress unusedStructMember */
             unsigned fm2_v_oncyl    : 1;      /* on cylinder allocation desired   */
+            /* cppcheck-suppress unusedStructMember */
             unsigned fm2___fill     : 10;
+            /* cppcheck-suppress unusedStructMember */
             unsigned fm2_v_lbn      : 1;      /* use LBN of next map pointer      */
+            /* cppcheck-suppress unusedStructMember */
             unsigned fm2_v_rvn      : 1;      /* place on specified RVN           */
+            /* cppcheck-suppress unusedStructMember */
             unsigned fm2_v_format0  : 2;
             } fm2_r_map_bits0;
         struct
             {
+            /* cppcheck-suppress unusedStructMember */
             unsigned fm2_b_count1   : 8;      /* low byte described below         */
             unsigned fm2_v_highlbn1 : 6;      /* high order LBN                   */
+            /* cppcheck-suppress unusedStructMember */
             unsigned fm2_v_format1  : 2;
             unsigned fm2_w_lowlbn1  : 16;     /* low order LBN                    */
             } fm2_r_map_bits1;
@@ -1020,7 +1088,9 @@ typedef union _ODS2_Retreval
             {
             struct
                 {
+                /* cppcheck-suppress unusedStructMember */
                 unsigned fm2_v_count2   : 14; /* count field                      */
+                /* cppcheck-suppress unusedStructMember */
                 unsigned fm2_v_format2  : 2;
                 unsigned fm2_l_lowlbn2  : 16; /* low order LBN                    */
                 } fm2_r_map2_long0;
@@ -1030,8 +1100,11 @@ typedef union _ODS2_Retreval
             {
             struct
                 {
+                /* cppcheck-suppress unusedStructMember */
                 unsigned fm2_v_highcount3 : 14; /* low order count field          */
+                /* cppcheck-suppress unusedStructMember */
                 unsigned fm2_v_format3  : 2;
+                /* cppcheck-suppress unusedStructMember */
                 unsigned fm2_w_lowcount3 : 16;  /* high order count field         */
                 } fm2_r_map3_long0;
             uint32 fm2_l_lbn3;
@@ -1051,11 +1124,13 @@ typedef struct _ODS1_Retreval
     union {
         struct {
             uint8 fm1_b_highlbn;
+            /* cppcheck-suppress unusedStructMember */
             uint8 fm1_b_count;
             uint16 fm1_w_lowlbn;
             } fm1_s_fm1def1;
         struct {
             uint8 fm1_b_highlbn;
+            /* cppcheck-suppress unusedStructMember */
             uint8 fm1_b_count;
             uint16 fm1_w_lowlbn;
             } fm1_s_fm1def2;
@@ -1079,18 +1154,31 @@ typedef struct _ODS2_StorageControlBlock
     uint8  scb_b_struclev;   /* 2 */
     uint16 scb_w_cluster;
     uint32 scb_l_volsize;
+    /* cppcheck-suppress unusedStructMember */
     uint32 scb_l_blksize;
+    /* cppcheck-suppress unusedStructMember */
     uint32 scb_l_sectors;
+    /* cppcheck-suppress unusedStructMember */
     uint32 scb_l_tracks;
+    /* cppcheck-suppress unusedStructMember */
     uint32 scb_l_cylinder;
+    /* cppcheck-suppress unusedStructMember */
     uint32 scb_l_status;
+    /* cppcheck-suppress unusedStructMember */
     uint32 scb_l_status2;
+    /* cppcheck-suppress unusedStructMember */
     uint16 scb_w_writecnt;
+    /* cppcheck-suppress unusedStructMember */
     uint8  scb_t_volockname[12];
+    /* cppcheck-suppress unusedStructMember */
     uint32 scb_q_mounttime[2];
+    /* cppcheck-suppress unusedStructMember */
     uint16 scb_w_backrev;
+    /* cppcheck-suppress unusedStructMember */
     uint32 scb_q_genernum[2];
+    /* cppcheck-suppress unusedStructMember */
     uint8  scb_b_reserved[446];
+    /* cppcheck-suppress unusedStructMember */
     uint16 scb_w_checksum;
     } ODS2_SCB;
 #pragma pack(pop)
@@ -1132,8 +1220,8 @@ uptr->capac = (t_addr)(temp_capac/(capac_factor*((dptr->flags & DEV_SECTORS) ? 5
 if ((sim_disk_rdsect (uptr, 512 / ctx->sector_size, (uint8 *)&Home, &sects_read, sizeof (Home) / ctx->sector_size)) ||
     (sects_read != (sizeof (Home) / ctx->sector_size)))
     goto Return_Cleanup;
-CheckSum1 = ODSChecksum (&Home, (uint16)((((char *)&Home.hm2_w_checksum1)-((char *)&Home.hm2_l_homelbn))/2));
-CheckSum2 = ODSChecksum (&Home, (uint16)((((char *)&Home.hm2_w_checksum2)-((char *)&Home.hm2_l_homelbn))/2));
+CheckSum1 = ODSChecksum (&Home, (uint16)((offsetof(ODS2_HomeBlock, hm2_w_checksum1) - offsetof(ODS2_HomeBlock, hm2_l_homelbn)) / 2));
+CheckSum2 = ODSChecksum (&Home, (uint16)((offsetof(ODS2_HomeBlock, hm2_w_checksum2) - offsetof(ODS2_HomeBlock, hm2_l_homelbn)) / 2));
 if ((Home.hm2_l_homelbn == 0) || 
     (Home.hm2_l_alhomelbn == 0) || 
     (Home.hm2_l_altidxlbn == 0) || 
@@ -1211,8 +1299,8 @@ uint16 CheckSum1, CheckSum2;
 uint32 ScbLbn;
 t_offset ret_val = (t_offset)-1;
 t_seccnt sects_read;
-ptrdiff_t csum1_bytes = ((char *) &Home.hm1_w_checksum1 - (char *) &Home.hm1_w_ibmapsize) / 2;
-ptrdiff_t csum2_bytes = ((char *) &Home.hm1_w_checksum2 - (char *) &Home.hm1_w_ibmapsize) / 2;
+ptrdiff_t csum1_bytes = offsetof(ODS1_HomeBlock, hm1_w_checksum1) - offsetof(ODS1_HomeBlock, hm1_w_ibmapsize) / 2;
+ptrdiff_t csum2_bytes = offsetof(ODS1_HomeBlock, hm1_w_checksum2) - offsetof(ODS1_HomeBlock, hm1_w_ibmapsize) / 2;
 
 if ((dptr = find_dev_from_unit (uptr)) == NULL)
     return ret_val;
@@ -3477,37 +3565,40 @@ static uint64 NtoHll(uint64 value);
 
 typedef struct VHD_IOData *VHDHANDLE;
 
-static t_stat ReadFilePosition(FILE *File, void *buf, size_t bufsize, size_t *bytesread, uint64 position)
+static t_stat
+ReadFilePosition(FILE *File, void *buf, size_t bufsize, size_t *bytesread, uint64 position)
 {
-uint32 err = sim_fseeko (File, (t_offset)position, SEEK_SET);
-size_t i;
+    uint32 err = sim_fseeko(File, (t_offset)position, SEEK_SET);
 
-if (bytesread)
-    *bytesread = 0;
-if (!err) {
-    memset(buf, 0, bufsize);
-    i = fread (buf, 1, bufsize, File);
-    err = ferror (File);
-    if ((!err) && bytesread)
-        *bytesread = i;
+    if (bytesread)
+        *bytesread = 0;
+    if (!err) {
+        size_t i;
+
+        memset(buf, 0, bufsize);
+        i = fread(buf, 1, bufsize, File);
+        err = ferror(File);
+        if ((!err) && bytesread)
+            *bytesread = i;
     }
-return (err ? SCPE_IOERR : SCPE_OK);
+    return (err ? SCPE_IOERR : SCPE_OK);
 }
 
-static t_stat WriteFilePosition(FILE *File, void *buf, size_t bufsize, size_t *byteswritten, uint64 position)
+static t_stat
+WriteFilePosition(FILE *File, void *buf, size_t bufsize, size_t *byteswritten, uint64 position)
 {
-uint32 err = sim_fseeko (File, (t_offset)position, SEEK_SET);
-size_t i;
+    uint32 err = sim_fseeko(File, (t_offset)position, SEEK_SET);
 
-if (byteswritten)
-    *byteswritten = 0;
-if (!err) {
-    i = fwrite (buf, 1, bufsize, File);
-    err = ferror (File);
-    if ((!err) && byteswritten)
-        *byteswritten = i;
+    if (byteswritten)
+        *byteswritten = 0;
+    if (!err) {
+        size_t i = fwrite(buf, 1, bufsize, File);
+
+        err = ferror(File);
+        if ((!err) && byteswritten)
+            *byteswritten = i;
     }
-return (err ? SCPE_IOERR : SCPE_OK);
+    return (err ? SCPE_IOERR : SCPE_OK);
 }
 
 static uint32
@@ -3801,8 +3892,7 @@ if ((sDynamic) &&
                     break;
                     }
                 else {
-                    struct stat statb;
-
+                    /* Note: Redundant struct stat statb eliminated. The outer scope statb isn't used below this code path. */
                     if (0 == stat (CheckPath, &statb)) {
                         sim_printf ("Parent VHD '%s' corrupt for Differencing VHD: %s\n", CheckPath, szVHDPath);
                         Return = EBADF;                /* File Corrupt/Invalid */
@@ -4658,7 +4748,6 @@ ReadVirtualDiskSectors(VHDHANDLE hVHD,
 {
 uint64 BlockOffset = ((uint64)lba)*SectorSize;
 uint32 BlocksRead = 0;
-uint32 SectorsInRead;
 size_t BytesRead = 0;
 
 if (!hVHD || (hVHD->File == NULL)) {
@@ -4689,8 +4778,8 @@ while (sects) {
     uint64 BlockNumber = lba/SectorsPerBlock;
     uint32 BitMapBytes = (7+(NtoHl (hVHD->Dynamic.BlockSize)/SectorSize))/8;
     uint32 BitMapSectors = (BitMapBytes+SectorSize-1)/SectorSize;
+    uint32 SectorsInRead = SectorsPerBlock - (lba % SectorsPerBlock);
 
-    SectorsInRead = SectorsPerBlock - lba%SectorsPerBlock;
     if (SectorsInRead > sects)
         SectorsInRead = sects;
     if (hVHD->BAT[BlockNumber] == VHD_BAT_FREE_ENTRY) {

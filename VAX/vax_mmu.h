@@ -144,7 +144,7 @@ if ((pa & (lnt - 1)) == 0) {                            /* aligned? */
         return ReadW (pa);
     return ReadB (pa);                                  /* byte */
     }
-if (mapen && ((uint32)(off + lnt) > VA_PAGSIZE)) {      /* cross page? */
+if (mapen && ((uint32) off > (uint32) (VA_PAGSIZE - lnt))) { /* cross page? */
     vpn = VA_GETVPN (va + lnt);                         /* vpn 2nd page */
     tbi = VA_GETTBI (vpn);
     xpte = (va & VA_S0)? stlb[tbi]: ptlb[tbi];          /* access tlb */
@@ -214,7 +214,7 @@ if ((pa & (lnt - 1)) == 0) {                            /* aligned? */
         }
     return;
     }
-if (mapen && ((uint32)(off + lnt) > VA_PAGSIZE)) {
+if (mapen && ((uint32) off > (uint32) (VA_PAGSIZE - lnt))) {
     vpn = VA_GETVPN (va + 4);
     tbi = VA_GETTBI (vpn);
     xpte = (va & VA_S0)? stlb[tbi]: ptlb[tbi];          /* access tlb */

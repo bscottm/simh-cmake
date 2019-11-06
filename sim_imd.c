@@ -129,9 +129,8 @@ static t_stat diskParse(DISK_INFO *myDisk, uint32 isVerbose)
     uint8 sectorMap[256];
     uint8 sectorHeadMap[256];
     uint8 sectorCylMap[256];
-    uint32 sectorSize, sectorHeadwithFlags, sectRecordType;
+    uint32 sectRecordType;
     uint32 i;
-    uint8 start_sect;
 
     uint32 TotalSectorCount = 0;
     IMD_HEADER imd;
@@ -159,6 +158,9 @@ static t_stat diskParse(DISK_INFO *myDisk, uint32 isVerbose)
     }
 
     do {
+        uint32 sectorSize, sectorHeadwithFlags;
+        uint8 start_sect;
+
         sim_debug(myDisk->debugmask, myDisk->device, "start of track %d at file offset %ld\n", myDisk->ntracks, ftell(myDisk->file));
 
         sim_fread(&imd, 1, 5, myDisk->file);
@@ -345,8 +347,6 @@ diskCreate(FILE *fileref, const char *ctlr_comment)
     DISK_INFO *myDisk = NULL;
     char *     comment;
     char *     curptr;
-    char *     result;
-    uint8      answer;
     int32      len, remaining;
 
     if (fileref == NULL) {
@@ -354,6 +354,8 @@ diskCreate(FILE *fileref, const char *ctlr_comment)
     }
 
     if (sim_fsize(fileref) != 0) {
+        uint8 answer;
+
         sim_printf("SIM_IMD: Disk image already has data, do you want to overwrite it? ");
         answer = getchar();
 
@@ -373,6 +375,8 @@ diskCreate(FILE *fileref, const char *ctlr_comment)
                "SIM_IMD: Terminate with a '.' on an otherwise blank line.\n");
     remaining = MAX_COMMENT_LEN;
     do {
+        char *result;
+
         sim_printf("IMD> ");
         result = fgets(curptr, remaining - 3, stdin);
         if ((result == NULL) || (strcmp(curptr, ".\n") == 0)) {

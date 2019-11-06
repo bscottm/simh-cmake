@@ -806,13 +806,13 @@ return 0;                                               /* q can't be empty */
 
 int32 op_movc (int32 *opnd, int32 movc5, int32 acc)
 {
-int32 i, cc, fill, wd;
+int32 i, cc, fillval, wd;
 int32 j, lnt, mlnt[3];
 static const int32 looplnt[3] = { L_BYTE, L_LONG, L_BYTE };
 
 if (PSL & PSL_FPD) {                                    /* FPD set? */
     SETPC (fault_PC + STR_GETDPC (R[0]));               /* reset PC */
-    fill = STR_GETCHR (R[0]);                           /* get fill */
+    fillval = STR_GETCHR (R[0]);                        /* get fill */
     R[2] = R[2] & STR_LNMASK;                           /* mask lengths */
     if (R[4] > 0)
         R[4] = R[4] & STR_LNMASK;
@@ -823,16 +823,16 @@ else {
         R[2] = (opnd[0] < opnd[3])? opnd[0]: opnd[3];
         R[3] = opnd[4];                                 /* dst addr */
         R[4] = opnd[3] - opnd[0];                       /* dstlen - srclen */
-        fill = opnd[2];                                 /* set fill */
+        fillval = opnd[2];                              /* set fill */
         CC_CMP_W (opnd[0], opnd[3]);                    /* set cc's */
         }
     else {
         R[2] = opnd[0];                                 /* mvlen = srclen */
         R[3] = opnd[2];                                 /* dst addr */
-        R[4] = fill = 0;                                /* no fill */
+        R[4] = fillval = 0;                             /* no fill */
         cc = CC_Z;                                      /* set cc's */
         }
-    R[0] = STR_PACK (fill, R[2]);                       /* initial mvlen */
+    R[0] = STR_PACK (fillval, R[2]);                    /* initial mvlen */
     if (R[2]) {                                         /* any move? */
         if (((uint32) R[1]) < ((uint32) R[3])) {
             R[1] = R[1] + R[2];                         /* backward, adjust */
@@ -907,11 +907,11 @@ switch (R[5] & MVC_M_STATE) {                           /* case on state */
         mlnt[2] = R[4] - mlnt[0] - mlnt[1];             /* tail */
         for (i = 0; i < 3; i++) {                       /* head, align, tail */
             lnt = looplnt[i];                           /* length for loop */
-            fill = fill & BMASK;                        /* fill for loop */
+            fillval = fillval & BMASK;                  /* fill for loop */
             if (lnt == L_LONG)
-                fill = (((uint32) fill) << 24) | (fill << 16) | (fill << 8) | fill;
+                fillval = (((uint32) fillval) << 24) | (fillval << 16) | (fillval << 8) | fillval;
             for (j = 0; j < mlnt[i]; j = j + lnt, extra_bytes++) {
-                Write (R[3], fill, lnt, WA);            /* write fill */
+                Write (R[3], fillval, lnt, WA);         /* write fill */
                 R[3] = R[3] + lnt;                      /* inc dst addr */
                 R[4] = R[4] - lnt;                      /* dec fill lnt */
                 }
@@ -952,35 +952,35 @@ return cc;
 
 int32 op_cmpc (int32 *opnd, int32 cmpc5, int32 acc)
 {
-int32 cc, s1, s2, fill;
+int32 cc, s1, s2, fillval;
 
 if (PSL & PSL_FPD) {                                    /* FPD set? */
     SETPC (fault_PC + STR_GETDPC (R[0]));               /* reset PC */
-    fill = STR_GETCHR (R[0]);                           /* get fill */
+    fillval = STR_GETCHR (R[0]);                        /* get fill */
     }
 else {
     R[1] = opnd[1];                                     /* src1len */
     if (cmpc5) {                                        /* CMPC5? */
         R[2] = opnd[3];                                 /* get src2 opnds */
         R[3] = opnd[4];
-        fill = opnd[2];
+        fillval = opnd[2];
         }
     else {
         R[2] = opnd[0];                                 /* src2len = src1len */
         R[3] = opnd[2];
-        fill = 0;
+        fillval = 0;
         }
-    R[0] = STR_PACK (fill, opnd[0]);                    /* src1len + FPD data */
+    R[0] = STR_PACK (fillval, opnd[0]);                 /* src1len + FPD data */
     PSL = PSL | PSL_FPD;
     }
 R[2] = R[2] & STR_LNMASK;                               /* mask src2len */
 for (s1 = s2 = 0; ((R[0] | R[2]) & STR_LNMASK) != 0; extra_bytes++) {
     if (R[0] & STR_LNMASK)                              /* src1? read */
         s1 = Read (R[1], L_BYTE, RA);
-    else s1 = fill;                                     /* no, use fill */
+    else s1 = fillval;                                  /* no, use fill */
     if (R[2])                                           /* src2? read */
         s2 = Read (R[3], L_BYTE, RA);
-    else s2 = fill;                                     /* no, use fill */
+    else s2 = fillval;                                  /* no, use fill */
     if (s1 != s2)                                       /* src1 = src2? */
         break;
     if (R[0] & STR_LNMASK) {                            /* if src1, decr */

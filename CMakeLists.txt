@@ -170,8 +170,9 @@ if (ENABLE_CPPCHECK)
     find_program(CMAKE_C_CPPCHECK NAMES cppcheck)
     if (CMAKE_C_CPPCHECK)
         list(APPEND CMAKE_C_CPPCHECK
+             "--language=c"
              "--enable=warning,style,performance,portability,information,missingInclude"
-             ""--suppress=missingIncludeSystem"
+             "--suppress=missingIncludeSystem"
              "--inline-suppr"
              "--std=c99")
         set(CPPCHECK_STATUS "enabled.")

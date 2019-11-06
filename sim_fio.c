@@ -104,6 +104,7 @@ sim_finit(void)
         char  c[sizeof(int32)];
     } end_test;
 
+    /* cppcheck-suppress unreadVariable */
     end_test.i     = 1; /* test endian-ness */
     sim_end        = (end_test.c[0] != 0);
     sim_toffset_64 = (sizeof(t_offset) > sizeof(int32)); /* Large File (>2GB) support */
@@ -163,7 +164,7 @@ for (j = 0; j < count; j++) {                           /* loop on items */
 
 size_t sim_fwrite (const void *bptr, size_t size, size_t count, FILE *fptr)
 {
-size_t c, nelem, nbuf, lcnt, total;
+size_t nelem, nbuf, lcnt, total;
 int32 i;
 const unsigned char *sptr;
 unsigned char *sim_flip;
@@ -183,7 +184,8 @@ else lcnt = nelem;
 total = 0;
 sptr = (const unsigned char *) bptr;                    /* init input ptr */
 for (i = (int32)nbuf; i > 0; i--) {                     /* loop on buffers */
-    c = (i == 1)? lcnt: nelem;
+    size_t c = (i == 1)? lcnt: nelem;
+
     sim_buf_copy_swapped (sim_flip, sptr, size, c);
     sptr = sptr + size * count;
     c = fwrite (sim_flip, size, c, fptr);

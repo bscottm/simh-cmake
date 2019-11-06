@@ -779,41 +779,46 @@ for (i=0; i<eth_open_device_count; ++i)
 }
 #endif
 
-t_stat eth_show (FILE* st, UNIT* uptr, int32 val, CONST void* desc)
+t_stat
+eth_show(FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-  ETH_LIST  list[ETH_MAX_DEVICE];
-  int number;
+    ETH_LIST list[ETH_MAX_DEVICE];
+    int      number;
 
-  number = eth_devices(ETH_MAX_DEVICE, list);
-  fprintf(st, "ETH devices:\n");
-  if (number == -1)
-    fprintf(st, "  network support not available in simulator\n");
-  else
-    if (number == 0)
-      fprintf(st, "  no network devices are available\n");
-    else {
-      size_t min, len;
-      int i;
-      for (i=0, min=0; i<number; i++)
-        if ((len = strlen(list[i].name)) > min) min = len;
-      for (i=0; i<number; i++)
-        fprintf(st," eth%d\t%-*s (%s)\n", i, (int)min, list[i].name, list[i].desc);
-    }
-  if (eth_open_device_count) {
-    int i;
-    char desc[ETH_DEV_DESC_MAX], *d;
+    number = eth_devices(ETH_MAX_DEVICE, list);
+    fprintf(st, "ETH devices:\n");
+    if (number == -1)
+        fprintf(st, "  network support not available in simulator\n");
+    else if (number == 0) {
+        fprintf(st, "  no network devices are available\n");
+    } else {
+        size_t i, min;
 
-    fprintf(st,"Open ETH Devices:\n");
-    for (i=0; i<eth_open_device_count; i++) {
-      d = eth_getdesc_byname(eth_open_devices[i]->name, desc);
-      if (d)
-        fprintf(st, " %-7s%s (%s)\n", eth_open_devices[i]->dptr->name, eth_open_devices[i]->dptr->units[0].filename, d);
-      else
-        fprintf(st, " %-7s%s\n", eth_open_devices[i]->dptr->name, eth_open_devices[i]->dptr->units[0].filename);
-      eth_show_dev (st, eth_open_devices[i]);
-      }
+        for (i = 0, min = 0; i < number; i++) {
+            size_t len = strlen(list[i].name);
+            if (len > min)
+                min = len;
+        }
+        for (i = 0; i < number; i++)
+            fprintf(st, " eth%" PRI_SIZET "\t%-*s (%s)\n", i, (int)min, list[i].name, list[i].desc);
     }
-  return SCPE_OK;
+    if (eth_open_device_count) {
+        int  i;
+        char txt_desc[ETH_DEV_DESC_MAX];
+
+        fprintf(st, "Open ETH Devices:\n");
+        for (i = 0; i < eth_open_device_count; i++) {
+            char *d = eth_getdesc_byname(eth_open_devices[i]->name, txt_desc);
+
+            if (d != NULL)
+                fprintf(st, " %-7s%s (%s)\n", eth_open_devices[i]->dptr->name, eth_open_devices[i]->dptr->units[0].filename,
+                        d);
+            else
+                fprintf(st, " %-7s%s\n", eth_open_devices[i]->dptr->name, eth_open_devices[i]->dptr->units[0].filename);
+            eth_show_dev(st, eth_open_devices[i]);
+        }
+    }
+    return SCPE_OK;
 }
 
 t_stat eth_show_devices (FILE* st, DEVICE *dptr, UNIT* uptr, int32 val, CONST char *desc)

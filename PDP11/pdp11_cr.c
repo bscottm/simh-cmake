@@ -628,12 +628,12 @@ static t_bool fileEOF ( UNIT  *uptr,
                         char  *acard,
                         int32  cddbsBits )
 {
-    int col;
-
     if (DEBUG_PRS (cr_dev))
         fprintf (sim_deb, "hopper empty-eof\n");
 
     if (!EOFcard && (uptr->flags & UNIT_AUTOEOF) && !ferror(uptr->fileref)) {
+        int col;
+
         EOFcard = -1;
         /* Generate EOD card, which empties the hopper */
         for (col = 1; col <= 8; col++) {
@@ -677,12 +677,13 @@ static t_bool readCardImage (   UNIT    *uptr,
                                 char    *ccard,
                                 char    *acard    )
 {
-    int    c1, c2, c3, col;
+    int    c2, c3, col;
     FILE   *fp = uptr->fileref;
 
     if (DEBUG_PRS (cr_dev))
         fprintf (sim_deb, "readCardImage pos %d\n", (int) ftell (fp));
     do {
+        int    c1;
         /* get card header bytes */
         c1 = fgetc (fp);
         c2 = fgetc (fp);
@@ -707,26 +708,26 @@ static t_bool readCardImage (   UNIT    *uptr,
         ASSURE (colEnd <= 81);
         for (col = colStart; col < colEnd; ) {
             int16    i;
-            int    c1, c2, c3;
+            int      b1, b2, b3;
             /* get 3 bytes */
-            c1 = fgetc (fp);
-            c2 = fgetc (fp);
-            c3 = fgetc (fp);
+            b1 = fgetc (fp);
+            b2 = fgetc (fp);
+            b3 = fgetc (fp);
             uptr->pos = ftell (fp);
-            if (ferror (fp) || (c1 == EOF) || (c2 == EOF) || (c3 == EOF)) {
+            if (ferror (fp) || (b1 == EOF) || (b2 == EOF) || (b3 == EOF)) {
                 if (DEBUG_PRS (cr_dev))
                     fprintf (sim_deb, "file error\n");
                     /* signal error; unexpected EOF, format problems, or file error(s) */
                 return  fileEOF (uptr, hcard, ccard, acard, ferror(fp)? CDDB_READ: CDDB_PICK);
             }
             /* convert to 2 columns */
-            i = ((c1 << 4) | ( c2 >> 4)) & 0xFFF;
+            i = ((b1 << 4) | ( b2 >> 4)) & 0xFFF;
             hcard[col] = i;
             ccard[col] = (char)h2c_code[i];
             acard[col] = ascii_code[i];
             col++;
 
-            i = (((c2 & 017) << 8) | c3) & 0xFFF;
+            i = (((b2 & 017) << 8) | b3) & 0xFFF;
             hcard[col] = i;
             ccard[col] = (char)h2c_code[i];
             acard[col] = ascii_code[i];
@@ -1391,6 +1392,7 @@ incremented properly.  If this causes problems, I'll fix it.
                     uint16 z;
                     w |= ((ccard[currCol] & 07) << 12);     /* Encode zones 1..7 - same as 'packed' format */
                     z = w & 0774;
+                    /* cppcheck-suppress oppositeExpression */
                     if ((z & -z) != z)                      /* More than one punch in 1..7 */
                         w |= 0100000;                       /* sets Hollerith (encoding) failure (not an error) */
                 }
@@ -1812,7 +1814,6 @@ static void cr_supported ( char *string, int32 *bits, size_t string_aize )
 {
 int32 crtypes = 0;
 #define MAXDESCRIP sizeof ("CR11/CD11/CD20/") /* sizeof includes \0 */
-char devtype[MAXDESCRIP] = "";
 
 #if defined (CR11_ONLY) || defined (CR11_OK)
     crtypes |= 1;
@@ -1825,6 +1826,9 @@ char devtype[MAXDESCRIP] = "";
 #endif
 
 if (string) {
+    char devtype[MAXDESCRIP];
+
+    devtype[0] = '\0';
     if (crtypes & 1)
         strlcat (devtype, "CR11/", sizeof (devtype));
     if (crtypes & 2)
@@ -1861,6 +1865,7 @@ fprintf (st, "punch data representing all 12 columns.  Complete details on the f
 fprintf (st, "as well as sample code, are available at Prof. Jones's site:\n");
 fprintf (st, "       http://www.cs.uiowa.edu/~jones/cards/.\n\n");
 
+/* cppcheck-suppress oppositeExpression */
 if ((crtypes & -crtypes) != crtypes) {
     fprintf (st, "The card reader device an be configured to emulate the following\n");
     fprintf (st, "controller models with these commands:\n\n");

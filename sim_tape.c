@@ -176,9 +176,6 @@ if ((!callback) || !ctx->asynch_io)
 
 #define AIO_CALL(op, _buf, _bc, _fc, _max, _vbc, _gaplen, _bpi, _obj, _callback)\
     if (ctx->asynch_io) {                                               \
-        struct tape_context *ctx =                                      \
-                      (struct tape_context *)uptr->tape_ctx;            \
-                                                                        \
         pthread_mutex_lock (&ctx->io_lock);                             \
                                                                         \
         sim_debug_unit (ctx->dbit, uptr,                                \
@@ -616,7 +613,6 @@ uint32 objc;
 DEVICE *dptr;
 char gbuf[CBUFSIZE];
 char export_file[CBUFSIZE] = "";
-uint32 recsize = 0;
 t_stat r;
 t_bool auto_format = FALSE;
 t_bool had_debug = (sim_deb != NULL);
@@ -636,6 +632,8 @@ if (sim_switches & SWMASK ('F')) {                      /* format spec? */
     auto_format = TRUE;
     }
 if (sim_switches & SWMASK ('B')) {                  /* Record Size (blocking factor)? */
+    uint32 recsize;
+
     cptr = get_glyph (cptr, gbuf, 0);                   /* get spec */
     if (*cptr == 0)                                     /* must be more */
         return sim_messagef (SCPE_2FARG, "Missing Record Size and filename to attach\n");
@@ -1327,7 +1325,7 @@ switch (f) {                                       /* otherwise the read method 
         break;
 
     case MTUF_F_AWS:
-        saved_pos = (t_addr)sim_ftell (uptr->fileref);
+        (void) sim_ftell (uptr->fileref);
         memset (&awshdr, 0, sizeof (awshdr));
         rdcnt = sim_fread (&awshdr, sizeof (t_awslnt), 3, uptr->fileref);
         if (ferror (uptr->fileref)) {           /* error? */
@@ -1471,14 +1469,11 @@ return status;
 
 static t_stat sim_tape_rdlntr (UNIT *uptr, t_mtrlnt *bc)
 {
-uint8    c;
-t_bool   all_eof;
 uint32   f = MT_GET_FMT (uptr);
 t_addr   ppos;
 t_mtrlnt sbc;
 t_tpclnt tpcbc;
 t_awshdr awshdr;
-size_t   rdcnt;
 t_mtrlnt buffer [256];                                  /* local tape buffer */
 uint32   bufcntr, bufcap;                               /* buffer counter and capacity */
 int32    runaway_counter, sizeof_gap;                   /* bytes remaining before runaway and bytes per gap */
@@ -1610,6 +1605,8 @@ switch (f) {                                            /* otherwise the read me
             t_addr buf_offset = uptr->pos;
             size_t bytes_in_buf = 0;
             size_t read_size;
+            uint8  c;
+            t_bool all_eof;
 
             for (sbc = 1, all_eof = 1; (t_addr) sbc <= uptr->pos ; sbc++) {
                 if (bytes_in_buf == 0) {                /* Need to Fill Buffer */
@@ -1654,6 +1651,8 @@ switch (f) {                                            /* otherwise the read me
         status = MTSE_OK;
         (void)sim_tape_seek (uptr, uptr->pos);          /* position */
         while (1) {
+            size_t   rdcnt;
+
             if (sim_tape_bot (uptr)) {                  /* if we start at BOT */
                 status = MTSE_BOT;                      /*   then we're done */
                 break;
@@ -2249,7 +2248,6 @@ return r;
 
 static t_stat tape_erase_fwd (UNIT *uptr, t_mtrlnt gap_size)
 {
-size_t   xfer;
 t_stat   st;
 t_mtrlnt meta, sbc, new_len, rec_size;
 uint32   file_size, marker_count;
@@ -2291,7 +2289,7 @@ if (sim_tape_seek (uptr, uptr->pos)) {                  /* position the tape; if
 */
 
 do {
-    xfer = sim_fread (&meta, meta_size, 1, uptr->fileref);  /* read a metadatum */
+    size_t   xfer = sim_fread (&meta, meta_size, 1, uptr->fileref);  /* read a metadatum */
 
     if (ferror (uptr->fileref)) {                       /* read error? */
         uptr->pos = gap_pos;                            /* restore original position */
@@ -3592,42 +3590,44 @@ return SCPE_OK;
    structure, and SCPE_OK is returned.
 */
 
-t_stat sim_tape_set_dens (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
+t_stat
+sim_tape_set_dens(UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 {
-uint32 density, new_bpi;
-t_stat result = SCPE_OK;
+    uint32 density, new_bpi;
 
-if (uptr == NULL)                                               /* if the unit pointer is null */
-    return SCPE_IERR;                                           /*   then the caller has screwed up */
+    if (uptr == NULL) {                                                 /* if the unit pointer is null */
+        return SCPE_IERR;                                               /* then the caller has screwed up */
+    } else {
+        if (desc == NULL) {                                             /* otherwise if a validation set was not supplied */
+            if (val > 0 && val < (int32)BPI_COUNT)                      /* then if a valid density code was supplied */
+                uptr->dynflags = (uptr->dynflags & ~MTVF_DENS_MASK)     /* then insert the code */
+                                 | (val << UNIT_V_DF_TAPE);             /* in the unit flags */
+            else                                                        /* otherwise the code is invalid */
+                return SCPE_ARG;                                        /* so report a bad argument */
+        } else {                                                        /* otherwise a validation set was supplied */
+            t_stat result;
 
-else if (desc == NULL)                                          /* otherwise if a validation set was not supplied */
-    if (val > 0 && val < (int32) BPI_COUNT)                     /*   then if a valid density code was supplied */
-        uptr->dynflags = (uptr->dynflags & ~MTVF_DENS_MASK)     /*     then insert the code */
-                           | (val << UNIT_V_DF_TAPE);           /*       in the unit flags */
-    else                                                        /*   otherwise the code is invalid */
-        return SCPE_ARG;                                        /*     so report a bad argument */
+            if (cptr == NULL || *cptr == 0)                             /* but if no value is present */
+                return SCPE_MISVAL;                                     /* then report a missing value */
 
-else {                                                          /* otherwise a validation set was supplied */
-    if (cptr == NULL || *cptr == 0)                             /*   but if no value is present */
-        return SCPE_MISVAL;                                     /*     then report a missing value */
+            new_bpi = (uint32)get_uint(cptr, 10, UINT_MAX, &result);    /* convert the string value */
 
-    new_bpi = (uint32) get_uint (cptr, 10, UINT_MAX, &result);  /* convert the string value */
-
-    if (result != SCPE_OK)                                      /* if the conversion failed */
-        result = SCPE_ARG;                                      /*   then report a bad argument */
-
-    else for (density = 0; density < BPI_COUNT; density++)      /* otherwise validate the density */
-        if (new_bpi == bpi [density]                            /* if it matches a value in the list */
-          && ((1 << density) & *(const int32 *) desc)) {        /*   and it's an allowed value */
-            uptr->dynflags = (uptr->dynflags & ~MTVF_DENS_MASK) /*     then store the index of the value */
-                               | density << UNIT_V_DF_TAPE;     /*       in the unit flags */
-            return SCPE_OK;                                     /*         and return success */
+            if (result != SCPE_OK)                                      /* if the conversion failed */
+                return SCPE_ARG;                                        /* then report a bad argument */
+            for (density = 0; density < BPI_COUNT; density++) {         /* otherwise validate the density */
+                if (new_bpi == bpi[density]                             /* if it matches a value in the list */
+                    && ((1 << density) & *(const int32 *)desc)) {       /* and it's an allowed value */
+                    uptr->dynflags = (uptr->dynflags & ~MTVF_DENS_MASK) /* then store the index of the value */
+                                     | density << UNIT_V_DF_TAPE;       /* in the unit flags */
+                    return SCPE_OK;                                     /* and return success */
+                }
             }
 
-    result = SCPE_ARG;                                          /* if no match, then report a bad argument */
+            return SCPE_ARG;                                            /* if no match, then report a bad argument */
+        }
     }
 
-return result;                                                  /* return the result of the operation */
+    return SCPE_OK;                                                     /* return the result of the operation */
 }
 
 /* Show the tape density */
@@ -4178,7 +4178,7 @@ static void ansi_make_HDR1 (HDR1 *hdr1, VOL1 *vol, HDR4 *hdr4, const char *filen
     to_ansi_a (hdr1->file_ident, fn, sizeof (hdr1->file_ident));
     if (strlen (fn) > 17) {
         to_ansi_a (hdr4->extra_name, fn + 17, sizeof (hdr4->extra_name));
-        sprintf (extra_name_used, "%02u", strlen (fn) - 17);
+        sprintf (extra_name_used, "%02" PRI_SIZET, strlen (fn) - 17);
         }
     memcpy (hdr4->extra_name_used, extra_name_used, 2);
     memcpy (hdr1->file_set, vol->ident, sizeof (hdr1->file_set));
@@ -4233,7 +4233,7 @@ static void ansi_fill_text_buffer (FILE *f, char *buf, size_t buf_size, size_t r
                 fseek (f, start, SEEK_SET);
                 break;
                 }
-            sprintf (rec_size_str, "%04u", (int)(rec_size + 4));
+            sprintf (rec_size_str, "%04" PRI_SIZET, rec_size + 4);
             memcpy (buf + offset, rec_size_str, 4);
             memcpy (buf + offset + 4, tmp, rec_size);
             offset += 4 + rec_size;
@@ -4407,7 +4407,7 @@ if (f == NULL) {
     }
 tape_classify_file_contents (f, &max_record_size, &lf_line_endings, &crlf_line_endings);
 ansi_make_HDR1 (&hdr1, &tape->vol1, &hdr4, filename, tape->ansi_type);
-sprintf (file_sequence, "%04d", 1 + tape->file_count);
+sprintf (file_sequence, "%04u", 1 + tape->file_count);
 memcpy (hdr1.file_sequence, file_sequence, sizeof (hdr1.file_sequence));
 if (ansi->fixed_text)
     max_record_size = 512;

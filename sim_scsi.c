@@ -760,7 +760,6 @@ void scsi_read6_tape (SCSI_BUS *bus, uint8 *data, uint32 len)
 UNIT *uptr = bus->dev[bus->target];
 SCSI_DEV *dev = (SCSI_DEV *)uptr->up7;
 t_seccnt sects, sectsread;
-t_stat r;
 
 if ((data[1] & 0x3) == 0x3) {                           /* SILI and FIXED? */
     scsi_status (bus, STS_CHK, KEY_ILLREQ, ASC_INVCDB);
@@ -779,6 +778,8 @@ sim_debug (SCSI_DBG_CMD, bus->dptr,
     "Read(6) blks %d fixed %d\n", sects, (data[1] & 0x1));
 
 if (uptr->flags & UNIT_ATT) {
+    t_stat r;
+
     if (data[1] & 0x1) {
         r = sim_tape_rdrecf (uptr, &bus->buf[0], &sectsread, (sects * dev->block_size));
         sim_debug (SCSI_DBG_CMD, bus->dptr,

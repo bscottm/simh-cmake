@@ -77,6 +77,15 @@ function(build_simcore _targ)
 	target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
 	target_link_libraries(${_targ} PUBLIC "m")
     endif ()
+
+    # CPPCHECK: Add include directories to the C_CPPCHECK property.
+    if (ENABLE_CPPCHECK)
+      get_property(cppcheck_includes TARGET ${_targ} PROPERTY INCLUDE_DIRECTORIES)
+      list(TRANSFORM cppcheck_includes PREPEND "-I")
+      set_property(TARGET ${_targ}
+                   APPEND
+                   PROPERTY C_CPPCHECK ${cppcheck_includes})
+    endif (ENABLE_CPPCHECK)
 endfunction(build_simcore _targ)
 
 
@@ -152,6 +161,15 @@ function (add_simulator _targ)
     if (NOT DONT_USE_ROMS AND SIMH_BUILDROMS)
 	add_dependencies(${_targ} BuildROMs)
     endif (NOT DONT_USE_ROMS AND SIMH_BUILDROMS)
+
+    # CPPCHECK: Add include directories to the C_CPPCHECK property.
+    if (ENABLE_CPPCHECK)
+      get_property(cppcheck_includes TARGET ${_targ} PROPERTY INCLUDE_DIRECTORIES)
+      list(TRANSFORM cppcheck_includes PREPEND "-I")
+      set_property(TARGET ${_targ}
+                   APPEND
+                   PROPERTY C_CPPCHECK ${cppcheck_includes})
+    endif (ENABLE_CPPCHECK)
 endfunction ()
 
 ##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
