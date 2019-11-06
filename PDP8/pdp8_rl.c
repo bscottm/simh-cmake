@@ -404,130 +404,125 @@ return dat;
    the current command.
 */
 
-t_stat rl_svc (UNIT *uptr)
+t_stat
+rl_svc(UNIT *uptr)
 {
-int32 err, wc, maxc;
-int32 i, j, func, da, bc, wbc;
-uint32 ma;
+    int32  err, wc, maxc;
+    int32  i, j, func, da, bc, wbc;
+    uint32 ma;
 
-func = GET_FUNC (rlcsb);                                /* get function */
-if (func == RLCSB_GSTA) {                               /* get status? */
-    rlsi = uptr->STAT | 
-        ((uptr->TRK & RLCSA_HD)? RLDS_HD: 0) |
-        ((uptr->flags & UNIT_ATT)? RLDS_ATT: RLDS_UNATT);
-    if (uptr->flags & UNIT_RL02)
-        rlsi = rlsi | RLDS_RL02;
-    if (uptr->flags & UNIT_WPRT)
-        rlsi = rlsi | RLDS_WLK;
-    rlsi2 = rlsi1 = rlsi;
-    rl_set_done (0);                                    /* done */
-    return SCPE_OK;
+    func = GET_FUNC(rlcsb);   /* get function */
+    if (func == RLCSB_GSTA) { /* get status? */
+        rlsi = uptr->STAT | ((uptr->TRK & RLCSA_HD) ? RLDS_HD : 0) | ((uptr->flags & UNIT_ATT) ? RLDS_ATT : RLDS_UNATT);
+        if (uptr->flags & UNIT_RL02)
+            rlsi = rlsi | RLDS_RL02;
+        if (uptr->flags & UNIT_WPRT)
+            rlsi = rlsi | RLDS_WLK;
+        rlsi2 = rlsi1 = rlsi;
+        rl_set_done(0);                                       /* done */
+        return SCPE_OK;
     }
 
-if ((uptr->flags & UNIT_ATT) == 0) {                    /* attached? */
-    uptr->STAT = uptr->STAT | RLDS_SPE;                 /* spin error */
-    rl_set_done (RLER_INCMP);                           /* flag error */
-    return IORETURN (rl_stopioe, SCPE_UNATT);
+    if ((uptr->flags & UNIT_ATT) == 0) {                      /* attached? */
+        uptr->STAT = uptr->STAT | RLDS_SPE;                   /* spin error */
+        rl_set_done(RLER_INCMP);                              /* flag error */
+        return IORETURN(rl_stopioe, SCPE_UNATT);
     }
 
-if ((func == RLCSB_WRITE) && (uptr->flags & UNIT_WPRT)) {
-    uptr->STAT = uptr->STAT | RLDS_WGE;                 /* write and locked */
-    rl_set_done (RLER_DRE);                             /* flag error */
-    return SCPE_OK;
+    if ((func == RLCSB_WRITE) && (uptr->flags & UNIT_WPRT)) {
+        uptr->STAT = uptr->STAT | RLDS_WGE;                   /* write and locked */
+        rl_set_done(RLER_DRE);                                /* flag error */
+        return SCPE_OK;
     }
 
-if (func == RLCSB_SEEK) {                               /* seek? */
-    rl_set_done (0);                                    /* done */
-    return SCPE_OK;
+    if (func == RLCSB_SEEK) {                                 /* seek? */
+        rl_set_done(0);                                       /* done */
+        return SCPE_OK;
     }
 
-if (func == RLCSB_RHDR) {                               /* read header? */
-    rlsi = (GET_TRK (uptr->TRK) << RLSI_V_TRK) | rlsa;
-    rlsi1 = rlsi2 = 0;
-    rl_set_done (0);                                    /* done */
-    return SCPE_OK;
+    if (func == RLCSB_RHDR) {                                 /* read header? */
+        rlsi  = (GET_TRK(uptr->TRK) << RLSI_V_TRK) | rlsa;
+        rlsi1 = rlsi2 = 0;
+        rl_set_done(0);                                       /* done */
+        return SCPE_OK;
     }
 
-if (((func != RLCSB_RNOHDR) && (GET_CYL (uptr->TRK) != GET_CYL (rlcsa)))
-   || (rlsa >= RL_NUMSC)) {                             /* bad cyl or sector? */
-    rl_set_done (RLER_HDE | RLER_INCMP);                /* flag error */
-    return SCPE_OK;
+    if (((func != RLCSB_RNOHDR) && (GET_CYL(uptr->TRK) != GET_CYL(rlcsa))) || (rlsa >= RL_NUMSC)) { /* bad cyl or sector? */
+        rl_set_done(RLER_HDE | RLER_INCMP);                                                         /* flag error */
+        return SCPE_OK;
     }
-    
-ma = (GET_MEX (rlcsb) << 12) | rlma;                    /* get mem addr */
-da = GET_DA (rlcsa) * RL_NUMBY;                         /* get disk addr */
-wc = 010000 - rlwc;                                     /* get true wc */
-if (rlcsb & RLCSB_8B) {                                 /* 8b mode? */
-    bc = wc;                                            /* bytes to xfr */
-    maxc = (RL_NUMSC - rlsa) * RL_NUMBY;                /* max transfer */
-    if (bc > maxc)                                      /* trk ovrun? limit */
-        wc = bc = maxc;
-    }
-else {
-    bc = ((wc * 3) + 1) / 2;                            /* 12b mode */
-    if (bc > RL_NUMBY) {                                /* > 1 sector */
-        bc = RL_NUMBY;                                  /* cap xfer */
-        wc = (RL_NUMBY * 2) / 3;
+
+    ma = (GET_MEX(rlcsb) << 12) | rlma;                                            /* get mem addr */
+    da = GET_DA(rlcsa) * RL_NUMBY;                                                 /* get disk addr */
+    wc = 010000 - rlwc;                                                            /* get true wc */
+    if (rlcsb & RLCSB_8B) {                                                        /* 8b mode? */
+        bc   = wc;                                                                 /* bytes to xfr */
+        maxc = (RL_NUMSC - rlsa) * RL_NUMBY;                                       /* max transfer */
+        if (bc > maxc)                                                             /* trk ovrun? limit */
+            wc = bc = maxc;
+    } else {
+        bc = ((wc * 3) + 1) / 2;                                                   /* 12b mode */
+        if (bc > RL_NUMBY) {                                                       /* > 1 sector */
+            bc = RL_NUMBY;                                                         /* cap xfer */
+            wc = (RL_NUMBY * 2) / 3;
         }
     }
 
-err = fseek (uptr->fileref, da, SEEK_SET);
+    err = fseek(uptr->fileref, da, SEEK_SET);
 
-if ((func >= RLCSB_READ) && (err == 0) &&               /* read (no hdr)? */
-    MEM_ADDR_OK (ma)) {                                 /* valid bank? */
-    i = fxread (rlxb, sizeof (int8), bc, uptr->fileref);
-    err = ferror (uptr->fileref);
-    for ( ; i < bc; i++)                                /* fill buffer */
-        rlxb[i] = 0;
-    for (i = j = 0; i < wc; i++) {                      /* store buffer */
-        if (rlcsb & RLCSB_8B)                           /* 8b mode? */
-            M[ma] = rlxb[i] & 0377;                     /* store */
-        else if (i & 1) {                               /* odd wd 12b? */
-            M[ma] = ((rlxb[j + 1] >> 4) & 017) |
-                (((uint16) rlxb[j + 2]) << 4);
-            j = j + 3;
+    if ((func >= RLCSB_READ) && (err == 0) &&                                      /* read (no hdr)? */
+        MEM_ADDR_OK(ma)) {                                                         /* valid bank? */
+        i   = fxread(rlxb, sizeof(int8), bc, uptr->fileref);
+        err = ferror(uptr->fileref);
+        for (; i < bc; i++)                                                        /* fill buffer */
+            rlxb[i] = 0;
+        for (i = j = 0; i < wc; i++) {                                             /* store buffer */
+            if (rlcsb & RLCSB_8B)                                                  /* 8b mode? */
+                M[ma] = rlxb[i] & 0377;                                            /* store */
+            else if (i & 1) {                                                      /* odd wd 12b? */
+                M[ma] = ((rlxb[j + 1] >> 4) & 017) | (((uint16)rlxb[j + 2]) << 4);
+                j     = j + 3;
+            } else
+                M[ma] = rlxb[j] |                                                  /* even wd 12b */
+                        ((((uint16)rlxb[j + 1]) & 017) << 8);
+            ma = (ma & 070000) + ((ma + 1) & 07777);
+        }                                                                          /* end for */
+    }                                                                              /* end if wr */
+
+    if ((func == RLCSB_WRITE) && (err == 0)) {                                     /* write? */
+        for (i = j = 0; i < wc; i++) {                                             /* fetch buffer */
+            if (rlcsb & RLCSB_8B)                                                  /* 8b mode? */
+                rlxb[i] = M[ma] & 0377;                                            /* fetch */
+            else if (i & 1) {                                                      /* odd wd 12b? */
+                rlxb[j + 1] = rlxb[j + 1] | ((M[ma] & 017) << 4);
+                rlxb[j + 2] = ((M[ma] >> 4) & 0377);
+                j           = j + 3;
+            } else {                                                               /* even wd 12b */
+                rlxb[j]     = M[ma] & 0377;
+                rlxb[j + 1] = (M[ma] >> 8) & 017;
             }
-        else M[ma] = rlxb[j] |                          /* even wd 12b */
-            ((((uint16) rlxb[j + 1]) & 017) << 8);      
-        ma = (ma & 070000) + ((ma + 1) & 07777);
-        }                                               /* end for */
-    }                                                   /* end if wr */
+            ma = (ma & 070000) + ((ma + 1) & 07777);
+        }                                                                          /* end for */
+        wbc = (bc + (RL_NUMBY - 1)) & ~(RL_NUMBY - 1);                             /* clr to */
+        for (i = bc; i < wbc; i++)                                                 /* end of blk */
+            rlxb[i] = 0;
+        fxwrite(rlxb, sizeof(int8), wbc, uptr->fileref);
+        err = ferror(uptr->fileref);
+    }                                                                              /* end write */
 
-if ((func == RLCSB_WRITE) && (err == 0)) {              /* write? */
-    for (i = j = 0; i < wc; i++) {                      /* fetch buffer */
-        if (rlcsb & RLCSB_8B)                           /* 8b mode? */
-            rlxb[i] = M[ma] & 0377;                     /* fetch */
-        else if (i & 1) {                               /* odd wd 12b? */
-            rlxb[j + 1] = rlxb[j + 1] | ((M[ma] & 017) << 4);
-            rlxb[j + 2] = ((M[ma] >> 4) & 0377);
-            j = j + 3;
-            }
-        else {                                          /* even wd 12b */
-            rlxb[j] = M[ma] & 0377;
-            rlxb[j + 1] = (M[ma] >> 8) & 017;
-            }
-        ma = (ma & 070000) + ((ma + 1) & 07777);
-        }                                               /* end for */
-    wbc = (bc + (RL_NUMBY - 1)) & ~(RL_NUMBY - 1);      /* clr to */
-    for (i = bc; i < wbc; i++)                          /* end of blk */
-        rlxb[i] = 0;
-    fxwrite (rlxb, sizeof (int8), wbc, uptr->fileref);
-    err = ferror (uptr->fileref);
-    }                                                   /* end write */
+    rlwc = (rlwc + wc) & 07777;                                                    /* final word count */
+    if (rlwc != 0)                                                                 /* completed? */
+        rler = rler | RLER_INCMP;
+    rlma = (rlma + wc) & 07777;                                                    /* final word addr */
+    rlsa = rlsa + ((bc + (RL_NUMBY - 1)) / RL_NUMBY);
+    rl_set_done(0);
 
-rlwc = (rlwc + wc) & 07777;                             /* final word count */
-if (rlwc != 0)                                          /* completed? */
-    rler = rler | RLER_INCMP;
-rlma = (rlma + wc) & 07777;                             /* final word addr */
-rlsa = rlsa + ((bc + (RL_NUMBY - 1)) / RL_NUMBY);
-rl_set_done (0);
-
-if (err != 0) {                                         /* error? */
-    sim_perror ("RL I/O error");
-    clearerr (uptr->fileref);
-    return SCPE_IOERR;
+    if (err != 0) {                                                                /* error? */
+        sim_perror("RL I/O error");
+        clearerr(uptr->fileref);
+        return SCPE_IOERR;
     }
-return SCPE_OK;
+    return SCPE_OK;
 }
 
 /* Set done and possibly errors */

@@ -587,13 +587,13 @@ sim_card_eof(UNIT *uptr)
 }
 
 struct _card_buffer {
-    char   buffer[8192 + 500]; /* Buffer data */
+    uint8  buffer[8192 + 500]; /* Buffer data */
     size_t len;                /* Amount of data in buffer */
     size_t size;               /* Size of last card read */
 };
 
 static int
-_cmpcard(const char *p, const char *s)
+_cmpcard(const uint8 *p, const char *s)
 {
     int i;
     if (p[0] != '~')
@@ -620,7 +620,7 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
 
         /* Check buffer to see if binary card in it. */
         for (i = 0, temp = 0; i < 160 && i < buf->len; i += 2)
-            temp |= buf->buffer[i];
+            temp |= (uint16)(buf->buffer[i] & 0xFF);
         /* Check if every other char < 16 & full buffer */
         if ((temp & 0x0f) == 0 && i == 160)
             mode = MODE_BIN; /* Probably binary */
@@ -779,9 +779,9 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
         }
         /* Move data to buffer */
         for (col = i = 0; i < 160;) {
-            temp |= buf->buffer[i];
+            temp |= (uint16)(buf->buffer[i] & 0xff);
             (*image)[col] = (buf->buffer[i++] >> 4) & 0xF;
-            (*image)[col++] |= ((uint16)buf->buffer[i++]) << 4;
+            (*image)[col++] |= ((uint16)buf->buffer[i++] & 0xf) << 4;
         }
         /* Check if format error */
         if (temp & 0xF)
@@ -792,7 +792,7 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
     case MODE_CBN:
         sim_debug(DEBUG_CARD, dptr, "cbn\n");
         /* Check if first character is a tape mark */
-        if (((uint8)buf->buffer[0]) == 0217 && (buf->len == 1 || (((uint8)buf->buffer[1]) & 0200) != 0)) {
+        if (buf->buffer[0] == 0217 && (buf->len == 1 || (((uint8)buf->buffer[1]) & 0200) != 0)) {
             i = 1;
             (*image)[0] |= CARD_EOF;
             break;
@@ -833,7 +833,7 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
     case MODE_BCD:
         sim_debug(DEBUG_CARD, dptr, "bcd [");
         /* Check if first character is a tape mark */
-        if (((uint8)buf->buffer[0]) == 0217 && (((uint8)buf->buffer[1]) & 0200) != 0) {
+        if (buf->buffer[0] == 0217 && (buf->buffer[1] & 0200) != 0) {
             i = 1;
             (*image)[0] |= CARD_EOF;
             break;
@@ -871,7 +871,7 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
             (*image)[0] |= CARD_ERR;
         /* Move data to buffer */
         for (i = 0; i < 80 && i < buf->len; i++) {
-            temp        = buf->buffer[i] & 0xFF;
+            temp = (uint16)(buf->buffer[i]) & 0xFF;
             (*image)[i] = ebcdic_to_hol[temp];
         }
         break;

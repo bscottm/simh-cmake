@@ -1018,10 +1018,6 @@ switch (rg) {
         else                                            /* no, disk 0 */
             sim_activate (&fl_unit[0], fl_cwait);       /* start operation */
         break;
-
-    default:
-        val = 0;
-        break;
         }
 sim_debug (FL_DB_REG, &fl_dev, "fl_rd(%s) data=0x%02X\n", fl_regnames[rg], val);
 return val;

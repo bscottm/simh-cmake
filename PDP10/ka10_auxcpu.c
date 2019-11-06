@@ -54,7 +54,7 @@
 
 static int pia = 0;
 static int status = 0;
-t_value auxcpu_base = 03000000;
+int auxcpu_base = 03000000;
 
 #if 0
 /* Unused */
@@ -190,7 +190,7 @@ static t_stat auxcpu_svc (UNIT *uptr)
     auxcpu_ldsc.rcve = 1;
     uptr->wait = AUXCPU_POLL;
   }
-  sim_activate (uptr, uptr->wait);
+  sim_clock_coschedule (uptr, uptr->wait);
   return SCPE_OK;
 }
 
@@ -412,13 +412,13 @@ static t_stat auxcpu_set_base (UNIT *uptr, int32 val, CONST char *cptr, void *de
     if (r != SCPE_OK)
         return SCPE_ARG;
 
-    auxcpu_base = x;
+    auxcpu_base = (int)x;
     return SCPE_OK;
 }
 
 static t_stat auxcpu_show_base (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-    fprintf (st, "Base: %"LL_FMT"o", auxcpu_base);
+    fprintf (st, "Base: %06"LL_FMT"o", auxcpu_base);
     return SCPE_OK;
 }
 #endif

@@ -749,6 +749,8 @@ char *fullpath = NULL, *result = NULL;
 char *c, *name, *ext;
 char chr;
 const char *p;
+char filesizebuf[32] = { 0 };
+char filedatetimebuf[64] = { 0 };
 
 if (((*filepath == '\'') || (*filepath == '"')) &&
     (filepath[strlen (filepath) - 1] == *filepath)) {
@@ -819,6 +821,20 @@ if (ext == NULL)
 tot_size = 0;
 if (*parts == '\0')             /* empty part specifier means strip only quotes */
     tot_size = strlen (tempfilepath);
+if (strchr (parts, 't') || strchr (parts, 'z')) {
+    struct stat filestat;
+    struct tm *tm;
+
+    memset (&filestat, 0, sizeof (filestat));
+    (void)stat (fullpath, &filestat);
+    if (sizeof (filestat.st_size) == 4)
+        sprintf (filesizebuf, "%ld ", filestat.st_size);
+    else
+        sprintf (filesizebuf, "%" LL_FMT "d ", (LL_TYPE)filestat.st_size);
+    tm = localtime (&filestat.st_mtime);
+    sprintf (filedatetimebuf, "%02d/%02d/%04d %02d:%02d %cM ", 1 + tm->tm_mon, tm->tm_mday, 1900 + tm->tm_year,
+                                                              tm->tm_hour % 12, tm->tm_min, (0 == (tm->tm_hour % 12)) ? 'A' : 'P');
+    }
 for (p = parts; *p; p++) {
     switch (*p) {
         case 'f':
@@ -832,6 +848,12 @@ for (p = parts; *p; p++) {
             break;
         case 'x':
             tot_size += strlen (ext);
+            break;
+        case 't':
+            tot_size += strlen (filedatetimebuf);
+            break;
+        case 'z':
+            tot_size += strlen (filesizebuf);
             break;
         }
     }
@@ -858,6 +880,12 @@ for (p = parts; *p; p++) {
             break;
         case 'x':
             strlcat (result, ext, 1 + tot_size);
+            break;
+        case 't':
+            strlcat (result, filedatetimebuf, 1 + tot_size);
+            break;
+        case 'z':
+            strlcat (result, filesizebuf, 1 + tot_size);
             break;
         }
     }

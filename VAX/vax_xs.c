@@ -458,6 +458,7 @@ t_stat rstatus, wstatus;
 
 /* sim_debug(DBG_TRC, xs->dev, "xs_process_transmit()\n"); */
 
+off = giant = runt = 0;
 for (;;) {
 
     /* get next transmit buffer */
