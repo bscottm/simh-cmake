@@ -589,7 +589,7 @@ add_simulator(vaxstation4000m60
     FULL64
     BUILDROMS)
 
-add_simulator(vaxstation3100m80
+add_simulator(microvax3100m80
     SOURCES
     	${VAX440_SOURCES}
     DEFINES
