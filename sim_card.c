@@ -1319,7 +1319,7 @@ sim_card_attach(UNIT *uptr, CONST char *cptr)
                     r = sim_messagef(SCPE_MEM, "sim_card_attach: Could not allocate file name (uptr->filename)");
             }
             if (r == SCPE_OK)
-                r = sim_messagef(SCPE_OK, "%s: %" T_ADDR_FMT "d card Deck Loaded from %s\n", sim_uname(uptr),
+                r = sim_messagef(SCPE_OK, "%s: %" PRI_SIZET "d card Deck Loaded from %s\n", sim_uname(uptr),
                                  data->hopper_cards - previous_cards, cptr);
         } else {
             if (uptr->dynflags & UNIT_ATTMULT)

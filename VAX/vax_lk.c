@@ -58,9 +58,11 @@ static const char *lk_modes[] = {"DOWN", "AUTODOWN", "NONE", "DOWNUP"};
 static const char *lk_states[] = {"DOWN", "UP", "REPEAT"};
 
 typedef struct {
-    int32 head;
-    int32 tail;
-    int32 count;
+    /* NOTE: head, tail and count are indicies into buf, which should by size_t. Also
+     * avoids GCC signed integer overflow warnings by using an appropriate type. */
+    size_t head;
+    size_t tail;
+    size_t count;
     uint8 buf[LK_BUF_LEN];
 } LK_FIFO;
 

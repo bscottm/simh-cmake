@@ -1130,6 +1130,7 @@ switch (f) {                                       /* otherwise the read method 
 
     case MTUF_F_STD:
     case MTUF_F_E11:
+        saved_pos = (t_addr)sim_ftell (uptr->fileref);  /* save current tape position (initialize to something.) */
         runaway_counter = 25 * 12 * bpi [MT_DENS (uptr->dynflags)]; /* set the largest legal gap size in bytes */
 
         if (runaway_counter == 0) {                     /* if tape density has not been not set */
