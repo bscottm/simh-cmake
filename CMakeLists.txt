@@ -126,7 +126,7 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     include(fpintrin)
     # Turn on warnings about strict overflow/potential overflows.
     if (NOT DEFINED CMAKE_BUILD_TYPE OR "${CMAKE_BUILD_TYPE}" STREQUAL "Release")
-        LIST(APPEND EXTRA_CFLAGS "-Wall" "-fstrict-overflow" "-Wstrict-overflow=3")
+        LIST(APPEND EXTRA_CFLAGS "-Wall" "-fno-inline" "-fstrict-overflow" "-Wstrict-overflow=3")
     endif ()
 endif (CMAKE_C_COMPILER_ID STREQUAL "GNU")
 

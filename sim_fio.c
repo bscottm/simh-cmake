@@ -107,6 +107,9 @@ sim_finit(void)
     /* cppcheck-suppress unreadVariable */
     end_test.i     = 1; /* test endian-ness */
     sim_end        = (end_test.c[0] != 0);
+    /* The sizeof check is valid, but cppcheck complains when t_offset and int32 are the
+     * same type. */
+    /* cppcheck-suppress duplicateExpression */
     sim_toffset_64 = (sizeof(t_offset) > sizeof(int32)); /* Large File (>2GB) support */
     sim_taddr_64   = sim_toffset_64 && (sizeof(t_addr) > sizeof(int32));
     return sim_end;

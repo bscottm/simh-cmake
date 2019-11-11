@@ -44,7 +44,8 @@ if (WITH_NETWORK)
 	    ExternalProject_Add(pcap-dep
 	        # GIT_REPOSITORY https://github.com/the-tcpdump-group/libpcap.git
 	        # GIT_TAG libpcap-1.9.0
-		GIT_REPOSITORY https://github.com/bscottm/libpcap.git
+		# GIT_REPOSITORY https://github.com/bscottm/libpcap.git
+		GIT_REPOSITORY https://github.com/the-tcpdump-group/libpcap.git
 		CMAKE_ARGS 
 		    -DCMAKE_INSTALL_PREFIX=${NETWORK_INSTALL_PREFIX}
 	    )

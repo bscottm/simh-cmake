@@ -1576,7 +1576,6 @@ static void eth_get_nic_hw_addr(ETH_DEV* dev, const char *devname)
 #elif !defined(__CYGWIN__) && !defined(__VMS)
   if (1) {
     char command[1024];
-    FILE *f;
     int i;
     const char *patterns[] = {
         "grep [0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]",
@@ -1588,6 +1587,8 @@ static void eth_get_nic_hw_addr(ETH_DEV* dev, const char *devname)
     snprintf(command, sizeof(command)-1, "ifconfig %.*s up", (int)(sizeof(command) - 14), devname);
     (void)system(command);
     for (i=0; patterns[i] && (0 == dev->have_host_nic_phy_addr); ++i) {
+      FILE *f;
+
       snprintf(command, sizeof(command)-1, "ifconfig %.*s | %s  >NIC.hwaddr", (int)(sizeof(command) - (26 + strlen(patterns[i]))), devname, patterns[i]);
       (void)system(command);
       if (NULL != (f = fopen("NIC.hwaddr", "r"))) {
@@ -2275,7 +2276,7 @@ t_stat r;
 int bufsz = (BUFSIZ < ETH_MAX_PACKET) ? ETH_MAX_PACKET : BUFSIZ;
 char errbuf[PCAP_ERRBUF_SIZE];
 char temp[1024], desc[1024] = "";
-const char* savname = name;
+const char* savname;
 char namebuf[4*CBUFSIZE];
 int   num;
 
@@ -2492,8 +2493,11 @@ static int _eth_rand_byte()
 {
 static int rand_initialized = 0;
 
-if (!rand_initialized)
+if (!rand_initialized) {
   srand((unsigned int)sim_os_msec());
+  rand_initialized = 1;
+}
+
 return (rand() & 0xFF);
 }
 
@@ -2506,7 +2510,6 @@ ETH_PACK send, recv;
 t_stat status;
 uint32 i;
 int responses = 0;
-uint32 offset, function;
 char mac_string[32];
 
 if (reflections)
@@ -2619,6 +2622,8 @@ eth_packet_trace_detail (dev, send.msg, send.len, "Sent-Address-Check");
 
 /* empty the read queue and count the responses */
 do {
+  uint32 offset, function;
+
   memset (&recv, 0, sizeof(ETH_PACK));
   status = eth_read (dev, &recv, NULL);
   eth_packet_trace_detail (dev, recv.msg, recv.len, "Recv-Address-Check");
