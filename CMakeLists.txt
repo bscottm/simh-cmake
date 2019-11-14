@@ -166,28 +166,29 @@ else (WITH_NETWORK)
 endif (WITH_NETWORK)
 
 set(CPPCHECK_STATUS "disabled.")
-if (ENABLE_CPPCHECK)
-    find_program(CMAKE_C_CPPCHECK NAMES cppcheck)
-    if (CMAKE_C_CPPCHECK)
-        list(APPEND CMAKE_C_CPPCHECK
-             "--language=c"
-             "--enable=warning,style,performance,portability,information,missingInclude"
-             "--suppress=missingIncludeSystem"
-             "--inline-suppr"
-             "--std=c99")
-        set(CPPCHECK_STATUS "enabled.")
-        if (WIN32)
-            if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-                list(APPEND CMAKE_C_CPPCHECK
-                     "--platform=win64")
-                set(CPPCHECK_STATUS "enabled, Win64 platform.")
-            else ()
-                list(APPEND CMAKE_C_CPPCHECK
-                     "--platform=win32A")
-                set(CPPCHECK_STATUS "enabled, Win32 ASCII platform.")
-            endif ()
+
+find_program(cppcheck_cmd NAMES cppcheck)
+if (cppcheck_cmd)
+    list(APPEND cppcheck_cmd
+         "--language=c"
+         "--enable=warning,style,performance,portability,information,missingInclude"
+         "--suppress=missingIncludeSystem"
+         "--inline-suppr"
+         "--std=c99")
+    set(CPPCHECK_STATUS "enabled.")
+    if (WIN32)
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            list(APPEND cppcheck_cmd
+                 "--platform=win64")
+            set(CPPCHECK_STATUS "enabled, Win64 platform.")
+        else ()
+            list(APPEND cppcheck_cmd
+                 "--platform=win32A")
+            set(CPPCHECK_STATUS "enabled, Win32 ASCII platform.")
         endif ()
     endif ()
+else (cppcheck_cmd)
+    set(CPPCHECK_STATUS "'cppcheck' not installed.")
 endif ()
 
 message(STATUS "")

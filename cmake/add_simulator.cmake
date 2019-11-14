@@ -39,7 +39,7 @@ set(SIM_SOURCES
     ${CMAKE_SOURCE_DIR}/sim_video.c)
 
 function(build_simcore _targ)
-    cmake_parse_arguments(SIMH "VIDEO" "" "DEFINES" ${ARGN})
+    cmake_parse_arguments(SIMH "VIDEO;INT64;ADDR64" "" "" ${ARGN})
 
     add_library(${_targ} STATIC ${SIM_SOURCES})
 
@@ -48,9 +48,13 @@ function(build_simcore _targ)
     target_compile_definitions(${_targ} PRIVATE USE_SIM_CARD USE_SIM_IMD)
     target_compile_options(${_targ} PRIVATE ${EXTRA_CFLAGS})
 
-    if (DEFINED SIMH_DEFINES)
-        target_compile_definitions(${_targ} PUBLIC ${SIMH_DEFINES})
-    endif (DEFINED SIMH_DEFINES)
+    if (SIMH_INT64)
+        target_compile_definitions(${_targ} PUBLIC USE_INT64)
+    endif (SIMH_INT64)
+
+    if (SIMH_ADDR64)
+        target_compile_definitions(${_targ} PUBLIC USE_ADDR64)
+    endif (SIMH_ADDR64)
 
     target_link_libraries(${_targ} PUBLIC regexp_lib thread_lib slirp pcap)
 
@@ -59,33 +63,39 @@ function(build_simcore _targ)
     endif (WITH_NETWORK)
 
     if (SIMH_VIDEO)
-	target_link_libraries(${_targ} PUBLIC simh_video)
+        target_link_libraries(${_targ} PUBLIC simh_video)
     endif (SIMH_VIDEO)
 
     if (WIN32)
         if (NOT MSVC)
           # Need the math library...
           target_link_libraries(${_targ} PUBLIC m)
-        endif ()
+        endif (NOT MSVC)
 
         if (MINGW)
           target_compile_options(${_targ} PUBLIC "-fms-extensions" "-mconsole")
-        endif ()
+        endif (MINGW)
 
         target_link_libraries(${_targ} PUBLIC wsock32 winmm)
     elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-	target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
-	target_link_libraries(${_targ} PUBLIC "m")
+        target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
+        target_link_libraries(${_targ} PUBLIC "m")
     endif ()
 
-    # CPPCHECK: Add include directories to the C_CPPCHECK property.
-    if (ENABLE_CPPCHECK)
-      get_property(cppcheck_includes TARGET ${_targ} PROPERTY INCLUDE_DIRECTORIES)
-      list(TRANSFORM cppcheck_includes PREPEND "-I")
-      set_property(TARGET ${_targ}
-                   APPEND
-                   PROPERTY C_CPPCHECK ${cppcheck_includes})
-    endif (ENABLE_CPPCHECK)
+    # Create target cppcheck rule, if detected.
+    if (ENABLE_CPPCHECK AND cppcheck_cmd)
+        get_property(cppcheck_includes TARGET ${_targ} PROPERTY INCLUDE_DIRECTORIES)
+        get_property(cppcheck_defines  TARGET ${_targ} PROPERTY COMPILE_DEFINITIONS)
+        list(TRANSFORM cppcheck_includes PREPEND "-I")
+        list(TRANSFORM cppcheck_defines  PREPEND "-D")
+
+        add_custom_target("${_targ}_cppcheck"
+            COMMAND ${cppcheck_cmd} ${cppcheck_defines} ${cppcheck_includes} ${SIM_SOURCES}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+
+        add_dependencies(cppcheck "${_targ}_cppcheck")
+    endif (ENABLE_CPPCHECK AND cppcheck_cmd)
 endfunction(build_simcore _targ)
 
 
@@ -105,9 +115,9 @@ function (add_simulator _targ)
     target_compile_options(${_targ} PRIVATE ${EXTRA_CFLAGS})
 
     if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-	target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
-    elif (WIN32)
-	target_compile_options(${_targ} PRIVATE "-fms-extensions" "-mconsole")
+	    target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
+    elseif (WIN32)
+    	target_compile_options(${_targ} PRIVATE "-fms-extensions" "-mconsole")
     endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
     if (DEFINED SIMH_DEFINES)
@@ -132,21 +142,21 @@ function (add_simulator _targ)
     set(SIMH_VIDLIB "")
 
     if (SIMH_INT64)
-	set(SIMH_SIMLIB simhi64)
+	    set(SIMH_SIMLIB simhi64)
     elseif (SIMH_FULL64)
-	set(SIMH_SIMLIB simhz64)
+	    set(SIMH_SIMLIB simhz64)
     endif ()
     if (SIMH_VIDEO)
-	set(SIMH_VIDLIB "_video")
+	    set(SIMH_VIDLIB "_video")
     endif (SIMH_VIDEO)
 
     target_link_libraries("${_targ}" PRIVATE "${SIMH_SIMLIB}${SIMH_VIDLIB}")
     if (WIN32)
-	if (MSVC)
-	    target_link_options(${_targ} PRIVATE "/SUBSYSTEM:CONSOLE")
-	elseif (MINGW)
-	    target_link_options(${_targ} PRIVATE "-mconsole")
-	endif ()
+        if (MSVC)
+            target_link_options(${_targ} PRIVATE "/SUBSYSTEM:CONSOLE")
+        elseif (MINGW)
+            target_link_options(${_targ} PRIVATE "-mconsole")
+        endif ()
     endif (WIN32)
 
     # Remember to add the install rule, which defaults to ${CMAKE_SOURCE_DIR}/BIN.
@@ -155,73 +165,80 @@ function (add_simulator _targ)
 
     set(test_fname "${CMAKE_CURRENT_SOURCE_DIR}/tests/${SIMH_TEST}_test.ini")
     if (DEFINED SIMH_TEST AND EXISTS "${test_fname}")
-	add_test(NAME "test-${_targ}" COMMAND "${_targ}" "${test_fname}")
+    	add_test(NAME "test-${_targ}" COMMAND "${_targ}" "${test_fname}")
     endif (DEFINED SIMH_TEST AND EXISTS "${test_fname}")
 
     if (NOT DONT_USE_ROMS AND SIMH_BUILDROMS)
-	add_dependencies(${_targ} BuildROMs)
+	    add_dependencies(${_targ} BuildROMs)
     endif (NOT DONT_USE_ROMS AND SIMH_BUILDROMS)
 
-    # CPPCHECK: Add include directories to the C_CPPCHECK property.
-    if (ENABLE_CPPCHECK)
-      get_property(cppcheck_includes TARGET ${_targ} PROPERTY INCLUDE_DIRECTORIES)
-      list(TRANSFORM cppcheck_includes PREPEND "-I")
-      set_property(TARGET ${_targ}
-                   APPEND
-                   PROPERTY C_CPPCHECK ${cppcheck_includes})
-    endif (ENABLE_CPPCHECK)
+    # Create target 'cppcheck' rule, if cppcheck detected:
+    if (ENABLE_CPPCHECK AND cppcheck_cmd)
+        get_property(cppcheck_includes TARGET ${_targ} PROPERTY INCLUDE_DIRECTORIES)
+        get_property(cppcheck_defines  TARGET ${_targ} PROPERTY COMPILE_DEFINITIONS)
+        list(TRANSFORM cppcheck_includes PREPEND "-I")
+        list(TRANSFORM cppcheck_defines  PREPEND "-D")
+        add_custom_target("${_targ}_cppcheck"
+            COMMAND ${cppcheck_cmd} ${cppcheck_defines} ${cppcheck_includes} ${SIMH_SOURCES}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+
+        add_dependencies(cppcheck "${_targ}_cppcheck")
+    endif (ENABLE_CPPCHECK AND cppcheck_cmd)
 endfunction ()
 
 ##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 ## Now build things!
 ##~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
+add_custom_target(cppcheck)
+
 build_simcore(simhcore)
-build_simcore(simhi64        DEFINES USE_INT64)
-build_simcore(simhz64 	     DEFINES USE_INT64 USE_ADDR64)
+build_simcore(simhi64        INT64)
+build_simcore(simhz64 	     INT64 ADDR64)
 build_simcore(simhcore_video VIDEO)
-build_simcore(simhi64_video  VIDEO DEFINES USE_INT64)
-build_simcore(simhz64_video  VIDEO DEFINES USE_INT64 USE_ADDR64)
+build_simcore(simhi64_video  VIDEO INT64)
+build_simcore(simhz64_video  VIDEO INT64 ADDR64)
 
 if (NOT DONT_USE_ROMS)
     add_executable(BuildROMs sim_BuildROMs.c)
     add_custom_command(
-	OUTPUT
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka655x_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka620_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka630_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka610_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka410_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka411_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka412_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka41a_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka41d_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka42a_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka42b_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka43a_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka46a_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka47a_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka48a_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_is1000_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka410_xs_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka420_rdrz_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka420_rzrz_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka4xx_4pln_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka4xx_8pln_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka4xx_dz_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka4xx_spx_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka750_bin_new.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_ka750_bin_old.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_vcb02_bin.h
-	    ${CMAKE_SOURCE_DIR}/VAX/vax_vmb_exe.h
-	    ${CMAKE_SOURCE_DIR}/PDP11/pdp11_vt_lunar_rom.h
-	    ${CMAKE_SOURCE_DIR}/PDP11/pdp11_dazzle_dart_rom.h
-	    ${CMAKE_SOURCE_DIR}/PDP11/pdp11_11logo_rom.h
-	    ${CMAKE_SOURCE_DIR}/swtp6800/swtp6800/swtp_swtbug_bin.h
-	    ${CMAKE_SOURCE_DIR}/3B2/rom_400_bin.h
-	MAIN_DEPENDENCY BuildROMs
-	COMMAND BuildROMS
-	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka655x_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka620_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka630_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka610_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka410_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka411_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka412_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka41a_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka41d_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka42a_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka42b_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka43a_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka46a_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka47a_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka48a_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_is1000_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka410_xs_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka420_rdrz_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka420_rzrz_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka4xx_4pln_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka4xx_8pln_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka4xx_dz_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka4xx_spx_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka750_bin_new.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_ka750_bin_old.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_vcb02_bin.h
+            ${CMAKE_SOURCE_DIR}/VAX/vax_vmb_exe.h
+            ${CMAKE_SOURCE_DIR}/PDP11/pdp11_vt_lunar_rom.h
+            ${CMAKE_SOURCE_DIR}/PDP11/pdp11_dazzle_dart_rom.h
+            ${CMAKE_SOURCE_DIR}/PDP11/pdp11_11logo_rom.h
+            ${CMAKE_SOURCE_DIR}/swtp6800/swtp6800/swtp_swtbug_bin.h
+            ${CMAKE_SOURCE_DIR}/3B2/rom_400_bin.h
+        MAIN_DEPENDENCY BuildROMs
+        COMMAND BuildROMS
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )
 endif ()
 
