@@ -2501,149 +2501,147 @@ if (!rand_initialized) {
 return (rand() & 0xFF);
 }
 
-t_stat eth_check_address_conflict_ex (ETH_DEV* dev, 
-                                      ETH_MAC* const mac,
-                                      int *reflections,
-                                      t_bool silent)
+t_stat
+eth_check_address_conflict_ex(ETH_DEV *dev, ETH_MAC *CONST mac, int *reflections, t_bool silent)
 {
-ETH_PACK send, recv;
-t_stat status;
-uint32 i;
-int responses = 0;
-char mac_string[32];
+    ETH_PACK send, recv;
+    t_stat   status;
+    uint32   i;
+    int      responses = 0;
+    char     mac_string[32];
 
-if (reflections)
-    *reflections = 0;
-eth_mac_fmt(mac, mac_string);
-sim_debug(dev->dbit, dev->dptr, "Determining Address Conflict for MAC address: %s\n", mac_string);
+    if (reflections)
+        *reflections = 0;
+    eth_mac_fmt(mac, mac_string);
+    sim_debug(dev->dbit, dev->dptr, "Determining Address Conflict for MAC address: %s\n", mac_string);
 
-/* 00:00:00:00:00:00 or any address with a multi-cast address is invalid */
-if ((((*mac)[0] == 0) && ((*mac)[1] == 0) && ((*mac)[2] == 0) && 
-     ((*mac)[3] == 0) && ((*mac)[4] == 0) && ((*mac)[5] == 0)) ||
-     ((*mac)[0] & 1)) {
-  return sim_messagef (SCPE_ARG, "%s: Invalid NIC MAC Address: %s\n", sim_dname(dev->dptr), mac_string);
-  }
+    /* 00:00:00:00:00:00 or any address with a multi-cast address is invalid */
+    if ((((*mac)[0] | (*mac)[1] | (*mac)[2] | (*mac)[3] | (*mac)[4] | (*mac)[5]) == 0) ||
+        ((*mac)[0] & 1)) {
+        return sim_messagef(SCPE_ARG, "%s: Invalid NIC MAC Address: %s\n", sim_dname(dev->dptr), mac_string);
+    }
 
-/* The process of checking address conflicts is used in two ways:
-   1) to determine the behavior of the currently running packet 
-      delivery facility regarding whether it may receive copies 
-      of every packet sent (and how many). 
-   2) to verify if a MAC address which this facility is planning 
-      to use as the source address of packets is already in use 
-      by some other node on the local network 
-   Case #1, doesn't require (and explicitly doesn't want) any 
-   interaction or response from other systems on the LAN so 
-   therefore no considerations regarding switch packet forwarding 
-   are important.  Meanwhile, Case #2 does require responses from 
-   other components on the LAN to provide useful functionality. 
-   The original designers of this mechanism did this when essentially 
-   all LANs were single collision domains (i.e. ALL nodes which might 
-   be affected by an address conflict were physically present on a single
-   Ethernet cable which might have been extended by a couple of repeaters).
-   Since that time, essentially no networks are single collision domains.  
-   Thick and thinwire Ethernet cables don't exist and very few networks 
-   even have hubs.  Today, essentially all LANs are deployed using one 
-   or more layers of network switches.  In a switched LAN environment, the 
-   switches on the LAN "learn" which ports on the LAN source traffic from 
-   which MAC addresses and then forward traffic destined for particular 
-   MAC address to the appropriate ports.  If a particular MAC address is
-   already in use somewhere on the LAN, then the switches "know" where 
-   it is.  The host based test using the loopback protocol is poorly 
-   designed to detect this condition.  This test is performed by the host
-   first changing the device's Physical MAC address to the address which
-   is to be tested, and then sending a loopback packet FROM AND TO this
-   MAC address with a loopback reply to be sent by a system which may be
-   currently using the MAC address.  If no reply is received, then the 
-   MAC address is presumed to be unused.  The sending of this packet will
-   result in its delivery to the right system since the switch port/MAC
-   address tables know where to deliver packets destined to this MAC 
-   address, however the response it generates won't be delivered to the 
-   system performing the test since the switches on the LAN won't know 
-   about the local port being the right target for packets with this MAC 
-   address.  A better test design to detect these conflicts would be for 
-   the testing system to send a loopback packet FROM the current physical
-   MAC address (BEFORE changing it) TO the MAC address being tested with 
-   the loopback response coming to the current physical MAC address of 
-   the device.  If a response is received, then the address is in use and
-   the attempt to change the device's MAC address should fail.  Since we 
-   can't change the software running in these simulators to implement this
-   better conflict detection approach, we can still "do the right thing" 
-   in the sim_ether layer.  We're already handling the loopback test 
-   packets specially since we always had to avoid receiving the packets 
-   which were being sent, but needed to allow for the incoming loopback 
-   packets to be properly dealt with.  We can extend this current special
-   handling to change outgoing "loopback to self" packets to have source 
-   AND loopback destination addresses in the packets to be the host NIC's
-   physical address.  The switch network will already know the correct 
-   MAC/port relationship for the host NIC's physical address, so loopback 
-   response packets will be delivered as needed.
+    /* The process of checking address conflicts is used in two ways:
+       1) to determine the behavior of the currently running packet
+          delivery facility regarding whether it may receive copies
+          of every packet sent (and how many).
+       2) to verify if a MAC address which this facility is planning
+          to use as the source address of packets is already in use
+          by some other node on the local network
+       Case #1, doesn't require (and explicitly doesn't want) any
+       interaction or response from other systems on the LAN so
+       therefore no considerations regarding switch packet forwarding
+       are important.  Meanwhile, Case #2 does require responses from
+       other components on the LAN to provide useful functionality.
+       The original designers of this mechanism did this when essentially
+       all LANs were single collision domains (i.e. ALL nodes which might
+       be affected by an address conflict were physically present on a single
+       Ethernet cable which might have been extended by a couple of repeaters).
+       Since that time, essentially no networks are single collision domains.
+       Thick and thinwire Ethernet cables don't exist and very few networks
+       even have hubs.  Today, essentially all LANs are deployed using one
+       or more layers of network switches.  In a switched LAN environment, the
+       switches on the LAN "learn" which ports on the LAN source traffic from
+       which MAC addresses and then forward traffic destined for particular
+       MAC address to the appropriate ports.  If a particular MAC address is
+       already in use somewhere on the LAN, then the switches "know" where
+       it is.  The host based test using the loopback protocol is poorly
+       designed to detect this condition.  This test is performed by the host
+       first changing the device's Physical MAC address to the address which
+       is to be tested, and then sending a loopback packet FROM AND TO this
+       MAC address with a loopback reply to be sent by a system which may be
+       currently using the MAC address.  If no reply is received, then the
+       MAC address is presumed to be unused.  The sending of this packet will
+       result in its delivery to the right system since the switch port/MAC
+       address tables know where to deliver packets destined to this MAC
+       address, however the response it generates won't be delivered to the
+       system performing the test since the switches on the LAN won't know
+       about the local port being the right target for packets with this MAC
+       address.  A better test design to detect these conflicts would be for
+       the testing system to send a loopback packet FROM the current physical
+       MAC address (BEFORE changing it) TO the MAC address being tested with
+       the loopback response coming to the current physical MAC address of
+       the device.  If a response is received, then the address is in use and
+       the attempt to change the device's MAC address should fail.  Since we
+       can't change the software running in these simulators to implement this
+       better conflict detection approach, we can still "do the right thing"
+       in the sim_ether layer.  We're already handling the loopback test
+       packets specially since we always had to avoid receiving the packets
+       which were being sent, but needed to allow for the incoming loopback
+       packets to be properly dealt with.  We can extend this current special
+       handling to change outgoing "loopback to self" packets to have source
+       AND loopback destination addresses in the packets to be the host NIC's
+       physical address.  The switch network will already know the correct
+       MAC/port relationship for the host NIC's physical address, so loopback
+       response packets will be delivered as needed.
 
-   Code in _eth_write and _eth_callback provide the special handling to 
-   perform the described loopback packet adjustments, and code in 
-   eth_filter_hash makes sure that the loopback response packets are received.
+       Code in _eth_write and _eth_callback provide the special handling to
+       perform the described loopback packet adjustments, and code in
+       eth_filter_hash makes sure that the loopback response packets are received.
 
-   */
+       */
 
-/* build a loopback forward request packet */
-memset (&send, 0, sizeof(ETH_PACK));
-send.len = ETH_MIN_PACKET;                              /* minimum packet size */
-for (i=0; i<send.len; i++)
-  send.msg[i] = _eth_rand_byte();
-memcpy(&send.msg[0], mac, sizeof(ETH_MAC));             /* target address */
-memcpy(&send.msg[6], mac, sizeof(ETH_MAC));             /* source address */
-send.msg[12] = 0x90;                                    /* loopback packet type */
-send.msg[13] = 0;
-send.msg[14] = 0;                                       /* Offset */
-send.msg[15] = 0;
-send.msg[16] = 2;                                       /* Forward */
-send.msg[17] = 0;
-memcpy(&send.msg[18], mac, sizeof(ETH_MAC));            /* Forward Destination */
-send.msg[24] = 1;                                       /* Reply */
-send.msg[25] = 0;
+    /* build a loopback forward request packet */
+    memset(&send, 0, sizeof(ETH_PACK));
+    send.len = ETH_MIN_PACKET; /* minimum packet size */
+    for (i = 0; i < send.len; i++)
+        send.msg[i] = _eth_rand_byte();
+    memcpy(&send.msg[0], mac, sizeof(ETH_MAC)); /* target address */
+    memcpy(&send.msg[6], mac, sizeof(ETH_MAC)); /* source address */
+    send.msg[12] = 0x90;                        /* loopback packet type */
+    send.msg[13] = 0;
+    send.msg[14] = 0; /* Offset */
+    send.msg[15] = 0;
+    send.msg[16] = 2; /* Forward */
+    send.msg[17] = 0;
+    memcpy(&send.msg[18], mac, sizeof(ETH_MAC)); /* Forward Destination */
+    send.msg[24] = 1;                            /* Reply */
+    send.msg[25] = 0;
 
-eth_filter(dev, 1, (ETH_MAC *)mac, 0, 0);
+    eth_filter(dev, 1, (ETH_MAC *)mac, 0, 0);
 
-/* send the packet */
-status = _eth_write (dev, &send, NULL);
-if (status != SCPE_OK) {
-  const char *msg;
-  msg = (dev->eth_api == ETH_API_PCAP) ?
-      "%s: Eth: Error Transmitting packet: %s\n"
-        "You may need to run as root, or install a libpcap version\n"
-        "which is at least 0.9 from your OS vendor or www.tcpdump.org\n" :
-      "%s: Eth: Error Transmitting packet: %s\n"
-        "You may need to run as root.\n";
-  return sim_messagef (SCPE_ARG, msg, sim_dname (dev->dptr), strerror(errno));
-  }
+    /* send the packet */
+    status = _eth_write(dev, &send, NULL);
+    if (status != SCPE_OK) {
+        const char *msg;
+        msg = (dev->eth_api == ETH_API_PCAP) ? "%s: Eth: Error Transmitting packet: %s\n"
+                                               "You may need to run as root, or install a libpcap version\n"
+                                               "which is at least 0.9 from your OS vendor or www.tcpdump.org\n"
+                                             : "%s: Eth: Error Transmitting packet: %s\n"
+                                               "You may need to run as root.\n";
+        return sim_messagef(SCPE_ARG, msg, sim_dname(dev->dptr), strerror(errno));
+    }
 
-sim_os_ms_sleep (300);   /* time for a conflicting host to respond */
+    sim_os_ms_sleep(300); /* time for a conflicting host to respond */
 
-eth_packet_trace_detail (dev, send.msg, send.len, "Sent-Address-Check");
+    eth_packet_trace_detail(dev, send.msg, send.len, "Sent-Address-Check");
 
-/* empty the read queue and count the responses */
-do {
-  uint32 offset, function;
+    /* empty the read queue and count the responses */
+    do {
+        uint32 offset, function;
 
-  memset (&recv, 0, sizeof(ETH_PACK));
-  status = eth_read (dev, &recv, NULL);
-  eth_packet_trace_detail (dev, recv.msg, recv.len, "Recv-Address-Check");
-  offset = 16 + (recv.msg[14] | (recv.msg[15] << 8));
-  function = 0;
-  if ((offset+2) < recv.len)
-    function = recv.msg[offset] | (recv.msg[offset+1] << 8);
-  if (((0 == memcmp(send.msg+12, recv.msg+12, 2)) &&   /* Protocol Match */
-       (function == 1) &&                              /* Function is Reply */
-       (0 == memcmp(&send.msg[offset], &recv.msg[offset], send.len-offset))) || /* Content Match */
-      (0 == memcmp(send.msg, recv.msg, send.len)))     /* Packet Match (Reflection) */
-    responses++;
-  } while (recv.len > 0);
+        memset(&recv, 0, sizeof(ETH_PACK));
+        status = eth_read(dev, &recv, NULL);
+        eth_packet_trace_detail(dev, recv.msg, recv.len, "Recv-Address-Check");
+        offset   = 16 + (recv.msg[14] | (recv.msg[15] << 8));
+        function = 0;
+        if ((offset + 2) < recv.len)
+            function = recv.msg[offset] | (recv.msg[offset + 1] << 8);
+        if (((0 == memcmp(send.msg + 12, recv.msg + 12, 2)) &&                          /* Protocol Match */
+             (function == 1) &&                                                         /* Function is Reply */
+             (0 == memcmp(&send.msg[offset], &recv.msg[offset], send.len - offset))) || /* Content Match */
+            (0 == memcmp(send.msg, recv.msg, send.len)))                                /* Packet Match (Reflection) */
+            responses++;
+    } while (recv.len > 0);
 
-sim_debug(dev->dbit, dev->dptr, "Address Conflict = %d\n", responses);
-if (responses && !silent)
-  return sim_messagef (SCPE_ARG, "%s: MAC Address Conflict on LAN for address %s, change the MAC address to a unique value\n", sim_dname (dev->dptr), mac_string);
-if (reflections)
-  *reflections = responses;
-return SCPE_OK;
+    sim_debug(dev->dbit, dev->dptr, "Address Conflict = %d\n", responses);
+    if (responses && !silent)
+        return sim_messagef(SCPE_ARG,
+                            "%s: MAC Address Conflict on LAN for address %s, change the MAC address to a unique value\n",
+                            sim_dname(dev->dptr), mac_string);
+    if (reflections)
+        *reflections = responses;
+    return SCPE_OK;
 }
 
 t_stat eth_check_address_conflict (ETH_DEV* dev, 
@@ -3111,7 +3109,6 @@ struct ICMPHeader *ICMP;
 uint16 orig_checksum;
 uint16 payload_len;
 uint16 mtu_payload;
-uint16 ip_flags;
 uint16 frag_offset;
 struct pcap_pkthdr header;
 uint16 orig_tcp_flags;
@@ -3190,7 +3187,7 @@ switch (IP->proto) {
     mtu_payload = ETH_MIN_JUMBO_FRAME - (14 + IP_HLEN(IP));
     frag_offset = 0;
     while (payload_len > 0) {
-      ip_flags = frag_offset;
+      uint16 ip_flags = frag_offset;
       if (payload_len > mtu_payload) {
         ip_flags |= IP_MF_FLAG;
         IP->total_len = htons(((mtu_payload>>3)<<3) + IP_HLEN(IP));
@@ -3795,7 +3792,6 @@ t_stat eth_filter_hash(ETH_DEV* dev, int addr_count, ETH_MAC* const addresses,
 int i;
 char buf[116+66*ETH_FILTER_MAX];
 char mac[20];
-t_stat status;
 #ifdef USE_BPF
 struct bpf_program bpf;
 #endif
@@ -3877,6 +3873,7 @@ eth_bpf_filter (dev, dev->addr_count, dev->filter_address,
 if (dev->eth_api == ETH_API_PCAP) {
   char errbuf[PCAP_ERRBUF_SIZE];
   bpf_u_int32  bpf_subnet, bpf_netmask;
+  t_stat status;
 
   if (pcap_lookupnet(dev->name, &bpf_subnet, &bpf_netmask, errbuf)<0)
     bpf_netmask = 0;
