@@ -517,12 +517,13 @@ memset (lp->rbr, 0, lp->rxbsz);                         /* clear break status ar
 static void tmxr_report_connection (TMXR *mp, TMLN *lp)
 {
 int32 unwritten, psave;
-char cmsg[160];
-char dmsg[80] = "";
-char lmsg[80] = "";
-char msgbuf[512] = "";
+char msgbuf[512] = { 0 };
 
 if ((!lp->notelnet) || (sim_switches & SWMASK ('V'))) {
+    char cmsg[160] = { 0 };
+    char dmsg[80] = { 0 };
+    char lmsg[80] = { 0 };
+
     sprintf (cmsg, "\n\r\nConnected to the %s simulator ", sim_name);
 
     if (mp->dptr) {                                     /* device defined? */
@@ -864,7 +865,6 @@ static char *tmxr_mux_attach_string(char *old, TMXR *mp)
 {
 char* tptr = NULL;
 int32 i;
-TMLN *lp;
 
 free (old);
 tptr = (char *) calloc (1, 1);
@@ -881,11 +881,10 @@ if (mp->buffered)
 while ((*tptr == ',') || (*tptr == ' '))
     memmove (tptr, tptr+1, strlen(tptr+1)+1);
 for (i=0; i<mp->lines; ++i) {
-    char *lptr;
-    lp = mp->ldsc + i;
+    TMLN *lp = mp->ldsc + i;
+    char *lptr = tmxr_line_attach_string(lp);
 
-    lptr = tmxr_line_attach_string(lp);
-    if (lptr) {
+    if (lptr != NULL) {
         sprintf (growstring(&tptr, 10+strlen(lptr)), "%s%s", *tptr ? "," : "", lptr);
         free (lptr);
         }
@@ -999,7 +998,7 @@ int32 tmxr_poll_conn (TMXR *mp)
 SOCKET newsock;
 TMLN *lp;
 int32 *op;
-int32 i, j;
+size_t i;
 int32 ringing = -1;
 char *address;
 char msg[512];
@@ -1064,6 +1063,8 @@ if (mp->master) {
         newsock = sim_accept_conn_ex (mp->master, &address, (mp->packet ? SIM_SOCK_OPT_NODELAY : 0));/* poll connect */
 
     if (newsock != INVALID_SOCKET) {                    /* got a live one? */
+        size_t j;
+
         snprintf (msg, sizeof (msg) - 1, "tmxr_poll_conn() - Connection from %s", address);
         tmxr_debug_connect (mp, msg);
         op = mp->lnorder;                               /* get line connection order list pointer */
@@ -2545,7 +2546,7 @@ if (*cptr == '*') {
         (speed == cptr)) {              /* AND just changing bps factor? */
         char speedbps[16];
 
-        sprintf (speedbps, "%d", lp->rxbps);
+        sprintf (speedbps, "%u", lp->rxbps);
         lp->rxdeltausecs = (uint32)(_tmln_speed_delta (speedbps) / lp->bpsfactor);
         lp->txdeltausecs = lp->rxdeltausecs;
         return SCPE_OK;                 /* Done now */
@@ -2737,7 +2738,7 @@ while (*tptr) {
             cptr = get_glyph (gbuf, port, ';');
             if (sim_parse_addr (port, NULL, 0, NULL, NULL, 0, NULL, NULL))
                 return sim_messagef (SCPE_ARG, "Invalid Port Specifier: %s\n", port);
-            if (cptr) {
+            if (cptr != NULL) {
                 char *tptr = gbuf + (cptr - gbuf);
                 get_glyph (cptr, tptr, 0);                  /* upcase this string */
                 if (0 == MATCH_CMD (cptr, "NOTELNET"))
@@ -3758,49 +3759,61 @@ else
 return SCPE_OK;
 }
 
-static void tmxr_add_to_open_list (TMXR* mux)
+static void
+tmxr_add_to_open_list(TMXR *mux)
 {
-int i;
-t_bool found = FALSE;
+    int    i;
+    t_bool found = FALSE;
 
 #if defined(SIM_ASYNCH_MUX)
-pthread_mutex_lock (&sim_tmxr_poll_lock);
+    pthread_mutex_lock(&sim_tmxr_poll_lock);
 #endif
-for (i=0; i<tmxr_open_device_count; ++i)
-    if (tmxr_open_devices[i] == mux) {
-        found = TRUE;
-        break;
+
+    for (i = 0; i < tmxr_open_device_count; ++i) {
+        if (tmxr_open_devices[i] == mux) {
+            found = TRUE;
+            break;
         }
-if (!found) {
-    tmxr_open_devices = (TMXR **)realloc(tmxr_open_devices, (tmxr_open_device_count+1)*sizeof(*tmxr_open_devices));
-    tmxr_open_devices[tmxr_open_device_count++] = mux;
-    for (i=0; i<mux->lines; i++)
-        mux->ldsc[i].send.after = mux->ldsc[i].send.delay = 0;
     }
+
+    if (!found) {
+        TMXR **p_tmp = (TMXR **)realloc(tmxr_open_devices, (tmxr_open_device_count + 1) * sizeof(*tmxr_open_devices));
+
+        if (p_tmp != NULL) {
+            tmxr_open_devices = p_tmp;
+            tmxr_open_devices[tmxr_open_device_count++] = mux;
+            for (i = 0; i < mux->lines; i++)
+                mux->ldsc[i].send.after = mux->ldsc[i].send.delay = 0;
+        } else {
+            sim_messagef(SCPE_MEM, "txmr_add_to_open_list: realloc() failed.");
+        }
+    }
+
 #if defined(SIM_ASYNCH_MUX)
-pthread_mutex_unlock (&sim_tmxr_poll_lock);
-if ((tmxr_open_device_count == 1) && (sim_asynch_enabled))
-    tmxr_start_poll ();
+    pthread_mutex_unlock(&sim_tmxr_poll_lock);
+    if ((tmxr_open_device_count == 1) && (sim_asynch_enabled))
+        tmxr_start_poll();
 #endif
 }
 
-static void _tmxr_remove_from_open_list (TMXR* mux)
+static void
+_tmxr_remove_from_open_list(TMXR *mux)
 {
-int i, j;
+    int i, j;
 
 #if defined(SIM_ASYNCH_MUX)
-tmxr_stop_poll ();
-pthread_mutex_lock (&sim_tmxr_poll_lock);
+    tmxr_stop_poll();
+    pthread_mutex_lock(&sim_tmxr_poll_lock);
 #endif
-for (i=0; i<tmxr_open_device_count; ++i)
-    if (tmxr_open_devices[i] == mux) {
-        for (j=i+1; j<tmxr_open_device_count; ++j)
-            tmxr_open_devices[j-1] = tmxr_open_devices[j];
-        --tmxr_open_device_count;
-        break;
+    for (i = 0; i < tmxr_open_device_count; ++i)
+        if (tmxr_open_devices[i] == mux) {
+            for (j = i + 1; j < tmxr_open_device_count; ++j)
+                tmxr_open_devices[j - 1] = tmxr_open_devices[j];
+            --tmxr_open_device_count;
+            break;
         }
 #if defined(SIM_ASYNCH_MUX)
-pthread_mutex_unlock (&sim_tmxr_poll_lock);
+    pthread_mutex_unlock(&sim_tmxr_poll_lock);
 #endif
 }
 
@@ -5252,51 +5265,66 @@ static char *tmxr_debug_buf = NULL;
 static size_t tmxr_debug_buf_used = 0;
 static size_t tmxr_debug_buf_size = 0;
 
-static void tmxr_buf_debug_char (char value)
+static void
+tmxr_buf_debug_char(char value)
 {
-if (tmxr_debug_buf_used+2 > tmxr_debug_buf_size) {
-    tmxr_debug_buf_size += 1024;
-    tmxr_debug_buf = (char *)realloc (tmxr_debug_buf, tmxr_debug_buf_size);
-    }
-tmxr_debug_buf[tmxr_debug_buf_used++] = value;
-tmxr_debug_buf[tmxr_debug_buf_used] = '\0';
-}
+    t_stat retval = SCPE_OK;
 
-static void tmxr_buf_debug_string (const char *string)
-{
-while (*string)
-    tmxr_buf_debug_char (*string++);
-}
+    if (tmxr_debug_buf_used + 2 > tmxr_debug_buf_size) {
+        size_t t_size = tmxr_debug_buf_used + 1024;
+        char *p_tmp = (char *)realloc(tmxr_debug_buf, t_size);
 
-static void tmxr_buf_debug_telnet_option (u_char chr)
-{
-int j;
-
-for (j=0; 1; ++j) {
-    if (NULL == tn_chars[j].name) {
-        if (isprint(chr))
-            tmxr_buf_debug_char (chr);
-        else {
-            tmxr_buf_debug_char ('_');
-            if ((chr >= 1) && (chr <= 26)) {
-                tmxr_buf_debug_char ('^');
-                tmxr_buf_debug_char ('A' + chr - 1);
-                }
-            else {
-                char octal[8];
-
-                sprintf(octal, "\\%03o", (u_char)chr);
-                tmxr_buf_debug_string (octal);
-                }
-            tmxr_buf_debug_char ('_');
-            }
-        break;
+        if (p_tmp != NULL) {
+            tmxr_debug_buf = p_tmp;
+            tmxr_debug_buf_size += 1024;
+        } else {
+            sim_messagef(SCPE_MEM, "txmr_buf_debug_char: realloc() failed. Continuing, but expect imminent failure.");
+            retval = SCPE_MEM;
         }
-    if ((u_char)chr == tn_chars[j].value) {
-        tmxr_buf_debug_char ('_');
-        tmxr_buf_debug_string (tn_chars[j].name);
-        tmxr_buf_debug_char ('_');
-        break;
+    }
+
+    if (retval != SCPE_MEM) {
+        tmxr_debug_buf[tmxr_debug_buf_used++] = value;
+        tmxr_debug_buf[tmxr_debug_buf_used]   = '\0';
+    }
+}
+
+static void
+tmxr_buf_debug_string(const char *string)
+{
+    while (*string)
+        tmxr_buf_debug_char(*string++);
+}
+
+static void
+tmxr_buf_debug_telnet_option(u_char chr)
+{
+    int j;
+
+    for (j = 0; j < ARRAY_SIZE(tn_chars); ++j) {
+        if (NULL == tn_chars[j].name) {
+            if (isprint(chr))
+                tmxr_buf_debug_char(chr);
+            else {
+                tmxr_buf_debug_char('_');
+                if ((chr >= 1) && (chr <= 26)) {
+                    tmxr_buf_debug_char('^');
+                    tmxr_buf_debug_char('A' + chr - 1);
+                } else {
+                    char octal[8];
+
+                    sprintf(octal, "\\%03o", (u_char)chr);
+                    tmxr_buf_debug_string(octal);
+                }
+                tmxr_buf_debug_char('_');
+            }
+            break;
+        }
+        if ((u_char)chr == tn_chars[j].value) {
+            tmxr_buf_debug_char('_');
+            tmxr_buf_debug_string(tn_chars[j].name);
+            tmxr_buf_debug_char('_');
+            break;
         }
     }
 }

@@ -2792,7 +2792,7 @@ set_prompt(int32 flag, CONST char *cptr)
         sim_prompt = sprompt;
         return SCPE_OK;
     } else {
-        sim_messagef(SCPE_MEM, "set_prompt: Could not reallocate sim_prompt to %" PRI_SIZET " bytes.", sprompt_len);
+        sim_messagef(SCPE_MEM, "set_prompt: Could not reallocate sim_prompt to %" PRI_SIZE_T " bytes.", sprompt_len);
         return SCPE_MEM;
     }
 }
@@ -13333,7 +13333,7 @@ for (hblock = astrings; (htext = *hblock) != NULL; hblock++) {
                             if (dptr) {
                                 char buf[129];
                                 n = uptr? uptr - dptr->units: 0;
-                                sprintf (buf, "%s%" PRI_SIZET, dptr->name, n);
+                                sprintf (buf, "%s%" PRI_SIZE_T, dptr->name, n);
                                 appendText (topic, buf, strlen (buf));
                                 }
                             break;

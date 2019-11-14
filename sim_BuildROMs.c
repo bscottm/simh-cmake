@@ -86,13 +86,13 @@ struct ROM_File_Descriptor {
 #  define utime _utime
 #  define snprintf _snprintf
 #  ifdef _WIN64
-#    define PRI_SIZET PRIu64
+#    define PRI_SIZE_T PRIu64
 #  else
-#    define PRI_SIZET PRIu32
+#    define PRI_SIZE_T PRIu32
 #  endif
 #else
 #  include <utime.h>
-#  define PRI_SIZET "zu"
+#  define PRI_SIZE_T "zu"
 #endif
 
 
@@ -277,7 +277,7 @@ if (stat (rom_filename, &statb)) {
     return -1;
     }
 if (statb.st_size != expected_size) {
-    printf ("Error: ROM file '%s' has an unexpected size: %ld vs %"PRI_SIZET"\n", rom_filename, statb.st_size, expected_size);
+    printf ("Error: ROM file '%s' has an unexpected size: %ld vs %"PRI_SIZE_T"\n", rom_filename, statb.st_size, expected_size);
     printf ("This can happen if the file was transferred or unpacked incorrectly\n");
     printf ("and in the process tried to convert line endings rather than passing\n");
     printf ("the file's contents unmodified\n");

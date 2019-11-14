@@ -921,7 +921,7 @@ int32 hdsk_write(void) {
             rtn = sim_fwrite(hdskbuf, 1, uptr -> HDSK_SECTOR_SIZE, uptr -> fileref);
             if (rtn != (size_t)(uptr -> HDSK_SECTOR_SIZE)) {
                 sim_debug(VERBOSE_MSG, &hdsk_dev, "HDSK%d: " ADDRESS_FORMAT
-                          " Could not write Sector=%06d Track=%04d Result=%"PRI_SIZET".\n",
+                          " Could not write Sector=%06d Track=%04d Result=%"PRI_SIZE_T".\n",
                           selectedDisk, PCX, selectedSector, selectedTrack, rtn);
                 hdskStatus = CPM_ERROR;
                 return hdskStatus;

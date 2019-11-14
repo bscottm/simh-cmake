@@ -385,9 +385,10 @@ static int _eth_get_system_id (char *buf, size_t buf_size);
 /*                  OS-independant ethernet routines                          */
 /*============================================================================*/
 
-t_stat eth_mac_scan (ETH_MAC* mac, const char* strmac)
+t_stat
+eth_mac_scan(ETH_MAC *mac, const char *strmac)
 {
-return eth_mac_scan_ex (mac, strmac, NULL);
+    return eth_mac_scan_ex(mac, strmac, NULL);
 }
 
 t_stat eth_mac_scan_ex (ETH_MAC* mac, const char* strmac, UNIT *uptr)
@@ -758,8 +759,8 @@ _eth_add_to_open_list(ETH_DEV *dev)
 
     eth_devs = (ETH_DEV **)realloc(eth_open_devices, (eth_open_device_count + 1) * sizeof(*eth_open_devices));
     if (eth_devs != NULL) {
-	eth_open_devices = eth_devs;
-	eth_open_devices[eth_open_device_count++] = dev;
+  eth_open_devices = eth_devs;
+  eth_open_devices[eth_open_device_count++] = dev;
     } else {
       sim_messagef(SCPE_MEM, "_eth_add_to_open_list: realloc() on eth_open_devices failed, new device not added.");
     }
@@ -800,7 +801,7 @@ eth_show(FILE *st, UNIT *uptr, int32 val, CONST void *desc)
                 min = len;
         }
         for (i = 0; i < number; i++)
-            fprintf(st, " eth%" PRI_SIZET "\t%-*s (%s)\n", i, (int)min, list[i].name, list[i].desc);
+            fprintf(st, " eth%" PRI_SIZE_T "\t%-*s (%s)\n", i, (int)min, list[i].name, list[i].desc);
     }
     if (eth_open_device_count) {
         int  i;
@@ -1062,6 +1063,21 @@ extern "C" {
 #ifdef HAVE_DLOPEN
 #include <dlfcn.h>
 #endif
+
+static void
+_eth_output_timestamp()
+{
+    time_t now;
+    char   tstamp[64];
+
+    time(&now);
+#if defined(__CYGWIN__) || defined(_WIN32) || defined(__APPLE__) || defined(__linux) || defined(__linux__)
+    strftime(tstamp, sizeof(tstamp) - 1, "%a %b %d %T %Y%n", localtime(&now));
+#else
+    strlcpy(tstamp, asctime(localtime(&now)), sizeof(tstamp) - 1);
+#endif
+    sim_printf("%s", tstamp);
+}
 
 #if defined(USE_SHARED) && (defined(_WIN32) || defined(HAVE_DLOPEN))
 /* Dynamic DLL loading technique and modified source comes from
@@ -1995,10 +2011,7 @@ return SCPE_OK;
 
 static t_stat _eth_open_port(char *savname, int *eth_api, void **handle, SOCKET *fd_handle, char errbuf[PCAP_ERRBUF_SIZE], char *bpf_filter, void *opaque, DEVICE *dptr, uint32 dbit)
 {
-int bufsz = (BUFSIZ < ETH_MAX_PACKET) ? ETH_MAX_PACKET : BUFSIZ;
-
-if (bufsz < ETH_MAX_JUMBO_FRAME)
-  bufsz = ETH_MAX_JUMBO_FRAME;    /* Enable handling of jumbo frames */
+int bufsz = ETH_MAX_JUMBO_FRAME;    /* Enable handling of jumbo frames */
 
 *eth_api = 0;
 *handle = NULL;
@@ -2239,13 +2252,12 @@ if (errbuf[0])
 #ifdef USE_BPF
 if (bpf_filter && (*eth_api == ETH_API_PCAP)) {
   struct bpf_program bpf;
-  int status;
   bpf_u_int32  bpf_subnet, bpf_netmask;
 
   if (pcap_lookupnet(savname, &bpf_subnet, &bpf_netmask, errbuf)<0)
     bpf_netmask = 0;
   /* compile filter string */
-  if ((status = pcap_compile((pcap_t*)(*handle), &bpf, bpf_filter, 1, bpf_netmask)) < 0) {
+  if (pcap_compile((pcap_t*)(*handle), &bpf, bpf_filter, 1, bpf_netmask) < 0) {
     sprintf(errbuf, "%s", pcap_geterr((pcap_t*)(*handle)));
     sim_printf("Eth: pcap_compile error: %s\n", errbuf);
     /* show erroneous BPF string */
@@ -2253,7 +2265,7 @@ if (bpf_filter && (*eth_api == ETH_API_PCAP)) {
     }
   else {
     /* apply compiled filter string */
-    if ((status = pcap_setfilter((pcap_t*)(*handle), &bpf)) < 0) {
+    if (pcap_setfilter((pcap_t*)(*handle), &bpf) < 0) {
       sprintf(errbuf, "%s", pcap_geterr((pcap_t*)(*handle)));
       sim_printf("Eth: pcap_setfilter error: %s\n", errbuf);
       }
@@ -2273,15 +2285,11 @@ return SCPE_OK;
 t_stat eth_open(ETH_DEV* dev, const char* name, DEVICE* dptr, uint32 dbit)
 {
 t_stat r;
-int bufsz = (BUFSIZ < ETH_MAX_PACKET) ? ETH_MAX_PACKET : BUFSIZ;
 char errbuf[PCAP_ERRBUF_SIZE];
 char temp[1024], desc[1024] = "";
 const char* savname;
 char namebuf[4*CBUFSIZE];
 int   num;
-
-if (bufsz < ETH_MAX_JUMBO_FRAME)
-  bufsz = ETH_MAX_JUMBO_FRAME;    /* Enable handling of jumbo frames */
 
 /* initialize device */
 eth_zero(dev);
@@ -2621,7 +2629,7 @@ eth_check_address_conflict_ex(ETH_DEV *dev, ETH_MAC *CONST mac, int *reflections
         uint32 offset, function;
 
         memset(&recv, 0, sizeof(ETH_PACK));
-        status = eth_read(dev, &recv, NULL);
+        /*status = */ eth_read(dev, &recv, NULL);
         eth_packet_trace_detail(dev, recv.msg, recv.len, "Recv-Address-Check");
         offset   = 16 + (recv.msg[14] | (recv.msg[15] << 8));
         function = 0;
@@ -2679,10 +2687,8 @@ _eth_error(ETH_DEV* dev, const char* where)
 {
 char msg[64];
 const char *netname = "";
-time_t now;
 
-time(&now);
-sim_printf ("%s", asctime(localtime(&now)));
+_eth_output_timestamp();
 switch (dev->eth_api) {
   case ETH_API_PCAP:
       netname = "pcap";
@@ -3046,522 +3052,529 @@ struct TCPHeader {
 #define IPPROTO_ICMP            1               /* control message protocol */
 #endif
 
-static uint16 
-ip_checksum(uint16 *buffer, int size) 
+static uint16
+ip_checksum(uint16 *buffer, int size)
 {
-unsigned long cksum = 0;
-    
-/* Sum all the words together, adding the final byte if size is odd  */
-while (size > 1) {
-  cksum += *buffer++;
-  size -= sizeof(*buffer);
+    unsigned long cksum = 0;
+
+    /* Sum all the words together, adding the final byte if size is odd  */
+    while (size > 1) {
+        cksum += *buffer++;
+        size -= sizeof(*buffer);
+    }
+    if (size) {
+        uint16 endword;
+        uint8  endbytes[sizeof(uint16)]; /* = (uint8 *)&endword; */
+
+        endbytes[0] = *((uint8 *)buffer);
+        endbytes[1] = 0;
+        memcpy(&endword, endbytes, sizeof(uint16));
+        cksum += endword;
+    }
+
+    /* Do a little shuffling  */
+    cksum = (cksum >> 16) + (cksum & 0xffff);
+    cksum += (cksum >> 16);
+
+    /* Return the bitwise complement of the resulting mishmash  */
+    return (uint16)(~cksum);
 }
-if (size) {
-  uint16 endword;
-  uint8  endbytes[sizeof(uint16)]; /* = (uint8 *)&endword; */
 
-  endbytes[0] = *((uint8 *)buffer);
-  endbytes[1] = 0;
-  memcpy(&endword, endbytes, sizeof(uint16));
-  cksum += endword;
-  }
-
-/* Do a little shuffling  */
-cksum = (cksum >> 16) + (cksum & 0xffff);
-cksum += (cksum >> 16);
-    
-/* Return the bitwise complement of the resulting mishmash  */
-return (uint16)(~cksum);
-}
-
-static uint16 
+static uint16
 pseudo_checksum(uint16 len, uint16 proto, uint16 *src_addr, uint16 *dest_addr, uint8 *buff)
 {
-uint32 sum;
+    uint32 sum;
 
-/* Sum the data first */
-sum = 0xffff&(~ip_checksum((uint16 *)buff, len));
+    /* Sum the data first */
+    sum = 0xffff & (~ip_checksum((uint16 *)buff, len));
 
-/* add the pseudo header which contains the IP source and destinationn addresses */
-sum += src_addr[0];
-sum += src_addr[1];
-sum += dest_addr[0];
-sum += dest_addr[1];
-/* and the protocol number and the length of the UDP packet */
-sum = sum + htons(proto) + htons(len);
+    /* add the pseudo header which contains the IP source and destinationn addresses */
+    sum += src_addr[0];
+    sum += src_addr[1];
+    sum += dest_addr[0];
+    sum += dest_addr[1];
+    /* and the protocol number and the length of the UDP packet */
+    sum = sum + htons(proto) + htons(len);
 
-/* Do a little shuffling  */
-sum = (sum >> 16) + (sum & 0xffff);
-sum += (sum >> 16);
-    
-/* Return the bitwise complement of the resulting mishmash  */
-return (uint16)(~sum);
+    /* Do a little shuffling  */
+    sum = (sum >> 16) + (sum & 0xffff);
+    sum += (sum >> 16);
+
+    /* Return the bitwise complement of the resulting mishmash  */
+    return (uint16)(~sum);
 }
 
 static void
-_eth_fix_ip_jumbo_offload(ETH_DEV* dev, u_char* msg, int len)
+_eth_fix_ip_jumbo_offload(ETH_DEV *dev, u_char *msg, int len)
 {
-const unsigned short* proto = (const unsigned short*) &msg[12];
-struct IPHeader *IP;
-struct TCPHeader *TCP = NULL;
-struct UDPHeader *UDP;
-struct ICMPHeader *ICMP;
-uint16 orig_checksum;
-uint16 payload_len;
-uint16 mtu_payload;
-uint16 frag_offset;
-struct pcap_pkthdr header;
-uint16 orig_tcp_flags;
+    const unsigned short *proto = (const unsigned short *)&msg[12];
+    struct IPHeader *     IP;
+    struct TCPHeader *    TCP = NULL;
+    struct UDPHeader *    UDP;
+    struct ICMPHeader *   ICMP;
+    uint16                orig_checksum;
+    uint16                payload_len;
+    uint16                mtu_payload;
+    uint16                frag_offset;
+    struct pcap_pkthdr    header;
+    uint16                orig_tcp_flags;
 
-/* Only interested in IP frames */
-if (ntohs(*proto) != 0x0800) {
-  ++dev->jumbo_dropped; /* Non IP Frames are dropped */
-  return;
-  }
-IP = (struct IPHeader *)&msg[14];
-if (IP_VERSION(IP) != 4) {
-  ++dev->jumbo_dropped; /* Non IPv4 jumbo frames are dropped */
-  return;
-  }
-if ((IP_HLEN(IP) > len) || (ntohs(IP->total_len) > len)) {
-  ++dev->jumbo_dropped; /* Bogus header length frames are dropped */
-  return;
-  }
-if (IP_FRAG_OFFSET(IP) || IP_FRAG_MF(IP)) {
-  ++dev->jumbo_dropped; /* Previously fragmented, but currently jumbo sized frames are dropped */
-  return;
-  }
-switch (IP->proto) {
-  case IPPROTO_UDP:
-    UDP = (struct UDPHeader *)(((char *)IP)+IP_HLEN(IP));
-    if (ntohs(UDP->length) > (len-IP_HLEN(IP))) {
-      ++dev->jumbo_dropped; /* Bogus UDP packet length (packet contained length exceeds packet size) frames are dropped */
-      return;
-      }
-    if (UDP->checksum == 0)
-      break; /* UDP Checksums are disabled */
-    orig_checksum = UDP->checksum;
-    UDP->checksum = 0;
-    UDP->checksum = pseudo_checksum(ntohs(UDP->length), IPPROTO_UDP, (uint16 *)(&IP->source_ip), (uint16 *)(&IP->dest_ip), (uint8 *)UDP);
-    if (orig_checksum != UDP->checksum)
-      eth_packet_trace (dev, msg, len, "reading jumbo UDP header Checksum Fixed");
-    break;
-  case IPPROTO_ICMP:
-    ICMP = (struct ICMPHeader *)(((char *)IP)+IP_HLEN(IP));
-    orig_checksum = ICMP->checksum;
-    ICMP->checksum = 0;
-    ICMP->checksum = ip_checksum((uint16 *)ICMP, ntohs(IP->total_len)-IP_HLEN(IP));
-    if (orig_checksum != ICMP->checksum)
-      eth_packet_trace (dev, msg, len, "reading jumbo ICMP header Checksum Fixed");
-    break;
-  case IPPROTO_TCP:
-    TCP = (struct TCPHeader *)(((char *)IP)+IP_HLEN(IP));
-    if ((TCP_DATA_OFFSET(TCP) > (len-IP_HLEN(IP))) || (TCP_DATA_OFFSET(TCP) < 20)) {
-      ++dev->jumbo_dropped; /* Bogus TCP packet header length (packet contained length exceeds packet size) frames are dropped */
-      return;
-      }
-    /* We don't do anything with the TCP checksum since we're going to resegment the TCP data below */
-    break;
-  default:
-    ++dev->jumbo_dropped; /* We onlt handle UDP, ICMP and TCP jumbo frames others are dropped */
-    return;
-  }
-/* Reasonable Checksums are now in the jumbo packet, but we've got to actually */
-/* deliver ONLY standard sized ethernet frames.  Our job here is to now act as */
-/* a router might have to and fragment these IPv4 frames as they are delivered */
-/* into the virtual NIC. We do this by walking down the packet and dispatching */
-/* a chunk at a time recomputing an appropriate header for each chunk. For */
-/* datagram oriented protocols (UDP and ICMP) this is done by simple packet */
-/* fragmentation.  For TCP this is done by breaking large packets into separate */
-/* TCP packets. */
-memset(&header, 0, sizeof(header));
-switch (IP->proto) {
-  case IPPROTO_UDP:
-  case IPPROTO_ICMP:
-    ++dev->jumbo_fragmented;
-    /* When we're performing LSO (Large Send Offload), we're given a 
-       'template' header which may not include a value being populated 
-       in the IP header length (which is only 16 bits).
-       We process as payload everything which isn't known header data. */
-    payload_len = (uint16)(len - (14 + IP_HLEN(IP)));
-    mtu_payload = ETH_MIN_JUMBO_FRAME - (14 + IP_HLEN(IP));
-    frag_offset = 0;
-    while (payload_len > 0) {
-      uint16 ip_flags = frag_offset;
-      if (payload_len > mtu_payload) {
-        ip_flags |= IP_MF_FLAG;
-        IP->total_len = htons(((mtu_payload>>3)<<3) + IP_HLEN(IP));
+    /* Only interested in IP frames */
+    if (ntohs(*proto) != 0x0800) {
+        ++dev->jumbo_dropped; /* Non IP Frames are dropped */
+        return;
+    }
+    IP = (struct IPHeader *)&msg[14];
+    if (IP_VERSION(IP) != 4) {
+        ++dev->jumbo_dropped; /* Non IPv4 jumbo frames are dropped */
+        return;
+    }
+    if ((IP_HLEN(IP) > len) || (ntohs(IP->total_len) > len)) {
+        ++dev->jumbo_dropped; /* Bogus header length frames are dropped */
+        return;
+    }
+    if (IP_FRAG_OFFSET(IP) || IP_FRAG_MF(IP)) {
+        ++dev->jumbo_dropped; /* Previously fragmented, but currently jumbo sized frames are dropped */
+        return;
+    }
+    switch (IP->proto) {
+    case IPPROTO_UDP:
+        UDP = (struct UDPHeader *)(((char *)IP) + IP_HLEN(IP));
+        if (ntohs(UDP->length) > (len - IP_HLEN(IP))) {
+            ++dev->jumbo_dropped; /* Bogus UDP packet length (packet contained length exceeds packet size) frames are
+                                     dropped */
+            return;
         }
-      else {
-        IP->total_len = htons(payload_len + IP_HLEN(IP));
+        if (UDP->checksum == 0)
+            break; /* UDP Checksums are disabled */
+        orig_checksum = UDP->checksum;
+        UDP->checksum = 0;
+        UDP->checksum = pseudo_checksum(ntohs(UDP->length), IPPROTO_UDP, (uint16 *)(&IP->source_ip),
+                                        (uint16 *)(&IP->dest_ip), (uint8 *)UDP);
+        if (orig_checksum != UDP->checksum)
+            eth_packet_trace(dev, msg, len, "reading jumbo UDP header Checksum Fixed");
+        break;
+    case IPPROTO_ICMP:
+        ICMP           = (struct ICMPHeader *)(((char *)IP) + IP_HLEN(IP));
+        orig_checksum  = ICMP->checksum;
+        ICMP->checksum = 0;
+        ICMP->checksum = ip_checksum((uint16 *)ICMP, ntohs(IP->total_len) - IP_HLEN(IP));
+        if (orig_checksum != ICMP->checksum)
+            eth_packet_trace(dev, msg, len, "reading jumbo ICMP header Checksum Fixed");
+        break;
+    case IPPROTO_TCP:
+        TCP = (struct TCPHeader *)(((char *)IP) + IP_HLEN(IP));
+        if ((TCP_DATA_OFFSET(TCP) > (len - IP_HLEN(IP))) || (TCP_DATA_OFFSET(TCP) < 20)) {
+            ++dev->jumbo_dropped; /* Bogus TCP packet header length (packet contained length exceeds packet size) frames are
+                                     dropped */
+            return;
         }
-      IP->flags = htons(ip_flags);
-      IP->checksum = 0;
-      IP->checksum = ip_checksum((uint16 *)IP, IP_HLEN(IP));
-      header.caplen = header.len = 14 + ntohs(IP->total_len);
-      eth_packet_trace (dev, ((u_char *)IP)-14, header.len, "reading Datagram fragment");
+        /* We don't do anything with the TCP checksum since we're going to resegment the TCP data below */
+        break;
+    default:
+        ++dev->jumbo_dropped; /* We onlt handle UDP, ICMP and TCP jumbo frames others are dropped */
+        return;
+    }
+    /* Reasonable Checksums are now in the jumbo packet, but we've got to actually */
+    /* deliver ONLY standard sized ethernet frames.  Our job here is to now act as */
+    /* a router might have to and fragment these IPv4 frames as they are delivered */
+    /* into the virtual NIC. We do this by walking down the packet and dispatching */
+    /* a chunk at a time recomputing an appropriate header for each chunk. For */
+    /* datagram oriented protocols (UDP and ICMP) this is done by simple packet */
+    /* fragmentation.  For TCP this is done by breaking large packets into separate */
+    /* TCP packets. */
+    memset(&header, 0, sizeof(header));
+    switch (IP->proto) {
+    case IPPROTO_UDP:
+    case IPPROTO_ICMP:
+        ++dev->jumbo_fragmented;
+        /* When we're performing LSO (Large Send Offload), we're given a
+           'template' header which may not include a value being populated
+           in the IP header length (which is only 16 bits).
+           We process as payload everything which isn't known header data. */
+        payload_len = (uint16)(len - (14 + IP_HLEN(IP)));
+        mtu_payload = ETH_MIN_JUMBO_FRAME - (14 + IP_HLEN(IP));
+        frag_offset = 0;
+        while (payload_len > 0) {
+            uint16 ip_flags = frag_offset;
+
+            if (payload_len > mtu_payload) {
+                ip_flags |= IP_MF_FLAG;
+                IP->total_len = htons(((mtu_payload >> 3) << 3) + IP_HLEN(IP));
+            } else {
+                IP->total_len = htons(payload_len + IP_HLEN(IP));
+            }
+            IP->flags     = htons(ip_flags);
+            IP->checksum  = 0;
+            IP->checksum  = ip_checksum((uint16 *)IP, IP_HLEN(IP));
+            header.caplen = header.len = 14 + ntohs(IP->total_len);
+            eth_packet_trace(dev, ((u_char *)IP) - 14, header.len, "reading Datagram fragment");
 #if ETH_MIN_JUMBO_FRAME < ETH_MAX_PACKET
-      if (1) {
-        /* Debugging is easier if we read packets directly with pcap
-           (i.e. we can use Wireshark to verify packet contents)
-           we don't want to do this all the time for 2 reasons:
-             1) sending through pcap involves kernel transitions and
-             2) if the current system reflects sent packets, the 
-                recieving side will receive and process 2 copies of 
-                any packets sent this way. */
-        ETH_PACK pkt;
+            if (1) {
+                /* Debugging is easier if we read packets directly with pcap
+                   (i.e. we can use Wireshark to verify packet contents)
+                   we don't want to do this all the time for 2 reasons:
+                     1) sending through pcap involves kernel transitions and
+                     2) if the current system reflects sent packets, the
+                        recieving side will receive and process 2 copies of
+                        any packets sent this way. */
+                ETH_PACK pkt;
 
-        memset(&pkt, 0, sizeof(pkt));
-        memcpy(pkt.msg, ((u_char *)IP)-14, header.len);
-        pkt.len = header.len;
-        _eth_write(dev, &pkt, NULL);
-        }
+                memset(&pkt, 0, sizeof(pkt));
+                memcpy(pkt.msg, ((u_char *)IP) - 14, header.len);
+                pkt.len = header.len;
+                _eth_write(dev, &pkt, NULL);
+            }
 #else
-      _eth_callback((u_char *)dev, &header, ((u_char *)IP)-14);
+            _eth_callback((u_char *)dev, &header, ((u_char *)IP) - 14);
 #endif
-      payload_len -= (ntohs(IP->total_len) - IP_HLEN(IP));
-      frag_offset += (ntohs(IP->total_len) - IP_HLEN(IP))>>3;
-      if (payload_len > 0) {
-        /* Move the MAC and IP headers down to just prior to the next payload segment */
-        memcpy(((u_char *)IP) + ntohs(IP->total_len) - (14 + IP_HLEN(IP)), ((u_char *)IP) - 14, 14 + IP_HLEN(IP));
-        IP = (struct IPHeader *)(((u_char *)IP) + ntohs(IP->total_len) - IP_HLEN(IP));
+            payload_len -= (ntohs(IP->total_len) - IP_HLEN(IP));
+            frag_offset += (ntohs(IP->total_len) - IP_HLEN(IP)) >> 3;
+            if (payload_len > 0) {
+                /* Move the MAC and IP headers down to just prior to the next payload segment */
+                memcpy(((u_char *)IP) + ntohs(IP->total_len) - (14 + IP_HLEN(IP)), ((u_char *)IP) - 14, 14 + IP_HLEN(IP));
+                IP = (struct IPHeader *)(((u_char *)IP) + ntohs(IP->total_len) - IP_HLEN(IP));
+            }
         }
-      }
-    break;
-  case IPPROTO_TCP:
-    ++dev->jumbo_fragmented;
-    eth_packet_trace_ex (dev, ((u_char *)IP)-14, len, "Fragmenting Jumbo TCP segment", 1, dev->dbit);
-    TCP = (struct TCPHeader *)(((char *)IP)+IP_HLEN(IP));
-    orig_tcp_flags = ntohs(TCP->data_offset_and_flags);
-    /* When we're performing LSO (Large Send Offload), we're given a 
-       'template' header which may not include a value being populated 
-       in the IP header length (which is only 16 bits).
-       We process as payload everything which isn't known header data. */
-    payload_len = (uint16)(len - (14 + IP_HLEN(IP) + TCP_DATA_OFFSET(TCP)));
-    mtu_payload = ETH_MIN_JUMBO_FRAME - (14 + IP_HLEN(IP) + TCP_DATA_OFFSET(TCP));
-    while (payload_len > 0) {
-      if (payload_len > mtu_payload) {
-        TCP->data_offset_and_flags = htons(orig_tcp_flags&~(TCP_PSH_FLAG|TCP_FIN_FLAG|TCP_RST_FLAG));
-        IP->total_len = htons(mtu_payload + IP_HLEN(IP) + TCP_DATA_OFFSET(TCP));
-        }
-      else {
-        TCP->data_offset_and_flags = htons(orig_tcp_flags);
-        IP->total_len = htons(payload_len + IP_HLEN(IP) + TCP_DATA_OFFSET(TCP));
-        }
-      IP->checksum = 0;
-      IP->checksum = ip_checksum((uint16 *)IP, IP_HLEN(IP));
-      TCP->checksum = 0;
-      TCP->checksum = pseudo_checksum(ntohs(IP->total_len)-IP_HLEN(IP), IPPROTO_TCP, (uint16 *)(&IP->source_ip), (uint16 *)(&IP->dest_ip), (uint8 *)TCP);
-      header.caplen = header.len = 14 + ntohs(IP->total_len);
-      eth_packet_trace_ex (dev, ((u_char *)IP)-14, header.len, "reading TCP segment", 1, dev->dbit);
+        break;
+    case IPPROTO_TCP:
+        ++dev->jumbo_fragmented;
+        eth_packet_trace_ex(dev, ((u_char *)IP) - 14, len, "Fragmenting Jumbo TCP segment", 1, dev->dbit);
+        TCP            = (struct TCPHeader *)(((char *)IP) + IP_HLEN(IP));
+        orig_tcp_flags = ntohs(TCP->data_offset_and_flags);
+        /* When we're performing LSO (Large Send Offload), we're given a
+           'template' header which may not include a value being populated
+           in the IP header length (which is only 16 bits).
+           We process as payload everything which isn't known header data. */
+        payload_len = (uint16)(len - (14 + IP_HLEN(IP) + TCP_DATA_OFFSET(TCP)));
+        mtu_payload = ETH_MIN_JUMBO_FRAME - (14 + IP_HLEN(IP) + TCP_DATA_OFFSET(TCP));
+        while (payload_len > 0) {
+            if (payload_len > mtu_payload) {
+                TCP->data_offset_and_flags = htons(orig_tcp_flags & ~(TCP_PSH_FLAG | TCP_FIN_FLAG | TCP_RST_FLAG));
+                IP->total_len              = htons(mtu_payload + IP_HLEN(IP) + TCP_DATA_OFFSET(TCP));
+            } else {
+                TCP->data_offset_and_flags = htons(orig_tcp_flags);
+                IP->total_len              = htons(payload_len + IP_HLEN(IP) + TCP_DATA_OFFSET(TCP));
+            }
+            IP->checksum  = 0;
+            IP->checksum  = ip_checksum((uint16 *)IP, IP_HLEN(IP));
+            TCP->checksum = 0;
+            TCP->checksum = pseudo_checksum(ntohs(IP->total_len) - IP_HLEN(IP), IPPROTO_TCP, (uint16 *)(&IP->source_ip),
+                                            (uint16 *)(&IP->dest_ip), (uint8 *)TCP);
+            header.caplen = header.len = 14 + ntohs(IP->total_len);
+            eth_packet_trace_ex(dev, ((u_char *)IP) - 14, header.len, "reading TCP segment", 1, dev->dbit);
 #if ETH_MIN_JUMBO_FRAME < ETH_MAX_PACKET
-      if (1) {
-        /* Debugging is easier if we read packets directly with pcap
-           (i.e. we can use Wireshark to verify packet contents)
-           we don't want to do this all the time for 2 reasons:
-             1) sending through pcap involves kernel transitions and
-             2) if the current system reflects sent packets, the 
-                recieving side will receive and process 2 copies of 
-                any packets sent this way. */
-        ETH_PACK pkt;
+            if (1) {
+                /* Debugging is easier if we read packets directly with pcap
+                   (i.e. we can use Wireshark to verify packet contents)
+                   we don't want to do this all the time for 2 reasons:
+                     1) sending through pcap involves kernel transitions and
+                     2) if the current system reflects sent packets, the
+                        recieving side will receive and process 2 copies of
+                        any packets sent this way. */
+                ETH_PACK pkt;
 
-        memset(&pkt, 0, sizeof(pkt));
-        memcpy(pkt.msg, ((u_char *)IP)-14, header.len);
-        pkt.len = header.len;
-        _eth_write(dev, &pkt, NULL);
-        }
+                memset(&pkt, 0, sizeof(pkt));
+                memcpy(pkt.msg, ((u_char *)IP) - 14, header.len);
+                pkt.len = header.len;
+                _eth_write(dev, &pkt, NULL);
+            }
 #else
-      _eth_callback((u_char *)dev, &header, ((u_char *)IP)-14);
+            _eth_callback((u_char *)dev, &header, ((u_char *)IP) - 14);
 #endif
-      payload_len -= (ntohs(IP->total_len) - (IP_HLEN(IP) + TCP_DATA_OFFSET(TCP)));
-      if (payload_len > 0) {
-        /* Move the MAC, IP and TCP headers down to just prior to the next payload segment */
-        memcpy(((u_char *)IP) + ntohs(IP->total_len) - (14 + IP_HLEN(IP) + TCP_DATA_OFFSET(TCP)), ((u_char *)IP) - 14, 14 + IP_HLEN(IP) + TCP_DATA_OFFSET(TCP));
-        IP = (struct IPHeader *)(((u_char *)IP) + ntohs(IP->total_len) - (IP_HLEN(IP) + TCP_DATA_OFFSET(TCP)));
-        TCP = (struct TCPHeader *)(((char *)IP)+IP_HLEN(IP));
-        TCP->sequence_number = htonl(mtu_payload + ntohl(TCP->sequence_number));
+            payload_len -= (ntohs(IP->total_len) - (IP_HLEN(IP) + TCP_DATA_OFFSET(TCP)));
+            if (payload_len > 0) {
+                /* Move the MAC, IP and TCP headers down to just prior to the next payload segment */
+                memcpy(((u_char *)IP) + ntohs(IP->total_len) - (14 + IP_HLEN(IP) + TCP_DATA_OFFSET(TCP)),
+                       ((u_char *)IP) - 14, 14 + IP_HLEN(IP) + TCP_DATA_OFFSET(TCP));
+                IP  = (struct IPHeader *)(((u_char *)IP) + ntohs(IP->total_len) - (IP_HLEN(IP) + TCP_DATA_OFFSET(TCP)));
+                TCP = (struct TCPHeader *)(((char *)IP) + IP_HLEN(IP));
+                TCP->sequence_number = htonl(mtu_payload + ntohl(TCP->sequence_number));
+            }
         }
-      }
-    break;
-  }
+        break;
+    }
 }
 
 static void
-_eth_fix_ip_xsum_offload(ETH_DEV* dev, const u_char* msg, int len)
+_eth_fix_ip_xsum_offload(ETH_DEV *dev, const u_char *msg, int len)
 {
-const unsigned short* proto = (const unsigned short*) &msg[12];
-struct IPHeader *IP;
-struct TCPHeader *TCP;
-struct UDPHeader *UDP;
-struct ICMPHeader *ICMP;
-uint16 orig_checksum;
+    const unsigned short *proto = (const unsigned short *)&msg[12];
+    struct IPHeader *     IP;
+    struct TCPHeader *    TCP;
+    struct UDPHeader *    UDP;
+    struct ICMPHeader *   ICMP;
+    uint16                orig_checksum;
 
-/* Only need to process locally originated packets */
-if ((!dev->have_host_nic_phy_addr) || (memcmp(msg+6, dev->host_nic_phy_hw_addr, 6)))
-  return;
-/* Only interested in IP frames */
-if (ntohs(*proto) != 0x0800)
-  return;
-IP = (struct IPHeader *)&msg[14];
-if (IP_VERSION(IP) != 4)
-  return; /* Only interested in IPv4 frames */
-if ((IP_HLEN(IP) > len) || (ntohs(IP->total_len) > len))
-  return; /* Bogus header length */
-orig_checksum = IP->checksum;
-IP->checksum = 0;
-IP->checksum = ip_checksum((uint16 *)IP, IP_HLEN(IP));
-if (orig_checksum != IP->checksum)
-  eth_packet_trace (dev, msg, len, "reading IP header Checksum Fixed");
-if (IP_FRAG_OFFSET(IP) || IP_FRAG_MF(IP))
-  return; /* Insufficient data to compute payload checksum */
-switch (IP->proto) {
-  case IPPROTO_UDP:
-    UDP = (struct UDPHeader *)(((char *)IP)+IP_HLEN(IP));
-    if (ntohs(UDP->length) > (len-IP_HLEN(IP)))
-      return; /* packet contained length exceeds packet size */
-    if (UDP->checksum == 0)
-      return; /* UDP Checksums are disabled */
-    orig_checksum = UDP->checksum;
-    UDP->checksum = 0;
-    UDP->checksum = pseudo_checksum(ntohs(UDP->length), IPPROTO_UDP, (uint16 *)(&IP->source_ip), (uint16 *)(&IP->dest_ip), (uint8 *)UDP);
-    if (orig_checksum != UDP->checksum)
-      eth_packet_trace (dev, msg, len, "reading UDP header Checksum Fixed");
-    break;
-  case IPPROTO_TCP:
-    TCP = (struct TCPHeader *)(((char *)IP)+IP_HLEN(IP));
-    orig_checksum = TCP->checksum;
-    TCP->checksum = 0;
-    TCP->checksum = pseudo_checksum(ntohs(IP->total_len)-IP_HLEN(IP), IPPROTO_TCP, (uint16 *)(&IP->source_ip), (uint16 *)(&IP->dest_ip), (uint8 *)TCP);
-    if (orig_checksum != TCP->checksum)
-      eth_packet_trace (dev, msg, len, "reading TCP header Checksum Fixed");
-    break;
-  case IPPROTO_ICMP:
-    ICMP = (struct ICMPHeader *)(((char *)IP)+IP_HLEN(IP));
-    orig_checksum = ICMP->checksum;
-    ICMP->checksum = 0;
-    ICMP->checksum = ip_checksum((uint16 *)ICMP, ntohs(IP->total_len)-IP_HLEN(IP));
-    if (orig_checksum != ICMP->checksum)
-      eth_packet_trace (dev, msg, len, "reading ICMP header Checksum Fixed");
-    break;
-  }
+    /* Only need to process locally originated packets */
+    if ((!dev->have_host_nic_phy_addr) || (memcmp(msg + 6, dev->host_nic_phy_hw_addr, 6)))
+        return;
+    /* Only interested in IP frames */
+    if (ntohs(*proto) != 0x0800)
+        return;
+    IP = (struct IPHeader *)&msg[14];
+    if (IP_VERSION(IP) != 4)
+        return; /* Only interested in IPv4 frames */
+    if ((IP_HLEN(IP) > len) || (ntohs(IP->total_len) > len))
+        return; /* Bogus header length */
+    orig_checksum = IP->checksum;
+    IP->checksum  = 0;
+    IP->checksum  = ip_checksum((uint16 *)IP, IP_HLEN(IP));
+    if (orig_checksum != IP->checksum)
+        eth_packet_trace(dev, msg, len, "reading IP header Checksum Fixed");
+    if (IP_FRAG_OFFSET(IP) || IP_FRAG_MF(IP))
+        return; /* Insufficient data to compute payload checksum */
+    switch (IP->proto) {
+    case IPPROTO_UDP:
+        UDP = (struct UDPHeader *)(((char *)IP) + IP_HLEN(IP));
+        if (ntohs(UDP->length) > (len - IP_HLEN(IP)))
+            return; /* packet contained length exceeds packet size */
+        if (UDP->checksum == 0)
+            return; /* UDP Checksums are disabled */
+        orig_checksum = UDP->checksum;
+        UDP->checksum = 0;
+        UDP->checksum = pseudo_checksum(ntohs(UDP->length), IPPROTO_UDP, (uint16 *)(&IP->source_ip),
+                                        (uint16 *)(&IP->dest_ip), (uint8 *)UDP);
+        if (orig_checksum != UDP->checksum)
+            eth_packet_trace(dev, msg, len, "reading UDP header Checksum Fixed");
+        break;
+    case IPPROTO_TCP:
+        TCP           = (struct TCPHeader *)(((char *)IP) + IP_HLEN(IP));
+        orig_checksum = TCP->checksum;
+        TCP->checksum = 0;
+        TCP->checksum = pseudo_checksum(ntohs(IP->total_len) - IP_HLEN(IP), IPPROTO_TCP, (uint16 *)(&IP->source_ip),
+                                        (uint16 *)(&IP->dest_ip), (uint8 *)TCP);
+        if (orig_checksum != TCP->checksum)
+            eth_packet_trace(dev, msg, len, "reading TCP header Checksum Fixed");
+        break;
+    case IPPROTO_ICMP:
+        ICMP           = (struct ICMPHeader *)(((char *)IP) + IP_HLEN(IP));
+        orig_checksum  = ICMP->checksum;
+        ICMP->checksum = 0;
+        ICMP->checksum = ip_checksum((uint16 *)ICMP, ntohs(IP->total_len) - IP_HLEN(IP));
+        if (orig_checksum != ICMP->checksum)
+            eth_packet_trace(dev, msg, len, "reading ICMP header Checksum Fixed");
+        break;
+    }
 }
 
 static int
-_eth_process_loopback (ETH_DEV* dev, const u_char* data, uint32 len)
+_eth_process_loopback(ETH_DEV *dev, const u_char *data, uint32 len)
 {
-int protocol = data[12] | (data[13] << 8);
-ETH_PACK  response;
-uint32 offset, function;
+    uint32   protocol = (uint32)data[12] | ((uint32)data[13] << 8);
+    ETH_PACK response;
+    uint32   offset, function;
 
-if (protocol != 0x0090)     /* !ethernet loopback */
-  return 0;
+    if (protocol != 0x0090) /* !ethernet loopback */
+        return 0;
 
-if (LOOPBACK_REFLECTION_TEST_PACKET(dev, data))
-  return 0;                 /* Ignore reflection check packet */
+    if (LOOPBACK_REFLECTION_TEST_PACKET(dev, data))
+        return 0; /* Ignore reflection check packet */
 
-offset   = 16 + (data[14] | (data[15] << 8));
-if (offset >= len)
-  return 0;
-function = data[offset] | (data[offset+1] << 8);
+    /* offset skips the IP header + packet length. */
+    offset = ((uint32) data[17] >> 4) + ((uint32)data[14] | ((uint32)data[15] << 8));
+    if (offset >= len)
+        return 0;
+    
+    function = (uint32)data[offset] | ((uint32)data[offset + 1] << 8);
+    if (function != 2) /*forward*/
+        return 0;
 
-if (function != 2) /*forward*/
-  return 0;
+    /* The only packets we should be responding to are ones which
+       we received due to them being directed to our physical MAC address,
+       OR the Broadcast address OR to a Multicast address we're listening to
+       (we may receive others if we're in promiscuous mode, but shouldn't
+       respond to them) */
+    if ((0 == (data[0] & 1)) && /* Multicast or Broadcast */
+        (0 != memcmp(dev->filter_address[0], data, sizeof(ETH_MAC))))
+        return 0;
 
-/* The only packets we should be responding to are ones which 
-   we received due to them being directed to our physical MAC address, 
-   OR the Broadcast address OR to a Multicast address we're listening to 
-   (we may receive others if we're in promiscuous mode, but shouldn't 
-   respond to them) */
-if ((0 == (data[0]&1)) &&           /* Multicast or Broadcast */
-    (0 != memcmp(dev->filter_address[0], data, sizeof(ETH_MAC))))
-  return 0;
+    /* Attempts to forward to multicast or broadcast addresses are explicitly
+       ignored by consuming the packet and doing nothing else */
+    if (data[offset + 2] & 1)
+        return 1;
 
-/* Attempts to forward to multicast or broadcast addresses are explicitly 
-   ignored by consuming the packet and doing nothing else */
-if (data[offset+2]&1)
-  return 1;
+    eth_packet_trace(dev, data, len, "rcvd");
 
-eth_packet_trace (dev, data, len, "rcvd");
+    sim_debug(dev->dbit, dev->dptr, "_eth_process_loopback()\n");
 
-sim_debug(dev->dbit, dev->dptr, "_eth_process_loopback()\n");
+    /* create forward response packet */
+    memset(&response, 0, sizeof(response));
+    response.len = len;
+    memcpy(response.msg, data, len);
+    memcpy(&response.msg[0], &response.msg[offset + 2], sizeof(ETH_MAC));
+    memcpy(&response.msg[6], dev->filter_address[0], sizeof(ETH_MAC));
+    offset += 8 - 16; /* Account for the Ethernet Header and Offset value in this number  */
+    response.msg[14] = offset & 0xFF;
+    response.msg[15] = (offset >> 8) & 0xFF;
 
-/* create forward response packet */
-memset(&response, 0, sizeof(response));
-response.len = len;
-memcpy(response.msg, data, len);
-memcpy(&response.msg[0], &response.msg[offset+2], sizeof(ETH_MAC));
-memcpy(&response.msg[6], dev->filter_address[0], sizeof(ETH_MAC));
-offset += 8 - 16; /* Account for the Ethernet Header and Offset value in this number  */
-response.msg[14] = offset & 0xFF;
-response.msg[15] = (offset >> 8) & 0xFF;
+    /* send response packet */
+    eth_write(dev, &response, NULL);
 
-/* send response packet */
-eth_write(dev, &response, NULL);
+    eth_packet_trace(dev, response.msg, response.len, "loopbackforward");
 
-eth_packet_trace(dev, response.msg, response.len, ((function == 1) ? "loopbackreply" : "loopbackforward"));
+    ++dev->loopback_packets_processed;
 
-++dev->loopback_packets_processed;
-
-return 1;
+    return 1;
 }
 
 static void
-_eth_callback(u_char* info, const struct pcap_pkthdr* header, const u_char* data)
+_eth_callback(u_char *info, const struct pcap_pkthdr *header, const u_char *data)
 {
-ETH_DEV*  dev = (ETH_DEV*) info;
-int to_me;
-int from_me = 0;
-int i;
-int bpf_used;
+    ETH_DEV *dev = (ETH_DEV *)info;
+    int      to_me;
+    int      from_me = 0;
+    int      i;
+    int      bpf_used;
 
-if (LOOPBACK_PHYSICAL_RESPONSE(dev, data)) {
-  u_char *datacopy = (u_char *)malloc(header->len);
+    if (LOOPBACK_PHYSICAL_RESPONSE(dev, data)) {
+        u_char *datacopy = (u_char *)malloc(header->len);
 
-  /* Since we changed the outgoing loopback packet to have the physical MAC address of the
-     host's interface instead of the programmatically set physical address of this pseudo
-     device, we restore parts of the modified packet back as needed */
-  memcpy(datacopy, data, header->len);
-  memcpy(datacopy, dev->physical_addr, sizeof(ETH_MAC));
-  memcpy(datacopy+18, dev->physical_addr, sizeof(ETH_MAC));
-  _eth_callback(info, header, datacopy);
-  free(datacopy);
-  return;
-}
-switch (dev->eth_api) {
-  case ETH_API_PCAP:
+        /* Since we changed the outgoing loopback packet to have the physical MAC address of the
+           host's interface instead of the programmatically set physical address of this pseudo
+           device, we restore parts of the modified packet back as needed */
+        memcpy(datacopy, data, header->len);
+        memcpy(datacopy, dev->physical_addr, sizeof(ETH_MAC));
+        memcpy(datacopy + 18, dev->physical_addr, sizeof(ETH_MAC));
+        _eth_callback(info, header, datacopy);
+        free(datacopy);
+        return;
+    }
+    switch (dev->eth_api) {
+    case ETH_API_PCAP:
 #ifdef USE_BPF
-    bpf_used = 1;
-    to_me = 1;
-    /* AUTODIN II hash mode? */
-    if ((dev->hash_filter) && (data[0] & 0x01) && (!dev->promiscuous) && (!dev->all_multicast))
-      to_me = _eth_hash_lookup(dev->hash, data);
-    break;
+        bpf_used = 1;
+        to_me    = 1;
+        /* AUTODIN II hash mode? */
+        if ((dev->hash_filter) && (data[0] & 0x01) && (!dev->promiscuous) && (!dev->all_multicast))
+            to_me = _eth_hash_lookup(dev->hash, data);
+        break;
 #endif /* USE_BPF */
-  case ETH_API_TAP:
-  case ETH_API_VDE:
-  case ETH_API_UDP:
-  case ETH_API_NAT:
-    bpf_used = 0;
-    to_me = 0;
-    eth_packet_trace (dev, data, header->len, "received");
+    case ETH_API_TAP:
+    case ETH_API_VDE:
+    case ETH_API_UDP:
+    case ETH_API_NAT:
+        bpf_used = 0;
+        to_me    = 0;
+        eth_packet_trace(dev, data, header->len, "received");
 
-    for (i = 0; i < dev->addr_count; i++) {
-      if (memcmp(data, dev->filter_address[i], 6) == 0) to_me = 1;
-      if (memcmp(&data[6], dev->filter_address[i], 6) == 0) from_me = 1;
+        for (i = 0; i < dev->addr_count; i++) {
+            if (memcmp(data, dev->filter_address[i], 6) == 0)
+                to_me = 1;
+            if (memcmp(&data[6], dev->filter_address[i], 6) == 0)
+                from_me = 1;
+        }
+
+        /* all multicast mode? */
+        if (dev->all_multicast && (data[0] & 0x01))
+            to_me = 1;
+
+        /* promiscuous mode? */
+        if (dev->promiscuous)
+            to_me = 1;
+
+        /* AUTODIN II hash mode? */
+        if ((dev->hash_filter) && (!to_me) && (data[0] & 0x01))
+            to_me = _eth_hash_lookup(dev->hash, data);
+        break;
+    default:
+        bpf_used = to_me = 0; /* Should NEVER happen */
+        abort();
+        break;
     }
 
-    /* all multicast mode? */
-    if (dev->all_multicast && (data[0] & 0x01)) to_me = 1;
-
-    /* promiscuous mode? */
-    if (dev->promiscuous) to_me = 1;
-
-    /* AUTODIN II hash mode? */
-    if ((dev->hash_filter) && (!to_me) && (data[0] & 0x01))
-      to_me = _eth_hash_lookup(dev->hash, data);
-    break;
-  default:
-    bpf_used = to_me = 0;                           /* Should NEVER happen */
-    abort();
-    break;
-  }
-
-/* detect reception of loopback packet to our physical address */
-if ((LOOPBACK_SELF_FRAME(dev->physical_addr, data)) ||
-    (LOOPBACK_PHYSICAL_REFLECTION(dev, data))) {
+    /* detect reception of loopback packet to our physical address */
+    if ((LOOPBACK_SELF_FRAME(dev->physical_addr, data)) || (LOOPBACK_PHYSICAL_REFLECTION(dev, data))) {
 #ifdef USE_READER_THREAD
-  pthread_mutex_lock (&dev->self_lock);
+        pthread_mutex_lock(&dev->self_lock);
 #endif
-  dev->loopback_self_rcvd_total++;
-  /* lower reflection count - if already zero, pass it on */
-  if (dev->loopback_self_sent > 0) {
-    eth_packet_trace (dev, data, header->len, "ignored");
-    dev->loopback_self_sent--;
-    to_me = 0;
-    }
-  else
-    if (!bpf_used)
-      from_me = 0;
+        dev->loopback_self_rcvd_total++;
+        /* lower reflection count - if already zero, pass it on */
+        if (dev->loopback_self_sent > 0) {
+            eth_packet_trace(dev, data, header->len, "ignored");
+            dev->loopback_self_sent--;
+            to_me = 0;
+        } else if (!bpf_used)
+            from_me = 0;
 #ifdef USE_READER_THREAD
-  pthread_mutex_unlock (&dev->self_lock);
+        pthread_mutex_unlock(&dev->self_lock);
 #endif
-  }
-
-if (bpf_used ? to_me : (to_me && !from_me)) {
-  if (header->len > ETH_MIN_JUMBO_FRAME) {
-    if (header->len <= header->caplen) {/* Whole Frame captured? */
-      u_char *datacopy = (u_char *)malloc(header->len);
-      memcpy(datacopy, data, header->len);
-      _eth_fix_ip_jumbo_offload(dev, datacopy, header->len);
-      free(datacopy);
-      }
-    else
-      ++dev->jumbo_truncated;
-    return;
     }
-  if (_eth_process_loopback(dev, data, header->len))
-    return;  
-#if defined (USE_READER_THREAD)
-  if (1) {
-    int crc_len = 0;
-    uint8 crc_data[4];
-    uint32 len = header->len;
-    u_char *moved_data = NULL;
 
-    if (header->len < ETH_MIN_PACKET) {   /* Pad runt packets before CRC append */
-      moved_data = (u_char *)malloc(ETH_MIN_PACKET);
-      memcpy(moved_data, data, len);
-      memset(moved_data + len, 0, ETH_MIN_PACKET-len);
-      len = ETH_MIN_PACKET;
-      data = moved_data;
-      }
+    if (bpf_used ? to_me : (to_me && !from_me)) {
+        if (header->len > ETH_MIN_JUMBO_FRAME) {
+            if (header->len <= header->caplen) { /* Whole Frame captured? */
+                u_char *datacopy = (u_char *)malloc(header->len);
+                memcpy(datacopy, data, header->len);
+                _eth_fix_ip_jumbo_offload(dev, datacopy, header->len);
+                free(datacopy);
+            } else
+                ++dev->jumbo_truncated;
+            return;
+        }
+        if (_eth_process_loopback(dev, data, header->len))
+            return;
+#if defined(USE_READER_THREAD)
+        if (1) {
+            int     crc_len = 0;
+            uint8   crc_data[4];
+            uint32  len        = header->len;
+            u_char *moved_data = NULL;
 
-    /* If necessary, fix IP header checksums for packets originated locally */
-    /* but were presumed to be traversing a NIC which was going to handle that task */
-    /* This must be done before any needed CRC calculation */
-    _eth_fix_ip_xsum_offload(dev, (const u_char*)data, len);
-    
-    if (dev->need_crc)
-      crc_len = eth_get_packet_crc32_data(data, len, crc_data);
+            if (header->len < ETH_MIN_PACKET) { /* Pad runt packets before CRC append */
+                moved_data = (u_char *)malloc(ETH_MIN_PACKET);
+                memcpy(moved_data, data, len);
+                memset(moved_data + len, 0, ETH_MIN_PACKET - len);
+                len  = ETH_MIN_PACKET;
+                data = moved_data;
+            }
 
-    eth_packet_trace (dev, data, len, "rcvqd");
+            /* If necessary, fix IP header checksums for packets originated locally */
+            /* but were presumed to be traversing a NIC which was going to handle that task */
+            /* This must be done before any needed CRC calculation */
+            _eth_fix_ip_xsum_offload(dev, (const u_char *)data, len);
 
-    pthread_mutex_lock (&dev->lock);
-    ethq_insert_data(&dev->read_queue, ETH_ITM_NORMAL, data, 0, len, crc_len, crc_data, 0);
-    ++dev->packets_received;
-    pthread_mutex_unlock (&dev->lock);
-    free(moved_data);
-    }
+            if (dev->need_crc)
+                crc_len = eth_get_packet_crc32_data(data, len, crc_data);
+
+            eth_packet_trace(dev, data, len, "rcvqd");
+
+            pthread_mutex_lock(&dev->lock);
+            ethq_insert_data(&dev->read_queue, ETH_ITM_NORMAL, data, 0, len, crc_len, crc_data, 0);
+            ++dev->packets_received;
+            pthread_mutex_unlock(&dev->lock);
+            free(moved_data);
+        }
 #else /* !USE_READER_THREAD */
-  /* set data in passed read packet */
-  dev->read_packet->len = header->len;
-  memcpy(dev->read_packet->msg, data, header->len);
-  /* Handle runt case and pad with zeros.  */
-  /* The real NIC won't hand us runts from the wire, BUT we may be getting */
-  /* some packets looped back before they actually traverse the wire */
-  /* (by an internal bridge device for instance) */
-  if (header->len < ETH_MIN_PACKET) {
-    memset(&dev->read_packet->msg[header->len], 0, ETH_MIN_PACKET-header->len);
-    dev->read_packet->len = ETH_MIN_PACKET;
-    }
-  /* If necessary, fix IP header checksums for packets originated by the local host */
-  /* but were presumed to be traversing a NIC which was going to handle that task */
-  /* This must be done before any needed CRC calculation */
-  _eth_fix_ip_xsum_offload(dev, dev->read_packet->msg, dev->read_packet->len);
-  if (dev->need_crc)
-    dev->read_packet->crc_len = eth_add_packet_crc32(dev->read_packet->msg, dev->read_packet->len);
-  else
-    dev->read_packet->crc_len = 0;
+        /* set data in passed read packet */
+        dev->read_packet->len = header->len;
+        memcpy(dev->read_packet->msg, data, header->len);
+        /* Handle runt case and pad with zeros.  */
+        /* The real NIC won't hand us runts from the wire, BUT we may be getting */
+        /* some packets looped back before they actually traverse the wire */
+        /* (by an internal bridge device for instance) */
+        if (header->len < ETH_MIN_PACKET) {
+            memset(&dev->read_packet->msg[header->len], 0, ETH_MIN_PACKET - header->len);
+            dev->read_packet->len = ETH_MIN_PACKET;
+        }
+        /* If necessary, fix IP header checksums for packets originated by the local host */
+        /* but were presumed to be traversing a NIC which was going to handle that task */
+        /* This must be done before any needed CRC calculation */
+        _eth_fix_ip_xsum_offload(dev, dev->read_packet->msg, dev->read_packet->len);
+        if (dev->need_crc)
+            dev->read_packet->crc_len = eth_add_packet_crc32(dev->read_packet->msg, dev->read_packet->len);
+        else
+            dev->read_packet->crc_len = 0;
 
-  eth_packet_trace (dev, dev->read_packet->msg, dev->read_packet->len, "reading");
+        eth_packet_trace(dev, dev->read_packet->msg, dev->read_packet->len, "reading");
 
-  ++dev->packets_received;
+        ++dev->packets_received;
 
-  /* call optional read callback function */
-  if (dev->read_callback)
-    (dev->read_callback)(0);
+        /* call optional read callback function */
+        if (dev->read_callback)
+            (dev->read_callback)(0);
 #endif
-  }
+    }
 }
 
 int eth_read(ETH_DEV* dev, ETH_PACK* packet, ETH_PCALLBACK routine)
@@ -3833,7 +3846,6 @@ if (hash) {
 if (dev->dptr->dctrl & dev->dbit) {
   sim_debug(dev->dbit, dev->dptr, "Filter Set\n");
   for (i = 0; i < addr_count; i++) {
-    char mac[20];
     eth_mac_fmt(&dev->filter_address[i], mac);
     sim_debug(dev->dbit, dev->dptr, "  Addr[%d]: %s\n", i, mac);
     }
@@ -3878,7 +3890,7 @@ if (dev->eth_api == ETH_API_PCAP) {
   if (pcap_lookupnet(dev->name, &bpf_subnet, &bpf_netmask, errbuf)<0)
     bpf_netmask = 0;
   /* compile filter string */
-  if ((status = pcap_compile((pcap_t*)dev->handle, &bpf, buf, 1, bpf_netmask)) < 0) {
+  if (pcap_compile((pcap_t*)dev->handle, &bpf, buf, 1, bpf_netmask) < 0) {
     sprintf(errbuf, "%s", pcap_geterr((pcap_t*)dev->handle));
     sim_printf("Eth: pcap_compile error: %s\n", errbuf);
     /* show erroneous BPF string */
@@ -3887,9 +3899,10 @@ if (dev->eth_api == ETH_API_PCAP) {
     sim_printf ("Eth: Reflections: %d\n", dev->reflections);
     sim_printf ("Eth: Filter Set:\n");
     for (i = 0; i < addr_count; i++) {
-      char mac[20];
-      eth_mac_fmt(&dev->filter_address[i], mac);
-      sim_printf ("Eth:   Addr[%d]: %s\n", i, mac);
+      char err_mac[20];
+
+      eth_mac_fmt(&dev->filter_address[i], err_mac);
+      sim_printf ("Eth:   Addr[%d]: %s\n", i, err_mac);
       }
     if (dev->all_multicast)
       sim_printf ("Eth: All Multicast\n");
@@ -3906,7 +3919,7 @@ if (dev->eth_api == ETH_API_PCAP) {
     }
   else {
     /* apply compiled filter string */
-    if ((status = pcap_setfilter((pcap_t*)dev->handle, &bpf)) < 0) {
+    if (pcap_setfilter((pcap_t*)dev->handle, &bpf) < 0) {
       sprintf(errbuf, "%s", pcap_geterr((pcap_t*)dev->handle));
       sim_printf("Eth: pcap_setfilter error: %s\n", errbuf);
       sim_printf ("Eth: BPF string is: |%s|\n", buf);
@@ -4287,8 +4300,6 @@ for (eth_num=0; eth_num<eth_device_count; eth_num++) {
           for (hash_listindex=0; hash_listindex<=1; hash_listindex++) {
             for (host_phy_addr_listindex=0; host_phy_addr_listindex<=1; host_phy_addr_listindex++) {
               int i;
-              char errbuf[PCAP_ERRBUF_SIZE];
-
               ++bpf_count;
               r = eth_bpf_filter (&dev, addr_count, &filter_address[0], 
                                   all_multicast, promiscuous, reflections, 
@@ -4310,6 +4321,8 @@ for (eth_num=0; eth_num<eth_device_count; eth_num++) {
                   struct bpf_program bpf;
 
                   if (pcap_compile ((pcap_t*)dev.handle, &bpf, buf, 1, (bpf_u_int32)0) < 0) {
+                    char errbuf[PCAP_ERRBUF_SIZE];
+
                     ++bpf_compile_error_count;
                     sprintf(errbuf, "%s", pcap_geterr((pcap_t*)dev.handle));
                     sim_printf("Eth: pcap_compile error: %s\n", errbuf);
