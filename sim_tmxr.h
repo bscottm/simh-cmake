@@ -208,7 +208,7 @@ struct tmln {
     };
 
 struct tmxr {
-    int32               lines;                          /* # lines */
+    size_t              lines;                          /* # lines */
     char                *port;                          /* listening port */
     SOCKET              master;                         /* master socket */
     TMLN                *ldsc;                          /* line descriptors */

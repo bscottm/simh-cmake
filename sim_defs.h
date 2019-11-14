@@ -147,12 +147,12 @@ extern int sim_vax_snprintf(char *buf, size_t buf_size, const char *fmt, ...);
 #ifdef _WIN32
 #  include <inttypes.h>
 #  ifdef _WIN64
-#    define PRI_SIZET PRIu64
+#    define PRI_SIZE_T PRIu64
 #  else
-#    define PRI_SIZET PRIu32
+#    define PRI_SIZE_T PRIu32
 #  endif
 #else
-#  define PRI_SIZET "zu"
+#  define PRI_SIZE_T "zu"
 #endif
 
 #ifdef USE_REGEX

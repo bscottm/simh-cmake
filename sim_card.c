@@ -667,7 +667,7 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
         /* Check for special codes */
         if (buf->buffer[0] == '~') {
             int f = 1;
-            for (col = i = 1; col < 80 && f && i < MIN(ARRAY_SIZE(buf->buffer), buf->len); i++) {
+            for (col = i = 1; i < MIN(ARRAY_SIZE(buf->buffer), buf->len) && col < 80 && f; i++) {
                 c = buf->buffer[i];
                 switch (c) {
                 case '\n':
@@ -1319,7 +1319,7 @@ sim_card_attach(UNIT *uptr, CONST char *cptr)
                     r = sim_messagef(SCPE_MEM, "sim_card_attach: Could not allocate file name (uptr->filename)");
             }
             if (r == SCPE_OK)
-                r = sim_messagef(SCPE_OK, "%s: %" PRI_SIZET "d card Deck Loaded from %s\n", sim_uname(uptr),
+                r = sim_messagef(SCPE_OK, "%s: %" PRI_SIZE_T "d card Deck Loaded from %s\n", sim_uname(uptr),
                                  data->hopper_cards - previous_cards, cptr);
         } else {
             if (uptr->dynflags & UNIT_ATTMULT)

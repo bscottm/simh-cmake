@@ -420,8 +420,10 @@ typedef struct HDR3 {       /* Also EOF3, EOV3 */
     char record_format;         /* F(fixed)|D(variable)|S(spanned) */
     char block_length[5];       /* label ident */
     char record_length[5];      /*  */
+    /* cppcheck-suppress unusedStructMember */
     char reserved_os[35];       /* */
     char buffer_offset[2];      /* */
+    /* cppcheck-suppress unusedStructMember */
     char reserved_std[28];      /* */
     } HDR3;
 
@@ -1606,10 +1608,11 @@ switch (f) {                                            /* otherwise the read me
             t_addr buf_offset = uptr->pos;
             size_t bytes_in_buf = 0;
             size_t read_size;
-            uint8  c;
             t_bool all_eof;
 
             for (sbc = 1, all_eof = 1; (t_addr) sbc <= uptr->pos ; sbc++) {
+                uint8  c;
+
                 if (bytes_in_buf == 0) {                /* Need to Fill Buffer */
                     if (buf_offset < BUF_SZ) {
                         read_size = (size_t)buf_offset;
@@ -2457,7 +2460,6 @@ const uint32 meta_size = sizeof (t_mtrlnt);             /* the number of bytes p
 t_stat   status;
 t_mtrlnt rec_size, metadatum;
 t_addr   gap_pos;
-size_t   xfer;
 
 MT_CLR_PNU (uptr);                                      /* clear the position-not-updated flag */
 
@@ -2487,10 +2489,11 @@ if (gap_size == meta_size) {                            /* if the request is for
         return sim_tape_ioerr (uptr);                       /*   then report the error and quit */
 
     else if (metadatum == MTR_TMK)                          /* otherwise if a tape mark is present */
-        if (sim_tape_seek (uptr, uptr->pos))                /*   then reposition the tape; if it fails */
+        if (sim_tape_seek (uptr, uptr->pos)) {              /*   then reposition the tape; if it fails */
             return sim_tape_ioerr (uptr);                   /*     then quit with I/O error status */
+        } else {                                            /*   otherwise */
+            size_t   xfer;
 
-        else {                                              /*   otherwise */
             metadatum = MTR_GAP;                            /*     replace it with an erase gap marker */
 
             xfer = sim_fwrite (&metadatum, meta_size,   /* write the gap marker */
@@ -2702,7 +2705,6 @@ return r;
 t_stat sim_tape_sprecsf (UNIT *uptr, uint32 count, uint32 *skipped)
 {
 struct tape_context *ctx = (struct tape_context *)uptr->tape_ctx;
-t_stat st;
 t_mtrlnt tbc;
 
 if (ctx == NULL)                                        /* if not properly attached? */
@@ -2711,7 +2713,7 @@ sim_debug_unit (ctx->dbit, uptr, "sim_tape_sprecsf(unit=%d, count=%d)\n", (int)(
 
 *skipped = 0;
 while (*skipped < count) {                              /* loopo */
-    st = sim_tape_sprecf (uptr, &tbc);                  /* spc rec */
+    t_stat st = sim_tape_sprecf (uptr, &tbc);           /* spc rec */
     if (st != MTSE_OK)
         return st;
     *skipped = *skipped + 1;                            /* # recs skipped */
@@ -2798,7 +2800,6 @@ return r;
 t_stat sim_tape_sprecsr (UNIT *uptr, uint32 count, uint32 *skipped)
 {
 struct tape_context *ctx = (struct tape_context *)uptr->tape_ctx;
-t_stat st;
 t_mtrlnt tbc;
 
 if (ctx == NULL)                                        /* if not properly attached? */
@@ -2807,7 +2808,7 @@ sim_debug_unit (ctx->dbit, uptr, "sim_tape_sprecsr(unit=%d, count=%d)\n", (int)(
 
 *skipped = 0;
 while (*skipped < count) {                              /* loopo */
-    st = sim_tape_sprecr (uptr, &tbc);                  /* spc rec rev */
+    t_stat st = sim_tape_sprecr (uptr, &tbc);           /* spc rec rev */
     if (st != MTSE_OK)
         return st;
     *skipped = *skipped + 1;                            /* # recs skipped */
@@ -3314,29 +3315,20 @@ free (recbuf);
 return objc;
 }
 
-static 
-const char *sim_tape_error_text (t_stat stat)
-{
-const char *mtse_errors[] = {
-    "no error",
-    "tape mark",
-    "unattached",
-    "I/O error",
-    "invalid record length",
-    "invalid format",
-    "beginning of tape",
-    "end of medium",
-    "error in record",
-    "write protected",
-    "Logical End Of Tape",
-    "tape runaway"
-    };
-static char msgbuf[64];
+static const char *mtse_errors[] = {
+    "no error",          "tape mark",     "unattached",      "I/O error",       "invalid record length", "invalid format",
+    "beginning of tape", "end of medium", "error in record", "write protected", "Logical End Of Tape",   "tape runaway"};
 
-if (stat <= MTSE_MAX_ERR)
-    return mtse_errors[stat];
-sprintf(msgbuf, "Error %d", stat);
-return msgbuf;
+static const char *
+sim_tape_error_text(t_stat stat)
+{
+
+    static char msgbuf[64];
+
+    if (stat <= MTSE_MAX_ERR)
+        return mtse_errors[stat];
+    sprintf(msgbuf, "Error %d", stat);
+    return msgbuf;
 }
 
 #ifndef MAX
@@ -3350,12 +3342,10 @@ uint32 data_total = 0;
 uint32 tapemark_total = 0;
 uint32 record_total = 0;
 uint32 unique_record_sizes = 0;
-uint32 remaining_data = 0;
 uint32 gaps = 0;
 uint32 gap_bytes = 0;
 uint32 *rec_sizes = NULL;
 t_stat r = SCPE_OK;
-t_stat r_f;
 t_stat r_r;
 t_stat r_s;
 uint8 *buf_f = NULL;
@@ -3363,10 +3353,7 @@ uint8 *buf_r = NULL;
 t_mtrlnt bc_f = 0; /* squelch GCC warning */
 t_mtrlnt bc_r;
 t_mtrlnt bc_s;
-t_mtrlnt bc;
-t_addr pos_f;
 t_addr pos_r;
-t_addr pos_fa;
 t_addr pos_sa;
 t_mtrlnt max = MTR_MAXLEN;
 
@@ -3389,6 +3376,10 @@ if (rec_sizes == NULL) {
 
 r = sim_tape_rewind (uptr);
 while (r == SCPE_OK) {
+    t_stat r_f;
+    t_addr pos_f;
+    t_addr pos_fa;
+
     if (stop_cpu) { /* SIGINT? */
         stop_cpu = FALSE;
         break;
@@ -3477,11 +3468,13 @@ if ((!stop_cpu) &&
     ((r != MTSE_EOM) || (sim_switches & SWMASK ('V')) || (sim_switches & SWMASK ('L')) ||
      ((uint32)(sim_tape_size (uptr) - (t_offset)uptr->pos) > fmts[MT_GET_FMT (uptr)].eom_remnant) ||
      (unique_record_sizes > 2 * tapemark_total))) {
-    remaining_data = (uint32)(sim_tape_size (uptr) - (t_offset)uptr->tape_eom);
+    uint32 remaining_data = (uint32)(sim_tape_size (uptr) - (t_offset)uptr->tape_eom);
     sim_messagef (SCPE_OK, "Tape Image %s'%s' scanned as %s format.\n", ((MT_GET_FMT (uptr) == MTUF_F_ANSI) ? "made from " : ""), uptr->filename, (MT_GET_FMT (uptr) == MTUF_F_ANSI) ? ansi_args[MT_GET_ANSI_TYP (uptr)].name : fmts[MT_GET_FMT (uptr)].name);
     sim_messagef (SCPE_OK, "%s %u bytes of tape data (%u records, %u tapemarks)\n",
                            (r != MTSE_EOM) ? "After processing" : "contains", data_total, record_total, tapemark_total);
     if ((record_total > 0) && (sim_switches & SWMASK ('L'))) {
+        t_mtrlnt bc;
+
         sim_messagef (SCPE_OK, "Comprising %d different sized records (in record size order):\n", unique_record_sizes);
         for (bc = 0; bc <= max; bc++) {
             if (rec_sizes[bc])
@@ -3633,23 +3626,22 @@ sim_tape_set_dens(UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 
 /* Show the tape density */
 
-t_stat sim_tape_show_dens (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
+t_stat
+sim_tape_show_dens(FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-uint32 tape_density;
+    if (uptr == NULL)     /* if the unit pointer is null */
+        return SCPE_IERR; /*   then the caller has screwed up */
 
-if (uptr == NULL)                                       /* if the unit pointer is null */
-    return SCPE_IERR;                                   /*   then the caller has screwed up */
+    else {                                                  /* otherwise get the density */
+        uint32 tape_density = bpi[MT_DENS(uptr->dynflags)]; /*   of the tape from the unit flags */
 
-else {                                                  /* otherwise get the density */
-    tape_density = bpi [MT_DENS (uptr->dynflags)];      /*   of the tape from the unit flags */
-
-    if (tape_density)                                   /* if it's set */
-        fprintf (st, "density=%d bpi", tape_density);   /*   then report it */
-    else                                                /* otherwise */
-        fprintf (st, "density not set");                /*   it was never set by the caller */
+        if (tape_density)                                /* if it's set */
+            fprintf(st, "density=%d bpi", tape_density); /*   then report it */
+        else                                             /* otherwise */
+            fprintf(st, "density not set");              /*   it was never set by the caller */
     }
 
-return SCPE_OK;
+    return SCPE_OK;
 }
 
 /* list supported densities
@@ -4153,7 +4145,7 @@ static void ansi_make_HDR1 (HDR1 *hdr1, VOL1 *vol, HDR4 *hdr4, const char *filen
     const char *fn;
     struct stat statb;
     char extra_name_used[3] = "00";
-    char *fn_cpy, *c, *ext;
+    char *fn_cpy, *ext;
 
     memset (&statb, 0, sizeof (statb));
     (void)stat (filename, &statb);
@@ -4166,6 +4158,8 @@ static void ansi_make_HDR1 (HDR1 *hdr1, VOL1 *vol, HDR4 *hdr4, const char *filen
     fn = fn_cpy;
     ext = strrchr (fn_cpy, '.');
     if (ext) {
+        char *c;
+
         while (((c = strchr (fn_cpy, '.')) != NULL) && 
                (c != ext))
             *c = '_';                              /* translate extra .'s to _ */
@@ -4179,7 +4173,7 @@ static void ansi_make_HDR1 (HDR1 *hdr1, VOL1 *vol, HDR4 *hdr4, const char *filen
     to_ansi_a (hdr1->file_ident, fn, sizeof (hdr1->file_ident));
     if (strlen (fn) > 17) {
         to_ansi_a (hdr4->extra_name, fn + 17, sizeof (hdr4->extra_name));
-        sprintf (extra_name_used, "%02" PRI_SIZET, strlen (fn) - 17);
+        sprintf (extra_name_used, "%02" PRI_SIZE_T, strlen (fn) - 17);
         }
     memcpy (hdr4->extra_name_used, extra_name_used, 2);
     memcpy (hdr1->file_set, vol->ident, sizeof (hdr1->file_set));
@@ -4213,28 +4207,28 @@ static void ansi_make_HDR2 (HDR2 *hdr, t_bool fixed_record, size_t block_size, s
 
 static void ansi_fill_text_buffer (FILE *f, char *buf, size_t buf_size, size_t record_skip_ending, t_bool fixed_text)
     {
-    long start;
     char *tmp = (char *)calloc (2 + buf_size, sizeof (*buf));
     size_t offset = 0;
 
     while (1) {
         size_t rec_size;
-        char rec_size_str[16];
+        long start = ftell (f);
 
-        start = ftell (f);
         if (start < 0)
             break;
         if (!fgets (tmp, buf_size, f))
             break;
         rec_size = strlen (tmp);
         if (!fixed_text) {
+            char rec_size_str[16];
+
             if (rec_size >= record_skip_ending)
                 rec_size -= record_skip_ending;
             if ((rec_size + 4) > (int)(buf_size - offset)) { /* room for record? */
                 fseek (f, start, SEEK_SET);
                 break;
                 }
-            sprintf (rec_size_str, "%04" PRI_SIZET, rec_size + 4);
+            sprintf (rec_size_str, "%04" PRI_SIZE_T, rec_size + 4);
             memcpy (buf + offset, rec_size_str, 4);
             memcpy (buf + offset + 4, tmp, rec_size);
             offset += 4 + rec_size;

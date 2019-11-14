@@ -537,7 +537,7 @@ for (i = 0, dibp = NULL; i < (IOPAGESIZE >> 1); i++) {  /* loop thru entries */
             fprintf (st, " %2u", brbase + dibp->vloc/32);
         else
             fprintf (st, "   ");
-        fprintf (st, " %*" PRI_SIZET " %s\n", maxdev,  (dibp->ulnt ? dibp->lnt/dibp->ulnt : (dptr ? dptr->numunits : 1)),
+        fprintf (st, " %*" PRI_SIZE_T " %s\n", maxdev,  (dibp->ulnt ? dibp->lnt/dibp->ulnt : (dptr ? dptr->numunits : 1)),
                  dptr? sim_dname (dptr): "CPU");
         }                                               /* end if */
     }                                                   /* end for i */
