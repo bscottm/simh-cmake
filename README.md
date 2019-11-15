@@ -4,6 +4,80 @@
 [![Build Status](https://travis-ci.org/simh/simh.svg)](https://travis-ci.org/simh/simh)
 [![AppVeyor](https://ci.appveyor.com/api/projects/status/github/simh/simh)](https://ci.appveyor.com/project/simh/simh/history)
 
+## What's The __simh-cmake__ Fork? Why?
+
+`simh` is a difficult package to build from scratch, especially if you're on a
+Windows platform. There's a separate directory tree you have to check out that
+has to sit parallel to the main `simh` codebase (aka `sim-master`.) That's not
+a particularly clean or intuitive way of building software. It's also prone to
+errors and doesn't lend itself to upgrading dependency libraries.
+
+Other motivation: Compiler warning-free and
+[cppcheck](http://cppcheck.sourceforge.net/) clean compiles (actually: minimal
+warnings and style issues), clean up indentation and formatting (`simh` has an
+unorthodox code style), and something to keep my coding/solution skills sharp
+while I was on temporary active duty with the US Navy.
+
+[CMake](https://cmake.org) is a cross-platform "meta" build system -- `CMake`
+generates the build environment for a specified generator, then you use that
+generator's tool to build the software.  `CMake` can generate build systems for
+[Ninja](https://ninja-build.org), [MinGW Makefiles](https://mingw-w64.org),
+Unix Makefiles as well as a variety of MS Visual Studio solutoins (2015, 2017,
+2019) and IDEs, such as [Sublime Text](https://www.sublimetext.com) and
+[CodeBlocks](http://www.codeblocks.org).
+
+`CMake` is not intended to supplant, supercede or replace the existing `simh`
+build infrastructure. If you like the existing `makefile` "poor man's
+configure" approach, there's nothing to stop you from using it. The `CMake`
+build system is just another way of building `simh`'s simulators.
+
+### CMake quickstart
+
+`simh-cmake` is a `CMake` "_superbuild_": It first downloads and builds
+dependency libraries (SDL2, SDL2-ttf, pcre, zlib, freetype, ...), if they are
+missing. These dependency libraries are staged in the `CMake` build directory.
+Once all of the dependency libraries are satisfied, you reconfigure
+`simh-cmake` to build the simulators. Unless you nuke the build directory, you
+should only have to build the dependency libraries once.
+
+__NOTE__: There are two branches in the `simh-cmake` repo: _master_ and
+_cmake_. The _master_ branch reflects the [github.com
+simh](https://github.com/simh/simh) _master_. To use the `CMake`-based builds,
+check out the _cmake_ branch:
+
+```shell
+# clone (if you haven't done so already)
+git clone https://gitlab.com/scooter-phd/simh-cmake.git simh
+cd simh
+
+# switch to the cmake branch:
+git co cmake
+
+# make a build directory and generate a build environment (ex: Ninja on Windows 10)
+mkdir cmake-ninja
+cd cmake-ninja
+cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+
+# First time around, d/l and build dependency libraries, if they're
+# not found (usually the case on Windows, YMMV on *nix):
+cmake --build . --config Release
+
+# Second time around: build simh's simulators
+cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --config Release
+
+# Oh, so you want to run stuff? From inside the build?
+# Need to add the build-stage/bin directory to your PATH:
+PATH=`pwd`/build-stage/bin:$PATH
+
+# For Windows Powershell:
+# $env:PATH="$(Get-Location)\build-stage\bin;$env:PATH"
+
+# Run the vax simulator:
+VAX/vax
+```
+
+
 ## Table of Contents:
 [WHAT'S NEW since simh v3.9](#whats-new-since-simh-v39)  
 . . [New Simulators](#new-simulators)  

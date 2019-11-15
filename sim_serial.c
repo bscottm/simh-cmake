@@ -461,8 +461,8 @@ sim_open_serial(char *name, TMLN *lp, t_stat *stat)
 
 void sim_close_serial (SERHANDLE port)
 {
-sim_close_os_serial (port);
 _serial_remove_from_open_list (port);
+sim_close_os_serial (port);
 }
 
 t_stat sim_config_serial  (SERHANDLE port, CONST char *sconfig)
