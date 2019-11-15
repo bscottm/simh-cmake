@@ -3421,11 +3421,15 @@ help_cmd(int32 flag, CONST char *cptr)
                 sim_printf ("No such command or device %s\n", gbuf);
             }
         } else {
+            t_stat r;
+
             if (dptr->flags & DEV_DIS)
                 sim_printf("Device %s is currently disabled\n", dptr->name);
+
             r = help_dev_help(stdout, dptr, uptr, flag, cptr);
             if (sim_log)
                 help_dev_help(sim_log, dptr, uptr, flag | SCP_HELP_FLAT, cptr);
+
             return r;
         }
     } else {
