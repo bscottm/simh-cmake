@@ -6036,7 +6036,6 @@ return SCPE_OK;
 t_stat
 show_queue(FILE *st, DEVICE *dnotused, UNIT *unotused, int32 flag, CONST char *cptr)
 {
-    DEVICE *dptr;
     UNIT *  uptr;
     MEMFILE buf;
 
@@ -6050,6 +6049,7 @@ show_queue(FILE *st, DEVICE *dnotused, UNIT *unotused, int32 flag, CONST char *c
         const char *tim          = "";
         double      inst_per_sec = sim_timer_inst_per_sec();
         int32       accum;
+        DEVICE     *dptr;
 
         fprintf(st, "%s event queue status, time = %.0f, executing %s instructions/sec\n", sim_name, sim_time,
                 sim_fmt_numeric(inst_per_sec));
@@ -6086,6 +6086,8 @@ show_queue(FILE *st, DEVICE *dnotused, UNIT *unotused, int32 flag, CONST char *c
         fprintf(st, "  Empty\n");
     else {
         for (uptr = sim_asynch_queue; uptr != QUEUE_LIST_END; uptr = uptr->a_next) {
+            DEVICE     *dptr;
+            
             if ((dptr = find_dev_from_unit(uptr)) != NULL) {
                 fprintf(st, "  %s", sim_dname(dptr));
                 if (dptr->numunits > 1)
@@ -9115,52 +9117,55 @@ return cptr;
         result      =   pointer to next character in input string
 */
 
-static const char *get_glyph_gen (const char *iptr, char *optr, char mchar, t_bool uc, t_bool quote, char escape_char)
+static const char *
+get_glyph_gen(const char *iptr, char *optr, char mchar, t_bool uc, t_bool quote, char escape_char)
 {
-t_bool quoting = FALSE;
-t_bool escaping = FALSE;
-t_bool got_quoted = FALSE;
-char quote_char = 0;
+    if (iptr != NULL) {
+        t_bool quoting    = FALSE;
+        t_bool escaping   = FALSE;
+        t_bool got_quoted = FALSE;
+        char   quote_char = 0;
 
-while ((*iptr != 0) && (!got_quoted) &&
-       ((quote && quoting) || ((sim_isspace (*iptr) == 0) && (*iptr != mchar)))) {
-    if (quote) {
-        if (quoting) {
-            if (!escaping) {
-                if (*iptr == escape_char)
-                    escaping = TRUE;
-                else
-                    if (*iptr == quote_char) {
-                        quoting = FALSE;
-                        got_quoted = TRUE;
+        while ((*iptr != 0) && (!got_quoted) && ((quote && quoting) || ((sim_isspace(*iptr) == 0) && (*iptr != mchar)))) {
+            if (quote) {
+                if (quoting) {
+                    if (!escaping) {
+                        if (*iptr == escape_char)
+                            escaping = TRUE;
+                        else if (*iptr == quote_char) {
+                            quoting    = FALSE;
+                            got_quoted = TRUE;
                         }
+                    } else
+                        escaping = FALSE;
+                } else {
+                    if ((*iptr == '"') || (*iptr == '\'')) {
+                        quoting    = TRUE;
+                        quote_char = *iptr;
+                    }
                 }
+            }
+            if (sim_islower(*iptr) && uc)
+                *optr = (char)sim_toupper(*iptr);
             else
-                escaping = FALSE;
-            }
-        else {
-            if ((*iptr == '"') || (*iptr == '\'')) {
-                quoting = TRUE;
-                quote_char = *iptr;
-                }
-            }
+                *optr = *iptr;
+            iptr++;
+            optr++;
         }
-    if (sim_islower (*iptr) && uc)
-        *optr = (char)sim_toupper (*iptr);
-    else *optr = *iptr;
-    iptr++; optr++;
+        *optr = 0;
+        if (mchar && (*iptr == mchar)) /* skip terminator */
+            iptr++;
+        while (sim_isspace(*iptr)) /* absorb spaces */
+            iptr++;
     }
-*optr = 0;
-if (mchar && (*iptr == mchar))                          /* skip terminator */
-    iptr++;
-while (sim_isspace (*iptr))                             /* absorb spaces */
-    iptr++;
-return iptr;
+
+    return iptr;
 }
 
-CONST char *get_glyph (const char *iptr, char *optr, char mchar)
+CONST char *
+get_glyph(const char *iptr, char *optr, char mchar)
 {
-return (CONST char *)get_glyph_gen (iptr, optr, mchar, TRUE, FALSE, 0);
+    return (CONST char *)get_glyph_gen(iptr, optr, mchar, TRUE, FALSE, 0);
 }
 
 CONST char *get_glyph_nc (const char *iptr, char *optr, char mchar)
@@ -12128,8 +12133,7 @@ t_stat
 sim_exp_check(EXPECT *exp, uint8 data)
 {
     int32   i;
-    EXPTAB *ep           = NULL;       /* Squelch GCC warning */
-    int     regex_checks = 0;
+    EXPTAB *ep           = NULL;
     char *  tstr         = NULL;
 
     if ((!exp) || (!exp->rules))       /* Anying to check? */
@@ -12160,7 +12164,6 @@ sim_exp_check(EXPECT *exp, uint8 data)
                     cbuf = tstr;
                 }
             }
-            ++regex_checks;
             matches = (regmatch_t *)calloc((ep->regex.re_nsub + 1), sizeof(*matches));
             if (sim_deb && exp->dptr && (exp->dptr->dctrl & exp->dbit)) {
                 char *estr = sim_encode_quoted_string(exp->buf, exp->buf_ins);
@@ -12250,23 +12253,24 @@ sim_exp_check(EXPECT *exp, uint8 data)
         }
     }
     if (exp->buf_ins == exp->buf_size) { /* At end of match buffer? */
-        if (regex_checks) {
-            /* When processing regular expressions, let the match buffer fill
-               up and then shuffle the buffer contents down by half the buffer size
-               so that the regular expression has a single contiguous buffer to
-               match against instead of the wrapping buffer paradigm which is
-               used when no regular expression rules are in effect */
-            memmove(exp->buf, &exp->buf[exp->buf_size / 2], exp->buf_size - (exp->buf_size / 2));
-            exp->buf_ins -= exp->buf_size / 2;
-            exp->buf_data = exp->buf_ins;
-            sim_debug(exp->dbit, exp->dptr,
-                      "Buffer Full - sliding the last %d bytes to start of buffer new insert at: %d\n", (exp->buf_size / 2),
-                      exp->buf_ins);
-        } else {
-            exp->buf_ins = 0; /* wrap around to beginning */
-            sim_debug(exp->dbit, exp->dptr, "Buffer wrapping\n");
-        }
+#if defined(USE_REGEX)
+        /* When processing regular expressions, let the match buffer fill
+            up and then shuffle the buffer contents down by half the buffer size
+            so that the regular expression has a single contiguous buffer to
+            match against instead of the wrapping buffer paradigm which is
+            used when no regular expression rules are in effect */
+        memmove(exp->buf, &exp->buf[exp->buf_size / 2], exp->buf_size - (exp->buf_size / 2));
+        exp->buf_ins -= exp->buf_size / 2;
+        exp->buf_data = exp->buf_ins;
+        sim_debug(exp->dbit, exp->dptr,
+                    "Buffer Full - sliding the last %d bytes to start of buffer new insert at: %d\n", (exp->buf_size / 2),
+                    exp->buf_ins);
+#else
+        exp->buf_ins = 0; /* wrap around to beginning */
+        sim_debug(exp->dbit, exp->dptr, "Buffer wrapping\n");
+#endif
     }
+
     if (i != exp->size) { /* Found? */
         sim_debug(exp->dbit, exp->dptr, "Matched expect pattern: %s\n", ep->match_pattern);
         setenv("_EXPECT_MATCH_PATTERN", ep->match_pattern,

@@ -2011,7 +2011,9 @@ return SCPE_OK;
 
 static t_stat _eth_open_port(char *savname, int *eth_api, void **handle, SOCKET *fd_handle, char errbuf[PCAP_ERRBUF_SIZE], char *bpf_filter, void *opaque, DEVICE *dptr, uint32 dbit)
 {
+#if defined(HAVE_PCAP_NETWORK)
 int bufsz = ETH_MAX_JUMBO_FRAME;    /* Enable handling of jumbo frames */
+#endif
 
 *eth_api = 0;
 *handle = NULL;
@@ -3965,202 +3967,209 @@ return SCPE_OK;
      returned by pcap_findalldevs.
 
 */
-int eth_host_devices(int used, int max, ETH_LIST* list)
+int
+eth_host_devices(int used, int max, ETH_LIST *list)
 {
-pcap_t* conn = NULL;
-int i, j, datalink = 0;
+    int i, j;
 
-for (i=0; i<used; ++i) {
-  /* Cull any non-ethernet interface types */
 #if defined(HAVE_PCAP_NETWORK)
-  char errbuf[PCAP_ERRBUF_SIZE];
+    for (i = 0; i < used; ++i) {
+        /* Cull any non-ethernet interface types */
+        char    errbuf[PCAP_ERRBUF_SIZE];
+        pcap_t *conn = pcap_open_live(list[i].name, ETH_MAX_PACKET, ETH_PROMISC, PCAP_READ_TIMEOUT, errbuf);
+        int     datalink;
 
-  conn = pcap_open_live(list[i].name, ETH_MAX_PACKET, ETH_PROMISC, PCAP_READ_TIMEOUT, errbuf);
-  if (NULL != conn)
-    datalink = pcap_datalink(conn), pcap_close(conn);
-  list[i].eth_api = ETH_API_PCAP;
+        if (NULL != conn) {
+            datalink = pcap_datalink(conn);
+            pcap_close(conn);
+            list[i].eth_api = ETH_API_PCAP;
+        }
+
+        if ((NULL == conn) || (datalink != DLT_EN10MB)) {
+            for (j = i; j < used - 1; ++j)
+                list[j] = list[j + 1];
+            --used;
+            --i;
+        }
+    } /* for */
 #endif
-  if ((NULL == conn) || (datalink != DLT_EN10MB)) {
-    for (j=i; j<used-1; ++j)
-      list[j] = list[j+1];
-    --used;
-    --i;
-    }
-  } /* for */
 
 #if defined(_WIN32)
-/* replace device description with user-defined adapter name (if defined) */
-for (i=0; i<used; i++) {
-  char regkey[2048];
-  unsigned char regval[2048];
-  LONG status;
-  DWORD reglen, regtype;
-  HKEY reghnd;
+    /* replace device description with user-defined adapter name (if defined) */
+    for (i = 0; i < used; i++) {
+        char          regkey[2048];
+        unsigned char regval[2048];
+        LONG          status;
+        DWORD         reglen, regtype;
+        HKEY          reghnd;
 
-  /* These registry keys don't seem to exist for all devices, so we simply ignore errors. */
-  /* Windows XP x64 registry uses wide characters by default,
-     so we force use of narrow characters by using the 'A'(ANSI) version of RegOpenKeyEx.
-     This could cause some problems later, if this code is internationalized. Ideally,
-     the pcap lookup will return wide characters, and we should use them to build a wide
-     registry key, rather than hardcoding the string as we do here. */
-  if (list[i].name[strlen( "\\Device\\NPF_" )] == '{') {
-    sprintf( regkey, "SYSTEM\\CurrentControlSet\\Control\\Network\\"
-             "{4D36E972-E325-11CE-BFC1-08002BE10318}\\%s\\Connection", list[i].name+
-             strlen( "\\Device\\NPF_" ) );
-    if ((status = RegOpenKeyExA (HKEY_LOCAL_MACHINE, regkey, 0, KEY_QUERY_VALUE, &reghnd)) != ERROR_SUCCESS)
-      continue;
-    reglen = sizeof(regval);
+        /* These registry keys don't seem to exist for all devices, so we simply ignore errors. */
+        /* Windows XP x64 registry uses wide characters by default,
+           so we force use of narrow characters by using the 'A'(ANSI) version of RegOpenKeyEx.
+           This could cause some problems later, if this code is internationalized. Ideally,
+           the pcap lookup will return wide characters, and we should use them to build a wide
+           registry key, rather than hardcoding the string as we do here. */
+        if (list[i].name[strlen("\\Device\\NPF_")] == '{') {
+            sprintf(regkey,
+                    "SYSTEM\\CurrentControlSet\\Control\\Network\\"
+                    "{4D36E972-E325-11CE-BFC1-08002BE10318}\\%s\\Connection",
+                    list[i].name + strlen("\\Device\\NPF_"));
+            if ((status = RegOpenKeyExA(HKEY_LOCAL_MACHINE, regkey, 0, KEY_QUERY_VALUE, &reghnd)) != ERROR_SUCCESS)
+                continue;
+            reglen = sizeof(regval);
 
-    /* look for user-defined adapter name, bail if not found */  
-    /* same comment about Windows XP x64 (above) using RegQueryValueEx */
-    if ((status = RegQueryValueExA (reghnd, "Name", NULL, &regtype, regval, &reglen)) != ERROR_SUCCESS) {
-      RegCloseKey (reghnd);
-      continue;
-      }
-    /* make sure value is the right type, bail if not acceptable */
-    if ((regtype != REG_SZ) || (reglen > sizeof(regval))) {
-      RegCloseKey (reghnd);
-      continue;
-      }
-    /* registry value seems OK, finish up and replace description */
-    RegCloseKey (reghnd );
-    sprintf (list[i].desc, "%s", regval);
-    }
-  } /* for */
+            /* look for user-defined adapter name, bail if not found */
+            /* same comment about Windows XP x64 (above) using RegQueryValueEx */
+            if ((status = RegQueryValueExA(reghnd, "Name", NULL, &regtype, regval, &reglen)) != ERROR_SUCCESS) {
+                RegCloseKey(reghnd);
+                continue;
+            }
+            /* make sure value is the right type, bail if not acceptable */
+            if ((regtype != REG_SZ) || (reglen > sizeof(regval))) {
+                RegCloseKey(reghnd);
+                continue;
+            }
+            /* registry value seems OK, finish up and replace description */
+            RegCloseKey(reghnd);
+            sprintf(list[i].desc, "%s", regval);
+        }
+    } /* for */
 #endif
 
 #ifdef HAVE_TAP_NETWORK
-if (used < max) {
+    if (used < max) {
 #if defined(__OpenBSD__)
-  sprintf(list[used].name, "%s", "tap:tunN");
+        sprintf(list[used].name, "%s", "tap:tunN");
 #else
-  sprintf(list[used].name, "%s", "tap:tapN");
+        sprintf(list[used].name, "%s", "tap:tapN");
 #endif
-  sprintf(list[used].desc, "%s", "Integrated Tun/Tap support");
-  list[used].eth_api = ETH_API_TAP;
-  ++used;
-  }
+        sprintf(list[used].desc, "%s", "Integrated Tun/Tap support");
+        list[used].eth_api = ETH_API_TAP;
+        ++used;
+    }
 #endif
 #ifdef HAVE_VDE_NETWORK
-if (used < max) {
-  sprintf(list[used].name, "%s", "vde:device{:switch-port-number}");
-  sprintf(list[used].desc, "%s", "Integrated VDE support");
-  list[used].eth_api = ETH_API_VDE;
-  ++used;
-  }
+    if (used < max) {
+        sprintf(list[used].name, "%s", "vde:device{:switch-port-number}");
+        sprintf(list[used].desc, "%s", "Integrated VDE support");
+        list[used].eth_api = ETH_API_VDE;
+        ++used;
+    }
 #endif
 #ifdef HAVE_SLIRP_NETWORK
-if (used < max) {
-  sprintf(list[used].name, "%s", "nat:{optional-nat-parameters}");
-  sprintf(list[used].desc, "%s", "Integrated NAT (SLiRP) support");
-  list[used].eth_api = ETH_API_NAT;
-  ++used;
-  }
+    if (used < max) {
+        sprintf(list[used].name, "%s", "nat:{optional-nat-parameters}");
+        sprintf(list[used].desc, "%s", "Integrated NAT (SLiRP) support");
+        list[used].eth_api = ETH_API_NAT;
+        ++used;
+    }
 #endif
 
-if (used < max) {
-  sprintf(list[used].name, "%s", "udp:sourceport:remotehost:remoteport");
-  sprintf(list[used].desc, "%s", "Integrated UDP bridge support");
-  list[used].eth_api = ETH_API_UDP;
-  ++used;
-  }
+    if (used < max) {
+        sprintf(list[used].name, "%s", "udp:sourceport:remotehost:remoteport");
+        sprintf(list[used].desc, "%s", "Integrated UDP bridge support");
+        list[used].eth_api = ETH_API_UDP;
+        ++used;
+    }
 
-return used;
+    return used;
 }
 
-int eth_devices(int max, ETH_LIST* list)
+int
+eth_devices(int max, ETH_LIST *list)
 {
-int i = 0;
-char errbuf[PCAP_ERRBUF_SIZE] = "";
+    int        i                        = 0;
+    char       errbuf[PCAP_ERRBUF_SIZE] = "";
 #ifndef DONT_USE_PCAP_FINDALLDEVS
-pcap_if_t* alldevs;
-pcap_if_t* dev;
+    pcap_if_t *alldevs;
+    pcap_if_t *dev;
 
-memset(list, 0, max*sizeof(*list));
-errbuf[0] = '\0';
-/* retrieve the device list */
-if (pcap_findalldevs(&alldevs, errbuf) == -1) {
-  sim_printf ("Eth: error in pcap_findalldevs: %s\n", errbuf);
-  }
-else {
-  /* copy device list into the passed structure */
-  for (i=0, dev=alldevs; dev && (i < max); dev=dev->next, ++i) {
-    if ((dev->flags & PCAP_IF_LOOPBACK) || (!strcmp("any", dev->name))) continue;
-    strlcpy(list[i].name, dev->name, sizeof(list[i].name));
-    if (dev->description)
-      strlcpy(list[i].desc, dev->description, sizeof(list[i].desc));
-    else
-      strlcpy(list[i].desc, "No description available", sizeof(list[i].desc));
+    memset(list, 0, max * sizeof(*list));
+    errbuf[0] = '\0';
+    /* retrieve the device list */
+    if (pcap_findalldevs(&alldevs, errbuf) == -1) {
+        sim_printf("Eth: error in pcap_findalldevs: %s\n", errbuf);
+    } else {
+        /* copy device list into the passed structure */
+        for (i = 0, dev = alldevs; dev && (i < max); dev = dev->next, ++i) {
+            if ((dev->flags & PCAP_IF_LOOPBACK) || (!strcmp("any", dev->name)))
+                continue;
+            strlcpy(list[i].name, dev->name, sizeof(list[i].name));
+            if (dev->description)
+                strlcpy(list[i].desc, dev->description, sizeof(list[i].desc));
+            else
+                strlcpy(list[i].desc, "No description available", sizeof(list[i].desc));
+        }
+
+        /* free device list */
+        pcap_freealldevs(alldevs);
     }
-
-  /* free device list */
-  pcap_freealldevs(alldevs);
-  }
 #endif
 
-/* Add any host specific devices and/or validate those already found */
-i = eth_host_devices(i, max, list);
+    /* Add any host specific devices and/or validate those already found */
+    i = eth_host_devices(i, max, list);
 
-/* If no devices were found and an error message was left in the buffer, display it */
-if ((i == 0) && (errbuf[0])) {
-    sim_printf ("Eth: pcap_findalldevs warning: %s\n", errbuf);
+    /* If no devices were found and an error message was left in the buffer, display it */
+    if ((i == 0) && (errbuf[0])) {
+        sim_printf("Eth: pcap_findalldevs warning: %s\n", errbuf);
     }
 
-/* return device count */
-return i;
+    /* return device count */
+    return i;
 }
 
-void eth_show_dev (FILE *st, ETH_DEV* dev)
+void
+eth_show_dev(FILE *st, ETH_DEV *dev)
 {
-fprintf(st, "Ethernet Device:\n");
-if (!dev) {
-  fprintf(st, "-- Not Attached\n");
-  return;
-  }
-fprintf(st, "  Name:                    %s\n", dev->name);
-fprintf(st, "  Reflections:             %d\n", dev->reflections);
-fprintf(st, "  Self Loopbacks Sent:     %d\n", dev->loopback_self_sent_total);
-fprintf(st, "  Self Loopbacks Rcvd:     %d\n", dev->loopback_self_rcvd_total);
-if (dev->have_host_nic_phy_addr) {
-  char hw_mac[20];
+    fprintf(st, "Ethernet Device:\n");
+    if (!dev) {
+        fprintf(st, "-- Not Attached\n");
+        return;
+    }
+    fprintf(st, "  Name:                    %s\n", dev->name);
+    fprintf(st, "  Reflections:             %d\n", dev->reflections);
+    fprintf(st, "  Self Loopbacks Sent:     %d\n", dev->loopback_self_sent_total);
+    fprintf(st, "  Self Loopbacks Rcvd:     %d\n", dev->loopback_self_rcvd_total);
+    if (dev->have_host_nic_phy_addr) {
+        char hw_mac[20];
 
-  eth_mac_fmt(&dev->host_nic_phy_hw_addr, hw_mac);
-  fprintf(st, "  Host NIC Address:        %s\n", hw_mac);
-  }
-if (dev->jumbo_dropped)
-  fprintf(st, "  Jumbo Dropped:           %d\n", dev->jumbo_dropped);
-if (dev->jumbo_fragmented)
-  fprintf(st, "  Jumbo Fragmented:        %d\n", dev->jumbo_fragmented);
-if (dev->jumbo_truncated)
-  fprintf(st, "  Jumbo Truncated:         %d\n", dev->jumbo_truncated);
-if (dev->packets_sent)
-  fprintf(st, "  Packets Sent:            %d\n", dev->packets_sent);
-if (dev->transmit_packet_errors)
-  fprintf(st, "  Send Packet Errors:      %d\n", dev->transmit_packet_errors);
-if (dev->packets_received)
-  fprintf(st, "  Packets Received:        %d\n", dev->packets_received);
-if (dev->receive_packet_errors)
-  fprintf(st, "  Read Packet Errors:      %d\n", dev->receive_packet_errors);
-if (dev->error_reopen_count)
-  fprintf(st, "  Error ReOpen Count:      %d\n", dev->error_reopen_count);
-if (dev->loopback_packets_processed)
-  fprintf(st, "  Loopback Packets:        %d\n", dev->loopback_packets_processed);
+        eth_mac_fmt(&dev->host_nic_phy_hw_addr, hw_mac);
+        fprintf(st, "  Host NIC Address:        %s\n", hw_mac);
+    }
+    if (dev->jumbo_dropped)
+        fprintf(st, "  Jumbo Dropped:           %d\n", dev->jumbo_dropped);
+    if (dev->jumbo_fragmented)
+        fprintf(st, "  Jumbo Fragmented:        %d\n", dev->jumbo_fragmented);
+    if (dev->jumbo_truncated)
+        fprintf(st, "  Jumbo Truncated:         %d\n", dev->jumbo_truncated);
+    if (dev->packets_sent)
+        fprintf(st, "  Packets Sent:            %d\n", dev->packets_sent);
+    if (dev->transmit_packet_errors)
+        fprintf(st, "  Send Packet Errors:      %d\n", dev->transmit_packet_errors);
+    if (dev->packets_received)
+        fprintf(st, "  Packets Received:        %d\n", dev->packets_received);
+    if (dev->receive_packet_errors)
+        fprintf(st, "  Read Packet Errors:      %d\n", dev->receive_packet_errors);
+    if (dev->error_reopen_count)
+        fprintf(st, "  Error ReOpen Count:      %d\n", dev->error_reopen_count);
+    if (dev->loopback_packets_processed)
+        fprintf(st, "  Loopback Packets:        %d\n", dev->loopback_packets_processed);
 #if defined(USE_READER_THREAD)
-fprintf(st, "  Asynch Interrupts:       %s\n", dev->asynch_io?"Enabled":"Disabled");
-if (dev->asynch_io)
-  fprintf(st, "  Interrupt Latency:       %d uSec\n", dev->asynch_io_latency);
-if (dev->throttle_count)
-  fprintf(st, "  Throttle Delays:         %d\n", dev->throttle_count);
-fprintf(st, "  Read Queue: Count:       %d\n", dev->read_queue.count);
-fprintf(st, "  Read Queue: High:        %d\n", dev->read_queue.high);
-fprintf(st, "  Read Queue: Loss:        %d\n", dev->read_queue.loss);
-fprintf(st, "  Peak Write Queue Size:   %d\n", dev->write_queue_peak);
+    fprintf(st, "  Asynch Interrupts:       %s\n", dev->asynch_io ? "Enabled" : "Disabled");
+    if (dev->asynch_io)
+        fprintf(st, "  Interrupt Latency:       %d uSec\n", dev->asynch_io_latency);
+    if (dev->throttle_count)
+        fprintf(st, "  Throttle Delays:         %d\n", dev->throttle_count);
+    fprintf(st, "  Read Queue: Count:       %d\n", dev->read_queue.count);
+    fprintf(st, "  Read Queue: High:        %d\n", dev->read_queue.high);
+    fprintf(st, "  Read Queue: Loss:        %d\n", dev->read_queue.loss);
+    fprintf(st, "  Peak Write Queue Size:   %d\n", dev->write_queue_peak);
 #endif
-if (dev->bpf_filter)
-  fprintf(st, "  BPF Filter: %s\n", dev->bpf_filter);
+    if (dev->bpf_filter)
+        fprintf(st, "  BPF Filter: %s\n", dev->bpf_filter);
 #if defined(HAVE_SLIRP_NETWORK)
-if (dev->eth_api == ETH_API_NAT)
-  sim_slirp_show ((SLIRP *)dev->handle, st);
+    if (dev->eth_api == ETH_API_NAT)
+        sim_slirp_show((SLIRP *)dev->handle, st);
 #endif
 }
 
@@ -4215,151 +4224,147 @@ for (val=0; val <= 0xFF; val++) {
 return (errors == 0) ? SCPE_OK : SCPE_IERR;
 }
 
-static
-t_stat eth_test_bpf (DEVICE *dptr)
+static t_stat
+eth_test_bpf(DEVICE *dptr)
 {
-int errors = 0;
 #ifdef USE_BPF
-t_stat r;
-DEVICE eth_tst;
-ETH_DEV dev;
-int eth_num;
-int eth_opened;
-ETH_LIST  eth_list[ETH_MAX_DEVICE];
-int eth_device_count;
-int reflections, all_multicast, promiscuous;
-char buf[116+66*ETH_FILTER_MAX];
-char mac[20];
-ETH_MAC filter_address[3] = {
-    {0x04, 0x05, 0x06, 0x07, 0x08, 0x09},
-    {0x09, 0x00, 0x2B, 0x02, 0x01, 0x07},
-    {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
-  };
-int addr_count;
+    int      errors = 0;
+    t_stat   r;
+    DEVICE   eth_tst;
+    ETH_DEV  dev;
+    int      eth_num;
+    int      eth_opened;
+    ETH_LIST eth_list[ETH_MAX_DEVICE];
+    int      eth_device_count;
+    int      reflections, all_multicast, promiscuous;
+    char     buf[116 + 66 * ETH_FILTER_MAX];
+    char     mac[20];
+    ETH_MAC  filter_address[3] = {
+        {0x04, 0x05, 0x06, 0x07, 0x08, 0x09},
+        {0x09, 0x00, 0x2B, 0x02, 0x01, 0x07},
+        {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF},
+    };
+    int            addr_count;
 #if 0
 /* Apparently unused: either passed as a parameter or embedded as a structure member. */
 ETH_MAC physical_addr = {0x04, 0x05, 0x06, 0x07, 0x08, 0x09};
 #endif
-ETH_MAC host_nic_phy_hw_addr = {0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
-ETH_MAC *host_phy_addr_list[2] = {&host_nic_phy_hw_addr, NULL};
-int host_phy_addr_listindex;
-ETH_MULTIHASH hash = {0x01, 0x40, 0x00, 0x00, 0x48, 0x88, 0x40, 0x00};
-ETH_MULTIHASH *hash_list[2] = {&hash, NULL};
-int hash_listindex;
-int bpf_count = 0;
-int bpf_construct_error_count = 0;
-int bpf_compile_error_count = 0;
-int bpf_compile_skip_count = 0;
-#define SIM_PRINT_BPF_ARGUMENTS                                 \
-    if (1) {                                                    \
-      sim_printf ("Eth: Input to BPF string construction:\n");  \
-      sim_printf ("Eth: Reflections: %d\n", reflections);       \
-      sim_printf ("Eth: Filter Set:\n");                        \
-      for (i = 0; i < addr_count; i++) {                        \
-        eth_mac_fmt(&filter_address[i], mac);                   \
-        sim_printf ("Eth:   Addr[%d]: %s\n", i, mac);           \
-        }                                                       \
-      if (all_multicast)                                        \
-        sim_printf ("Eth: All Multicast\n");                    \
-      if (promiscuous)                                          \
-        sim_printf ("Eth: Promiscuous\n");                      \
-      if (hash_list[hash_listindex])                            \
-        sim_printf ("Eth: Multicast Hash: %02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X\n",\
-                    (*hash_list[hash_listindex])[0], (*hash_list[hash_listindex])[1], (*hash_list[hash_listindex])[2], (*hash_list[hash_listindex])[3], \
-                    (*hash_list[hash_listindex])[4], (*hash_list[hash_listindex])[5], (*hash_list[hash_listindex])[6], (*hash_list[hash_listindex])[7]);\
-      if (host_phy_addr_list[host_phy_addr_listindex]) {        \
-        eth_mac_fmt(host_phy_addr_list[host_phy_addr_listindex], mac);\
-        sim_printf ("Eth: host_nic_phy_hw_addr: %s\n", mac);    \
-        }                                                       \
-      }
-
-
-memset (&eth_tst, 0, sizeof(eth_tst));
-eth_device_count = eth_devices(ETH_MAX_DEVICE, eth_list);
-eth_opened = 0;
-for (eth_num=0; eth_num<eth_device_count; eth_num++) {
-  char eth_name[32];
-
-  if ((0 == memcmp (eth_list[eth_num].name, "nat:", 4)) ||
-      (0 == memcmp (eth_list[eth_num].name, "tap:", 4)) ||
-      (0 == memcmp (eth_list[eth_num].name, "vde:", 4)) ||
-      (0 == memcmp (eth_list[eth_num].name, "udp:", 4)))
-      continue;
-  eth_name[sizeof (eth_name)-1] = '\0';
-  snprintf (eth_name, sizeof (eth_name)-1, "eth%d", eth_num);
-  r = eth_open(&dev, eth_name, &eth_tst, 1);
-  if (r != SCPE_OK) {
-    sim_printf ("%s: Eth: Error opening eth%d: %s\n", dptr->name, eth_num, sim_error_text (r));
-    continue;
+    ETH_MAC        host_nic_phy_hw_addr  = {0x02, 0x03, 0x04, 0x05, 0x06, 0x07};
+    ETH_MAC *      host_phy_addr_list[2] = {&host_nic_phy_hw_addr, NULL};
+    int            host_phy_addr_listindex;
+    ETH_MULTIHASH  hash         = {0x01, 0x40, 0x00, 0x00, 0x48, 0x88, 0x40, 0x00};
+    ETH_MULTIHASH *hash_list[2] = {&hash, NULL};
+    int            hash_listindex;
+    int            bpf_count                 = 0;
+    int            bpf_construct_error_count = 0;
+    int            bpf_compile_error_count   = 0;
+    int            bpf_compile_skip_count    = 0;
+#define SIM_PRINT_BPF_ARGUMENTS                                                                                            \
+    if (1) {                                                                                                               \
+        sim_printf("Eth: Input to BPF string construction:\n");                                                            \
+        sim_printf("Eth: Reflections: %d\n", reflections);                                                                 \
+        sim_printf("Eth: Filter Set:\n");                                                                                  \
+        for (i = 0; i < addr_count; i++) {                                                                                 \
+            eth_mac_fmt(&filter_address[i], mac);                                                                          \
+            sim_printf("Eth:   Addr[%d]: %s\n", i, mac);                                                                   \
+        }                                                                                                                  \
+        if (all_multicast)                                                                                                 \
+            sim_printf("Eth: All Multicast\n");                                                                            \
+        if (promiscuous)                                                                                                   \
+            sim_printf("Eth: Promiscuous\n");                                                                              \
+        if (hash_list[hash_listindex])                                                                                     \
+            sim_printf("Eth: Multicast Hash: %02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X\n", (*hash_list[hash_listindex])[0],  \
+                       (*hash_list[hash_listindex])[1], (*hash_list[hash_listindex])[2], (*hash_list[hash_listindex])[3],  \
+                       (*hash_list[hash_listindex])[4], (*hash_list[hash_listindex])[5], (*hash_list[hash_listindex])[6],  \
+                       (*hash_list[hash_listindex])[7]);                                                                   \
+        if (host_phy_addr_list[host_phy_addr_listindex]) {                                                                 \
+            eth_mac_fmt(host_phy_addr_list[host_phy_addr_listindex], mac);                                                 \
+            sim_printf("Eth: host_nic_phy_hw_addr: %s\n", mac);                                                            \
+        }                                                                                                                  \
     }
-  ++eth_opened;
-  for (reflections=0; reflections<=1; reflections++) {
-    for (all_multicast=0; all_multicast<=1; all_multicast++) {
-      for (promiscuous=0; promiscuous<=1; promiscuous++) {
-        for (addr_count=1; addr_count<=2; addr_count++) {
-          for (hash_listindex=0; hash_listindex<=1; hash_listindex++) {
-            for (host_phy_addr_listindex=0; host_phy_addr_listindex<=1; host_phy_addr_listindex++) {
-              int i;
-              ++bpf_count;
-              r = eth_bpf_filter (&dev, addr_count, &filter_address[0], 
-                                  all_multicast, promiscuous, reflections, 
-                                  &filter_address[0], 
-                                  host_phy_addr_list[host_phy_addr_listindex],
-                                  hash_list[hash_listindex],
-                                  buf);
-              if (r != SCPE_OK) {
-                ++bpf_construct_error_count;
-                sim_printf ("Eth: Error producing a BPF filter for:\n");
-                SIM_PRINT_BPF_ARGUMENTS;
-                }
-              else {
-                if (sim_switches & SWMASK('D')) {
-                  SIM_PRINT_BPF_ARGUMENTS;
-                  sim_printf ("Eth: BPF string is: |%s|\n", buf);
-                  }
-                if (dev.eth_api == ETH_API_PCAP) {
-                  struct bpf_program bpf;
 
-                  if (pcap_compile ((pcap_t*)dev.handle, &bpf, buf, 1, (bpf_u_int32)0) < 0) {
-                    char errbuf[PCAP_ERRBUF_SIZE];
+    memset(&eth_tst, 0, sizeof(eth_tst));
+    eth_device_count = eth_devices(ETH_MAX_DEVICE, eth_list);
+    eth_opened       = 0;
+    for (eth_num = 0; eth_num < eth_device_count; eth_num++) {
+        char eth_name[32];
 
-                    ++bpf_compile_error_count;
-                    sprintf(errbuf, "%s", pcap_geterr((pcap_t*)dev.handle));
-                    sim_printf("Eth: pcap_compile error: %s\n", errbuf);
-                    if (!(sim_switches & SWMASK('D'))) {
-                      /* show erroneous BPF string */
-                      SIM_PRINT_BPF_ARGUMENTS;
-                      sim_printf ("Eth: BPF string is: |%s|\n", buf);
-                      }
-                    }
-                  pcap_freecode(&bpf);
-                  }
-                else
-                  ++bpf_compile_skip_count;
-                }
-              }
-            }
-          }
+        if ((0 == memcmp(eth_list[eth_num].name, "nat:", 4)) || (0 == memcmp(eth_list[eth_num].name, "tap:", 4)) ||
+            (0 == memcmp(eth_list[eth_num].name, "vde:", 4)) || (0 == memcmp(eth_list[eth_num].name, "udp:", 4)))
+            continue;
+        eth_name[sizeof(eth_name) - 1] = '\0';
+        snprintf(eth_name, sizeof(eth_name) - 1, "eth%d", eth_num);
+        r = eth_open(&dev, eth_name, &eth_tst, 1);
+        if (r != SCPE_OK) {
+            sim_printf("%s: Eth: Error opening eth%d: %s\n", dptr->name, eth_num, sim_error_text(r));
+            continue;
         }
-      }
-    }
-  eth_close(&dev);
-  }
+        ++eth_opened;
+        for (reflections = 0; reflections <= 1; reflections++) {
+            for (all_multicast = 0; all_multicast <= 1; all_multicast++) {
+                for (promiscuous = 0; promiscuous <= 1; promiscuous++) {
+                    for (addr_count = 1; addr_count <= 2; addr_count++) {
+                        for (hash_listindex = 0; hash_listindex <= 1; hash_listindex++) {
+                            for (host_phy_addr_listindex = 0; host_phy_addr_listindex <= 1; host_phy_addr_listindex++) {
+                                int i;
+                                ++bpf_count;
+                                r = eth_bpf_filter(&dev, addr_count, &filter_address[0], all_multicast, promiscuous,
+                                                   reflections, &filter_address[0],
+                                                   host_phy_addr_list[host_phy_addr_listindex], hash_list[hash_listindex],
+                                                   buf);
+                                if (r != SCPE_OK) {
+                                    ++bpf_construct_error_count;
+                                    sim_printf("Eth: Error producing a BPF filter for:\n");
+                                    SIM_PRINT_BPF_ARGUMENTS;
+                                } else {
+                                    if (sim_switches & SWMASK('D')) {
+                                        SIM_PRINT_BPF_ARGUMENTS;
+                                        sim_printf("Eth: BPF string is: |%s|\n", buf);
+                                    }
+                                    if (dev.eth_api == ETH_API_PCAP) {
+                                        struct bpf_program bpf;
 
-if (eth_opened == 0) {
-  errors = 1;
-  sim_printf ("%s: No testable LAN interfaces found\n", dptr->name);
-  }
-if (bpf_count)
-  sim_printf ("BPF Filter Count:     %d\n", bpf_count);
-if (bpf_construct_error_count)
-  sim_printf ("BPF Construct Errors: %d\n", bpf_construct_error_count);
-if (bpf_compile_error_count)
-  sim_printf ("BPF Compile Errors:   %d\n", bpf_compile_error_count);
-if (bpf_compile_skip_count)
-  sim_printf ("BPF Compile Skipped:  %d\n", bpf_compile_skip_count);
+                                        if (pcap_compile((pcap_t *)dev.handle, &bpf, buf, 1, (bpf_u_int32)0) < 0) {
+                                            char errbuf[PCAP_ERRBUF_SIZE];
+
+                                            ++bpf_compile_error_count;
+                                            sprintf(errbuf, "%s", pcap_geterr((pcap_t *)dev.handle));
+                                            sim_printf("Eth: pcap_compile error: %s\n", errbuf);
+                                            if (!(sim_switches & SWMASK('D'))) {
+                                                /* show erroneous BPF string */
+                                                SIM_PRINT_BPF_ARGUMENTS;
+                                                sim_printf("Eth: BPF string is: |%s|\n", buf);
+                                            }
+                                        }
+                                        pcap_freecode(&bpf);
+                                    } else
+                                        ++bpf_compile_skip_count;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        eth_close(&dev);
+    }
+
+    if (eth_opened == 0) {
+        errors = 1;
+        sim_printf("%s: No testable LAN interfaces found\n", dptr->name);
+    }
+    if (bpf_count)
+        sim_printf("BPF Filter Count:     %d\n", bpf_count);
+    if (bpf_construct_error_count)
+        sim_printf("BPF Construct Errors: %d\n", bpf_construct_error_count);
+    if (bpf_compile_error_count)
+        sim_printf("BPF Compile Errors:   %d\n", bpf_compile_error_count);
+    if (bpf_compile_skip_count)
+        sim_printf("BPF Compile Skipped:  %d\n", bpf_compile_skip_count);
+    return (errors == 0) ? SCPE_OK : SCPE_IERR;
+#else  /* !USE_BPF */
+    return SCPE_OK;
 #endif /* USE_BPF */
-return (errors == 0) ? SCPE_OK : SCPE_IERR;
 }
 
 #include <setjmp.h>
