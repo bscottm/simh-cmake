@@ -52,6 +52,7 @@ build
 
 # VS Code stuff...
 simh.code-workspace
+.vscode
 
 # GNU Global (useful with VSCode's Intellisense module.)
 GPATH
