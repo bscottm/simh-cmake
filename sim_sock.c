@@ -208,45 +208,43 @@ static getnameinfo_func p_getnameinfo;
 
 
 #if defined(NEED_STUBS)
-static void    WSAAPI s_freeaddrinfo (struct addrinfo *ai)
+static void WSAAPI
+s_freeaddrinfo(struct addrinfo *ai)
 {
-struct addrinfo *a, *an;
+    struct addrinfo *a, *an;
 
-for (a=ai; a != NULL; a=an) {
-    an = a->ai_next;
-    free (a->ai_canonname);
-    free (a->ai_addr);
-    free (a);
+    for (a = ai; a != NULL; a = an) {
+        an = a->ai_next;
+        free(a->ai_canonname);
+        free(a->ai_addr);
+        free(a);
     }
 }
 
-static int     WSAAPI s_getaddrinfo (const char *hostname,
-                                     const char *service,
-                                     const struct addrinfo *hints,
-                                     struct addrinfo **res)
+static int WSAAPI
+s_getaddrinfo(const char *hostname, const char *service, const struct addrinfo *hints, struct addrinfo **res)
 {
-struct hostent *he;
-struct servent *se = NULL;
-struct sockaddr_in *sin;
-struct addrinfo *result = NULL;
-struct addrinfo *ai, *lai = NULL;
-struct addrinfo dhints;
-struct in_addr ipaddr;
-struct in_addr *fixed[2];
-struct in_addr **ips = NULL;
-struct in_addr **ip;
-const char *cname = NULL;
-int port = 0;
+    struct hostent *    he;
+    struct servent *    se = NULL;
+    struct sockaddr_in *sin;
+    struct addrinfo *   result = NULL;
+    struct addrinfo *   ai, *lai = NULL;
+    struct addrinfo     dhints;
+    struct in_addr      ipaddr;
+    struct in_addr *    fixed[2];
+    struct in_addr **   ips = NULL;
+    struct in_addr **   ip;
+    const char *        cname = NULL;
+    int                 port  = 0;
 
-// Validate parameters
-if ((hostname == NULL) && (service == NULL))
-    return EAI_NONAME;
+    // Validate parameters
+    if ((hostname == NULL) && (service == NULL))
+        return EAI_NONAME;
 
-if (hints) {
-    if ((hints->ai_family != PF_INET) && (hints->ai_family != PF_UNSPEC))
-        return EAI_FAMILY;
-    switch (hints->ai_socktype)
-        {
+    if (hints) {
+        if ((hints->ai_family != PF_INET) && (hints->ai_family != PF_UNSPEC))
+            return EAI_FAMILY;
+        switch (hints->ai_socktype) {
         default:
             return EAI_SOCKTYPE;
         case SOCK_DGRAM:
@@ -254,19 +252,17 @@ if (hints) {
         case 0:
             break;
         }
+    } else {
+        hints = &dhints;
+        memset(&dhints, 0, sizeof(dhints));
+        dhints.ai_family = PF_UNSPEC;
     }
-else {
-    hints = &dhints;
-    memset(&dhints, 0, sizeof(dhints));
-    dhints.ai_family = PF_UNSPEC;
-    }
-if (service) {
-    char *c;
+    if (service) {
+        char *c;
 
-    port = strtoul(service, &c, 10);
-    if ((port == 0) || (*c != '\0')) {
-        switch (hints->ai_socktype)
-            {
+        port = strtoul(service, &c, 10);
+        if ((port == 0) || (*c != '\0')) {
+            switch (hints->ai_socktype) {
             case SOCK_DGRAM:
                 se = getservbyname(service, "udp");
                 break;
@@ -275,169 +271,160 @@ if (service) {
                 se = getservbyname(service, "tcp");
                 break;
             }
-        if (NULL == se)
-            return EAI_SERVICE;
-        port = se->s_port;
+            if (NULL == se)
+                return EAI_SERVICE;
+            port = se->s_port;
         }
     }
 
-if (hostname) {
-	int is_ipv4dots;
+    if (hostname) {
+        ipaddr.s_addr = inet_addr(hostname);
 
-	ipaddr.s_addr = inet_addr(hostname);
-	is_ipv4dots = 0xffffffff != ipaddr.s_addr;
-
-	if (is_ipv4dots ||
-        (0 == strcmp("255.255.255.255", hostname))) {
-        fixed[0] = &ipaddr;
-        fixed[1] = NULL;
-        }
-    else {
-		/* ????? same test ????? */
-        if (is_ipv4dots ||
-            (0 == strcmp("255.255.255.255", hostname))) {
+        if (0xffffffff != ipaddr.s_addr || (0 == strcmp("255.255.255.255", hostname))) {
             fixed[0] = &ipaddr;
             fixed[1] = NULL;
-            if ((hints->ai_flags & AI_CANONNAME) && !(hints->ai_flags & AI_NUMERICHOST)) {
-				struct hostent* he = gethostbyaddr((char*)& ipaddr, 4, AF_INET);
 
-				cname = hostname;
-				if (NULL != he)
-					cname = he->h_name;
-			}
+            if ((hints->ai_flags & AI_CANONNAME) && !(hints->ai_flags & AI_NUMERICHOST)) {
+                struct hostent *he = gethostbyaddr((char *)&ipaddr, 4, AF_INET);
+
+                cname = hostname;
+                if (NULL != he)
+                    cname = he->h_name;
+            }
+
             ips = fixed;
         } else {
             if (hints->ai_flags & AI_NUMERICHOST)
                 return EAI_NONAME;
+
             he = gethostbyname(hostname);
             if (he) {
                 ips = (struct in_addr **)he->h_addr_list;
                 if (hints->ai_flags & AI_CANONNAME)
                     cname = he->h_name;
-                }
-            else {
-                switch (h_errno)
-                    {
-                    case HOST_NOT_FOUND:
-                    case NO_DATA:
-                        return EAI_NONAME;
-                    case TRY_AGAIN:
-                        return EAI_AGAIN;
-                    default:
-                        return EAI_FAIL;
-                    }
+            } else {
+                switch (h_errno) {
+                case HOST_NOT_FOUND:
+                case NO_DATA:
+                    return EAI_NONAME;
+                case TRY_AGAIN:
+                    return EAI_AGAIN;
+                default:
+                    return EAI_FAIL;
                 }
             }
         }
+    } else {
+        if (hints->ai_flags & AI_PASSIVE)
+            ipaddr.s_addr = htonl(INADDR_ANY);
+        else
+            ipaddr.s_addr = htonl(INADDR_LOOPBACK);
+
+        fixed[0] = &ipaddr;
+        fixed[1] = NULL;
+        ips      = fixed;
     }
-else {
-    if (hints->ai_flags & AI_PASSIVE)
-        ipaddr.s_addr = htonl(INADDR_ANY);
-    else
-        ipaddr.s_addr = htonl(INADDR_LOOPBACK);
-    fixed[0] = &ipaddr;
-    fixed[1] = NULL;
-    ips = fixed;
-    }
-for (ip=ips; (ip != NULL) && (*ip != NULL); ++ip) {
-    ai = (struct addrinfo *)calloc(1, sizeof(*ai));
-    if (NULL == ai) {
-        s_freeaddrinfo(result);
-        return EAI_MEMORY;
+
+    for (ip = ips; (ip != NULL) && (*ip != NULL); ++ip) {
+        ai = (struct addrinfo *)calloc(1, sizeof(*ai));
+        if (NULL == ai) {
+            s_freeaddrinfo(result);
+            return EAI_MEMORY;
         }
-    ai->ai_family = PF_INET;
-    ai->ai_socktype = hints->ai_socktype;
-    ai->ai_protocol = hints->ai_protocol;
-    ai->ai_addr = NULL;
-    ai->ai_addrlen = sizeof(struct sockaddr_in);
-    ai->ai_canonname = NULL;
-    ai->ai_next = NULL;
-    ai->ai_addr = (struct sockaddr *)calloc(1, sizeof(struct sockaddr_in));
-    if (NULL == ai->ai_addr) {
-        free(ai);
-        s_freeaddrinfo(result);
-        return EAI_MEMORY;
+
+        ai->ai_family    = PF_INET;
+        ai->ai_socktype  = hints->ai_socktype;
+        ai->ai_protocol  = hints->ai_protocol;
+        ai->ai_addr      = NULL;
+        ai->ai_addrlen   = sizeof(struct sockaddr_in);
+        ai->ai_canonname = NULL;
+        ai->ai_next      = NULL;
+        ai->ai_addr      = (struct sockaddr *)calloc(1, sizeof(struct sockaddr_in));
+
+        if (NULL == ai->ai_addr) {
+            free(ai);
+            s_freeaddrinfo(result);
+            return EAI_MEMORY;
         }
-    sin = (struct sockaddr_in *)ai->ai_addr;
-    sin->sin_family = PF_INET;
-    sin->sin_port = (unsigned short)port;
-    memcpy(&sin->sin_addr, *ip, sizeof(sin->sin_addr));
-    if (NULL == result)
-        result = ai;
-    else
-        lai->ai_next = ai;
-    lai = ai;
+
+        sin             = (struct sockaddr_in *)ai->ai_addr;
+        sin->sin_family = PF_INET;
+        sin->sin_port   = (unsigned short)port;
+        memcpy(&sin->sin_addr, *ip, sizeof(sin->sin_addr));
+
+        if (NULL == result)
+            result = ai;
+        else
+            lai->ai_next = ai;
+        lai = ai;
     }
-if (cname) {
-    result->ai_canonname = (char *)calloc(1, strlen(cname)+1);
-    if (NULL == result->ai_canonname) {
-        s_freeaddrinfo(result);
-        return EAI_MEMORY;
+
+    if (cname) {
+        result->ai_canonname = (char *)calloc(1, strlen(cname) + 1);
+        if (NULL == result->ai_canonname) {
+            s_freeaddrinfo(result);
+            return EAI_MEMORY;
         }
-    strcpy(result->ai_canonname, cname);
+        strcpy(result->ai_canonname, cname);
     }
-*res = result;
-return 0;
+
+    *res = result;
+    return 0;
 }
 
 #ifndef EAI_OVERFLOW
 #define EAI_OVERFLOW WSAENAMETOOLONG
 #endif
 
-static int     WSAAPI s_getnameinfo (const struct sockaddr *sa, socklen_t salen,
-                                     char *host, size_t hostlen,
-                                     char *serv, size_t servlen,
-                                     int flags)
+static int WSAAPI
+s_getnameinfo(const struct sockaddr *sa, socklen_t salen, char *host, size_t hostlen, char *serv, size_t servlen, int flags)
 {
-struct hostent *he;
-struct servent *se = NULL;
-const struct sockaddr_in *sin = (const struct sockaddr_in *)sa;
+    struct hostent *          he;
+    struct servent *          se  = NULL;
+    const struct sockaddr_in *sin = (const struct sockaddr_in *)sa;
 
-if (sin->sin_family != PF_INET)
-    return EAI_FAMILY;
-if ((NULL == host) && (NULL == serv))
-    return EAI_NONAME;
-if ((serv) && (servlen > 0)) {
-    if (flags & NI_NUMERICSERV)
-        se = NULL;
-    else
-        if (flags & NI_DGRAM)
+    if (sin->sin_family != PF_INET)
+        return EAI_FAMILY;
+    if ((NULL == host) && (NULL == serv))
+        return EAI_NONAME;
+    if ((serv) && (servlen > 0)) {
+        if (flags & NI_NUMERICSERV)
+            se = NULL;
+        else if (flags & NI_DGRAM)
             se = getservbyport(sin->sin_port, "udp");
         else
             se = getservbyport(sin->sin_port, "tcp");
-    if (se) {
-        if (servlen <= strlen(se->s_name))
-            return EAI_OVERFLOW;
-        strcpy(serv, se->s_name);
-        }
-    else {
-        char buf[16];
+        if (se) {
+            if (servlen <= strlen(se->s_name))
+                return EAI_OVERFLOW;
+            strcpy(serv, se->s_name);
+        } else {
+            char buf[16];
 
-        sprintf(buf, "%d", ntohs(sin->sin_port));
-        if (servlen <= strlen(buf))
-            return EAI_OVERFLOW;
-        strcpy(serv, buf);
+            sprintf(buf, "%d", ntohs(sin->sin_port));
+            if (servlen <= strlen(buf))
+                return EAI_OVERFLOW;
+            strcpy(serv, buf);
         }
     }
-if ((host) && (hostlen > 0)) {
-	if (flags & NI_NUMERICHOST)
-		he = NULL;
-	else
-		he = gethostbyaddr((const char *)&sin->sin_addr, 4, AF_INET);
-    if (he) {
-        if (hostlen < strlen(he->h_name)+1)
-            return EAI_OVERFLOW;
-        strcpy(host, he->h_name);
-        }
-    else {
-        if (flags & NI_NAMEREQD)
-            return EAI_NONAME;
-        if (hostlen < strlen(inet_ntoa(sin->sin_addr))+1)
-            return EAI_OVERFLOW;
-        strcpy(host, inet_ntoa(sin->sin_addr));
+    if ((host) && (hostlen > 0)) {
+        if (flags & NI_NUMERICHOST)
+            he = NULL;
+        else
+            he = gethostbyaddr((const char *)&sin->sin_addr, 4, AF_INET);
+        if (he) {
+            if (hostlen < strlen(he->h_name) + 1)
+                return EAI_OVERFLOW;
+            strcpy(host, he->h_name);
+        } else {
+            if (flags & NI_NAMEREQD)
+                return EAI_NONAME;
+            if (hostlen < strlen(inet_ntoa(sin->sin_addr)) + 1)
+                return EAI_OVERFLOW;
+            strcpy(host, inet_ntoa(sin->sin_addr));
         }
     }
-return 0;
+    return 0;
 }
 #endif /* NEED_STUBS */
 
