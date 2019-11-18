@@ -213,9 +213,9 @@ return SCPE_OK;
 
 void vs_sendupd (void)
 {
-uint8 b0, b1, b2;
-
 do {
+    uint8 b0, b1, b2;
+
     if (vs_sndf.count == VS_BUF_LEN)                    /* fifo full? */
         return;
     b0 = RPT_SYNC;

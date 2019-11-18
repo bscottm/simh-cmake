@@ -522,8 +522,9 @@ if (abortval > 0) {                                     /* sim stop? */
     return abortval;                                    /* return to SCP */
     }
 else if (abortval < 0) {                                /* mm or rsrv or int */
-    int32 i, delta;
+    int32 delta;
     if ((PSL & PSL_FPD) == 0) {                         /* FPD? no recovery */
+        int32 i;
         for (i = 0; i < recqptr; i++) {                 /* unwind inst */
             int32 rrn, rlnt;
             rrn = RQ_GETRN (recq[i]);                   /* recover reg # */
@@ -2106,7 +2107,7 @@ for ( ;; ) {
     case ASHL:
         if (op0 & BSIGN) {                              /* right shift? */
             temp = 0x100 - op0;                         /* get |shift| */
-            if (temp > 31)                              /* sc > 31? */
+            if (temp >= 31)                             /* sc >= 31? (Note: This just propagates the sign) */
                 r = (op1 & LSIGN)? LMASK: 0;
             else r = op1 >> temp;                       /* shift */
             WRITE_L (r);                                /* store result */
@@ -3449,15 +3450,9 @@ reset_all (0);
 return SCPE_OK;
 }
 
-/* Virtual address translation */
+/* Memory management diagnistic reasons: */
 
-t_stat cpu_show_virt (FILE *of, UNIT *uptr, int32 val, CONST void *desc)
-{
-t_stat r;
-const char *cptr = (const char *) desc;
-uint32 va, pa;
-int32 st;
-static const char *mm_str[] = {
+static const char *mm_diags[] = {
     "Access control violation",
     "Length violation",
     "Process PTE access control violation",
@@ -3467,14 +3462,29 @@ static const char *mm_str[] = {
     "Process PTE translation not valid"
     };
 
+/* Virtual address translation */
+
+t_stat cpu_show_virt (FILE *of, UNIT *uptr, int32 val, CONST void *desc)
+{
+t_stat r;
+const char *cptr = (const char *) desc;
+int32 st;
+
 if (cptr) {
+    uint32 va;
     va = (uint32) get_uint (cptr, 16, 0xFFFFFFFF, &r);
     if (r == SCPE_OK) {
         int32 acc = cpu_get_vsw (sim_switches);
-        pa = Test (va, acc, &st);
+        int32 pa = Test (va, acc, &st);
         if (st == PR_OK)
             fprintf (of, "Virtual %-X = physical %-X\n", va, pa);
-        else fprintf (of, "Virtual %-X: %s\n", va, mm_str[st]);
+        else {
+            if (st > 0)
+                fprintf (of, "Virtual %-X: %s\n", va, mm_diags[st]);
+            else
+                fprintf(of, "Virtual %-X: unknown diagnostic (st = %d)", va, st);
+        }
+
         return SCPE_OK;
         }
     }
@@ -3505,11 +3515,13 @@ return ACC_MASK (md);
 
 t_stat cpu_set_hist (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 {
-int32 i, lnt;
+int32 lnt;
 char gbuf[CBUFSIZE];
 t_stat r;
 
 if (cptr == NULL) {
+    int32 i;
+
     for (i = 0; i < hst_lnt; i++)
         hst[i].iPC = 0;
     hst_p = 0;
@@ -3626,8 +3638,7 @@ return SCPE_OK;
 
 t_bool cpu_show_opnd (FILE *st, InstHistory *h, int32 line)
 {
-
-int32 numspec, i, j, disp;
+int32 numspec, i, j;
 t_bool more;
 
 numspec = drom[h->opc][0] & DR_NSPMASK;                 /* #specifiers */
@@ -3635,7 +3646,7 @@ fputs ("\n                  ", st);                     /* space */
 if (hst_switches & SWMASK('T'))
     fputs ("            ", st);
 for (i = 1, j = 0, more = FALSE; i <= numspec; i++) {   /* loop thru specs */
-    disp = drom[h->opc][i];                             /* specifier type */
+    int32 disp = drom[h->opc][i];                       /* specifier type */
     if (disp == RG)                                     /* fix specials */
         disp = RQ;
     if (disp >= BB)                                     /* ignore branches */
@@ -3691,10 +3702,10 @@ if ((line == 0) && (DR_GETRES(drom[h->opc][0]))) {
         case RB_R0:
             if (1) {
                 static const int rcnts[] = {1, 2, 4, 6};
-                int i;
+                int k;
 
-                for (i = 0; i < rcnts[DR_GETRES(drom[h->opc][0]) - DR_GETRES(RB_R0)]; i++)
-                    fprintf (st, " R%d:%08X", i, h->res[i]);
+                for (k = 0; k < rcnts[DR_GETRES(drom[h->opc][0]) - DR_GETRES(RB_R0)]; k++)
+                    fprintf (st, " R%d:%08X", i, h->res[k]);
                 }
             break;
         case RB_SP:
@@ -3738,11 +3749,12 @@ static struct os_idle os_tab[] = {
 
 t_stat cpu_set_idle (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 {
-uint32 i;
-char gbuf[CBUFSIZE];
-
 if (cptr != NULL) {
+    uint32 i;
+    char gbuf[CBUFSIZE];
+
     cptr = get_glyph (cptr, gbuf, ':');
+
     for (i = 0; os_tab[i].name != NULL; i++) {
         if (strcmp (os_tab[i].name, gbuf) == 0) {
             cpu_idle_type = i + 1;
@@ -3843,8 +3855,6 @@ return SCPE_OK;
 
 t_stat cpu_show_instruction_set (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-int i;
-
 fprintf (st, "Implementing: ");
 if ((cpu_instruction_set & FULL_INSTRUCTION_SET) == FULL_INSTRUCTION_SET) {
     fprintf (st, "All standard VAX instructions");
@@ -3857,6 +3867,8 @@ if ((cpu_instruction_set & FULL_INSTRUCTION_SET) == FULL_INSTRUCTION_SET) {
 //      fprintf (st, ",\n\tEmulating: Vector-Group");
     }
 else {
+    int i;
+
     if ((cpu_instruction_set & VAX_FULL_BASE) == VAX_FULL_BASE) {
         fprintf (st, "Base Instruction Group");
         if (sim_switches & SWMASK ('V'))

@@ -119,7 +119,7 @@ static SIM_INLINE void WriteL (uint32 pa, int32 val);
 static SIM_INLINE int32 Read (uint32 va, int32 lnt, int32 acc)
 {
 int32 vpn, off, tbi, pa;
-int32 pa1, bo, sc, wl, wh;
+int32 pa1, bo, wl, wh;
 TLBENT xpte;
 
 mchk_va = va;
@@ -157,7 +157,7 @@ else
     pa1 = ((pa + 4) & PAMASK) & ~03;                   /* not cross page */
 bo = pa & 3;
 if (lnt >= L_LONG) {                                    /* lw unaligned? */
-    sc = bo << 3;
+    int32 sc = bo << 3;
     wl = ReadU (pa, L_LONG - bo);                       /* read both fragments */
     wh = ReadU (pa1, bo);                               /* extract */
     return ((wl | (wh << (32 - sc))) & LMASK);
@@ -185,7 +185,7 @@ else {
 static SIM_INLINE void Write (uint32 va, int32 val, int32 lnt, int32 acc)
 {
 int32 vpn, off, tbi, pa;
-int32 pa1, bo, sc;
+int32 pa1, bo;
 TLBENT xpte;
 
 mchk_va = va;
@@ -227,7 +227,7 @@ else
     pa1 = ((pa + 4) & PAMASK) & ~03;
 bo = pa & 3;
 if (lnt >= L_LONG) {
-    sc = bo << 3;
+    int32 sc = bo << 3;
     WriteU (pa, val & insert[L_LONG - bo], L_LONG - bo);
     WriteU (pa1, (val >> (32 - sc)) & insert[bo], bo);
     }
@@ -244,11 +244,12 @@ return;
 
 static SIM_INLINE int32 Test (uint32 va, int32 acc, int32 *status)
 {
-int32 vpn, off, tbi;
 TLBENT xpte;
 
 *status = PR_OK;                                        /* assume ok */
 if (mapen) {                                            /* mapping on? */
+    int32 vpn, off, tbi;
+
     vpn = VA_GETVPN (va);                               /* get vpn, off */
     off = VA_GETOFF (va);
     tbi = VA_GETTBI (vpn);

@@ -659,12 +659,12 @@ void eth_packet_trace_detail(ETH_DEV* dev, const uint8 *msg, int len, const char
   eth_packet_trace_ex(dev, msg, len, txt, 1     , dev->dbit);
 }
 
-const char* eth_getname(int number, char* name, char *desc)
+const char* eth_getname(size_t number, char* name, char *desc)
 {
   ETH_LIST  list[ETH_MAX_DEVICE];
-  int count = eth_devices(ETH_MAX_DEVICE, list);
+  size_t count = eth_devices(ETH_MAX_DEVICE, list);
 
-  if ((number < 0) || (count <= number))
+  if ((number == 0) || (count <= number))
       return NULL;
   if (list[number].eth_api != ETH_API_PCAP) {
     sim_printf ("Eth: Pcap capable device not found.  You may need to run as root\n");
@@ -679,8 +679,8 @@ const char* eth_getname(int number, char* name, char *desc)
 const char* eth_getname_bydesc(const char* desc, char* name, char *ndesc)
 {
   ETH_LIST  list[ETH_MAX_DEVICE];
-  int count = eth_devices(ETH_MAX_DEVICE, list);
-  int i;
+  size_t count = eth_devices(ETH_MAX_DEVICE, list);
+  size_t i;
   size_t j=strlen(desc);
 
   for (i=0; i<count; i++) {
@@ -705,16 +705,17 @@ const char* eth_getname_bydesc(const char* desc, char* name, char *ndesc)
 char* eth_getname_byname(const char* name, char* temp, char *desc)
 {
   ETH_LIST  list[ETH_MAX_DEVICE];
-  int count = eth_devices(ETH_MAX_DEVICE, list);
+  size_t count = eth_devices(ETH_MAX_DEVICE, list);
   size_t n;
-  int i, found;
+  size_t i;
+  t_bool found = FALSE;
 
   found = 0;
   n = strlen(name);
   for (i=0; i<count && !found; i++) {
     if ((n == strlen(list[i].name)) &&
         (strncasecmp(name, list[i].name, n) == 0)) {
-      found = 1;
+      found = TRUE;
       strcpy(temp, list[i].name); /* only case might be different */
       strcpy(desc, list[i].desc);
     }
@@ -725,16 +726,17 @@ char* eth_getname_byname(const char* name, char* temp, char *desc)
 char* eth_getdesc_byname(char* name, char* temp)
 {
   ETH_LIST  list[ETH_MAX_DEVICE];
-  int count = eth_devices(ETH_MAX_DEVICE, list);
+  size_t count = eth_devices(ETH_MAX_DEVICE, list);
   size_t n;
-  int i, found;
+  size_t i;
+  t_bool found = FALSE;
 
   found = 0;
   n = strlen(name);
   for (i=0; i<count && !found; i++) {
     if ((n == strlen(list[i].name)) &&
         (strncasecmp(name, list[i].name, n) == 0)) {
-      found = 1;
+      found = TRUE;
       strcpy(temp, list[i].desc);
     }
   }
@@ -783,14 +785,15 @@ for (i=0; i<eth_open_device_count; ++i)
 t_stat
 eth_show(FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
+#if !defined(USE_NETWORK)
+    fprintf(st, "  network support not available in simulator\n");
+#else
     ETH_LIST list[ETH_MAX_DEVICE];
-    int      number;
+    size_t   number;
 
     number = eth_devices(ETH_MAX_DEVICE, list);
     fprintf(st, "ETH devices:\n");
-    if (number == -1)
-        fprintf(st, "  network support not available in simulator\n");
-    else if (number == 0) {
+    if (number == 0) {
         fprintf(st, "  no network devices are available\n");
     } else {
         size_t i, min;
@@ -819,6 +822,8 @@ eth_show(FILE *st, UNIT *uptr, int32 val, CONST void *desc)
             eth_show_dev(st, eth_open_devices[i]);
         }
     }
+#endif
+
     return SCPE_OK;
 }
 
@@ -1022,10 +1027,17 @@ struct pcap_pkthdr {
     uint32 caplen;  /* length of portion present */
     uint32 len;     /* length this packet (off wire) */
 };
-#define PCAP_ERRBUF_SIZE 256
 typedef void * pcap_t;  /* Pseudo Type to avoid compiler errors */
-#define DLT_EN10MB 1    /* Dummy Value to avoid compiler errors */
 #endif /* HAVE_PCAP_NETWORK */
+
+/* PCAP_ERRBUF_SIZE: Used outside the HAVE_PCAP_NETWORK context. Ensure sure it's defined. */
+#if !defined(PCAP_ERRBUF_SIZE)
+#define PCAP_ERRBUF_SIZE 256
+#endif
+
+#if !defined(DLT_EN10MB)
+#define DLT_EN10MB 1    /* Dummy Value to avoid compiler errors */
+#endif
 
 #ifdef HAVE_TAP_NETWORK
 #if defined(__linux) || defined(__linux__)
@@ -3887,7 +3899,6 @@ eth_bpf_filter (dev, dev->addr_count, dev->filter_address,
 if (dev->eth_api == ETH_API_PCAP) {
   char errbuf[PCAP_ERRBUF_SIZE];
   bpf_u_int32  bpf_subnet, bpf_netmask;
-  t_stat status;
 
   if (pcap_lookupnet(dev->name, &bpf_subnet, &bpf_netmask, errbuf)<0)
     bpf_netmask = 0;
@@ -3932,7 +3943,7 @@ if (dev->eth_api == ETH_API_PCAP) {
       strcpy (dev->bpf_filter, buf);
 #ifdef USE_SETNONBLOCK
       /* set file non-blocking */
-      status = pcap_setnonblock (dev->handle, 1, errbuf);
+      /*status =*/ pcap_setnonblock (dev->handle, 1, errbuf);
 #endif /* USE_SETNONBLOCK */
       }
     pcap_freecode(&bpf);
@@ -3967,10 +3978,12 @@ return SCPE_OK;
      returned by pcap_findalldevs.
 
 */
-int
-eth_host_devices(int used, int max, ETH_LIST *list)
+size_t
+eth_host_devices(size_t used, size_t max, ETH_LIST *list)
 {
-    int i, j;
+#if defined(HAVE_PCAP_NETWORK) || defined(_WIN32)
+    size_t i;
+#endif
 
 #if defined(HAVE_PCAP_NETWORK)
     for (i = 0; i < used; ++i) {
@@ -3986,6 +3999,8 @@ eth_host_devices(int used, int max, ETH_LIST *list)
         }
 
         if ((NULL == conn) || (datalink != DLT_EN10MB)) {
+            size_t j;
+
             for (j = i; j < used - 1; ++j)
                 list[j] = list[j + 1];
             --used;
@@ -3999,7 +4014,6 @@ eth_host_devices(int used, int max, ETH_LIST *list)
     for (i = 0; i < used; i++) {
         char          regkey[2048];
         unsigned char regval[2048];
-        LONG          status;
         DWORD         reglen, regtype;
         HKEY          reghnd;
 
@@ -4014,13 +4028,13 @@ eth_host_devices(int used, int max, ETH_LIST *list)
                     "SYSTEM\\CurrentControlSet\\Control\\Network\\"
                     "{4D36E972-E325-11CE-BFC1-08002BE10318}\\%s\\Connection",
                     list[i].name + strlen("\\Device\\NPF_"));
-            if ((status = RegOpenKeyExA(HKEY_LOCAL_MACHINE, regkey, 0, KEY_QUERY_VALUE, &reghnd)) != ERROR_SUCCESS)
+            if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, regkey, 0, KEY_QUERY_VALUE, &reghnd) != ERROR_SUCCESS)
                 continue;
             reglen = sizeof(regval);
 
             /* look for user-defined adapter name, bail if not found */
             /* same comment about Windows XP x64 (above) using RegQueryValueEx */
-            if ((status = RegQueryValueExA(reghnd, "Name", NULL, &regtype, regval, &reglen)) != ERROR_SUCCESS) {
+            if (RegQueryValueExA(reghnd, "Name", NULL, &regtype, regval, &reglen) != ERROR_SUCCESS) {
                 RegCloseKey(reghnd);
                 continue;
             }
@@ -4075,11 +4089,12 @@ eth_host_devices(int used, int max, ETH_LIST *list)
     return used;
 }
 
-int
-eth_devices(int max, ETH_LIST *list)
+size_t
+eth_devices(size_t max, ETH_LIST *list)
 {
-    int        i                        = 0;
+    size_t     i                        = 0;
     char       errbuf[PCAP_ERRBUF_SIZE] = "";
+
 #ifndef DONT_USE_PCAP_FINDALLDEVS
     pcap_if_t *alldevs;
     pcap_if_t *dev;
@@ -4095,7 +4110,7 @@ eth_devices(int max, ETH_LIST *list)
             if ((dev->flags & PCAP_IF_LOOPBACK) || (!strcmp("any", dev->name)))
                 continue;
             strlcpy(list[i].name, dev->name, sizeof(list[i].name));
-            if (dev->description)
+            if (dev->description != NULL)
                 strlcpy(list[i].desc, dev->description, sizeof(list[i].desc));
             else
                 strlcpy(list[i].desc, "No description available", sizeof(list[i].desc));
@@ -4235,7 +4250,7 @@ eth_test_bpf(DEVICE *dptr)
     int      eth_num;
     int      eth_opened;
     ETH_LIST eth_list[ETH_MAX_DEVICE];
-    int      eth_device_count;
+    size_t   eth_device_count;
     int      reflections, all_multicast, promiscuous;
     char     buf[116 + 66 * ETH_FILTER_MAX];
     char     mac[20];

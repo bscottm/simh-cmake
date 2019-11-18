@@ -488,7 +488,7 @@ return SCPE_OK;
 
 t_stat rl_wr (int32 data, int32 PA, int32 access)
 {
-int32 curr, offs, newc, maxc, tim;
+int32 curr, offs, newc, tim;
 UNIT *uptr;
 
 switch ((PA >> 1) & 07) {                               /* decode PA<2:1> */
@@ -530,6 +530,8 @@ bit is cleared by software.  If set, check for interrupts and return.
             curr = GET_CYL (uptr->TRK);             /* current cylinder */
             offs = GET_CYL (rlda);                  /* offset */
             if (rlda & RLDA_SK_DIR) {               /* in or out? */
+                int32 maxc;
+
                 newc = curr + offs;                 /* out */
                 maxc = (uptr->flags & UNIT_RL02)?
                     RL_NUMCY * 2: RL_NUMCY;
@@ -655,12 +657,12 @@ return SCPE_OK;
 /* CRC16 as implemented by the DEC 9401 chip */
 static uint16 calcCRC (const int wc, const uint16 *data)
 {
-    uint32  crc, j, d;
-    int32   i;
+    uint32  crc, j;
+    int     i;
 
     crc = 0;
     for (i = 0; i < wc; i++) {
-        d = *data++;
+        uint32 d = *data++;
         /* cribbed from KG11-A */
         for (j = 0; j < 16; j++) {
             crc = (crc & ~01) | ((crc & 01) ^ (d & 01));
@@ -993,14 +995,13 @@ else CLR_INT (RL);
 
 t_stat rl_reset (DEVICE *dptr)
 {
-int32 i;
-UNIT *uptr;
+size_t i;
 
 rlcs = CSR_DONE;
 rlda = rlba = rlbae = rlmp = rlmp1 = rlmp2 = 0;
 CLR_INT (RL);
 for (i = 0; i < RL_NUMDR; i++) {
-    uptr = rl_dev.units + i;
+    UNIT * uptr = rl_dev.units + i;
     sim_cancel (uptr);
     uptr->STAT &= ~RLDS_ERR;
     }
@@ -1117,8 +1118,6 @@ t_stat rl_show_load (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 
 t_stat rl_show_dstate (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-    int32   cnt;
-
     fprintf (st, "drive state: %s\n", state[(uptr->STAT & RLDS_M_STATE)]);
     fprintf (st, "brushes: %s, heads: %s, cover: %s\n",
         (uptr->STAT & RLDS_BHO) ? "home" : "out",
@@ -1129,6 +1128,8 @@ t_stat rl_show_dstate (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
         (uptr->STAT & RLDS_WGE) ? '1' : '0',
         (uptr->STAT & RLDS_SPE) ? '1' : '0');
     if (uptr->flags & UNIT_ATT) {
+        int32 cnt;
+
         if ((cnt = sim_activate_time (uptr)) != 0)
             fprintf (st, "FNC: %d, %d\n", uptr->FNC, cnt);
         else

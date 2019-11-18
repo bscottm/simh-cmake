@@ -98,11 +98,11 @@ extern int32 eval_int (void);
 
 int32 op_cis (int32 *op, int32 cc, int32 opc, int32 acc)
 {
-int32 i, j, c, t, pop, rpt = 0, V;
-int32 match, fill, sign, shift;
+int32 i, j, c, t, rpt = 0, V;
+int32 match, fill_ch, sign, shift;
 int32 ldivd, ldivr;
 int32 lenl, lenp;
-uint32 nc, d, result;
+uint32 d, result;
 t_stat r;
 DSTR accum, src1, src2, dst;
 DSTR mptable[10];
@@ -153,7 +153,7 @@ switch (opc) {                                          /* case on opcode */
     case MOVTC:
         if (PSL & PSL_FPD) {                            /* FPD set? */
             SETPC (fault_PC + STR_GETDPC (R[0]));       /* reset PC */
-            fill = STR_GETCHR (R[0]);                   /* get fill */
+            fill_ch = STR_GETCHR (R[0]);                   /* get fill */
             R[2] = R[2] & STR_LNMASK;                   /* remaining move */
             cc = (R[4] >> 16) & CC_MASK;                /* restore cc's */
             }
@@ -161,7 +161,7 @@ switch (opc) {                                          /* case on opcode */
             CC_CMP_W (op[0], op[4]);                    /* set cc's */
             R[0] = STR_PACK (op[2], op[0]);             /* src len, fill */
             R[1] = op[1];                               /* src addr */
-            fill = op[2];                               /* set fill */
+            fill_ch = op[2];                               /* set fill */
             R[3] = op[3];                               /* table addr */
             R[4] = op[4] | ((cc & CC_MASK) << 16);      /* dst len + cc's */
             R[5] = op[5];                               /* dst addr */
@@ -197,7 +197,7 @@ switch (opc) {                                          /* case on opcode */
             R[4] = (R[4] & ~STR_LNMASK) | ((R[4] - mvl) & STR_LNMASK);
             }
         while (R[4] & STR_LNMASK) {                     /* fill if needed */
-            Write (R[5], fill, L_BYTE, WA);
+            Write (R[5], fill_ch, L_BYTE, WA);
             R[4] = (R[4] & ~STR_LNMASK) | ((R[4] - 1) & STR_LNMASK);
             R[5] = (R[5] + 1) & LMASK;                  /* adv dst */
             }
@@ -238,7 +238,7 @@ switch (opc) {                                          /* case on opcode */
     case MOVTUC:
         if (PSL & PSL_FPD) {                            /* FPD set? */
             SETPC (fault_PC + STR_GETDPC (R[0]));       /* reset PC */
-            fill = STR_GETCHR (R[0]);                   /* get match */
+            fill_ch = STR_GETCHR (R[0]);                /* get match */
             R[4] = R[4] & STR_LNMASK;
             cc = R[2] & CC_MASK;                        /* restore cc's */
             }
@@ -246,7 +246,7 @@ switch (opc) {                                          /* case on opcode */
             CC_CMP_W (op[0], op[4]);                    /* set cc's */
             R[0] = STR_PACK (op[2], op[0]);             /* src len, fill */
             R[1] = op[1];                               /* src addr */
-            fill = op[2];                               /* set match */
+            fill_ch = op[2];                            /* set match */
             R[3] = op[3];                               /* table addr */
             R[4] = op[4];                               /* dst len */
             R[5] = op[5];                               /* dst addr */
@@ -256,7 +256,7 @@ switch (opc) {                                          /* case on opcode */
         while ((R[0] & STR_LNMASK) && R[4]) {           /* while src & dst */
             t = Read (R[1], L_BYTE, RA);                /* read src */
             c = Read ((R[3] + t) & LMASK, L_BYTE, RA);  /* translate */
-            if (c == fill) {                            /* stop char? */
+            if (c == fill_ch) {                         /* stop char? */
                 cc = cc | CC_V;                         /* set V, done */
                 break;
                 }
@@ -530,6 +530,8 @@ switch (opc) {                                          /* case on opcode */
             NibbleRshift (&src1, 1, 0);                 /* shift out sign */
             CreateTable (&src1, mptable);               /* create *1, *2, ... */
             for (i = 1; i < (DSTRLNT * 8); i++) {       /* 31 iterations */
+                uint32 nc;
+
                 d = (src2.val[i / 8] >> ((i % 8) * 4)) & 0xF;
                 if (d > 0)                              /* add in digit*mpcnd */
                     AddDstr (&mptable[d], &accum, &accum, 0);
@@ -1012,7 +1014,7 @@ switch (opc) {                                          /* case on opcode */
     case EDITPC:
         if (PSL & PSL_FPD) {                            /* FPD set? */
             SETPC (fault_PC + STR_GETDPC (R[2]));       /* reset PC */
-            fill = ED_GETFILL (R[2]);                   /* get fill */
+            fill_ch = ED_GETFILL (R[2]);                /* get fill */
             sign = ED_GETSIGN (R[2]);                   /* get sign */
             cc = ED_GETCC (R[2]);                       /* get cc's */
             R[0] = R[0] & ~0xFFE0;                      /* src len <= 31 */
@@ -1029,10 +1031,10 @@ switch (opc) {                                          /* case on opcode */
                 cc = CC_Z;
                 sign = C_SPACE;
                 }
-            fill = C_SPACE;
+            fill_ch = C_SPACE;
             R[0] = R[4] = op[0];                        /* src len */
             R[1] = op[1];                               /* src addr */
-            R[2] = STR_PACK (cc, (sign << ED_V_SIGN) | (fill << ED_V_FILL));
+            R[2] = STR_PACK (cc, (sign << ED_V_SIGN) | (fill_ch << ED_V_FILL));
                                                         /* delta PC, cc, sign, fill */
             R[3] = op[2];                               /* pattern */
             R[5] = op[3];                               /* dst addr */
@@ -1040,7 +1042,7 @@ switch (opc) {                                          /* case on opcode */
             }
 
         for ( ;; ) {                                    /* loop thru pattern */
-            pop = Read (R[3], L_BYTE, RA);              /* rd pattern op */
+            int32 pop = Read (R[3], L_BYTE, RA);        /* rd pattern op */
             if (pop == EO_END)                          /* end? */
                 break;
             if (pop & EO_RPT_FLAG) {                    /* repeat class? */
@@ -1073,8 +1075,8 @@ switch (opc) {                                          /* case on opcode */
                 break;
 
             case EO_LOAD_FILL:                          /* load fill */
-                fill = Read ((R[3] + 1) & LMASK, L_BYTE, RA);
-                R[2] = ED_PUTFILL (R[2], fill);         /* now fault safe */
+                fill_ch = Read ((R[3] + 1) & LMASK, L_BYTE, RA);
+                R[2] = ED_PUTFILL (R[2], fill_ch);         /* now fault safe */
                 R[3]++;
                 break;
 
@@ -1097,7 +1099,7 @@ switch (opc) {                                          /* case on opcode */
 
             case EO_INSERT:                             /* insert char */
                 c = Read ((R[3] + 1) & LMASK, L_BYTE, RA);
-                Write (R[5], ((cc & CC_C)? c: fill), L_BYTE, WA);
+                Write (R[5], ((cc & CC_C)? c: fill_ch), L_BYTE, WA);
                 R[5] = (R[5] + 1) & LMASK;              /* now fault safe */
                 R[3]++;
                 break;
@@ -1108,7 +1110,7 @@ switch (opc) {                                          /* case on opcode */
                     RSVD_OPND_FAULT(EDITPC);
                 if (cc & CC_Z) {                        /* zero? */
                     do {                                /* repeat and blank */
-                        Write ((R[5] - t) & LMASK, fill, L_BYTE, WA);
+                        Write ((R[5] - t) & LMASK, fill_ch, L_BYTE, WA);
                         } while (--t);
                     }
                 R[3]++;                                 /* now fault safe */
@@ -1119,7 +1121,7 @@ switch (opc) {                                          /* case on opcode */
                 if (t == 0)
                     RSVD_OPND_FAULT(EDITPC);
                 if (cc & CC_Z)
-                    Write ((R[5] - t) & LMASK, fill, L_BYTE, WA);
+                    Write ((R[5] - t) & LMASK, fill_ch, L_BYTE, WA);
                 R[3]++;                                 /* now fault safe */
                 break;
 
@@ -1142,7 +1144,7 @@ switch (opc) {                                          /* case on opcode */
 
             case EO_FILL:                               /* fill */
                 for (i = 0; i < rpt; i++)               /* fill string */
-                    Write ((R[5] + i) & LMASK, fill, L_BYTE, WA);
+                    Write ((R[5] + i) & LMASK, fill_ch, L_BYTE, WA);
                 R[5] = (R[5] + rpt) & LMASK;            /* now fault safe */
                 break;
 
@@ -1151,7 +1153,7 @@ switch (opc) {                                          /* case on opcode */
                     d = edit_read_src (i, acc);         /* get nibble */
                     if (d)                              /* test for non-zero */
                         cc = (cc | CC_C) & ~CC_Z;
-                    c = (cc & CC_C)? (d | 0x30): fill;  /* test for signif */
+                    c = (cc & CC_C)? (d | 0x30): fill_ch;  /* test for signif */
                     Write ((R[5] + i) & LMASK, c, L_BYTE, WA);
                     }                                   /* end for */
                 edit_adv_src (rpt);                     /* advance src */
@@ -1166,7 +1168,7 @@ switch (opc) {                                          /* case on opcode */
                         cc = (cc | CC_C) & ~CC_Z;       /* set signif */
                         j++;                            /* extra dst char */
                         }                               /* end if */
-                    c = (cc & CC_C)? (d | 0x30): fill;  /* test for signif */
+                    c = (cc & CC_C)? (d | 0x30): fill_ch;  /* test for signif */
                     Write ((R[5] + j) & LMASK, c, L_BYTE, WA);
                     }                                   /* end for */
                 edit_adv_src (rpt);                     /* advance src */
@@ -1217,12 +1219,12 @@ return cc;
 
 int32 ReadDstr (int32 lnt, int32 adr, DSTR *src, int32 acc)
 {
-int32 c, i, end, t = 0;
+int32 i, end, t = 0;
 
 *src = Dstr_zero;                                       /* clear result */
 end = lnt / 2;                                          /* last byte */
 for (i = 0; i <= end; i++) {                            /* loop thru string */
-    c = Read ((adr + end - i) & LMASK, L_BYTE, RA);     /* get byte */
+    int32 c = Read ((adr + end - i) & LMASK, L_BYTE, RA); /* get byte */
     if (i == 0) {                                       /* sign char? */
         t = c & 0xF;                                    /* save sign */
         c = c & 0xF0;                                   /* erase sign */
@@ -1268,14 +1270,14 @@ return TestDstr (src);                                  /* clean -0 */
 
 int32 WriteDstr (int32 lnt, int32 adr, DSTR *dst, int32 pslv, int32 acc)
 {
-int32 c, i, cc, end;
+int32 i, cc, end;
 
 end = lnt / 2;                                          /* end of string */
 ProbeDstr (end, adr, WA);                               /* test writeability */
 cc = SetCCDstr (lnt, dst, pslv);                        /* set cond codes */
 dst->val[0] = dst->val[0] | 0xC | dst->sign;            /* set sign */
 for (i = 0; i <= end; i++) {                            /* store string */
-    c = (dst->val[i / 4] >> ((i % 4) * 8)) & 0xFF;
+    int32 c = (dst->val[i / 4] >> ((i % 4) * 8)) & 0xFF;
     Write ((adr + end - i) & LMASK, c, L_BYTE, WA);
     }                                                   /* end for */
 return cc;
@@ -1375,12 +1377,13 @@ return;
 int32 AddDstr (DSTR *s1, DSTR *s2, DSTR *ds, int32 cy)
 {
 int32 i;
-uint32 sm1, sm2, tm1, tm2, tm3, tm4;
 
 for (i = 0; i < DSTRLNT; i++) {                         /* loop low to high */
-    tm1 = s1->val[i] ^ (s2->val[i] + cy);               /* xor operands */
-    sm1 = s1->val[i] + (s2->val[i] + cy);               /* sum operands */
-    sm2 = sm1 + 0x66666666;                             /* force carry out */
+    uint32 tm1 = s1->val[i] ^ (s2->val[i] + cy);        /* xor operands */
+    uint32 sm1 = s1->val[i] + (s2->val[i] + cy);        /* sum operands */
+    uint32 sm2 = sm1 + 0x66666666;                      /* force carry out */
+    uint32 tm2, tm3, tm4;
+
     cy = ((sm1 < s1->val[i]) || (sm2 < sm1));           /* check for overflow */
     tm2 = tm1 ^ sm2;                                    /* get carry flags */
     tm3 = (tm2 >> 3) | (cy << 29);                      /* compute adjustment */
@@ -1505,9 +1508,9 @@ return;
 
 void WordRshift (DSTR *dsrc, int32 sc)
 {
-int32 i;
-
 if (sc != 0) {
+    int32 i;
+
     for (i = 0; i < DSTRLNT; i++) {
         if ((i + sc) < DSTRLNT)
             dsrc->val[i] = dsrc->val[i + sc];
@@ -1526,10 +1529,11 @@ return;
 
 int32 WordLshift (DSTR *dsrc, int32 sc)
 {
-int32 i, c, zc;
+int32 c = 0;
 
-c = 0;
 if (sc != 0) {
+    int32 i, zc;
+
     for (i = DSTRMAX; i >= 0; i--) {                    /* work hi to low */
         if ((i + sc) <= DSTRMAX)                        /* move in range? */
             dsrc->val[i + sc] = dsrc->val[i];
@@ -1552,11 +1556,13 @@ return c;
 
 uint32 NibbleRshift (DSTR *dsrc, int32 sc, uint32 cin)
 {
-int32 i, s, nc;
+int32 s;
 
 if ((s = sc * 4) != 0) {
+    int32 i;
     for (i = DSTRMAX; i >= 0; i--) {
-        nc = (dsrc->val[i] << (32 - s)) & LMASK;
+        uint32 nc = (dsrc->val[i] << (32 - s)) & LMASK;
+
         dsrc->val[i] = ((dsrc->val[i] >> s) |
             cin) & LMASK;
         cin = nc;
@@ -1576,13 +1582,13 @@ return 0;
 
 uint32 NibbleLshift (DSTR *dsrc, int32 sc, uint32 cin)
 {
-int32 i, s, nc;
+int32 s;
 
 if ((s = sc * 4) != 0) {
+    size_t i;
     for (i = 0; i < DSTRLNT; i++) {
-        nc = dsrc->val[i] >> (32 - s);
-        dsrc->val[i] = ((dsrc->val[i] << s) |
-            cin) & LMASK;
+        uint32 nc = dsrc->val[i] >> (32 - s);
+        dsrc->val[i] = ((dsrc->val[i] << s) | cin) & LMASK;
         cin = nc;
         }
     return cin;

@@ -891,10 +891,10 @@ return td_wr_regs[(PA >> 1) & 03](&td_ctlr[ctrl], data);
 static void td_process_packet(CTLR *ctlr)
 {
 uint32 unit;
-int32 opcode = ctlr->ibuf[0];
+int32 td_opcode = ctlr->ibuf[0];
 const char *opcode_name, *command_name;
 
-switch (opcode) {
+switch (td_opcode) {
     case TD_OPDAT:
         opcode_name = "OPDAT";
         break;
@@ -916,8 +916,8 @@ switch (opcode) {
     default:
         opcode_name = "unknown";
     }
-sim_debug (TDDEB_TRC, ctlr->dptr, "td_process_packet() Opcode=%s(%d)\n", opcode_name, opcode);
-switch (opcode) {
+sim_debug (TDDEB_TRC, ctlr->dptr, "td_process_packet() Opcode=%s(%d)\n", opcode_name, td_opcode);
+switch (td_opcode) {
 
     case TD_OPDAT:
         if (ctlr->p_state != TD_WRITE1) {                   /* expecting data? */
@@ -1465,7 +1465,7 @@ return "TU58 cartridge";
 
 static t_stat td_set_ctrls (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 {
-int32 newln, i;
+int32 newln;
 t_stat r;
 DEVICE *dli_dptr = find_dev ("DLI");
 
@@ -1477,6 +1477,8 @@ if (r != SCPE_OK)
 if (newln == 0)
     return SCPE_ARG;
 if (newln < td_ctrls) {
+    int32 i;
+    
     for (i = newln; i < td_ctrls; i++)
         if ((td_unit[2*i].flags & UNIT_ATT) || 
             (td_unit[2*i+1].flags & UNIT_ATT))

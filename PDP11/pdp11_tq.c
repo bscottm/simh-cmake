@@ -663,7 +663,7 @@ return OK;
 
 t_stat tq_quesvc (UNIT *uptr)
 {
-int32 i, cnid;
+int32 i;
 uint16 pkt = 0;
 UNIT *nuptr;
 
@@ -748,6 +748,7 @@ if ((pkt == 0) && tq_pip) {                             /* polling? */
         return SCPE_OK;
     if (pkt) {                                          /* got one? */
         UNIT *up = tq_getucb (tq_pkt[pkt].d[CMD_UN]);
+        int32 cnid;
 
         if (up)
             sim_debug (DBG_REQ, &tq_dev, "cmd=%04X(%3s), mod=%04X, unit=%d, bc=%04X%04X, ma=%04X%04X, obj=%d, pos=0x%" T_ADDR_FMT "X\n", 
@@ -915,13 +916,15 @@ t_bool tq_abo (uint16 pkt)
 {
 uint16 lu = tq_pkt[pkt].d[CMD_UN];                      /* unit # */
 uint32 ref = GETP32 (pkt, ABO_REFL);                    /* cmd ref # */
-uint16 tpkt, prv;
+uint16 tpkt;
 UNIT *uptr;
 
 sim_debug(DBG_TRC, &tq_dev, "tq_abo\n");
 
 tpkt = 0;                                               /* set no mtch */
 if ((uptr = tq_getucb (lu))) {                          /* get unit */
+    uint16 prv;
+
     if (uptr->cpkt &&                                   /* curr pkt? */
         (GETP32 (uptr->cpkt, CMD_REFL) == ref)) {       /* match ref? */
         tpkt = uptr->cpkt;                              /* save match */
@@ -1827,7 +1830,7 @@ return tq_putdesc (&tq_cq, desc);                       /* release desc */
 
 t_bool tq_putpkt (uint16 pkt, t_bool qt)
 {
-uint32 addr, desc, lnt, cr;
+uint32 addr, desc, lnt;
 UNIT *up = tq_getucb (tq_pkt[pkt].d[CMD_UN]);
 
 if (pkt == 0)                                           /* any packet? */
@@ -1852,7 +1855,7 @@ addr = desc & UQ_ADDR;                                  /* get Q22 addr */
 lnt = tq_pkt[pkt].d[UQ_HLNT] - UQ_HDR_OFF;              /* size, with hdr */
 if ((GETP (pkt, UQ_HCTC, TYP) == UQ_TYP_SEQ) &&         /* seq packet? */
     (GETP (pkt, CMD_OPC, OPC) & OP_END)) {              /* end packet? */
-    cr = (tq_credits >= 14)? 14: tq_credits;            /* max 14 credits */
+    uint32 cr = (tq_credits >= 14)? 14: tq_credits;     /* max 14 credits */
     tq_credits = tq_credits - cr;                       /* decr credits */
     tq_pkt[pkt].d[UQ_HCTC] |= ((cr + 1) << UQ_HCTC_V_CR);
     }
@@ -1886,8 +1889,8 @@ return OK;
 
 t_bool tq_putdesc (struct uq_ring *ring, uint32 desc)
 {
-uint32 prvd, newd = (desc & ~UQ_DESC_OWN) | UQ_DESC_F;
-uint32 prva, addr = ring->ba + ring->idx;
+uint32 newd = (desc & ~UQ_DESC_OWN) | UQ_DESC_F;
+uint32 addr = ring->ba + ring->idx;
 uint16 d[2];
 
 d[0] = newd & 0xFFFF;                                   /* 32b to 16b */
@@ -1898,8 +1901,10 @@ if (desc & UQ_DESC_F) {                                 /* was F set? */
     if (ring->lnt <= 4)                                 /* lnt = 1? intr */
         tq_ring_int (ring);
     else {
-        prva = ring->ba +                               /* prv desc */
-            ((ring->idx - 4) & (ring->lnt - 1));
+        uint32 prva = ring->ba +                               /* prv desc */
+                      ((ring->idx - 4) & (ring->lnt - 1));
+        uint32 prvd;
+
         if (Map_ReadW (prva, 4, d))                     /* read prv */
             return tq_fatal (PE_QRE);
         prvd = ((uint32) d[0]) | (((uint32) d[1]) << 16);
@@ -1917,10 +1922,10 @@ return OK;
 UNIT *tq_getucb (uint16 lu)
 {
 uint32 i;
-UNIT *uptr;
 
 for (i = 0; i < tq_dev.numunits - 2; i++) {
-    uptr = &tq_dev.units[i];
+    UNIT *uptr = &tq_dev.units[i];
+
     if ((lu == uptr->unit_plug) &&
         !(uptr->flags & UNIT_DIS))
         return uptr;
@@ -2263,7 +2268,7 @@ return SCPE_NOFNC;
 
 void tq_show_ring (FILE *st, struct uq_ring *rp)
 {
-uint32 i, desc;
+uint32 i;
 uint16 d[2];
 
 #if defined (VM_PDP11)
@@ -2274,6 +2279,8 @@ fprintf (st, "ring, base = %x, index = %d, length = %d\n",
      rp->ba, rp->idx >> 2, rp->lnt >> 2);
 #endif
 for (i = 0; i < (rp->lnt >> 2); i++) {
+    uint32 desc;
+
     if (Map_ReadW (rp->ba + (i << 2), 4, d)) {
         fprintf (st, " %3d: non-existent memory\n", i);
         break;
@@ -2312,7 +2319,7 @@ return;
 
 t_stat tq_show_unitq (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-int32 pkt, u = uptr - tq_dev.units;
+int32 u = uptr - tq_dev.units;
 
 if (tq_csta != CST_UP) {
     fprintf (st, "Controller is not initialized\n");
@@ -2325,6 +2332,8 @@ if ((uptr->flags & UNIT_ONL) == 0) {
     return SCPE_OK;
     }
 if (uptr->cpkt) {
+    int32 pkt;
+
     fprintf (st, "Unit %d current ", u);
     tq_show_pkt (st, uptr->cpkt);
     if ((pkt = uptr->pktq)) {
@@ -2388,7 +2397,7 @@ return SCPE_OK;
 
 t_stat tq_set_type (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 {
-uint32 i, cap;
+uint32 i;
 uint32 max = sim_taddr_64? TQU_EMAXC: TQU_MAXC;
 t_stat r;
 
@@ -2399,7 +2408,7 @@ for (i = 0; i < TQ_NUMDR; i++) {
         return SCPE_ALATT;
     }
 if (cptr) {
-    cap = (uint32) get_uint (cptr, 10, max, &r);
+    uint32 cap = get_uint (cptr, 10, max, &r);
     if ((r != SCPE_OK) || (cap < TQU_MINC))
         return SCPE_ARG;
     drv_tab[TQU_TYPE].cap = ((t_addr) cap) << 20;

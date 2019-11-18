@@ -2149,9 +2149,9 @@ return SCPE_OK;
 t_stat
 sim_timer_tick_svc(UNIT *uptr)
 {
-    int32  tmr = (int32)(uptr - sim_timer_units);
-    t_stat stat;
-    RTC *  rtc = &rtcs[tmr];
+    size_t  tmr = uptr - sim_timer_units;
+    t_stat  stat;
+    RTC    *rtc = &rtcs[tmr];
 
     rtc->clock_ticks += 1;
     rtc->calib_tick_time += rtc->clock_tick_size;
@@ -2163,8 +2163,8 @@ sim_timer_tick_svc(UNIT *uptr)
      * non-success status, while co-schedule activities might, so they are
      * queued to run from sim_process_event
      */
-    sim_debug(DBG_QUE, &sim_timer_dev, "sim_timer_tick_svc(tmr=%d) - scheduling %s - cosched interval: %d\n", tmr,
-              sim_uname(rtc->clock_unit), rtc->cosched_interval);
+    sim_debug(DBG_QUE, &sim_timer_dev, "sim_timer_tick_svc(tmr=%" PRI_SIZE_T ") - scheduling %s - cosched interval: %d\n",
+              tmr, sim_uname(rtc->clock_unit), rtc->cosched_interval);
     if (rtc->clock_unit->action == NULL)
         return SCPE_IERR;
     stat = rtc->clock_unit->action(rtc->clock_unit);
@@ -3472,7 +3472,7 @@ sim_timer_precalibrate_execution_rate(void)
     const char **cmd = sim_clock_precalibrate_commands;
     uint32       start, end;
     int32        saved_switches = sim_switches;
-    int32        tmr;
+    size_t       tmr;
     UNIT         precalib_unit = {UDATA(&sim_timer_stop_svc, 0, 0)};
 
     if (cmd == NULL)

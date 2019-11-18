@@ -32,9 +32,11 @@ endif ()
 find_library(PCAP_LIBRARY
         NAMES pcap pcap_static libpcap libpcap_static
         HINTS
-	  ENV PCAP_DIR
-	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
-        PATHS ${PCAP_PATH}
+          ENV PCAP_DIR
+        PATH_SUFFIXES
+          ${LIB_PATH_SUFFIXES}
+        PATHS
+          ${PCAP_PATH}
         )
 
 if (WIN32 AND PCAP_LIBRARY)

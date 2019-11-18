@@ -1812,29 +1812,26 @@ t_stat cr_show_trans (  FILE    *st,
 
 static void cr_supported ( char *string, int32 *bits, size_t string_aize )
 {
-int32 crtypes = 0;
 #define MAXDESCRIP sizeof ("CR11/CD11/CD20/") /* sizeof includes \0 */
-
-#if defined (CR11_ONLY) || defined (CR11_OK)
-    crtypes |= 1;
-#endif
-#if defined (CD11_ONLY) || defined (CD11_OK)
-    crtypes |= 2;
-#endif
-#if defined (CD20_ONLY) || defined (CD20_OK)
-    crtypes |= 4;
-#endif
+int32 crtypes = 0;
 
 if (string) {
     char devtype[MAXDESCRIP];
-
     devtype[0] = '\0';
-    if (crtypes & 1)
-        strlcat (devtype, "CR11/", sizeof (devtype));
-    if (crtypes & 2)
-        strlcat (devtype, "CD11/", sizeof (devtype));
-    if (crtypes & 4)
-        strlcat (devtype, "CD20/", sizeof (devtype));
+
+#if defined (CR11_ONLY) || defined (CR11_OK)
+    crtypes |= 1;
+    strlcat (devtype, "CR11/", sizeof (devtype));
+#endif
+#if defined (CD11_ONLY) || defined (CD11_OK)
+    crtypes |= 2;
+    strlcat (devtype, "CD11/", sizeof (devtype));
+#endif
+#if defined (CD20_ONLY) || defined (CD20_OK)
+    crtypes |= 4;
+    strlcat (devtype, "CD20/", sizeof (devtype));
+#endif
+
     strlcpy (string, devtype, string_aize);
 }
 if (bits)

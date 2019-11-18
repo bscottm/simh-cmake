@@ -285,11 +285,11 @@ s_getaddrinfo(const char *hostname, const char *service, const struct addrinfo *
             fixed[1] = NULL;
 
             if ((hints->ai_flags & AI_CANONNAME) && !(hints->ai_flags & AI_NUMERICHOST)) {
-                struct hostent *he = gethostbyaddr((char *)&ipaddr, 4, AF_INET);
+                struct hostent *he_addr = gethostbyaddr((char *)&ipaddr, 4, AF_INET);
 
                 cname = hostname;
-                if (NULL != he)
-                    cname = he->h_name;
+                if (NULL != he_addr)
+                    cname = he_addr->h_name;
             }
 
             ips = fixed;
@@ -379,7 +379,6 @@ s_getaddrinfo(const char *hostname, const char *service, const struct addrinfo *
 static int WSAAPI
 s_getnameinfo(const struct sockaddr *sa, socklen_t salen, char *host, size_t hostlen, char *serv, size_t servlen, int flags)
 {
-    struct hostent *          he;
     struct servent *          se  = NULL;
     const struct sockaddr_in *sin = (const struct sockaddr_in *)sa;
 
@@ -408,6 +407,8 @@ s_getnameinfo(const struct sockaddr *sa, socklen_t salen, char *host, size_t hos
         }
     }
     if ((host) && (hostlen > 0)) {
+        struct hostent *          he;
+
         if (flags & NI_NUMERICHOST)
             he = NULL;
         else
@@ -539,7 +540,6 @@ char gbuf[CBUFSIZE], default_pbuf[CBUFSIZE];
 const char *hostp;
 char *portp;
 char *endc;
-unsigned long portval;
 
 if ((host != NULL) && (host_len != 0))
     memset (host, 0, host_len);
@@ -574,7 +574,8 @@ else {                                                  /* No colon in input */
     hostp = (const char *)default_host;                 /* host is defaulted if provided */
     }
 if (portp != NULL) {
-    portval = strtoul(portp, &endc, 10);
+    unsigned long portval = strtoul(portp, &endc, 10);
+
     if ((*endc == '\0') && ((portval == 0) || (portval > 65535)))
         return -1;                                      /* numeric value too big */
     if (*endc != '\0') {
@@ -821,13 +822,11 @@ return sta;
 static SOCKET sim_create_sock (int af, int opt_flags)
 {
 SOCKET newsock;
-int err;
 
 newsock = socket (af, ((opt_flags & SIM_SOCK_OPT_DATAGRAM) ? SOCK_DGRAM : SOCK_STREAM), 0);/* create socket */
 if (newsock == INVALID_SOCKET) {                        /* socket error? */
-    err = WSAGetLastError ();
 #if defined(WSAEAFNOSUPPORT)
-    if (err == WSAEAFNOSUPPORT)                         /* expected error, just return */
+    if (WSAGetLastError () == WSAEAFNOSUPPORT)          /* expected error, just return */
         return newsock;
 #endif
     return sim_err_sock (newsock, "socket");            /* report error and return */
@@ -842,93 +841,97 @@ return newsock;
    support (i.e. some Windows versions), but it doesn't work in all cases.
 */
 
-SOCKET sim_master_sock_ex (const char *hostport, int *parse_status, int opt_flags)
+SOCKET
+sim_master_sock_ex(const char *hostport, int *parse_status, int opt_flags)
 {
-SOCKET newsock = INVALID_SOCKET;
-int sta;
-char host[CBUFSIZE], port[CBUFSIZE];
-int r;
-struct addrinfo hints;
-struct addrinfo *result = NULL, *preferred;
+    SOCKET           newsock = INVALID_SOCKET;
+    int              sta = 0;
+    char             host[CBUFSIZE], port[CBUFSIZE];
+    int              r;
+    struct addrinfo  hints;
+    struct addrinfo *result = NULL, *preferred;
 
-r = sim_parse_addr (hostport, host, sizeof(host), NULL, port, sizeof(port), NULL, NULL);
-if (parse_status)
-    *parse_status = r;
-if (r)
-    return newsock;
-
-memset(&hints, 0, sizeof(hints));
-hints.ai_flags = AI_PASSIVE;
-hints.ai_family = AF_UNSPEC;
-hints.ai_protocol = IPPROTO_TCP;
-hints.ai_socktype = SOCK_STREAM;
-if (p_getaddrinfo(host[0] ? host : NULL, port[0] ? port : NULL, &hints, &result)) {
+    r = sim_parse_addr(hostport, host, sizeof(host), NULL, port, sizeof(port), NULL, NULL);
     if (parse_status)
-        *parse_status = -1;
-    return newsock;
+        *parse_status = r;
+    if (r)
+        return newsock;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_flags    = AI_PASSIVE;
+    hints.ai_family   = AF_UNSPEC;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_socktype = SOCK_STREAM;
+    if (p_getaddrinfo(host[0] ? host : NULL, port[0] ? port : NULL, &hints, &result)) {
+        if (parse_status)
+            *parse_status = -1;
+        return newsock;
     }
-preferred = result;
-#ifdef IPV6_V6ONLY
-/*
-    When we can create a dual stack socket, be sure to find the IPv6 addrinfo 
-    to bind to.
-*/
-for (; preferred != NULL; preferred = preferred->ai_next) {
-    if (preferred->ai_family == AF_INET6)
-        break;
-    }
-if (preferred == NULL)
     preferred = result;
+#ifdef IPV6_V6ONLY
+    /*
+        When we can create a dual stack socket, be sure to find the IPv6 addrinfo
+        to bind to.
+    */
+    for (; preferred != NULL; preferred = preferred->ai_next) {
+        if (preferred->ai_family == AF_INET6)
+            break;
+    }
+    if (preferred == NULL)
+        preferred = result;
 #endif
 retry:
-newsock = sim_create_sock (preferred->ai_family, 0);    /* create socket */
-if (newsock == INVALID_SOCKET) {                        /* socket error? */
+    newsock = sim_create_sock(preferred->ai_family, 0); /* create socket */
+    if (newsock == INVALID_SOCKET) {                    /* socket error? */
 #ifndef IPV6_V6ONLY
-    if (preferred->ai_next) {
-        preferred = preferred->ai_next;
-        goto retry;
+        if (preferred->ai_next) {
+            preferred = preferred->ai_next;
+            goto retry;
         }
 #else
-    if ((preferred->ai_family == AF_INET6) &&
-        (preferred != result)) {
-        preferred = result;
-        goto retry;
+        if ((preferred->ai_family == AF_INET6) && (preferred != result)) {
+            preferred = result;
+            goto retry;
         }
 #endif
-    p_freeaddrinfo(result);
-    return newsock;
+        p_freeaddrinfo(result);
+        return newsock;
     }
 #ifdef IPV6_V6ONLY
-if (preferred->ai_family == AF_INET6) {
-    int off = 0;
-    sta = setsockopt (newsock, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&off, sizeof(off));
+    if (preferred->ai_family == AF_INET6) {
+        int off = 0;
+        sta     = setsockopt(newsock, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&off, sizeof(off));
     }
 #endif
-if (opt_flags & SIM_SOCK_OPT_REUSEADDR) {
-    int on = 1;
+    if (opt_flags & SIM_SOCK_OPT_REUSEADDR) {
+        int on = 1;
 
-    sta = setsockopt (newsock, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on));
+        sta = setsockopt(newsock, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on));
     }
-#if defined (SO_EXCLUSIVEADDRUSE)
-else {
-    int on = 1;
+#if defined(SO_EXCLUSIVEADDRUSE)
+    else {
+        int on = 1;
 
-    sta = setsockopt (newsock, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (char *)&on, sizeof(on));
+        sta = setsockopt(newsock, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (char *)&on, sizeof(on));
     }
 #endif
-sta = bind (newsock, preferred->ai_addr, preferred->ai_addrlen);
-p_freeaddrinfo(result);
-if (sta == SOCKET_ERROR)                                /* bind error? */
-    return sim_err_sock (newsock, "bind");
-if (!(opt_flags & SIM_SOCK_OPT_BLOCKING)) {
-    sta = sim_setnonblock (newsock);                    /* set nonblocking */
-    if (sta == SOCKET_ERROR)                            /* fcntl error? */
-        return sim_err_sock (newsock, "fcntl");
+    if (sta == SOCKET_ERROR)
+        return sim_err_sock(newsock, "setsockopt");
+
+    sta = bind(newsock, preferred->ai_addr, preferred->ai_addrlen);
+    p_freeaddrinfo(result);
+    if (sta == SOCKET_ERROR) /* bind error? */
+        return sim_err_sock(newsock, "bind");
+    if (!(opt_flags & SIM_SOCK_OPT_BLOCKING)) {
+        sta = sim_setnonblock(newsock); /* set nonblocking */
+        if (sta == SOCKET_ERROR)        /* fcntl error? */
+            return sim_err_sock(newsock, "fcntl");
     }
-sta = listen (newsock, 1);                              /* listen on socket */
-if (sta == SOCKET_ERROR)                                /* listen error? */
-    return sim_err_sock (newsock, "listen");
-return newsock;                                         /* got it! */
+    sta = listen(newsock, 1); /* listen on socket */
+    if (sta == SOCKET_ERROR)  /* listen error? */
+        return sim_err_sock(newsock, "listen");
+
+    return newsock; /* got it! */
 }
 
 SOCKET sim_connect_sock_ex (const char *sourcehostport, const char *hostport, const char *default_host, const char *default_port, int opt_flags)
@@ -1038,7 +1041,7 @@ return newsock;                                         /* got it! */
 
 SOCKET sim_accept_conn_ex (SOCKET master, char **connectaddr, int opt_flags)
 {
-int sta = 0, err;
+int sta = 0;
 int keepalive = 1;
 #if defined (macintosh) || defined (__linux) || defined (__linux__) || \
     defined (__APPLE__) || defined (__OpenBSD__) || \
@@ -1062,7 +1065,7 @@ size = sizeof (clientname);
 memset (&clientname, 0, sizeof(clientname));
 newsock = accept (master, (struct sockaddr *) &clientname, &size);
 if (newsock == INVALID_SOCKET) {                        /* error? */
-    err = WSAGetLastError ();
+    int err = WSAGetLastError ();
     if (err != WSAEWOULDBLOCK)
         sim_err_sock(newsock, "accept");
     return INVALID_SOCKET;
@@ -1142,6 +1145,9 @@ return 0;
 
 static int _sim_getaddrname (struct sockaddr *addr, size_t addrsize, char *hostnamebuf, char *portnamebuf)
 {
+int ret = 0;
+
+#ifdef AF_INET6
 #if defined (macintosh) || defined (__linux) || defined (__linux__) || \
     defined (__APPLE__) || defined (__OpenBSD__) || \
     defined(__NetBSD__) || defined(__FreeBSD__) || \
@@ -1155,9 +1161,7 @@ int size = (int)addrsize;
 #else 
 size_t size = addrsize; 
 #endif
-int ret = 0;
 
-#ifdef AF_INET6
 *hostnamebuf = '\0';
 *portnamebuf = '\0';
 ret = p_getnameinfo(addr, size, hostnamebuf, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
@@ -1215,13 +1219,13 @@ return 0;
 
 int sim_read_sock (SOCKET sock, char *buf, int nbytes)
 {
-int rbytes, err;
+int rbytes;
 
 rbytes = recv (sock, buf, nbytes, 0);
 if (rbytes == 0)                                        /* disconnect */
     return -1;
 if (rbytes == SOCKET_ERROR) {
-    err = WSAGetLastError ();
+    int err = WSAGetLastError ();
     if (err == WSAEWOULDBLOCK)                          /* no data */
         return 0;
 #if defined(EAGAIN)
@@ -1242,10 +1246,10 @@ return rbytes;
 
 int sim_write_sock (SOCKET sock, const char *msg, int nbytes)
 {
-int err, sbytes = send (sock, msg, nbytes, 0);
+int sbytes = send (sock, msg, nbytes, 0);
 
 if (sbytes == SOCKET_ERROR) {
-    err = WSAGetLastError ();
+    int err = WSAGetLastError ();
     if (err == WSAEWOULDBLOCK)                          /* no data */
         return 0;
 #if defined(EAGAIN)

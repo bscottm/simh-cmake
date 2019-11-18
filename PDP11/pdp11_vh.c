@@ -1368,18 +1368,16 @@ static t_stat vh_wr (   int32   ldata,
 static void doDMA ( int32   vh,
             int32   chan    )
 {
-    int32   line, status;
-    uint32  pa;
+    int32   line;
     TMLX    *lp;
 
     line = (vh * VH_LINES) + chan;
     lp = &vh_parm[line];
     if ((lp->tbuf2 & TB2_TX_ENA) && (lp->tbuf2 & TB2_TX_DMA_START)) {
-        int32 sent = 0;
+        int32  sent = 0;
+        uint32 pa = lp->tbuf1 | ((lp->tbuf2 & TB2_M_TBUFFAD) << 16);
+        uint32 status = chan << CSR_V_TX_LINE;
 
-        pa = lp->tbuf1;
-        pa |= (lp->tbuf2 & TB2_M_TBUFFAD) << 16;
-        status = chan << CSR_V_TX_LINE;
         while (lp->tbuffct) {
             uint8   buf;
             if (Map_ReadB (pa, 1, &buf)) {
@@ -1748,7 +1746,7 @@ static t_stat vh_show_detail (   FILE    *st,
     fprintf (st, "VH:\trxi %d, txi %d\n", vh_rxi, vh_txi);
     for (i = 0; i < vh_desc.lines/VH_LINES; i++) {
         fprintf (st, "VH%d:\tmode %s, crit %d\n", i,
-            vh_unit[i].flags & UNIT_MODEDHU ? "DHU" : "DHV",
+            (vh_unit[i].flags & UNIT_MODEDHU) ? "DHU" : "DHV",
             vh_crit & (1 << i));
         fprintf (st, "\tCSR %06o, mcount %d, rbuf_idx %d, txq_idx %d\n",
             vh_csr[i], vh_mcount[i], rbuf_idx[i], txq_idx[i]);
@@ -1786,17 +1784,20 @@ static t_stat vh_show_txq ( FILE    *st,
 
 static t_stat vh_setnl (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 {
-int32 newln, i, t;
+size_t newln;
 t_stat r;
 
 if (cptr == NULL)
     return SCPE_ARG;
-newln = (int32) get_uint (cptr, 10, (VH_MUXES * VH_LINES), &r);
+newln = get_uint (cptr, 10, (VH_MUXES * VH_LINES), &r);
 if ((r != SCPE_OK) || (newln == vh_desc.lines))
     return r;
 if ((newln == 0) || (newln % VH_LINES))
     return sim_messagef (SCPE_ARG, "VH line count must be a multiple of %d\n", VH_LINES);
 if (newln < vh_desc.lines) {
+    size_t i;
+    uint32 t;
+    
     for (i = newln, t = 0; i < vh_desc.lines; i++)
         t = t | vh_ldsc[i].conn;
     if (t && !get_yn ("This will disconnect users; proceed [N]?", FALSE))

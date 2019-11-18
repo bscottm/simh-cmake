@@ -443,7 +443,7 @@ t_stat dz_wr (int32 ldata, int32 PA, int32 access)
 {
 int32 dz = ((PA - dz_dib.ba) >> 3);                     /* get mux num */
 static BITFIELD* bitdefs[] = {dz_csr_bits, dz_lpr_bits, dz_tcr_bits, dz_tdr_bits};
-int32 i, c, line;
+int32 line;
 char lineconfig[16];
 TMLN *lp;
 uint16 data = (uint16)ldata;
@@ -504,6 +504,7 @@ switch ((PA >> 1) & 03) {                               /* case on PA<2:1> */
         if (dz_mctl && 
             ((access != WRITEB) || (PA & 1))) {         /* modem ctl (DTR)? */
             int32 changed = data ^ dz_tcr[dz];
+            uint32 i;
 
             for (i = 0; i < DZ_LINES; i++) {
                 if (0 == (changed & (1 << (TCR_V_DTR + i))))
@@ -530,6 +531,8 @@ switch ((PA >> 1) & 03) {                               /* case on PA<2:1> */
             }
         dz_tdr[dz] = data;
         if (dz_csr[dz] & CSR_MSE) {                     /* enabled? */
+            int32 c;
+
             line = (dz * DZ_LINES) + CSR_GETTL (dz_csr[dz]);
             lp = &dz_ldsc[line];                        /* get line desc */
             c = sim_tt_outcvt (dz_tdr[dz], TT_GET_MODE (dz_unit[0].flags));
@@ -558,16 +561,17 @@ return SCPE_OK;
 
 t_stat dz_svc (UNIT *uptr)
 {
-int32 dz, t, newln, muxln;
+int32 dz, t;
 
 sim_debug(DBG_TRC, find_dev_from_unit(uptr), "dz_svc()\n");
 for (dz = t = 0; dz < dz_desc.lines/DZ_LINES; dz++)     /* check enabled */
     t = t | (dz_csr[dz] & CSR_MSE);
 if (t) {                                                /* any enabled? */
-    newln = tmxr_poll_conn (&dz_desc);                  /* poll connect */
+    int32 newln = tmxr_poll_conn (&dz_desc);            /* poll connect */
     if ((newln >= 0) && dz_mctl) {                      /* got a live one? */
+        uint32 muxln = newln % DZ_LINES;                /* get line in mux */
+
         dz = newln / DZ_LINES;                          /* get mux num */
-        muxln = newln % DZ_LINES;                       /* get line in mux */
         if (dz_tcr[dz] & (1 << (muxln + TCR_V_DTR)))    /* DTR set? */
             dz_msr[dz] |= (1 << (muxln + MSR_V_CD));    /* set cdet */
         else dz_msr[dz] |= (1 << (muxln + MSR_V_RI));   /* set ring */
@@ -659,10 +663,12 @@ return;
 
 void dz_update_xmti (void)
 {
-int32 dz, linemask, i, j, line;
+size_t dz, i, line;
 
 for (dz = 0; dz < dz_desc.lines/DZ_LINES; dz++) {       /* loop thru muxes */
-    linemask = dz_tcr[dz] & DZ_LMASK;                   /* enabled lines */
+    uint32 linemask = dz_tcr[dz] & DZ_LMASK;            /* enabled lines */
+    uint32 j;
+
     dz_csr[dz] &= ~CSR_TRDY;                            /* assume not rdy */
     j = CSR_GETTL (dz_csr[dz]);                         /* start at current */
     for (i = 0; i < DZ_LINES; i++) {                    /* loop thru lines */
@@ -752,7 +758,7 @@ return 0;
 
 t_stat dz_clear (int32 dz, t_bool flag)
 {
-int32 i, line;
+size_t i;
 
 sim_debug(DBG_TRC, &dz_dev, "dz_clear(dz=%d,flag=%d)\n", dz, flag);
 
@@ -768,7 +774,7 @@ dz_sae[dz] = 1;                                         /* alarm on */
 dz_clr_rxint (dz);                                      /* clear int */
 dz_clr_txint (dz);
 for (i = 0; i < DZ_LINES; i++) {                        /* loop thru lines */
-    line = (dz * DZ_LINES) + i;
+    size_t line = (dz * DZ_LINES) + i;
     if (!dz_ldsc[line].conn)                            /* set xmt enb */
         dz_ldsc[line].xmte = 1;
     dz_ldsc[line].rcve = 0;                             /* clr rcv enb */
@@ -790,10 +796,16 @@ if (dz_ldsc == NULL) {
     }
 if ((dz_desc.lines % DZ_LINES) != 0) {      /* Transition from Qbus to Unibus device */
     int32 newln = DZ_LINES * (1 + (dz_desc.lines / DZ_LINES));
+    TMLN *descs = (TMLN *)realloc(dz_ldsc, newln*sizeof(*dz_ldsc));
 
-    dz_desc.ldsc = dz_ldsc = (TMLN *)realloc(dz_ldsc, newln*sizeof(*dz_ldsc));
-    memset (dz_ldsc + dz_desc.lines, 0, sizeof(*dz_ldsc)*(newln-dz_desc.lines));
-    dz_desc.lines = newln;
+    if (descs != NULL) {
+        dz_desc.ldsc = dz_ldsc = descs;
+        memset (dz_ldsc + dz_desc.lines, 0, sizeof(*dz_ldsc)*(newln-dz_desc.lines));
+        dz_desc.lines = newln;
+        }
+    else {
+        return sim_messagef(SCPE_MEM, "dz_reset realloc: Can't resize dz_ldsc, dz_desc.ldsc.");
+        }
     }
 tmxr_set_port_speed_control (&dz_desc);
 for (i = 0; i < dz_desc.lines/DZ_LINES; i++)            /* init muxes */
@@ -867,39 +879,51 @@ return show_vec (st, uptr, ((mp->lines * 2) / DZ_LINES), desc);
 
 /* SET LINES processor */
 
-t_stat dz_setnl (UNIT *uptr, int32 val, CONST char *cptr, void *desc)
+t_stat
+dz_setnl(UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 {
-int32 newln, i, t;
-t_stat r;
+    size_t newln;
+    t_stat r;
+    TMLN * descs;
 
-if (cptr == NULL)
-    return SCPE_ARG;
-newln = (int32) get_uint (cptr, 10, (MAX_DZ_MUXES * DZ_LINES), &r);
-if ((r != SCPE_OK) || (newln == dz_desc.lines))
-    return r;
-if ((newln == 0) || (newln % DZ_LINES))
-    return SCPE_ARG;
-if (newln < dz_desc.lines) {
-    for (i = newln, t = 0; i < dz_desc.lines; i++)
-        t = t | dz_ldsc[i].conn;
-    if (t && !get_yn ("This will disconnect users; proceed [N]?", FALSE))
-        return SCPE_OK;
-    for (i = newln; i < dz_desc.lines; i++) {
-        if (dz_ldsc[i].conn) {
-            tmxr_linemsg (&dz_ldsc[i], "\r\nOperator disconnected line\r\n");
-            tmxr_send_buffered_data (&dz_ldsc[i]);
+    if (cptr == NULL)
+        return SCPE_ARG;
+    newln = get_uint(cptr, 10, (MAX_DZ_MUXES * DZ_LINES), &r);
+    if ((r != SCPE_OK) || (newln == dz_desc.lines))
+        return r;
+    if ((newln == 0) || (newln % DZ_LINES))
+        return SCPE_ARG;
+    if (newln < dz_desc.lines) {
+        size_t i;
+        uint32 t;
+
+        for (i = newln, t = 0; i < dz_desc.lines; i++)
+            t = t | dz_ldsc[i].conn;
+        if (t && !get_yn("This will disconnect users; proceed [N]?", FALSE))
+            return SCPE_OK;
+        for (i = newln; i < dz_desc.lines; i++) {
+            if (dz_ldsc[i].conn) {
+                tmxr_linemsg(&dz_ldsc[i], "\r\nOperator disconnected line\r\n");
+                tmxr_send_buffered_data(&dz_ldsc[i]);
             }
-        tmxr_detach_ln (&dz_ldsc[i]);                   /* completely reset line */
-        if ((i % DZ_LINES) == (DZ_LINES - 1))
-            dz_clear (i / DZ_LINES, TRUE);              /* reset mux */
+            tmxr_detach_ln(&dz_ldsc[i]); /* completely reset line */
+            if ((i % DZ_LINES) == (DZ_LINES - 1))
+                dz_clear(i / DZ_LINES, TRUE); /* reset mux */
         }
     }
-dz_dib.lnt = (newln / DZ_LINES) * IOLN_DZ;              /* set length */
-dz_desc.ldsc = dz_ldsc = (TMLN *)realloc(dz_ldsc, newln*sizeof(*dz_ldsc));
-if (dz_desc.lines < newln)
-    memset (dz_ldsc + dz_desc.lines, 0, sizeof(*dz_ldsc)*(newln-dz_desc.lines));
-dz_desc.lines = newln;
-return dz_reset (&dz_dev);                              /* setup lines and auto config */
+
+    descs = (TMLN *)realloc(dz_ldsc, newln * sizeof(*dz_ldsc));
+    if (descs != NULL) {
+        dz_dib.lnt   = (newln / DZ_LINES) * IOLN_DZ; /* set length */
+        dz_desc.ldsc = dz_ldsc = descs;
+        if (dz_desc.lines < newln)
+            memset(dz_ldsc + dz_desc.lines, 0, sizeof(*dz_ldsc) * (newln - dz_desc.lines));
+        dz_desc.lines = newln;
+        return dz_reset(&dz_dev); /* setup lines and auto config */
+    } else {
+        return sim_messagef(SCPE_MEM,
+                            "dz_setnl realloc: Cannot resize dz_desc.ldsc, dz_ldsc. Continuing, but expecting failure.");
+    }
 }
 
 /* SET LOG processor */

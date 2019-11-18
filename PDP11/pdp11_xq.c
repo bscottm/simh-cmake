@@ -1096,7 +1096,6 @@ t_stat xq_rd(int32* data, int32 PA, int32 access)
 
 t_stat xq_process_rbdl(CTLR* xq)
 {
-  int32 rstatus, wstatus;
   uint16 b_length, w_length, rbl;
   uint32 address, start_rbdl_ba;
   int dcount;
@@ -1116,6 +1115,7 @@ t_stat xq_process_rbdl(CTLR* xq)
 
   /* process buffer descriptors */
   while(1) {
+    int32 rstatus, wstatus;
 
     /* get receive bdl flags and descriptor bits from memory */
     rstatus = Map_ReadW (xq->var->rbdl_ba,     4, &xq->var->rbdl_buf[0]);
@@ -1302,7 +1302,6 @@ t_stat xq_process_rbdl(CTLR* xq)
 
 t_stat xq_process_mop(CTLR* xq)
 {
-  uint32 address;
   int32 wstatus;
   struct xq_meb* meb = (struct xq_meb*) &xq->var->write_buffer.msg[0200];
   const struct xq_meb* limit = (struct xq_meb*) &xq->var->write_buffer.msg[0400];
@@ -1314,7 +1313,7 @@ t_stat xq_process_mop(CTLR* xq)
 
   while ((meb->type != 0) && (meb < limit)) {
     /* Very questionable: "||" instead of "|". Replaced with "|" */
-    address = (meb->add_hi << 16) | (meb->add_mi << 8) | meb->add_lo;
+    uint32 address = (meb->add_hi << 16) | (meb->add_mi << 8) | meb->add_lo;
 
     /* MOP stuff here - NOT YET FULLY IMPLEMENTED */
     sim_debug (DBG_WRN, xq->dev, "Processing MEB type: %d\n", meb->type);
@@ -1361,7 +1360,6 @@ t_stat xq_process_setup(CTLR* xq)
 {
   int i,j;
   int count = 0;
-  float secs = 0;
   uint32 saved_debug = xq->dev->dctrl;
   ETH_MAC zeros = {0, 0, 0, 0, 0, 0};
   ETH_MAC filters[XQ_FILTER_MAX + 1];
@@ -1417,6 +1415,7 @@ t_stat xq_process_setup(CTLR* xq)
   if (xq->var->write_buffer.len > 128) {
     uint16 len = (uint16)xq->var->write_buffer.len;
     uint16 led, san;
+    float secs = 0;
 
     xq->var->setup.multicast = (0 != (len & XQ_SETUP_MC));
     xq->var->setup.promiscuous = (0 != (len & XQ_SETUP_PM));
@@ -1488,8 +1487,6 @@ t_stat xq_process_xbdl(CTLR* xq)
   const uint16  implicit_chain_status[2] = {XQ_DSC_V | XQ_DSC_C, 1};
   uint16  write_success[2] = {0x2000 /* Bit 13 Always Set */, 1 /*Non-Zero TDR*/};
   uint16 b_length, w_length;
-  int32 rstatus, wstatus;
-  uint32 address;
   t_stat status;
 
   sim_debug(DBG_TRC, xq->dev, "xq_process_xbdl()\n");
@@ -1501,6 +1498,8 @@ t_stat xq_process_xbdl(CTLR* xq)
 
   /* process buffer descriptors until not valid */
   while (1) {
+    int32 rstatus, wstatus;
+    uint32 address;
 
     /* Get transmit bdl from memory */
     rstatus = Map_ReadW (xq->var->xbdl_ba,    12, &xq->var->xbdl_buf[0]);
@@ -1618,7 +1617,6 @@ void xq_show_debug_bdl(CTLR* xq, uint32 bdl_ba)
   uint16 bdl_buf[6];
   uint16 b_length, w_length;
   uint32 address, initial_bdl_ba = bdl_ba;
-  int32 rstatus;
 
   if ((!sim_deb) || (!(xq->dev->dctrl & DBG_TRC)))/* Do nothing if not debugging */
       return;
@@ -1628,8 +1626,10 @@ void xq_show_debug_bdl(CTLR* xq, uint32 bdl_ba)
   while (1) {
 
     /* get the beginning of the buffer descriptor */
-    rstatus = Map_ReadW (bdl_ba, 6, &bdl_buf[0]);
-    if (rstatus) return;
+    int32 rstatus = Map_ReadW (bdl_ba, 6, &bdl_buf[0]);
+
+    if (rstatus)
+      return;
 
     /* explicit chain buffer? */
     if (bdl_buf[1] & XQ_DSC_C) {
@@ -1726,8 +1726,6 @@ t_stat xq_dispatch_xbdl(CTLR* xq)
 
 t_stat xq_process_turbo_rbdl(CTLR* xq)
 {
-  int i;
-  t_stat status;
   int descriptors_consumed = 0;
   uint32 rdra = (xq->var->init.rdra_h << 16) | xq->var->init.rdra_l;
 
@@ -1742,6 +1740,8 @@ t_stat xq_process_turbo_rbdl(CTLR* xq)
     uint16 b_length, rbl;
     ETH_ITEM* item;
     uint8* rbuf;
+    t_stat status;
+    size_t i;
 
     /* stop processing when nothing in read queue */
     if (!xq->var->ReadQ.count)
@@ -1856,7 +1856,6 @@ t_stat xq_process_turbo_rbdl(CTLR* xq)
 
 t_stat xq_process_turbo_xbdl(CTLR* xq)
 {
-  int i;
   t_stat status;
   int descriptors_consumed  = 0;
   uint32 tdra = (xq->var->init.tdra_h << 16) | xq->var->init.tdra_l;
@@ -1875,8 +1874,7 @@ t_stat xq_process_turbo_xbdl(CTLR* xq)
   do {
     uint32 address;
     uint16 b_length;
-
-    i = xq->var->tbindx;
+    size_t i = xq->var->tbindx;
 
     /* Get transmit descriptor from memory */
     status = Map_ReadW (tdra+i*sizeof(xq->var->xring[i]), sizeof(xq->var->xring[i]), (uint16 *)&xq->var->xring[i]);
@@ -2101,11 +2099,11 @@ void xq_read_callback(CTLR* xq, int status)
 
   if ((xq->var->csr & XQ_CSR_RE) || (xq->var->mode == XQ_T_DELQA_PLUS)) { /* receiver enabled */
     /* process any packets locally that can be */
-    t_stat status = xq_process_local (xq, &xq->var->read_buffer);
+    t_stat lcl_status = xq_process_local (xq, &xq->var->read_buffer);
 
     /* add packet to read queue */
-    if (status != SCPE_OK)
-      ethq_insert(&xq->var->ReadQ, 2, &xq->var->read_buffer, status);
+    if (lcl_status != SCPE_OK)
+      ethq_insert(&xq->var->ReadQ, 2, &xq->var->read_buffer, lcl_status);
   } else {
     xq->var->stats.dropped += 1;
     sim_debug(DBG_WRN, xq->dev, "packet received with receiver disabled\n");
@@ -2125,7 +2123,6 @@ void xqb_read_callback(int status)
 void xq_sw_reset(CTLR* xq)
 {
   uint16 set_bits = XQ_CSR_XL | XQ_CSR_RL;
-  int i;
 
   sim_debug(DBG_TRC, xq->dev, "xq_sw_reset()\n");
   ++xq->var->stats.reset;
@@ -2158,7 +2155,8 @@ void xq_sw_reset(CTLR* xq)
   xq->var->setup.multicast = 0;
   xq->var->setup.promiscuous = 0;
   if (xq->var->etherface) {
-    int count = 0;
+    int     count = 0;
+    size_t  i;
     ETH_MAC zeros = {0, 0, 0, 0, 0, 0};
     ETH_MAC filters[XQ_FILTER_MAX + 1];
 
@@ -2606,7 +2604,7 @@ t_stat xq_reset(DEVICE* dptr)
   /* reset ethernet interface */
   if (xq->var->etherface) {
     /* restore filter on ROM mac address */
-    status = eth_filter (xq->var->etherface, 1, &xq->var->mac, 0, 0);
+    /*status =*/ eth_filter (xq->var->etherface, 1, &xq->var->mac, 0, 0);
     xq_csr_set_clr(xq, XQ_CSR_OK, 0);
 
     /* start service timer */
@@ -2662,7 +2660,6 @@ t_stat xq_boot_host(CTLR* xq)
 
 t_stat xq_system_id (CTLR* xq, const ETH_MAC dest, uint16 receipt_id)
 {
-  static uint16 receipt = 0;
   ETH_PACK system_id;
   uint8* const msg = &system_id.msg[0];
   t_stat status;
@@ -2693,6 +2690,8 @@ t_stat xq_system_id (CTLR* xq, const ETH_MAC dest, uint16 receipt_id)
     msg[18] = receipt_id & 0xFF;          /* receipt number */
     msg[19] = (receipt_id >> 8) & 0xFF;   /* receipt number */
   } else {
+    static uint16 receipt = 0;
+
     msg[18] = receipt & 0xFF;             /* receipt number */
     msg[19] = (receipt++ >> 8) & 0xFF;    /* receipt number */
   }
@@ -2858,12 +2857,13 @@ t_stat xq_attach(UNIT* uptr, CONST char* cptr)
   t_stat status;
   char* tptr;
   CTLR* xq = xq_unit2ctlr(uptr);
-  char buffer[80];                                          /* buffer for runtime input */
 
   sim_debug(DBG_TRC, xq->dev, "xq_attach(cptr=%s)\n", cptr);
 
   /* runtime selection of ethernet port? */
   if (*cptr == '?') {                                       /* I/O style derived from main() */
+    char buffer[80];                                        /* buffer for runtime input */
+
     memset (buffer, 0, sizeof(buffer));                     /* clear read buffer */
     eth_show (stdout, uptr, 0, NULL);                       /* show ETH devices */
     printf ("Select device (ethX or <device_name>)? ");     /* prompt for device */
@@ -3085,14 +3085,14 @@ void xq_debug_setup(CTLR* xq)
   }
 
   if (xq->var->write_buffer.len > 128) {
-    char buffer[20] = {0};
+    char dbg_buffer[20] = {0};
     uint16 len = (uint16)xq->var->write_buffer.len;
-    if (len & XQ_SETUP_MC) strcat(buffer, "MC ");
-    if (len & XQ_SETUP_PM) strcat(buffer, "PM ");
-    if (len & XQ_SETUP_LD) strcat(buffer, "LD ");
-    if (len & XQ_SETUP_ST) strcat(buffer, "ST ");
+    if (len & XQ_SETUP_MC) strcat(dbg_buffer, "MC ");
+    if (len & XQ_SETUP_PM) strcat(dbg_buffer, "PM ");
+    if (len & XQ_SETUP_LD) strcat(dbg_buffer, "LD ");
+    if (len & XQ_SETUP_ST) strcat(dbg_buffer, "ST ");
     sim_debug(DBG_SET, xq->dev, "%s: setup> Length [%d =0x%X, LD:%d, ST:%d] info: %s\n",
-      xq->dev->name, len, len, (len & XQ_SETUP_LD) >> 2, (len & XQ_SETUP_ST) >> 4, buffer);
+      xq->dev->name, len, len, (len & XQ_SETUP_LD) >> 2, (len & XQ_SETUP_ST) >> 4, dbg_buffer);
   }
 }
 

@@ -819,8 +819,8 @@ struct BRKTAB {
 #define BRK_TYP_DYN_ALL         (BRK_TYP_DYN_USR|BRK_TYP_DYN_STEPOVER) /* Mask of All Dynamic types */
 #define BRK_TYP_TEMP            (SWMASK ('Z'+3))        /* Temporary (one-shot) */
 #define BRK_TYP_MAX             (('Z'-'A')+3)           /* Maximum breakpoint type */
-    int32               cnt;                            /* proceed count */
-    char                *act;                           /* action string */
+    uint32              cnt;                            /* proceed count */
+    char               *act;                            /* action string */
     double              time_fired[SIM_BKPT_N_SPC];     /* instruction count when match occurred */
     BRKTAB *next;                                       /* list with same address value */
     };
@@ -899,8 +899,8 @@ struct DEBTAB {
 /* Open File Reference */
 struct FILEREF {
     char                name[CBUFSIZE];                 /* file name */
-    FILE                *file;                          /* file handle */
-    int32               refcount;                       /* reference count */
+    FILE               *file;                           /* file handle */
+    uint32              refcount;                       /* reference count */
     };
 
 struct MEMFILE {

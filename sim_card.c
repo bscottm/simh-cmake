@@ -610,7 +610,7 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
 {
     int    mode;
     uint16 temp;
-    int    i;
+    size_t i;
     char   c;
     int    col;
 
@@ -757,10 +757,10 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
             }
         }
     end_card:
-        sim_debug(DEBUG_CARD, dptr, "-%d-", i);
+        sim_debug(DEBUG_CARD, dptr, "-%" PRI_SIZE_T "-", i);
 
         /* Scan to end of line, ignore anything after last column */
-        while (buf->buffer[i] != '\n' && buf->buffer[i] != '\r' && i < buf->len) {
+        while (i < MIN(ARRAY_SIZE(buf->buffer), buf->len) && buf->buffer[i] != '\n' && buf->buffer[i] != '\r') {
             i++;
         }
         if (buf->buffer[i] == '\r')
@@ -778,7 +778,7 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
             return SCPE_OPENERR;
         }
         /* Move data to buffer */
-        for (col = i = 0; i < 160;) {
+        for (col = i = 0; i < MIN(160, ARRAY_SIZE(buf->buffer));) {
             temp |= (uint16)(buf->buffer[i] & 0xff);
             (*image)[col] = (buf->buffer[i++] >> 4) & 0xF;
             (*image)[col++] |= ((uint16)buf->buffer[i++] & 0xf) << 4;
@@ -802,7 +802,7 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
         buf->buffer[0] &= 0x7f;
 
         /* Convert card and check for errors */
-        for (col = i = 0; i < buf->len && col < 80;) {
+        for (col = i = 0; i < MIN(ARRAY_SIZE(buf->buffer), buf->len) && col < 80;) {
             uint8 uc;
 
             if (buf->buffer[i] & 0x80)
@@ -819,12 +819,12 @@ _sim_parse_card(UNIT *uptr, DEVICE *dptr, struct _card_buffer *buf, uint16 (*ima
             (*image)[col++] |= uc;
         }
 
-        if (i < buf->len && col >= 80 && (buf->buffer[i] & 0x80) == 0) {
+        if (i < MIN(ARRAY_SIZE(buf->buffer), buf->len) && col >= 80 && (buf->buffer[i] & 0x80) == 0) {
             (*image)[0] |= CARD_ERR;
         }
         /* Record over length of card, skip until next */
         while ((buf->buffer[i] & 0x80) == 0) {
-            if (i > buf->len)
+            if (i > MIN(ARRAY_SIZE(buf->buffer), buf->len))
                 break;
             i++;
         }
@@ -887,8 +887,8 @@ _sim_read_deck(UNIT *uptr, int eof)
     struct card_context *data;
     DEVICE *             dptr;
     int                  i;
-    int                  l;
-    int                  cards = 0;
+    size_t               l;
+    size_t               cards = 0;
     t_stat               r     = SCPE_OK;
 
     if ((uptr->flags & UNIT_ATT) == 0)
@@ -903,11 +903,11 @@ _sim_read_deck(UNIT *uptr, int eof)
 
     /* Slurp up current file */
     do {
-        int j;
+        size_t j;
 
         if (buf.len < 500 && !feof(uptr->fileref)) {
             l = sim_fread(&buf.buffer[buf.len], 1, 8192, uptr->fileref);
-            if (l < 0)
+            if (l == 0)
                 r = SCPE_OPENERR;
             else
                 buf.len += l;
@@ -931,8 +931,8 @@ _sim_read_deck(UNIT *uptr, int eof)
         /* Process one card */
         cards++;
         if (_sim_parse_card(uptr, dptr, &buf, &(*data->images)[data->hopper_cards]) != SCPE_OK) {
-            r = sim_messagef(SCPE_OPENERR, "%s: %s Error (%s) in card %d\n", sim_uname(uptr), uptr->filename,
-                             sim_error_text(r), cards);
+            r = sim_messagef(SCPE_OPENERR, "%s: %s Error (%s) in card %" PRI_SIZE_T "\n",
+                             sim_uname(uptr), uptr->filename, sim_error_text(r), cards);
         }
         data->hopper_cards++;
         /* Move data to start at begining of buffer */

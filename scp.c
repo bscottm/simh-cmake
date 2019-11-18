@@ -10614,7 +10614,8 @@ sprint_val(char *buffer, t_value val, uint32 radix, uint32 width, uint32 format)
 #define MAX_WIDTH ((int)((CHAR_BIT * sizeof(t_value) * 4 + 3) / 3))
     t_value owtest, wtest;
     t_bool  negative = FALSE;
-    int32   d, digit, ndigits, commas = 0;
+    size_t  d;
+    int32   digit, ndigits, commas = 0;
     char    dbuf[MAX_WIDTH + 1];
 
     if (((format == PV_LEFTSIGN) || (format == PV_RCOMMASIGN)) && (0 > (t_svalue)val)) {
@@ -14795,7 +14796,7 @@ return (sim_rand_seed - 1);
 static t_stat
 sim_library_unit_tests(void)
 {
-    int     i;
+    size_t  i;
     DEVICE *dptr;
     int32   saved_switches = sim_switches & ~SWMASK('T');
     t_stat  stat           = SCPE_OK;

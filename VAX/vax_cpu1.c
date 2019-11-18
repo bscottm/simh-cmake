@@ -157,7 +157,6 @@ int32 pos = opnd[0];
 int32 size = opnd[1];
 int32 rn = opnd[2];
 uint32 wd = opnd[3];
-int32 ba, wd1 = 0;
 
 if (size == 0)                                          /* size 0? field = 0 */
     return 0;
@@ -172,7 +171,9 @@ if (rn != OP_MEM) {                                     /* register? */
         wd = (wd >> pos) | (((uint32) vfldrp1) << (32 - pos));
     }
 else {
-    ba = wd + (pos >> 3);                               /* base byte addr */
+    int32 ba = wd + (pos >> 3);                               /* base byte addr */
+    int32 wd1 = 0;
+
     pos = (pos & 07) | ((ba & 03) << 3);                /* bit offset */
     ba = ba & ~03;                                      /* lw align base */
     wd = Read (ba, L_LONG, RA);                         /* read field */
@@ -201,7 +202,7 @@ uint32 ins = opnd[0];
 int32 pos = opnd[1];
 int32 size = opnd[2];
 int32 rn = opnd[3];
-int32 val, mask, ba, wd, wd1;
+int32 val, mask;
 
 if (size == 0)                                          /* size = 0? done */
     return;
@@ -222,12 +223,14 @@ if (rn != OP_MEM) {                                     /* in registers? */
     R[rn] = (R[rn] & ~mask) | (val & mask);
     }
 else {
-    ba = opnd[4] + (pos >> 3);                          /* base byte addr */
+    int32 ba = opnd[4] + (pos >> 3);                    /* base byte addr */
+    int32 wd;
+    
     pos = (pos & 07) | ((ba & 03) << 3);                /* bit offset */
     ba = ba & ~03;                                      /* lw align base */
     wd = Read (ba, L_LONG, WA);                         /* read field */
     if ((size + pos) > 32) {                            /* field span lw? */
-        wd1 = Read (ba + 4, L_LONG, WA);                /* read 2nd lw */
+        int32 wd1 = Read (ba + 4, L_LONG, WA);          /* read 2nd lw */
         mask = byte_mask[pos + size - 32];              /* insert fragment */
         val = ins >> (32 - pos);
         Write (ba + 4, (wd1 & ~mask) | (val & mask), L_LONG, WA);
@@ -381,7 +384,7 @@ return 0;                                               /* new cc's */
 
 int32 op_ret (int32 acc)
 {
-int32 spamask, stklen, newpc, nargs;
+int32 spamask, stklen, newpc;
 int32 tsp = FP;
 
 spamask = Read (tsp + 4, L_LONG, RA);                   /* spa/s/mask/psw */
@@ -408,7 +411,7 @@ RET_POP (10);
 RET_POP (11);
 SP = tsp + CALL_GETSPA (spamask);                       /* dealign stack */
 if (spamask & CALL_S) {                                 /* CALLS? */
-    nargs = Read (SP, L_LONG, RA);                      /* read #args */
+    int32 nargs = Read (SP, L_LONG, RA);                /* read #args */
     SP = SP + 4 + ((nargs & BMASK) << 2);               /* pop arg list */
     }
 PSL = (PSL & ~(PSW_DV | PSW_FU | PSW_IV | PSW_T)) |     /* reset PSW */
@@ -724,7 +727,7 @@ return (b == h)? CC_Z: 0;                               /* if b = h, q empty */
 int32 op_remqti (int32 *opnd, int32 acc)
 {
 int32 h = opnd[0];
-int32 ar, b, c;
+int32 ar, c;
 int32 t;
 
 if (h & 07)                                             /* h quad aligned? */
@@ -740,6 +743,8 @@ if (ar & 06)                                            /* a quad aligned? */
 if (ar & 01)                                            /* busy, cc = 0011 */
     return CC_V | CC_C;
 if (ar) {                                               /* queue not empty */
+    int32 b;
+
     Write (h, ar | 1, L_LONG, WA);                      /* acquire interlock */
     c = Read (h + 4, L_LONG, RA);                       /* c <- (h+4) */
     if (ar == c) {                                      /* single entry? */
@@ -1012,7 +1017,7 @@ return cc;
 
 int32 op_locskp (int32 *opnd, int32 skpc, int32 acc)
 {
-int32 c, match;
+int32 match;
 
 if (PSL & PSL_FPD) {                                    /* FPD set? */
     SETPC (fault_PC + STR_GETDPC (R[0]));               /* reset PC */
@@ -1025,7 +1030,7 @@ else {
     PSL = PSL | PSL_FPD;
     }
 for ( ; (R[0] & STR_LNMASK) != 0; extra_bytes++ ) {    /* loop thru string */
-    c = Read (R[1], L_BYTE, RA);                        /* get src byte */
+    int32 c = Read (R[1], L_BYTE, RA);                 /* get src byte */
     if ((c == match) ^ skpc)                            /* match & locc? */
         break;
     R[0] = (R[0] & ~STR_LNMASK) | ((R[0] - 1) & STR_LNMASK);
@@ -1052,7 +1057,7 @@ return (R[0]? 0: CC_Z);                                 /* set cc's */
 
 int32 op_scnspn (int32 *opnd, int32 spanc, int32 acc)
 {
-int32 c, t, mask;
+int32 mask;
 
 if (PSL & PSL_FPD) {                                    /* FPD set? */
     SETPC (fault_PC + STR_GETDPC (R[0]));               /* reset PC */
@@ -1065,9 +1070,9 @@ else {
     R[0] = STR_PACK (mask, opnd[0]);                    /* srclen + FPD data */
     PSL = PSL | PSL_FPD;
     }
-for ( ; (R[0] & STR_LNMASK) != 0; extra_bytes++ ) {    /* loop thru string */
-    c = Read (R[1], L_BYTE, RA);                        /* get byte */
-    t = Read (R[3] + c, L_BYTE, RA);                    /* get table ent */
+for ( ; (R[0] & STR_LNMASK) != 0; extra_bytes++ ) {     /* loop thru string */
+    int32 c = Read (R[1], L_BYTE, RA);                  /* get byte */
+    int32 t = Read (R[3] + c, L_BYTE, RA);              /* get table ent */
     if (((t & mask) != 0) ^ spanc)                      /* test vs instr */
         break;
     R[0] = (R[0] & ~STR_LNMASK) | ((R[0] - 1) & STR_LNMASK);
@@ -1213,7 +1218,6 @@ int32 newpc = Read (SP, L_LONG, RA);
 int32 newpsl = Read (SP + 4, L_LONG, RA);
 int32 newcur = PSL_GETCUR (newpsl);
 int32 oldcur = PSL_GETCUR (PSL);
-int32 newipl, i;
 
 if ((newpsl & PSL_MBZ) ||                               /* rule 8 */
     (newcur < oldcur))                                  /* rule 1 */
@@ -1224,6 +1228,8 @@ if (newcur) {                                           /* to esu, skip 2,4,7 */
         REI_RSVD_FAULT("rule 3,5 or rule 6");           /* end rei to esu */
     }
 else {                                                  /* to k, skip 3,5,6 */
+    int32 newipl;
+
     newipl = PSL_GETIPL (newpsl);                       /* get new ipl */
     if ((newpsl & PSL_IS) &&                            /* setting IS? */
         (((PSL & PSL_IS) == 0) || (newipl == 0)))       /* test rules 2,4 */
@@ -1232,6 +1238,8 @@ else {                                                  /* to k, skip 3,5,6 */
         REI_RSVD_FAULT("rule 7");
     }                                                   /* end if kernel */
 if (newpsl & PSL_CM) {                                  /* setting cmode? */
+    int32 i;
+
     if (BadCmPSL (newpsl))                              /* validate PSL */
         REI_RSVD_FAULT("cmode invalid PSL");
     for (i = 0; i < 7; i++)                             /* mask R0-R6, PC */

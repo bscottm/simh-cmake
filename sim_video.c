@@ -615,8 +615,8 @@ if (SDL_SemTryWait (vid_mouse_events.sem) == 0) {
             vid_mouse_events.head = 0;
         nev = &vid_mouse_events.events[vid_mouse_events.head];
         if ((vid_mouse_events.count > 0) &&
-            (0 == (ev->x_rel + nev->x_rel)) &&
-            (0 == (ev->y_rel + nev->y_rel)) &&
+            (ev->x_rel == -nev->x_rel) &&
+            (ev->y_rel == -nev->y_rel) &&
             (ev->b1_state == nev->b1_state) &&
             (ev->b2_state == nev->b2_state) &&
             (ev->b3_state == nev->b3_state)) {

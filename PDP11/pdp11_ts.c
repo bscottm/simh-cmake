@@ -507,10 +507,11 @@ return 0;
 
 int32 ts_spacef (UNIT *uptr, int32 fc, t_bool upd)
 {
-t_stat st;
 t_mtrlnt tbc;
 
 do {
+    t_stat st;
+    
     fc = (fc - 1) & DMASK;                              /* decr wc */
     if (upd)
         msgrfc = fc;
@@ -523,7 +524,6 @@ return 0;
 
 int32 ts_skipf (UNIT *uptr, int32 fc)
 {
-t_stat st;
 t_mtrlnt tbc;
 t_bool tmkprv = FALSE;
 
@@ -531,7 +531,7 @@ msgrfc = fc;
 if (sim_tape_bot (uptr) && (wchopt & WCH_ENB))
     tmkprv = TRUE;
 do {
-    st = sim_tape_sprecf (uptr, &tbc);                  /* space rec fwd */
+    t_stat st = sim_tape_sprecf (uptr, &tbc);           /* space rec fwd */
     if (st == MTSE_TMK) {                               /* tape mark? */
         msgrfc = (msgrfc - 1) & DMASK;                  /* decr count */
         msgxs0 = msgxs0 | XS0_MOT;                      /* tape has moved */
@@ -550,10 +550,11 @@ return 0;
 
 int32 ts_spacer (UNIT *uptr, int32 fc, t_bool upd)
 {
-int32 st;
 t_mtrlnt tbc;
 
 do {
+    t_stat st;
+
     fc = (fc - 1) & DMASK;                              /* decr wc */
     if (upd)
         msgrfc = fc;
@@ -566,13 +567,12 @@ return 0;
 
 int32 ts_skipr (UNIT *uptr, int32 fc)
 {
-t_stat st;
 t_mtrlnt tbc;
 t_bool tmkprv = FALSE;
 
 msgrfc = fc;
 do {
-    st = sim_tape_sprecr (uptr, &tbc);                  /* space rec rev */
+    t_stat st = sim_tape_sprecr (uptr, &tbc);           /* space rec rev */
     if (st == MTSE_TMK) {                               /* tape mark? */
         msgrfc = (msgrfc - 1) & DMASK;                  /* decr count */
         msgxs0 = msgxs0 | XS0_MOT;                      /* tape has moved */
@@ -592,8 +592,7 @@ return 0;
 int32 ts_readf (UNIT *uptr, uint32 fc)
 {
 t_stat st;
-t_mtrlnt i, t, tbc, wbc;
-int32 wa;
+t_mtrlnt tbc, wbc;
 
 msgrfc = fc;
 st = sim_tape_rdrecf (uptr, tsxb, &tbc, MT_MAXFR);      /* read rec fwd */
@@ -605,8 +604,10 @@ tsba = (cmdadh << 16) | cmdadl;                         /* buf addr */
 wbc = (tbc > fc)? fc: tbc;                              /* cap buf size */
 msgxs0 = msgxs0 | XS0_MOT;                              /* tape has moved */
 if (cmdhdr & CMD_SWP) {                                 /* swapped? */
+    t_mtrlnt i;
+
     for (i = 0; i < wbc; i++) {                         /* copy buffer */
-        wa = tsba ^ 1;                                  /* apply OPP */
+        int32 wa = tsba ^ 1;                            /* apply OPP */
         if (Map_WriteB (wa, 1, &tsxb[i])) {             /* store byte, nxm? */
             tssr = ts_updtssr (tssr | TSSR_NXM);        /* set error */
             return (XTC (XS0_RLS, TC4));
@@ -616,7 +617,7 @@ if (cmdhdr & CMD_SWP) {                                 /* swapped? */
         }
     }
 else {
-    t = Map_WriteB (tsba, wbc, tsxb);                   /* store record */
+    t_mtrlnt t = Map_WriteB (tsba, wbc, tsxb);          /* store record */
     tsba = tsba + (wbc - t);                            /* update tsba */
     if (t) {                                            /* nxm? */
         tssr = ts_updtssr (tssr | TSSR_NXM);            /* set error */
@@ -635,7 +636,6 @@ int32 ts_readr (UNIT *uptr, uint32 fc)
 {
 t_stat st;
 t_mtrlnt i, tbc, wbc;
-int32 wa;
 
 msgrfc = fc;
 st = sim_tape_rdrecr (uptr, tsxb, &tbc, MT_MAXFR);      /* read rec rev */
@@ -647,6 +647,8 @@ tsba = ((cmdadh << 16) | cmdadl) + fc;                  /* buf addr */
 wbc = (tbc > fc)? fc: tbc;                              /* cap buf size */
 msgxs0 = msgxs0 | XS0_MOT;                              /* tape has moved */
 for (i = wbc; i > 0; i--) {                             /* copy buffer */
+    int32 wa;
+
     tsba = tsba - 1;
     wa = (cmdhdr & CMD_SWP)? tsba ^ 1: tsba;            /* apply OPP */
     if (Map_WriteB (wa, 1, &tsxb[i - 1])) {             /* store byte, nxm? */
@@ -664,8 +666,6 @@ return 0;
 
 int32 ts_write (UNIT *uptr, int32 fc)
 {
-int32 i, t;
-uint32 wa;
 t_stat st;
 
 msgrfc = fc;
@@ -673,8 +673,10 @@ if (fc == 0)                                            /* byte count */
     fc = 0200000;
 tsba = (cmdadh << 16) | cmdadl;                         /* buf addr */
 if (cmdhdr & CMD_SWP) {                                 /* swapped? */
+    int32 i;
+
     for (i = 0; i < fc; i++) {                          /* copy mem to buf */
-        wa = tsba ^ 1;                                  /* apply OPP */
+        uint32 wa = tsba ^ 1;                           /* apply OPP */
         if (Map_ReadB (wa, 1, &tsxb[i])) {              /* fetch byte, nxm? */
             tssr = ts_updtssr (tssr | TSSR_NXM);
             return TC5;
@@ -683,7 +685,7 @@ if (cmdhdr & CMD_SWP) {                                 /* swapped? */
         }
     }
 else {
-    t = Map_ReadB (tsba, fc, tsxb);                     /* fetch record */
+    int32 t = Map_ReadB (tsba, fc, tsxb);               /* fetch record */
     tsba = tsba + (fc - t);                             /* update tsba */
     if (t) {                                            /* nxm? */
         tssr = ts_updtssr (tssr | TSSR_NXM);
@@ -711,11 +713,7 @@ if (sim_tape_eot (&ts_unit))                            /* EOT on write? */
 return XTC (XS0_TMK, TC0);
 }
 
-/* Unit service */
-
-t_stat ts_svc (UNIT *uptr)
-{
-int32 i, t, bc, fnc, mod, st0, st1;
+/* Unit service constant data: */
 
 static const int32 fnc_mod[CMD_N_FNC] = {               /* max mod+1 0 ill */
  0, 4, 0, 0, 1, 2, 1, 0,                                /* 00 - 07 */
@@ -735,6 +733,12 @@ static const char *fnc_name[CMD_N_FNC] = {
  "20", "21", "22", "23", "24", "25", "26", "27",
  "30", "31", "32", "33", "34", "35", "36", "37"
  };
+
+/* Unit service */
+
+t_stat ts_svc (UNIT *uptr)
+{
+int32 i, t, bc, fnc, mod, st0, st1;
 
 if (ts_bcmd) {                                          /* boot? */
     ts_bcmd = 0;                                        /* clear flag */
@@ -1020,12 +1024,12 @@ return;
 
 void ts_endcmd (int32 tc, int32 xs0, int32 msg)
 {
-int32 i, t;
-
 msgxs0 = ts_updxs0 (msgxs0 | xs0);                      /* update XS0 */
 if (wchxopt & WCHX_HDS)                                 /* update XS4 */
     msgxs4 = msgxs4 | XS4_HDS;
 if (msg && !(tssr & TSSR_NBA)) {                        /* send end pkt */
+    int32 i, t;
+
     msghdr = msg;
     msglnt = wchlnt - 4;                                /* exclude hdr, bc */
     tsba = (wchadh << 16) | wchadl;

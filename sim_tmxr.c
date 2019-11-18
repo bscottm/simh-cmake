@@ -997,7 +997,6 @@ int32 tmxr_poll_conn (TMXR *mp)
 {
 SOCKET newsock;
 TMLN *lp;
-int32 *op;
 size_t i;
 int32 ringing = -1;
 char *address;
@@ -1064,6 +1063,7 @@ if (mp->master) {
 
     if (newsock != INVALID_SOCKET) {                    /* got a live one? */
         size_t j;
+        int32 *op;
 
         snprintf (msg, sizeof (msg) - 1, "tmxr_poll_conn() - Connection from %s", address);
         tmxr_debug_connect (mp, msg);
@@ -1779,9 +1779,7 @@ return r;
 
 int32 tmxr_getc_ln (TMLN *lp)
 {
-int32 j; 
 t_stat val = 0;
-uint32 tmp;
 double sim_gtime_now = sim_gtime ();
 
 tmxr_debug_trace_line (lp, "tmxr_getc_ln()");
@@ -1789,9 +1787,9 @@ if (((lp->conn || lp->txbfd) && lp->rcve) &&            /* (conn or buffered) & 
     ((!lp->rxbps) ||                                    /* (!rate limited || enough time passed)? */
      (sim_gtime_now >= lp->rxnexttime))) {
     if (!sim_send_poll_data (&lp->send, &val)) {        /* injected input characters available? */
-        j = lp->rxbpi - lp->rxbpr;                      /* # input chrs */
-        if (j) {                                        /* any? */
-            tmp = lp->rxb[lp->rxbpr];                   /* get char */
+        int32 j = lp->rxbpi - lp->rxbpr;                /* # input chrs */
+        if (j > 0) {                                    /* any? */
+            uint32 tmp = lp->rxb[lp->rxbpr];            /* get char */
             val = TMXR_VALID | (tmp & 0377);            /* valid + chr */
             if (lp->rbr[lp->rxbpr]) {                   /* break? */
                 lp->rbr[lp->rxbpr] = 0;                 /* clear status */
@@ -2285,12 +2283,12 @@ return (lp->conn || lp->loopback) ? SCPE_OK : SCPE_LOST;
 void tmxr_poll_tx (TMXR *mp)
 {
 int32 i, nbytes;
-TMLN *lp;
 double sim_gtime_now = sim_gtime ();
 
 tmxr_debug_trace (mp, "tmxr_poll_tx()");
 for (i = 0; i < mp->lines; i++) {                       /* loop thru lines */
-    lp = mp->ldsc + i;                                  /* get line desc */
+    TMLN *lp = mp->ldsc + i;                            /* get line desc */
+
     if ((!lp->conn) && (!lp->txbfd))                    /* skip if !conn and !buffered */
         continue;
     nbytes = tmxr_send_buffered_data (lp);              /* buffered bytes */
@@ -2321,12 +2319,14 @@ for (i = 0; i < mp->lines; i++) {                       /* loop thru lines */
 
 int32 tmxr_send_buffered_data (TMLN *lp)
 {
-int32 nbytes, sbytes;
+int32 nbytes;
 t_stat r;
 
 tmxr_debug_trace_line (lp, "tmxr_send_buffered_data()");
 nbytes = tmxr_tqln(lp);                                 /* avail bytes */
 if (nbytes) {                                           /* >0? write */
+    int32 sbytes;
+
     if (lp->txbpr < lp->txbpi)                          /* no wrap? */
         sbytes = tmxr_write (lp, nbytes);               /* write all data */
     else
@@ -2495,13 +2495,13 @@ static struct {
     {"0",       0}};                    /* End of List, last valid value */
 int nspeed;
 char speed[24];
-int nfactor = 1;
 
 nspeed = (uint32)strtotv (cptr, &cptr, 10);
 if ((*cptr != '\0') && (*cptr != '-') && (*cptr != '*'))
     return -1;
 if (*cptr == '*') {
-    nfactor = (uint32)strtotv (cptr+1, NULL, 10);
+    int nfactor = (uint32)strtotv (cptr+1, NULL, 10);
+
     if ((nfactor < 1) || (nfactor > 32))
         return -1;
     }
@@ -2585,14 +2585,13 @@ return SCPE_OK;
 
 t_stat tmxr_open_master (TMXR *mp, CONST char *cptr)
 {
-int32 i, line, nextline = -1;
+int32 i, nextline = -1;
 char tbuf[CBUFSIZE], listen[CBUFSIZE], destination[CBUFSIZE], 
      logfiletmpl[CBUFSIZE], buffered[CBUFSIZE], hostport[CBUFSIZE], 
      port[CBUFSIZE], option[CBUFSIZE], speed[CBUFSIZE], dev_name[CBUFSIZE];
 SOCKET sock;
 SERHANDLE serport;
 CONST char *tptr = cptr;
-t_bool nolog, notelnet, listennotelnet, modem_control, loopback, datagram, packet, disabled;
 TMLN *lp;
 t_stat r = SCPE_OK;
 
@@ -2612,7 +2611,10 @@ mp->ring_ipad = NULL;
 mp->ring_start_time = 0;
 tmxr_debug_trace (mp, "tmxr_open_master()");
 while (*tptr) {
-    line = nextline;
+    t_bool nolog = FALSE, notelnet = FALSE, listennotelnet = FALSE, modem_control;
+    t_bool loopback = FALSE, datagram, packet, disabled = FALSE;
+    int32 line = nextline;
+
     memset(logfiletmpl, '\0', sizeof(logfiletmpl));
     memset(listen,      '\0', sizeof(listen));
     memset(destination, '\0', sizeof(destination));
@@ -2620,7 +2622,6 @@ while (*tptr) {
     memset(port,        '\0', sizeof(port));
     memset(option,      '\0', sizeof(option));
     memset(speed,       '\0', sizeof(speed));
-    nolog = notelnet = listennotelnet = loopback = disabled = FALSE;
     datagram = mp->datagram;
     packet = mp->packet;
     if (mp->buffered)
@@ -2739,16 +2740,17 @@ while (*tptr) {
             if (sim_parse_addr (port, NULL, 0, NULL, NULL, 0, NULL, NULL))
                 return sim_messagef (SCPE_ARG, "Invalid Port Specifier: %s\n", port);
             if (cptr != NULL) {
-                char *tptr = gbuf + (cptr - gbuf);
-                get_glyph (cptr, tptr, 0);                  /* upcase this string */
+                char *spec_p = gbuf + (cptr - gbuf);
+
+                cptr = get_glyph (cptr, spec_p, 0);           /* upcase this string */
                 if (0 == MATCH_CMD (cptr, "NOTELNET"))
                     listennotelnet = TRUE;
                 else
                     if (0 == MATCH_CMD (cptr, "TELNET"))
                         listennotelnet = FALSE;
                     else {
-                        if (*tptr)
-                            return sim_messagef (SCPE_ARG, "Invalid Specifier: %s\n", tptr);
+                        if (*spec_p)
+                            return sim_messagef (SCPE_ARG, "Invalid Specifier: %s\n", spec_p);
                     }
                 }
             cptr = init_cptr;
@@ -3939,7 +3941,6 @@ return sim_add_debug_flags (dptr, tmxr_debug);
 t_stat tmxr_attach_ex (TMXR *mp, UNIT *uptr, CONST char *cptr, t_bool async)
 {
 t_stat r;
-int32 i;
 
 if (mp->dptr == NULL)                                   /* has device been set? */
     mp->dptr = find_dev_from_unit (uptr);               /* no, so set device now */
@@ -3968,6 +3969,8 @@ uptr->dynflags |= TMUF_NOASYNCH;                        /* tag as no asynch */
 #endif
 uptr->dynflags |= UNIT_TM_POLL;                         /* tag as polling unit */
 if (mp->dptr) {
+    size_t i;
+
     for (i=0; i<mp->lines; i++) {
         mp->ldsc[i].expect.dptr = mp->dptr;
         mp->ldsc[i].expect.dbit = TMXR_DBG_EXP;
@@ -4003,8 +4006,7 @@ return SCPE_OK;
 
 t_stat tmxr_show_open_device (FILE* st, TMXR *mp)
 {
-int j;
-TMLN *lp;
+size_t j;
 UNIT *o_uptr = mp->ldsc[0].o_uptr;
 UNIT *uptr = mp->ldsc[0].uptr;
 char *attach;
@@ -4056,11 +4058,12 @@ if (mp->ring_start_time) {
     fprintf (st, "    incoming Connection from: %s ringing for %d milliseconds\n", mp->ring_ipad, sim_os_msec () - mp->ring_start_time);
     }
 for (j = 0; j < mp->lines; j++) {
-    lp = mp->ldsc + j;
+    TMLN *lp = mp->ldsc + j;
+
     if (mp->lines > 1) {
         if (lp->dptr && (mp->dptr != lp->dptr))
             fprintf (st, "Device: %s ", sim_dname(lp->dptr));
-        fprintf (st, "Line: %d", j);
+        fprintf (st, "Line: %" PRI_SIZE_T, j);
         if (lp->conn == TMXR_LINE_DISABLED)
             fprintf (st, " - Disabled");
         if (mp->notelnet != lp->notelnet)
@@ -4099,16 +4102,15 @@ return SCPE_OK;
 
 t_stat tmxr_show_open_devices (FILE* st, DEVICE *dptr, UNIT* uptr, int32 val, CONST char* cptr)
 {
-int i;
 char gbuf[CBUFSIZE];
 
 cptr = get_glyph (cptr, gbuf, 0);
 if (*cptr)
     return SCPE_2MARG;
-if ((0 == tmxr_open_device_count) &&
-    (gbuf[0] == '\0'))
+if ((0 == tmxr_open_device_count) && (gbuf[0] == '\0')) {
     fprintf(st, "No Attached Multiplexer Devices\n");
-else {
+} else {
+    int i;
     for (i=0; i<tmxr_open_device_count; ++i) {
         TMXR *mp = tmxr_open_devices[i];
 
@@ -4445,12 +4447,14 @@ else {
     fprintf (st, "A Telnet listening port can be configured with:\n\n");
     fprintf (st, "   sim> ATTACH %s {interface:}port\n\n", dptr->name);
     if (mux)
-        fprintf (st, "Line buffering for all %d lines on the %s device can be configured with:\n\n", mux->lines, dptr->name);
+        fprintf (st, "Line buffering for all %" PRI_SIZE_T " lines on the %s device can be configured with:\n\n",
+                 mux->lines, dptr->name);
     else
         fprintf (st, "Line buffering for all lines on the %s device can be configured with:\n\n", dptr->name);
     fprintf (st, "   sim> ATTACH %s Buffer{=bufsize}\n\n", dptr->name);
     if (mux)
-        fprintf (st, "Line buffering for all %d lines on the %s device can be disabled with:\n\n", mux->lines, dptr->name);
+        fprintf (st, "Line buffering for all %" PRI_SIZE_T " lines on the %s device can be disabled with:\n\n",
+                 mux->lines, dptr->name);
     else
         fprintf (st, "Line buffering for all lines on the %s device can be disabled with:\n\n", dptr->name);
     fprintf (st, "   sim> ATTACH %s NoBuffer\n\n", dptr->name);
@@ -4482,7 +4486,7 @@ else {
     fprintf (st, "or equivalently:\n\n");
     fprintf (st, "   sim> ATTACH %s Line=n,Connect=COM1\n\n", dptr->name);
     if (mux)
-        fprintf (st, "Valid line numbers are from 0 thru %d\n\n", mux->lines-1);
+        fprintf (st, "Valid line numbers are from 0 thru %" PRI_SIZE_T "\n\n", mux->lines-1);
     }
 if (single_line) {          /* Single Line Multiplexer */
     if (port_speed_control) {
@@ -4731,9 +4735,6 @@ if (buf != stackbuf)
 
 void tmxr_fconns (FILE *st, const TMLN *lp, int32 ln)
 {
-int32 hr, mn, sc;
-uint32 ctime;
-
 if (ln >= 0)
     fprintf (st, "line %d: ", ln);
 
@@ -4765,10 +4766,11 @@ if (lp->serport)                                        /* serial connection? */
     fprintf (st, "Connected to serial port %s\n", lp->destination);  /* print port name */
 
 if (lp->cnms) {
-    ctime = (sim_os_msec () - lp->cnms) / 1000;
-    hr = ctime / 3600;
-    mn = (ctime / 60) % 60;
-    sc = ctime % 60;
+    uint32 ctime = (sim_os_msec () - lp->cnms) / 1000;
+    int32 hr = ctime / 3600;
+    int32 mn = (ctime / 60) % 60;
+    int32 sc = ctime % 60;
+
     if (ctime)
         fprintf (st, " %s %02d:%02d:%02d\n", lp->connecting ? "Connecting for" : "Connected", hr, mn, sc);
     }
@@ -4799,14 +4801,14 @@ if (lp->txlog)
 
 void tmxr_fstats (FILE *st, const TMLN *lp, int32 ln)
 {
-static const char *enab = "on";
-static const char *dsab = "off";
-
 if (ln >= 0)
     fprintf (st, "Line %d:", ln);
 if ((!lp->sock) && (!lp->connecting) && (!lp->serport))
     fprintf (st, " not connected\n");
 else {
+    static const char *enab = "on";
+    static const char *dsab = "off";
+
     if (ln >= 0)
         fprintf (st, "\n");
     fprintf (st, "  input (%s)", (lp->rcve? enab: dsab));
@@ -5094,54 +5096,56 @@ return result;
    where possible to shorten the output.
 */
 
-t_stat tmxr_show_lnorder (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
+t_stat
+tmxr_show_lnorder(FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-int32 i, j, low, last;
-const TMXR *mp = (const TMXR *) desc;
-int32 *iptr = mp->lnorder;
-t_bool first = TRUE;
+    const TMXR *mp    = (const TMXR *)desc;
+    int32 *     iptr  = mp->lnorder;
+    t_bool      first = TRUE;
 
-if (iptr == NULL)                                       /* connection order undefined? */
-    return SCPE_NXPAR;                                  /* "Non-existent parameter" error */
+    if (iptr == NULL)      /* connection order undefined? */
+        return SCPE_NXPAR; /* "Non-existent parameter" error */
 
-if (*iptr < 0)                                          /* sequential order indicated? */
-    fprintf (st, "Order=0-%d\n", mp->lines - 1);        /* print full line range */
+    if (*iptr < 0) {                                             /* sequential order indicated? */
+        fprintf(st, "Order=0-%" PRI_SIZE_T "\n", mp->lines - 1); /* print full line range */
+    } else {
+        size_t j;
+        int32  i, low, last;
 
-else {
-    low = last = *iptr++;                               /* set first line value */
+        low = last = *iptr++; /* set first line value */
 
-    for (j = 1; j <= mp->lines; j++) {                  /* print remaining lines in order list */
-        if (j < mp->lines)                              /* more lines to process? */
-            i = *iptr++;                                /* get next line in list */
-        else                                            /* final iteration */
-            i = -1;                                     /* get "tie-off" value */
+        for (j = 1; j <= mp->lines; j++) { /* print remaining lines in order list */
+            if (j < mp->lines)             /* more lines to process? */
+                i = *iptr++;               /* get next line in list */
+            else                           /* final iteration */
+                i = -1;                    /* get "tie-off" value */
 
-        if (i != last + 1) {                            /* end of a range? */
-            if (first) {                                /* first line to print? */
-                fputs ("Order=", st);                   /* print header */
-                first = FALSE;
+            if (i != last + 1) {         /* end of a range? */
+                if (first) {             /* first line to print? */
+                    fputs("Order=", st); /* print header */
+                    first = FALSE;
                 }
 
-            else                                        /* not first line printed */
-                fputc (';', st);                        /* print separator */
+                else                /* not first line printed */
+                    fputc(';', st); /* print separator */
 
-            if (low == last)                            /* range null? */
-                fprintf (st, "%d", last);               /* print single line value */
+                if (low == last)             /* range null? */
+                    fprintf(st, "%d", last); /* print single line value */
 
-            else                                        /* range established */
-                fprintf (st, "%d-%d", low, last);       /* print start and end line */
+                else                                 /* range established */
+                    fprintf(st, "%d-%d", low, last); /* print start and end line */
 
-            low = i;                                    /* start new range */
+                low = i; /* start new range */
             }
 
-        last = i;                                       /* note value for range check */
+            last = i; /* note value for range check */
         }
     }
 
-if (first == FALSE)                                     /* sanity check for lines == 0 */
-    fputc ('\n', st);
+    if (first == FALSE) /* sanity check for lines == 0 */
+        fputc('\n', st);
 
-return SCPE_OK;
+    return SCPE_OK;
 }
 
 /* Show summary processor */
@@ -5197,7 +5201,7 @@ const TMXR *mp = (const TMXR *) desc;
 
 if (mp == NULL)
     return SCPE_IERR;
-fprintf (st, "lines=%d", mp->lines);
+fprintf (st, "lines=%" PRI_SIZE_T, mp->lines);
 return SCPE_OK;
 }
 

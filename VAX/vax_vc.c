@@ -419,7 +419,7 @@ const char *vc_crtc_regnames[] = {
 t_stat vc_rd (int32 *data, int32 PA, int32 access)
 {
 uint32 rg = (PA >> 1) & 0x1F;
-uint32 crtc_rg, i;
+uint32 crtc_rg;
 
 *data = 0;
 switch (rg) {
@@ -476,6 +476,8 @@ switch (rg) {
         *data |= (vc_intc.mode & ICM_IM) ? 0x10 : 0;    /* Interrupt mode */
         *data |= (vc_intc.mode & ICM_MM) ? 0x8 : 0;     /* Master mask */
         if (vc_icsr & 0x80) {                           /* Group int pending */
+            uint32 i;
+
             for (i = 0; i < 8; i++) {
                 if (vc_intc.isr & (1u << i)) {
                     *data |= i;
@@ -680,20 +682,20 @@ void vc_mem_wr (int32 pa, int32 val, int32 mode)
 uint32 rg = (pa >> 2) & 0xFFFF;
 uint32 nval, t;
 int32 lnt = (mode == WRITE) ? 2 : 1;
-int32 i;
 int32 sc = (pa & 3) << 3;
 uint32 scrln, bufln;
-uint32 idx;
 uint32 mask = (mode == WRITE)? WMASK : BMASK;
 
 t = vc_buf[rg];
 nval = ((val & mask) << sc) | (t & ~(mask << sc));
 
 if (rg >= 0xFFF8) {                                     /* cursor image */
+    int32 i;
+    uint32 idx;
+
     idx = (pa << 3) & 0xFF;                             /* get byte index */
     if (sim_deb) {
         char binary[40];
-        int32 i;
 
         for (i=0; i<8*lnt; i++)
             binary[i] = '0' + ((val & (1 << i)) != 0);
@@ -789,11 +791,12 @@ vid_set_cursor (visible, 16, 16, data, mask, 0, 0);
 
 void vc_checkint (void)
 {
-uint32 i;
 uint32 msk = (vc_intc.irr & ~vc_intc.imr);              /* unmasked interrutps */
 vc_icsr &= ~(ICSR_GRI|ICSR_M_IRRVEC);                   /* clear GRI & vector */
 
 if ((vc_intc.mode & (ICM_MM | ICM_IM)) == ICM_MM) {     /* group int MM & not polled */
+    uint32 i;
+
     for (i = 0; i < 8; i++) {
         if (msk & (1u << i)) {
             vc_icsr |= (ICSR_GRI | i);
@@ -874,7 +877,6 @@ SIM_KEY_EVENT kev;
 t_bool updated = FALSE;                                 /* flag for refresh */
 uint32 lines;
 uint32 ln, col, off;
-int32 xpos, ypos, dx, dy;
 uint8 *cur;
 
 vc_crtc_p = vc_crtc_p ^ CRTCP_VB;                       /* Toggle VBI */
@@ -913,6 +915,8 @@ vc_cur_new_data = FALSE;
 if (vid_poll_kb (&kev) == SCPE_OK)                      /* poll keyboard */
     lk_event (&kev);                                    /* push event */
 if (vid_poll_mouse (&mev) == SCPE_OK) {                 /* poll mouse */
+    int32 xpos, ypos, dx, dy;
+
     xpos = vc_mpos & 0xFF;                              /* get current mouse position */
     ypos = (vc_mpos >> 8) & 0xFF;
     dx = mev.x_rel;                                     /* get relative movement */
@@ -985,7 +989,6 @@ return SCPE_OK;
 t_stat vc_reset (DEVICE *dptr)
 {
 uint32 i;
-t_stat r;
 
 CLR_INT (QVSS);                                         /* clear int req */
 sim_cancel (&vc_unit);                                  /* stop poll */
@@ -1024,7 +1027,9 @@ if (dptr->flags & DEV_DIS) {
     }
 
 if (!vid_active)  {
-    r = vid_open (dptr, NULL, VC_XSIZE, VC_YSIZE, vc_input_captured ? SIM_VID_INPUTCAPTURED : 0);/* display size & capture mode */
+    /* display size & capture mode */
+    t_stat r = vid_open (dptr, NULL, VC_XSIZE, VC_YSIZE, vc_input_captured ? SIM_VID_INPUTCAPTURED : 0);
+
     if (r != SCPE_OK)
         return r;
     vc_buf = (uint32 *) calloc (VC_MEMSIZE, sizeof (uint32));
