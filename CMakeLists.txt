@@ -174,7 +174,8 @@ if (cppcheck_cmd)
          "--enable=warning,style,performance,portability,information,missingInclude"
          "--suppress=missingIncludeSystem"
          "--inline-suppr"
-         "--std=c99")
+         "--std=c99"
+         "--force")
     set(CPPCHECK_STATUS "enabled.")
     if (WIN32)
         if(CMAKE_SIZEOF_VOID_P EQUAL 8)
