@@ -798,7 +798,7 @@ extern d10 *ac_cur;                                     /* current AC block */
 extern int32 flags;                                     /* flags */
 extern const int32 pi_l2bit[8];
 extern const d10 bytemask[64];
-extern int32 int_req;
+extern uint32 int_req;
 extern d10 *M;                                          /* memory */
 extern a10 pager_PC;                                    /* pager: saved PC */
 extern d10 pager_word;                                  /* pager: error word */

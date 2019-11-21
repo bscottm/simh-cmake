@@ -217,7 +217,7 @@ BITFIELD dz_tdr_bits[] = {
   ENDBITS
 };
 
-extern int32 IREQ (HLVL);
+extern uint32 IREQ (HLVL);
 extern int32 tmxr_poll;                                 /* calibrated delay */
 
 uint16 dz_csr[MAX_DZ_MUXES] = { 0 };                    /* csr */

@@ -134,8 +134,8 @@ int32 CADR = 0;                                         /* cache disable reg */
 int32 MSER = 0;                                         /* mem sys error reg */
 int32 buf_sel = 0;                                      /* buffer select */
 int32 sys_model = 0;                                    /* MicroVAX or VAXstation */
-int32 int_req[IPL_HLVL] = { 0 };                        /* interrupt requests */
-int32 int_mask = 0;                                     /* interrupt mask */
+uint32 int_req[IPL_HLVL] = { 0 };                       /* interrupt requests */
+uint32 int_mask = 0;                                    /* interrupt mask */
 uint32 tmr_tir = 0;                                     /* curr interval */
 t_bool tmr_inst = FALSE;                                /* wait instructions vs usecs */
 

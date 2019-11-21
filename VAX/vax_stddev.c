@@ -405,11 +405,12 @@ return "console terminal input";
 t_stat tto_svc (UNIT *uptr)
 {
 int32 c;
-t_stat r;
 
 c = sim_tt_outcvt (tto_unit.buf, TT_GET_MODE (uptr->flags));
 if (c >= 0) {
-    if ((r = sim_putchar_s (c)) != SCPE_OK) {           /* output; error? */
+    t_stat r = sim_putchar_s (c);
+
+    if (r != SCPE_OK) {                                 /* output; error? */
         sim_activate (uptr, uptr->wait);                /* retry */
         return ((r == SCPE_STALL)? SCPE_OK: r);         /* !stall? report */
         }
@@ -565,12 +566,10 @@ return SCPE_OK;
 
 t_stat clk_reset (DEVICE *dptr)
 {
-int32 t;
-
 clk_csr = 0;
 CLR_INT (CLK);
 if (!sim_is_running) {                                  /* RESET (not IORESET)? */
-    t = sim_rtcn_init_unit (&clk_unit, clk_unit.wait, TMR_CLK);/* init 100Hz timer */
+    int32 t = sim_rtcn_init_unit (&clk_unit, clk_unit.wait, TMR_CLK);/* init 100Hz timer */
     sim_activate_after (&clk_unit, 1000000/clk_tps);    /* activate 100Hz unit */
     tmr_poll = t;                                       /* set tmr poll */
     tmxr_poll = t * TMXR_MULT;                          /* set mux poll */

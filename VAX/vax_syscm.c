@@ -270,7 +270,7 @@ return ((reg == 07)? pcwd[mode]: rgwd[mode]);
 
 t_stat fprint_sym_cm (FILE *of, t_addr addr, t_value *bytes, int32 sw)
 {
-int32 i, j, c1, c2, c3, inst, srcm, srcr, dstm, dstr;
+int32 i, j, inst, srcm, srcr, dstm, dstr;
 int32 l8b, brdisp, wd1;
 uint32 val[3];
 
@@ -278,11 +278,12 @@ for (i = j = 0; i < 3; i++, j = j + 2)
     val[i] = (int32) (bytes[j] | (bytes[j + 1] << 8));
     
 if (sw & SWMASK ('R')) {                                /* radix 50? */
+    int32 c1 = val[0] / (050 * 050);
+    int32 c2 = (val[0] / 050) % 050;
+    int32 c3 = val[0] % 050;
+
     if (val[0] > 0174777)                               /* max value */
         return SCPE_ARG;
-    c3 = val[0] % 050;
-    c2 = (val[0] / 050) % 050;
-    c1 = val[0] / (050 * 050);
     fprintf (of, "%c%c%c", r50_to_asc[c1],
              r50_to_asc[c2], r50_to_asc[c3]);
     return -1;

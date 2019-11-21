@@ -93,7 +93,7 @@ int32 ka_mear = 0;                                      /* KA410 memory err */
 int32 ka_cfgtst = 0;                                    /* KA410 config/test */
 int32 buf_sel = 0;                                      /* buffer select */
 int32 sys_model = 0;                                    /* MicroVAX or VAXstation */
-int32 int_req[IPL_HLVL] = { 0 };                        /* interrupt requests */
+uint32 int_req[IPL_HLVL] = { 0 };                       /* interrupt requests */
 int32 int_mask = 0;                                     /* interrupt mask */
 
 t_stat sysd_reset (DEVICE *dptr);
@@ -197,7 +197,7 @@ return 0;
 int32 get_vector (int32 lvl)
 {
 int32 i;
-int32 int_unmask = int_req[0] & int_mask;
+uint32 int_unmask = int_req[0] & int_mask;
 
 if (lvl == IPL_CLK) {                                   /* clock? */
     tmr_int = 0;                                        /* clear req */

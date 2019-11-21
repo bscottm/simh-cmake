@@ -113,7 +113,7 @@
 #define UBA_DEB_XFR     0x10                            /* transfers */
 #define UBA_DEB_ERR     0x20                            /* errors */
 
-int32 int_req[IPL_HLVL] = { 0 };                        /* intr, IPL 14-17 */
+uint32 int_req[IPL_HLVL] = { 0 };                       /* intr, IPL 14-17 */
 BIIC uba_biic;                                          /* BIIC standard registers */
 uint32 uba_csr = 0;                                     /* control/status reg */
 uint32 uba_vo = 0;                                      /* vector offset */
@@ -126,7 +126,7 @@ uint32 uba_aiip = 0;                                    /* adapter init in prog 
 uint32 uba_uiip = 0;                                    /* Unibus init in prog */
 uint32 uba_aitime = 250;                                /* adapter init time */
 uint32 uba_uitime = 12250;                              /* Unibus init time */
-int32 autcon_enb = 1;                                   /* autoconfig enable */
+uint32 autcon_enb = 1;                                  /* autoconfig enable */
 
 extern uint32 nexus_req[NEXUS_HLVL];
 

@@ -1131,7 +1131,7 @@ return 0;
 
 void cmctl_wr (int32 pa, int32 val, int32 lnt)
 {
-int32 i, rg = (pa - CMCTLBASE) >> 2;
+int32 rg = (pa - CMCTLBASE) >> 2;
 
 if (lnt < L_LONG) {                                     /* LW write only */
     int32 sc = (pa & 3) << 3;                           /* shift data to */
@@ -1142,6 +1142,8 @@ switch (rg) {
     default:                                            /* config reg */
         if (val & CMCNF_SRQ) {                          /* sig request? */
             int32 rg_g = rg & ~3;                       /* group of 4 */
+            int32 i;
+
             for (i = rg_g; i < (rg_g + 4); i++) {
                 cmctl_reg[i] = cmctl_reg[i] & ~CMCNF_SIG;
                 if (ADDR_IS_MEM (i * MEM_BANK))
@@ -1640,15 +1642,15 @@ return tmr_tivr[1];
 
 /* Machine check */
 
-int32 machine_check (int32 p1, int32 opc, int32 cc, int32 delta)
+int32 machine_check (int32 fault_p1, int32 opc, uint32 cc, int32 delta)
 {
-int32 i, st1, st2, p2, hsir, acc;
+int32 i, st1, st2, fault_p2, hsir, acc;
 
 if (in_ie)                                              /* in exc? panic */
     ABORT (STOP_INIE);
-if (p1 & 0x80)                                          /* mref? set v/p */
-    p1 = p1 + mchk_ref;
-p2 = mchk_va + 4;                                       /* save vap */
+if (fault_p1 & 0x80)                                    /* mref? set v/p */
+    fault_p1 = fault_p1 + mchk_ref;
+fault_p2 = mchk_va + 4;                                 /* save vap */
 for (i = hsir = 0; i < 16; i++) {                       /* find hsir */
     if ((SISR >> i) & 1)
         hsir = i;
@@ -1663,8 +1665,8 @@ acc = ACC_MASK (KERN);                                  /* in kernel mode */
 in_ie = 1;
 SP = SP - 20;                                           /* push 5 words */
 Write (SP, 16, L_LONG, WA);                             /* # bytes */
-Write (SP + 4, p1, L_LONG, WA);                         /* mcheck type */
-Write (SP + 8, p2, L_LONG, WA);                         /* address */
+Write (SP + 4, fault_p1, L_LONG, WA);                   /* mcheck type */
+Write (SP + 8, fault_p2, L_LONG, WA);                   /* address */
 Write (SP + 12, st1, L_LONG, WA);                       /* state 1 */
 Write (SP + 16, st2, L_LONG, WA);                       /* state 2 */
 in_ie = 0;
@@ -1715,8 +1717,6 @@ return run_cmd (flag, "CPU");
 
 t_stat cpu_boot (int32 unitno, DEVICE *dptr)
 {
-t_stat r;
-
 PC = ROMBASE;
 PSL = PSL_IS | PSL_IPL1F;
 conpc = 0;
@@ -1724,7 +1724,7 @@ conpsl = PSL_IS | PSL_IPL1F | CON_PWRUP;
 if (rom == NULL)
     return SCPE_IERR;
 if (*rom == 0) {                                        /* no boot? */
-    r = cpu_load_bootcode (BOOT_CODE_FILENAME, BOOT_CODE_ARRAY, BOOT_CODE_SIZE, TRUE, 0);
+    t_stat r = cpu_load_bootcode (BOOT_CODE_FILENAME, BOOT_CODE_ARRAY, BOOT_CODE_SIZE, TRUE, 0);
     if (r != SCPE_OK)
         return r;
     }
@@ -1824,7 +1824,7 @@ char gbuf[CBUFSIZE];
 
 if ((cptr == NULL) || (!*cptr))
     return SCPE_ARG;
-cptr = get_glyph (cptr, gbuf, 0);
+/*cptr =*/ get_glyph (cptr, gbuf, 0);
 if (MATCH_CMD(gbuf, "VAXSERVER") == 0) {
     sys_model = 0;
     strcpy (sim_name, "VAXserver 3900 (KA655)");

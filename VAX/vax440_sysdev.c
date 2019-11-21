@@ -147,8 +147,8 @@ int32 mem_cnfg = 0;
 int32 CADR = 0;                                         /* cache disable reg */
 int32 SCCR = 0;                                         /* secondary cache control */
 int32 sys_model = 0;                                    /* MicroVAX or VAXstation */
-int32 int_req[IPL_HLVL] = { 0 };                        /* interrupt requests */
-int32 int_mask = 0;                                     /* interrupt mask */
+uint32 int_req[IPL_HLVL] = { 0 };                       /* interrupt requests */
+uint32 int_mask = 0;                                    /* interrupt mask */
 uint32 tmr_tir = 0;                                     /* curr interval */
 
 t_stat sysd_reset (DEVICE *dptr);
@@ -236,7 +236,7 @@ return 0;
 int32 get_vector (int32 lvl)
 {
 int32 i;
-int32 int_unmask = int_req[0] & int_mask;
+uint32 int_unmask = int_req[0] & int_mask;
 
 if (lvl == IPL_CLK) {                                   /* clock? */
     tmr_int = 0;                                        /* clear req */
@@ -904,7 +904,7 @@ return;
 
 /* Machine check */
 
-int32 machine_check (int32 p1, int32 opc, int32 cc, int32 delta)
+int32 machine_check (int32 p1, int32 opc, uint32 cc, int32 delta)
 {
 int32 p2, acc;
 

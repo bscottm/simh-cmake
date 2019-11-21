@@ -126,9 +126,7 @@ t_stat pd_devio(uint32 dev, uint64 *data)
 t_stat
 pd_srv(UNIT * uptr)
 {
-    int32 t;
-
-    t = sim_rtcn_calb (pd_tps, TMR_PD);
+    sim_rtcn_calb (pd_tps, TMR_PD);
     sim_activate_after(uptr, 1000000/pd_tps);
     if (uptr->PIA_CH & PIA_FLG) {
         uptr->PIA_CH |= CLK_IRQ;

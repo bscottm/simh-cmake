@@ -86,8 +86,8 @@
 #define UBA_DEB_XFR     0x10                            /* transfers */
 #define UBA_DEB_ERR     0x20                            /* errors */
 
-int32 int_req[IPL_HLVL] = { 0 };                        /* intr, IPL 14-17 */
-int32 int_vec_set[IPL_HLVL][32] = { 0 };                /* bits to set in vector */
+uint32 int_req[IPL_HLVL] = { 0 };                       /* intr, IPL 14-17 */
+uint32 int_vec_set[IPL_HLVL][32] = { 0 };               /* bits to set in vector */
 uint32 uba_csr = 0;                                     /* control & status reg */
 uint32 uba_fmer = 0;                                    /* failing map reg */
 uint32 uba_map[UBA_NMAPR] = { 0 };                      /* map registers */

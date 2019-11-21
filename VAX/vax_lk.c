@@ -292,7 +292,6 @@ fifo->count = 0;
 
 void lk_cmd ()
 {
-int32 i, group, mode;
 uint8 data = 0;
 
 lk_get_fifo (&lk_rcvf, &data);
@@ -366,11 +365,15 @@ if (data & 1) {                                         /* peripheral command */
             break;
 
         case 0xD9:
-            sim_debug (DBG_CMD, &lk_dev, "change all auto-repeat to down only\n");
-            for (i = 0; i <= 15; i++) {
-                if (lk_mode[i] == LK_MODE_AUTODOWN)
-                    lk_mode[i] = LK_MODE_DOWN;
-                }
+            {
+                size_t i;
+
+                sim_debug (DBG_CMD, &lk_dev, "change all auto-repeat to down only\n");
+                for (i = 0; i <= 15; i++) {
+                    if (lk_mode[i] == LK_MODE_AUTODOWN)
+                        lk_mode[i] = LK_MODE_DOWN;
+                    }
+            }
             break;
 
         case 0xAB:
@@ -405,9 +408,10 @@ if (data & 1) {                                         /* peripheral command */
             }
     }
 else {
-    group = (data >> 3) & 0xF;
+    uint32 group = (data >> 3) & 0xF;
+
     if (group < 15) {
-        mode = (data >> 1) & 0x3;
+        uint32 mode = (data >> 1) & 0x3;
         sim_debug (DBG_CMD, &lk_dev, "set group %d, mode = %s\n", group, lk_modes[mode]);
         lk_mode[group] = mode;
         LK_SEND_CHAR (LK_MODEACK);                      /* Mode change ACK */

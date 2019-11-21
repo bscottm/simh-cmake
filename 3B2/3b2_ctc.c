@@ -259,7 +259,7 @@ static void ctc_update_vtoc(uint32 maxpass,
  */
 static void ctc_cmd(uint8 cid,
                     cio_entry *rqe, uint8 *rapp_data,
-                    cio_entry *cqe, uint8 *capp_data)
+                    cio_entry *cqe, uint8 capp_data[8])
 {
     uint32 vtoc_addr, pdinfo_addr, ctjob_addr;
     /* Initialize maxpass to something reasonable to squelch GCC warning about
@@ -810,7 +810,7 @@ static t_stat ctc_show_queue_common(FILE *st, UNIT *uptr, int32 val,
     uint8 cid;
     char *cptr = (char *) desc;
     t_stat result;
-    uint32 ptr, size, no_rque, i, j;
+    uint32 ptr, size, no_rque, i;
     uint8  op, dev, seq, cmdstat;
 
     if (cptr) {
@@ -843,6 +843,8 @@ static t_stat ctc_show_queue_common(FILE *st, UNIT *uptr, int32 val,
         ptr += CTQRESIZE;
 
         for (i = 0; i < no_rque; i++) {
+            uint32 j;
+
             fprintf(st, "---------------------------------------------------------\n");
             fprintf(st, "REQUEST QUEUE %d\n", i);
             fprintf(st, "---------------------------------------------------------\n");
@@ -870,7 +872,7 @@ static t_stat ctc_show_queue_common(FILE *st, UNIT *uptr, int32 val,
     } else {
         ptr = cio[cid].cqp;
         size = cio[cid].cqs;
-        no_rque = 0; /* Not used */
+        /* no_rque = 0; * Not used */
         fprintf(st, "Dumping Completion Queue\n");
         fprintf(st, "---------------------------------------------------------\n");
         fprintf(st, "EXPRESS ENTRY:\n");

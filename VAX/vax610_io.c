@@ -31,9 +31,9 @@
 
 #include "vax_defs.h"
 
-int32 int_req[IPL_HLVL] = { 0 };                        /* intr, IPL 14-17 */
-int32 int_vec_set[IPL_HLVL][32] = { 0 };                /* bits to set in vector */
-int32 autcon_enb = 1;                                   /* autoconfig enable */
+uint32 int_req[IPL_HLVL] = { 0 };                       /* intr, IPL 14-17 */
+uint32 int_vec_set[IPL_HLVL][32] = { 0 };               /* bits to set in vector */
+uint32 autcon_enb = 1;                                  /* autoconfig enable */
 
 extern int32 vc_mem_rd (int32 pa);
 extern void vc_mem_wr (int32 pa, int32 val, int32 lnt);

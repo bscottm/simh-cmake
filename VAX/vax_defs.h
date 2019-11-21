@@ -970,7 +970,7 @@ extern const uint16 drom[NUM_INST][MAX_SPEC + 1];
 
 /* Model dependent definitions */
 extern int32 eval_int (void);
-extern int32 machine_check (int32 p1, int32 opc, int32 cc, int32 delta);
+extern int32 machine_check (int32 p1, int32 opc, uint32 cc, int32 delta);
 extern int32 get_vector (int32 lvl);
 extern int32 con_halt (int32 code, int32 cc);
 extern t_stat cpu_boot (int32 unitno, DEVICE *dptr);
@@ -1041,8 +1041,8 @@ extern t_stat cpu_set_instruction_set (UNIT *uptr, int32 val, CONST char *cptr, 
 extern t_stat cpu_help (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, const char *cptr);
 extern t_stat cpu_model_help (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, const char *cptr);
 extern const uint32 byte_mask[33];
-extern int32 autcon_enb;                                /* autoconfig enable */
-extern int32 int_req[IPL_HLVL];                         /* intr, IPL 14-17 */
+extern uint32 autcon_enb;                               /* autoconfig enable */
+extern uint32 int_req[IPL_HLVL];                        /* intr, IPL 14-17 */
 extern uint32 *M;                                       /* Memory */
 extern DEVICE cpu_dev;                                  /* CPU */
 extern UNIT cpu_unit;                                   /* CPU */

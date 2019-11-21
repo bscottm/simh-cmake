@@ -72,13 +72,13 @@
 #define UBA_DEB_XFR     0x10                            /* transfers */
 #define UBA_DEB_ERR     0x20                            /* errors */
 
-int32 int_req[IPL_HLVL] = { 0 };                        /* intr, IPL 14-17 */
+uint32 int_req[IPL_HLVL] = { 0 };                       /* intr, IPL 14-17 */
 uint32 uba_csr1 = 0;                                    /* csr reg 1 */
 uint32 uba_csr2 = 0;                                    /* csr reg 2 */
 uint32 uba_csr3 = 0;                                    /* csr reg 3 */
 uint32 uba_int = 0;                                     /* UBA interrupt */
 uint32 uba_map[UBA_NMAPR] = { 0 };                      /* map registers */
-int32 autcon_enb = 1;                                   /* autoconfig enable */
+uint32 autcon_enb = 1;                                  /* autoconfig enable */
 
 extern uint32 nexus_req[NEXUS_HLVL];
 

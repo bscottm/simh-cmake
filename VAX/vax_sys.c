@@ -747,7 +747,7 @@ t_stat fprint_sym (FILE *of, t_addr exta, t_value *val,
     UNIT *uptr, int32 sw)
 {
 uint32 addr = (uint32) exta;
-int32 c, k, num, vp, lnt, rdx;
+int32 k, num, vp, lnt, rdx;
 t_stat r;
 DEVICE *dptr;
 
@@ -777,7 +777,7 @@ else if ((sim_switch_number >= 2) && (sim_switch_number <= 36)) rdx = sim_switch
 else rdx = dptr->dradix;
 if ((sw & SWMASK ('A')) || (sw & SWMASK ('C'))) {       /* char format? */
     for (vp = lnt - 1; vp >= 0; vp--) {
-        c = (int32) val[vp] & 0x7F;
+        int32 c = (int32) val[vp] & 0x7F;
         fprintf (of, (c < 0x20)? "<%02X>": "%c", c);
         }
     return -(lnt - 1);                                  /* return # chars */
@@ -816,7 +816,7 @@ return -(vp - 1);
 t_stat fprint_sym_m (FILE *of, uint32 addr, t_value *val)
 {
 int32 i, k, vp, inst, numspec;
-int32 num, spec, rn, disp, index;
+int32 num, spec, rn, index;
 
 vp = 0;                                                 /* init ptr */
 inst = (int32) val[vp++];                               /* get opcode */
@@ -829,6 +829,8 @@ if (numspec == 0)
     numspec = DR_GETUSP (drom[inst][0]);
 fprintf (of, "%s", opcode[inst]);                       /* print name */
 for (i = 0; i < numspec; i++) {                         /* loop thru spec */
+    int32 disp;
+
     fputc (i? ',': ' ', of);                            /* separator */
     disp = drom[inst][i + 1];                           /* get drom value */
     if (disp == BB) {                                   /* byte br disp? */
@@ -961,7 +963,13 @@ for (i = startp = 0; i < lnt; i++) {
 return vp;
 }
 
-#define PUTNUM(d,n)     for (k = 0; k < n; k++) val[vp++] = (d >> (k * 8)) & 0xFF
+#define PUTNUM(d,n) \
+    do { \
+        size_t k; \
+        for (k = 0; k < n; k++) { \
+            val[vp++] = (d >> (k * 8)) & 0xFF; \
+        } \
+    } while (0)
 
 /* Symbolic input
 
@@ -979,7 +987,7 @@ return vp;
 t_stat parse_sym (CONST char *cptr, t_addr exta, UNIT *uptr, t_value *val, int32 sw)
 {
 uint32 addr = (uint32) exta;
-int32 k, rdx, lnt, num, vp;
+int32 rdx, lnt, num, vp;
 t_stat r;
 DEVICE *dptr;
 static const uint32 maxv[5] = { 0, 0xFF, 0xFFFF, 0, 0xFFFFFFFF };
@@ -1069,7 +1077,7 @@ return -(vp - 1);                                       /* return # chars */
 
 t_stat parse_sym_m (const char *cptr, uint32 addr, t_value *val)
 {
-int32 i, numspec, disp, opc, vp;
+int32 i, numspec, opc, vp;
 t_stat r;
 char gbuf[CBUFSIZE];
 
@@ -1094,6 +1102,8 @@ numspec = DR_GETNSP (drom[opc][0]);                     /* get # specifiers */
 if (numspec == 0)
     numspec = DR_GETUSP (drom[opc][0]);
 for (i = 1; i <= numspec; i++) {                        /* loop thru specs */
+    int32 disp;
+
     if (i == numspec)
         cptr = get_glyph (cptr, gbuf, 0);
     else cptr = get_glyph (cptr, gbuf, ',');            /* get specifier */
@@ -1127,7 +1137,7 @@ return -(vp - 1);
 int32 parse_brdisp (const char *cptr, uint32 addr, t_value *val, int32 vp,
     int32 lnt, t_stat *r)
 {
-int32 k, dest, num;
+int32 dest, num;
 
 dest = (int32) get_uint (cptr, 16, 0xFFFFFFFF, r);      /* get value */
 num = dest - (addr + vp + lnt + 1);                     /* compute offset */
@@ -1181,11 +1191,10 @@ return vp;
 
 int32 parse_spec (CONST char *cptr, uint32 addr, t_value *val, int32 vp, int32 disp, t_stat *r)
 {
-int32 i, k, litsize, rn, index;
+int32 i, litsize, rn, index;
 int32 num, dispsize, mode;
 int32 lit[4] = { 0 };
 int32 fl = 0;
-char c;
 const char *tptr;
 const char *force[] = { "S^", "I^", "B^", "W^", "L^", NULL };
 
@@ -1214,7 +1223,7 @@ M1C ('#', SP_LIT);                                      /* look for # */
 M1C ('+', SP_PLUS);                                     /* look for + */
 M1C ('-', SP_MINUS);                                    /* look for - */
 for (litsize = 0;; cptr++) {                            /* look for mprec int */
-    c = *cptr;
+    char c = *cptr;
     if ((c < '0') || (c > 'F') || ((c > '9') && (c < 'A')))
         break;
     num = (c <= '9')? c - '0': c - 'A' + 10;
@@ -1439,13 +1448,13 @@ return vp;
 
 CONST char *parse_rnum (CONST char *cptr, int32 *rn)
 {
-int32 i, lnt;
+int32 i;
 t_value regnum;
 CONST char *tptr;
 
 *rn = 0;
 for (i = 15; i >= 0; i--) {                             /* chk named reg */
-    lnt = strlen (regname[i]);
+    int32 lnt = strlen (regname[i]);
     if (strncmp (cptr, regname[i], lnt) == 0) {
         *rn = i;
         return cptr + lnt;
@@ -1462,7 +1471,7 @@ return tptr;
 
 int32 parse_sym_qoimm (int32 *lit, t_value *val, int32 vp, int lnt, int32 minus)
 {
-int32 i, k, prev;
+size_t i, prev;
 
 for (i = prev = 0; i < lnt; i++) {
     if (minus)

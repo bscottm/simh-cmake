@@ -160,7 +160,7 @@
 #define UBA_DEB_XFR     0x10                            /* transfers */
 #define UBA_DEB_ERR     0x20                            /* errors */
 
-int32 int_req[IPL_HLVL] = { 0 };                        /* intr, IPL 14-17 */
+uint32 int_req[IPL_HLVL] = { 0 };                       /* intr, IPL 14-17 */
 uint32 uba_cnf = 0;                                     /* config reg */
 uint32 uba_cr = 0;                                      /* control reg */
 uint32 uba_sr = 0;                                      /* status reg */

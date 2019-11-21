@@ -877,7 +877,7 @@ extern uint32 cpu_model;                                /* CPU model */
 extern uint32 cpu_type;                                 /* model as bit mask */
 extern uint32 cpu_opt;                                  /* CPU options */
 extern int32 autcon_enb;                                /* autoconfig enable */
-extern int32 int_req[IPL_HLVL];                         /* interrupt requests */
+extern uint32 int_req[IPL_HLVL];                        /* interrupt requests */
 extern uint16 *M;                                       /* Memory */
 
 extern DEVICE cpu_dev;

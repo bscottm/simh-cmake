@@ -104,7 +104,7 @@
 
 int32 ubcs[UBANUM] = { 0 };                             /* status registers */
 int32 ubmap[UBANUM][UMAP_MEMSIZE] = {{ 0 }};            /* Unibus maps */
-int32 int_req = 0;                                      /* interrupt requests */
+uint32 int_req = 0;                                     /* interrupt requests */
 
 int32 autcon_enb = 1;                                   /* auto configure enabled */
 

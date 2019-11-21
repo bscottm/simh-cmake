@@ -294,7 +294,7 @@ static void ni_disable()
     sim_cancel(sanity_unit);
 }
 
-static void ni_cmd(uint8 cid, cio_entry *rentry, uint8 *rapp_data, t_bool is_exp)
+static void ni_cmd(uint8 cid, cio_entry *rentry, uint8 rapp_data[4], t_bool is_exp)
 {
     int i, j;
     int32 delay;

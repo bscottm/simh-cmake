@@ -648,7 +648,7 @@ int32 rpackg (UFP *a, int32 *rh);
 void vax_fadd (UFP *a, UFP *b, uint32 mhi, uint32 mlo);
 void vax_fmul (UFP *a, UFP *b, t_bool qd, int32 bias, uint32 mhi, uint32 mlo);
 void vax_fmod (UFP *a, int32 bias, int32 *intgr, int32 *flg);
-void vax_fdiv (UFP *b, UFP *a, int32 prec, int32 bias);
+void vax_fdiv (UFP *a, UFP *b, int32 prec, int32 bias);
 void dp_add (UDP *a, UDP *b);
 void dp_inc (UDP *a);
 void dp_sub (UDP *a, UDP *b);
@@ -820,7 +820,6 @@ int32 op_cvtfdgi (int32 *opnd, int32 *flg, int32 opc)
 UFP a;
 int32 lnt = opc & 03;
 int32 ubexp;
-static uint32 maxv[4] = { 0x7F, 0x7FFF, 0x7FFFFFFF, 0x7FFFFFFF };
 
 *flg = 0;
 if (opc & 0x100) {                                      /* G? */
@@ -836,6 +835,8 @@ else {
 if ((a.exp == 0) || (ubexp < 0))                        /* true zero or frac? */
     return 0;
 if (ubexp <= UF_V_NM) {                                 /* exp in range? */
+    static uint32 maxv[4] = { 0x7F, 0x7FFF, 0x7FFFFFFF, 0x7FFFFFFF };
+
     dp_rsh (&a.frac, UF_V_NM - ubexp);                  /* leave rnd bit */
     if (lnt == 03)                                      /* if CVTR, round */
         dp_inc (&a.frac);

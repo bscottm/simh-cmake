@@ -886,7 +886,6 @@ _sim_read_deck(UNIT *uptr, int eof)
     struct _card_buffer  buf;
     struct card_context *data;
     DEVICE *             dptr;
-    int                  i;
     size_t               l;
     size_t               cards = 0;
     t_stat               r     = SCPE_OK;
@@ -903,7 +902,7 @@ _sim_read_deck(UNIT *uptr, int eof)
 
     /* Slurp up current file */
     do {
-        size_t j;
+        size_t i, j;
 
         if (buf.len < 500 && !feof(uptr->fileref)) {
             l = sim_fread(&buf.buffer[buf.len], 1, 8192, uptr->fileref);

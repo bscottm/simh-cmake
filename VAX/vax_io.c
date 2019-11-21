@@ -106,15 +106,15 @@
 
 #define QB_VEC_MASK     0x1FC                           /* Interrupt Vector value mask */
 
-int32 int_req[IPL_HLVL] = { 0 };                        /* intr, IPL 14-17 */
-int32 int_vec_set[IPL_HLVL][32] = { 0 };                /* bits to set in vector */
-int32 cq_scr = 0;                                       /* SCR */
-int32 cq_dser = 0;                                      /* DSER */
-int32 cq_mear = 0;                                      /* MEAR */
-int32 cq_sear = 0;                                      /* SEAR */
-int32 cq_mbr = 0;                                       /* MBR */
-int32 cq_ipc = 0;                                       /* IPC */
-int32 autcon_enb = 1;                                   /* autoconfig enable */
+uint32 int_req[IPL_HLVL] = { 0 };                       /* intr, IPL 14-17 */
+uint32 int_vec_set[IPL_HLVL][32] = { 0 };               /* bits to set in vector */
+uint32 cq_scr = 0;                                      /* SCR */
+uint32 cq_dser = 0;                                     /* DSER */
+uint32 cq_mear = 0;                                     /* MEAR */
+uint32 cq_sear = 0;                                     /* SEAR */
+uint32 cq_mbr = 0;                                      /* MBR */
+uint32 cq_ipc = 0;                                      /* IPC */
+uint32 autcon_enb = 1;                                  /* autoconfig enable */
 
 extern int32 ssc_bto;
 extern int32 vc_mem_rd (int32 pa);
@@ -763,7 +763,7 @@ return SCPE_OK;
 int32 Map_ReadB (uint32 ba, int32 bc, uint8 *buf)
 {
 int32 i;
-uint32 ma, dat;
+uint32 ma;
 
 if ((ba | bc) & 03) {                                   /* check alignment */
     for (i = ma = 0; i < bc; i++, buf++) {              /* by bytes */
@@ -777,6 +777,8 @@ if ((ba | bc) & 03) {                                   /* check alignment */
     }
 else {
     for (i = ma = 0; i < bc; i = i + 4, buf++) {        /* by longwords */
+        uint32 dat;
+        
         if ((ma & VA_M_OFF) == 0) {                     /* need map? */
             if (!qba_map_addr (ba + i, &ma))            /* inv or NXM? */
                 return (bc - i);
@@ -795,7 +797,7 @@ return 0;
 int32 Map_ReadW (uint32 ba, int32 bc, uint16 *buf)
 {
 int32 i;
-uint32 ma,dat;
+uint32 ma;
 
 ba = ba & ~01;
 bc = bc & ~01;
@@ -811,6 +813,8 @@ if ((ba | bc) & 03) {                                   /* check alignment */
     }
 else {
     for (i = ma = 0; i < bc; i = i + 4, buf++) {        /* by longwords */
+        uint32 dat;
+        
         if ((ma & VA_M_OFF) == 0) {                     /* need map? */
             if (!qba_map_addr (ba + i, &ma))            /* inv or NXM? */
                 return (bc - i);
@@ -827,7 +831,7 @@ return 0;
 int32 Map_WriteB (uint32 ba, int32 bc, const uint8 *buf)
 {
 int32 i;
-uint32 ma, dat;
+uint32 ma;
 
 if ((ba | bc) & 03) {                                   /* check alignment */
     for (i = ma = 0; i < bc; i++, buf++) {              /* by bytes */
@@ -841,6 +845,8 @@ if ((ba | bc) & 03) {                                   /* check alignment */
     }
 else {
     for (i = ma = 0; i < bc; i = i + 4, buf++) {        /* by longwords */
+        uint32 dat;
+
         if ((ma & VA_M_OFF) == 0) {                     /* need map? */
             if (!qba_map_addr (ba + i, &ma))            /* inv or NXM? */
                 return (bc - i);
@@ -859,7 +865,7 @@ return 0;
 int32 Map_WriteW (uint32 ba, int32 bc, const uint16 *buf)
 {
 int32 i;
-uint32 ma, dat;
+uint32 ma;
 
 ba = ba & ~01;
 bc = bc & ~01;
@@ -875,6 +881,8 @@ if ((ba | bc) & 03) {                                   /* check alignment */
     }
 else {
     for (i = ma = 0; i < bc; i = i + 4, buf++) {        /* by longwords */
+        uint32 dat;
+
         if ((ma & VA_M_OFF) == 0) {                     /* need map? */
             if (!qba_map_addr (ba + i, &ma))            /* inv or NXM? */
                 return (bc - i);
@@ -924,12 +932,11 @@ t_stat build_dib_tab (void)
 {
 int32 i;
 DEVICE *dptr;
-DIB *dibp;
 t_stat r;
 
 init_ubus_tab ();                                       /* init bus tables */
 for (i = 0; (dptr = sim_devices[i]) != NULL; i++) {     /* loop thru dev */
-    dibp = (DIB *) dptr->ctxt;                          /* get DIB */
+    DIB *dibp = (DIB *) dptr->ctxt;                     /* get DIB */
     if (dibp && !(dptr->flags & DEV_DIS)) {             /* defined, enabled? */
         if ((r = build_ubus_tab (dptr, dibp)))          /* add to bus tab */
             return r;
@@ -944,10 +951,10 @@ t_stat qba_show_virt (FILE *of, UNIT *uptr, int32 val, CONST void *desc)
 {
 t_stat r;
 const char *cptr = (const char *) desc;
-uint32 qa, pa;
+uint32 pa;
 
 if (cptr) {
-    qa = (uint32) get_uint (cptr, 16, CQMSIZE - 1, &r);
+    uint32 qa = (uint32) get_uint (cptr, 16, CQMSIZE - 1, &r);
     if (r == SCPE_OK) {
         if (qba_map_addr_c (qa, &pa))
             fprintf (of, "Qbus %-X = physical %-X\n", qa, pa);

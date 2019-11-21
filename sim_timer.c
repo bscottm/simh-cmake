@@ -2149,78 +2149,103 @@ return SCPE_OK;
 t_stat
 sim_timer_tick_svc(UNIT *uptr)
 {
-    size_t  tmr = uptr - sim_timer_units;
-    t_stat  stat;
-    RTC    *rtc = &rtcs[tmr];
+    if (uptr >= sim_timer_units && uptr < sim_timer_units + ARRAY_SIZE(sim_timer_units)) {
+        ptrdiff_t tmr = uptr - sim_timer_units;
+        t_stat    stat;
+        RTC *     rtc = &rtcs[tmr];
+        int32     co_int;
+        UNIT *    sptr;
+        UNIT *    cptr;
 
-    rtc->clock_ticks += 1;
-    rtc->calib_tick_time += rtc->clock_tick_size;
-    /*
-     * Some devices may depend on executing during the same instruction or
-     * immediately after the clock tick event.  To satisfy this, we directly
-     * run the clock event here and if it completes successfully, schedule any
-     * currently coschedule units to run now.  Ticks should never return a
-     * non-success status, while co-schedule activities might, so they are
-     * queued to run from sim_process_event
-     */
-    sim_debug(DBG_QUE, &sim_timer_dev, "sim_timer_tick_svc(tmr=%" PRI_SIZE_T ") - scheduling %s - cosched interval: %d\n",
-              tmr, sim_uname(rtc->clock_unit), rtc->cosched_interval);
-    if (rtc->clock_unit->action == NULL)
-        return SCPE_IERR;
-    stat = rtc->clock_unit->action(rtc->clock_unit);
-    --rtc->cosched_interval; /* Countdown ticks */
-    if (rtc->clock_cosched_queue != QUEUE_LIST_END)
-        rtc->clock_cosched_queue->time = rtc->cosched_interval;
-    if ((stat == SCPE_OK) && (rtc->cosched_interval <= 0) && (rtc->clock_cosched_queue != QUEUE_LIST_END)) {
-        UNIT *sptr = rtc->clock_cosched_queue;
-        UNIT *cptr = QUEUE_LIST_END;
+        rtc->clock_ticks += 1;
+        rtc->calib_tick_time += rtc->clock_tick_size;
+        /*
+         * Some devices may depend on executing during the same instruction or
+         * immediately after the clock tick event.  To satisfy this, we directly
+         * run the clock event here and if it completes successfully, schedule any
+         * currently coschedule units to run now.  Ticks should never return a
+         * non-success status, while co-schedule activities might, so they are
+         * queued to run from sim_process_event
+         */
+        sim_debug(DBG_QUE, &sim_timer_dev,
+                  "sim_timer_tick_svc(tmr=%" PRI_SIZE_T ") - scheduling %s - cosched interval: %d\n", tmr,
+                  sim_uname(rtc->clock_unit), rtc->cosched_interval);
+        if (rtc->clock_unit->action == NULL)
+            return SCPE_IERR;
 
-        if (rtc->clock_catchup_eligible) { /* calibration started? */
-            struct timespec now;
-            double          skew;
+        if ((stat = rtc->clock_unit->action(rtc->clock_unit)) != SCPE_OK)
+            return stat;
 
-            clock_gettime(CLOCK_REALTIME, &now);
-            skew = (_timespec_to_double(&now) - (rtc->calib_tick_time + rtc->clock_catchup_base_time));
-
-            if (fabs(skew) > fabs(rtc->clock_skew_max))
-                rtc->clock_skew_max = skew;
-        }
-        /* Gather any queued events which are scheduled for right now */
-        do {
-            cptr                     = rtc->clock_cosched_queue;
-            rtc->clock_cosched_queue = cptr->next;
+        /* Countdown ticks, ensuring that the countdown doesn't wrap (it shouldn't, but GCC's strict overflow
+         * complains that it might, so it doesn't hurt to check.) */
+        co_int = rtc->cosched_interval;
+        if (--co_int < rtc->cosched_interval) {
+            rtc->cosched_interval = co_int;
             if (rtc->clock_cosched_queue != QUEUE_LIST_END) {
-                rtc->clock_cosched_queue->time += rtc->cosched_interval;
-                rtc->cosched_interval = rtc->clock_cosched_queue->time;
-            } else
-                rtc->cosched_interval = 0;
-        } while ((rtc->cosched_interval <= 0) && (rtc->clock_cosched_queue != QUEUE_LIST_END));
-        if (cptr != QUEUE_LIST_END)
-            cptr->next = QUEUE_LIST_END;
-        /* Now dispatch that list (in order). */
-        while (sptr != QUEUE_LIST_END) {
-            cptr         = sptr;
-            sptr         = sptr->next;
-            cptr->next   = NULL;
-            cptr->cancel = NULL;
-            cptr->time   = 0;
-            if (cptr->usecs_remaining) {
-                sim_debug(DBG_QUE, &sim_timer_dev, "Rescheduling %s after %.0f usecs %s%s\n", sim_uname(cptr),
-                          cptr->usecs_remaining, (sptr != QUEUE_LIST_END) ? "- next: " : "",
-                          (sptr != QUEUE_LIST_END) ? sim_uname(sptr) : "");
-                stat = sim_timer_activate_after(cptr, cptr->usecs_remaining);
-            } else {
-                sim_debug(DBG_QUE, &sim_timer_dev, "Activating %s now %s%s\n", sim_uname(cptr),
-                          (sptr != QUEUE_LIST_END) ? "- next: " : "", (sptr != QUEUE_LIST_END) ? sim_uname(sptr) : "");
-                stat = _sim_activate(cptr, 0);
+                rtc->clock_cosched_queue->time = rtc->cosched_interval;
+
+                if (co_int <= 0) {
+                    if (rtc->clock_catchup_eligible) { /* calibration started? */
+                        struct timespec now;
+                        double          skew;
+
+                        clock_gettime(CLOCK_REALTIME, &now);
+                        skew = (_timespec_to_double(&now) - (rtc->calib_tick_time + rtc->clock_catchup_base_time));
+
+                        if (fabs(skew) > fabs(rtc->clock_skew_max))
+                            rtc->clock_skew_max = skew;
+                    }
+
+                    /* Gather any queued events which are scheduled for right now */
+                    sptr = rtc->clock_cosched_queue;
+
+                    do {
+                        cptr = rtc->clock_cosched_queue;
+                        rtc->clock_cosched_queue = cptr->next;
+
+                        if (rtc->clock_cosched_queue != QUEUE_LIST_END) {
+                            rtc->clock_cosched_queue->time += rtc->cosched_interval;
+                            rtc->cosched_interval = rtc->clock_cosched_queue->time;
+                        } else
+                            rtc->cosched_interval = 0;
+                    } while ((rtc->cosched_interval <= 0) && (rtc->clock_cosched_queue != QUEUE_LIST_END));
+
+                    if (cptr != QUEUE_LIST_END)
+                        cptr->next = QUEUE_LIST_END;
+
+                    /* Now dispatch that list (in order). */
+                    while (sptr != QUEUE_LIST_END) {
+                        cptr = sptr;
+                        sptr = sptr->next;
+                        cptr->next = NULL;
+                        cptr->cancel = NULL;
+                        cptr->time = 0;
+                        if (cptr->usecs_remaining) {
+                            sim_debug(DBG_QUE, &sim_timer_dev, "Rescheduling %s after %.0f usecs %s%s\n", sim_uname(cptr),
+                                      cptr->usecs_remaining, (sptr != QUEUE_LIST_END) ? "- next: " : "",
+                                      (sptr != QUEUE_LIST_END) ? sim_uname(sptr) : "");
+                            stat = sim_timer_activate_after(cptr, cptr->usecs_remaining);
+                        } else {
+                            sim_debug(DBG_QUE, &sim_timer_dev, "Activating %s now %s%s\n", sim_uname(cptr),
+                                      (sptr != QUEUE_LIST_END) ? "- next: " : "",
+                                      (sptr != QUEUE_LIST_END) ? sim_uname(sptr) : "");
+                            stat = _sim_activate(cptr, 0);
+                        }
+                        if (stat != SCPE_OK) {
+                            sim_debug(DBG_QUE, &sim_timer_dev, "Activating %s failed: %s\n", sim_uname(cptr),
+                                      sim_error_text(stat));
+                            break;
+                        }
+                    }
+                }
             }
-            if (stat != SCPE_OK) {
-                sim_debug(DBG_QUE, &sim_timer_dev, "Activating %s failed: %s\n", sim_uname(cptr), sim_error_text(stat));
-                break;
-            }
+
+            return SCPE_OK;
+        } else {
+            return sim_messagef(SCPE_IERR, "rtc->cosched_interval wrapped around backwards.");
         }
-    }
-    return stat;
+    } else
+        return SCPE_SUB;
 }
 
 t_stat sim_timer_stop_svc (UNIT *uptr)

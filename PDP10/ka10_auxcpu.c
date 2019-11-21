@@ -338,6 +338,7 @@ int auxcpu_write (int addr, t_uint64 data)
   return 0;
 }
 
+#if 0
 static int auxcpu_interrupt (void)
 {
   unsigned char request[12];
@@ -365,7 +366,6 @@ static int auxcpu_interrupt (void)
   return 0;
 }
 
-#if 0
 t_stat auxcpu_devio(uint32 dev, t_uint64 *data)
 {
     /*DEVICE *dptr = &auxcpu_dev;*/
@@ -418,7 +418,7 @@ static t_stat auxcpu_set_base (UNIT *uptr, int32 val, CONST char *cptr, void *de
 
 static t_stat auxcpu_show_base (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-    fprintf (st, "Base: %06"LL_FMT"o", auxcpu_base);
+    fprintf (st, "Base: %06o", auxcpu_base);
     return SCPE_OK;
 }
 #endif

@@ -96,8 +96,8 @@ int32 ka_cfgtst = 0;                                    /* KA43A config/test */
 int32 CADR = 0;                                         /* cache disable reg */
 int32 SESR = 0;                                         /* software error summary reg */
 int32 sys_model = 0;                                    /* MicroVAX or VAXstation */
-int32 int_req[IPL_HLVL] = { 0 };                        /* interrupt requests */
-int32 int_mask = 0;                                     /* interrupt mask */
+uint32 int_req[IPL_HLVL] = { 0 };                       /* interrupt requests */
+uint32 int_mask = 0;                                    /* interrupt mask */
 uint32 tmr_tir = 0;                                     /* curr interval */
 t_bool tmr_inst = FALSE;                                /* wait instructions vs usecs */
 int32 cdg_dat[CDASIZE >> 2];                            /* cache data */
@@ -206,7 +206,7 @@ return 0;
 int32 get_vector (int32 lvl)
 {
 int32 i;
-int32 int_unmask = int_req[0] & int_mask;
+uint32 int_unmask = int_req[0] & int_mask;
 
 if (lvl == IPL_CLK) {                                   /* clock? */
     tmr_int = 0;                                        /* clear req */

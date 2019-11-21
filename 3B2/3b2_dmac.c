@@ -180,10 +180,12 @@ uint32 dmac_read(uint32 pa, size_t size)
  */
 void dmac_program(uint8 reg, uint8 val)
 {
-    uint8 channel_id, i, chan_num;
+    uint8 channel_id, i;
     dma_channel *channel;
 
     if (reg < 8) {
+        size_t chan_num;
+
         switch (reg) {
         case 0:
         case 1:
@@ -211,7 +213,7 @@ void dmac_program(uint8 reg, uint8 val)
             channel->addr |= (val & 0xff) << (dma_state.bff * 8);
             channel->addr_c = channel->addr;
             sim_debug(WRITE_MSG, &dmac_dev,
-                      "Set address channel %d byte %d = %08x\n",
+                      "Set address channel %" PRI_SIZE_T " byte %d = %08x\n",
                       chan_num, dma_state.bff, channel->addr);
             break;
         case 1: /* Word Count */
@@ -220,7 +222,7 @@ void dmac_program(uint8 reg, uint8 val)
             channel->wcount_c = channel->wcount;
             channel->ptr = 0;
             sim_debug(WRITE_MSG, &dmac_dev,
-                      "Set word count channel %d byte %d = %08x\n",
+                      "Set word count channel %" PRI_SIZE_T " byte %d = %08x\n",
                       chan_num, dma_state.bff, channel->wcount);
             break;
         }

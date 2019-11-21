@@ -280,7 +280,7 @@ int32 PSW = 0;                                          /* PSW */
   int32 N = 0, Z = 0, V = 0, C = 0;                     /*   condition codes */
 int32 wait_state = 0;                                   /* wait state */
 int32 trap_req = 0;                                     /* trap requests */
-int32 int_req[IPL_HLVL] = { 0 };                        /* interrupt requests */
+uint32 int_req[IPL_HLVL] = { 0 };                       /* interrupt requests */
 int32 PIRQ = 0;                                         /* programmed int req */
 int32 STKLIM = 0;                                       /* stack limit */
 fpac_t FR[6] = { {0} };                                 /* fp accumulators */

@@ -193,7 +193,7 @@ switch (opc) {
         break;
 
     case MNEGH:
-        if ((r = op_tsth (opnd[0]))) {                  /* test for 0 */
+        if (op_tsth (opnd[0])) {                        /* test for 0 */
             opnd[0] = opnd[0] ^ FPSIGN;                 /* nz, invert sign */
             h_write_o (spec, va, opnd, acc, hst);       /* write result */
             CC_IIZZ_FP (opnd[0]);                       /* set cc's */
@@ -506,7 +506,6 @@ int32 op_cvthi (int32 *hf, int32 *flg, int32 opc)
 UFPH a;
 int32 lnt = opc & 03;
 int32 ubexp;
-static uint32 maxv[4] = { 0x7F, 0x7FFF, 0x7FFFFFFF, 0x7FFFFFFF };
 
 *flg = 0;                                               /* clear ovflo */
 h_unpackh (hf, &a);                                     /* unpack */
@@ -514,6 +513,8 @@ ubexp = a.exp - H_BIAS;                                 /* unbiased exp */
 if ((a.exp == 0) || (ubexp < 0))                        /* true zero or frac? */
     return 0;
 if (ubexp <= UH_V_NM) {                                 /* exp in range? */
+    static uint32 maxv[4] = { 0x7F, 0x7FFF, 0x7FFFFFFF, 0x7FFFFFFF };
+
     qp_rsh (&a.frac, UH_V_NM - ubexp);                  /* leave rnd bit */
     if (lnt == 03)                                      /* if CVTR, round */
         qp_inc (&a.frac);
@@ -1171,14 +1172,12 @@ return hflt[0];
 
 void h_write_b (int32 spec, int32 va, int32 val, int32 acc, InstHistory *hst)
 {
-int32 rn;
-
 if (hst)
     hst->res[0] = val;
 if (spec > (GRN | nPC))
     Write (va, val, L_BYTE, WA);
 else {
-    rn = spec & 0xF;
+    int32 rn = spec & 0xF;
     R[rn] = (R[rn] & ~BMASK) | val;
     }
 return;
@@ -1186,14 +1185,12 @@ return;
 
 void h_write_w (int32 spec, int32 va, int32 val, int32 acc, InstHistory *hst)
 {
-int32 rn;
-
 if (hst)
     hst->res[0] = val;
 if (spec > (GRN | nPC))
     Write (va, val, L_WORD, WA);
 else {
-    rn = spec & 0xF;
+    int32 rn = spec & 0xF;
     R[rn] = (R[rn] & ~WMASK) | val;
     }
 return;
@@ -1211,7 +1208,7 @@ return;
 
 void h_write_q (int32 spec, int32 va, int32 vl, int32 vh, int32 acc, InstHistory *hst)
 {
-int32 rn, mstat;
+int32 mstat;
 
 if (hst) {
     hst->res[0] = vl;
@@ -1224,7 +1221,7 @@ if (spec > (GRN | nPC)) {
     Write (va + 4, vh, L_LONG, WA);
     }
 else {
-    rn = spec & 0xF;
+    int32 rn = spec & 0xF;
     if (rn >= nSP)
         RSVD_ADDR_FAULT;
     R[rn] = vl;
@@ -1235,7 +1232,7 @@ return;
 
 void h_write_o (int32 spec, int32 va, int32 *val, int32 acc, InstHistory *hst)
 {
-int32 rn, mstat;
+int32 mstat;
 
 if (hst) {
     hst->res[0] = val[0];
@@ -1252,7 +1249,7 @@ if (spec > (GRN | nPC)) {
     Write (va + 12, val[3], L_LONG, WA);
     }
 else {
-    rn = spec & 0xF;
+    int32 rn = spec & 0xF;
     if (rn >= nAP)
         RSVD_ADDR_FAULT;
     R[rn] = val[0];

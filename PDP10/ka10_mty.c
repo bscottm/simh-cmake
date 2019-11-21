@@ -101,8 +101,8 @@ DEVICE mty_dev = {
 static t_stat mty_devio(uint32 dev, uint64 *data)
 {
     /* DEVICE *dptr = &mty_dev; */
-    TMLN *lp;
-    int line;
+    /*TMLN *lp;*/
+    size_t line;
     uint64 word;
 
     switch(dev & 07) {
@@ -113,16 +113,16 @@ static t_stat mty_devio(uint32 dev, uint64 *data)
         line = (status & MTY_LINE) >> 12;
         if (*data & MTY_STOP) {
             status &= ~MTY_ODONE;
-            sim_debug(DEBUG_CMD, &mty_dev, "Clear output done line %d\n",
+            sim_debug(DEBUG_CMD, &mty_dev, "Clear output done line %" PRI_SIZE_T "\n",
                       line);
         }
         if (*data & MTY_RQINT) {
             status |= MTY_ODONE;
-            sim_debug(DEBUG_CMD, &mty_dev, "Request interrupt line %d\n",
+            sim_debug(DEBUG_CMD, &mty_dev, "Request interrupt line %" PRI_SIZE_T "\n",
                       line);
         }
         if ((*data & (MTY_STOP | MTY_RQINT)) == 0)
-            sim_debug(DEBUG_CMD, &mty_dev, "Select line %d\n",
+            sim_debug(DEBUG_CMD, &mty_dev, "Select line %" PRI_SIZE_T "\n",
                       line);
         break;
     case CONI:
@@ -132,9 +132,9 @@ static t_stat mty_devio(uint32 dev, uint64 *data)
     case DATAO:
         line = (status & MTY_LINE) >> 12;
         word = *data;
-        sim_debug(DEBUG_DATAIO, &mty_dev, "DATAO line %d -> %012"LL_FMT"o\n",
+        sim_debug(DEBUG_DATAIO, &mty_dev, "DATAO line %" PRI_SIZE_T " -> %012"LL_FMT"o\n",
                   line, word);
-        lp = &mty_ldsc[line];
+        /*lp = &mty_ldsc[line];*/
         mty_output_word[line] = word | MTY_FIRST;
         mty_active_bitmask |= 1 << line;
         sim_activate_abs (&mty_unit[1], 0);
@@ -142,9 +142,9 @@ static t_stat mty_devio(uint32 dev, uint64 *data)
         break;
     case DATAI:
         line = (status & MTY_LINE) >> 12;
-        lp = &mty_ldsc[line];
+        /*lp = &mty_ldsc[line];*/
         *data = mty_input_character;
-        sim_debug(DEBUG_DATAIO, &mty_dev, "DATAI line %d -> %012"LL_FMT"o\n",
+        sim_debug(DEBUG_DATAIO, &mty_dev, "DATAI line %" PRI_SIZE_T " -> %012"LL_FMT"o\n",
                   line, *data);
         status &= ~MTY_IDONE;
         sim_activate_abs (&mty_unit[0], 0);

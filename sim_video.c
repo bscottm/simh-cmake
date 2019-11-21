@@ -286,17 +286,17 @@ static int SDL_SavePNG_RW(SDL_Surface *surface, SDL_RWops *dst, int freedst)
 typedef struct {
     SIM_KEY_EVENT events[MAX_EVENTS];
     SDL_sem *sem;
-    int32 head;
-    int32 tail;
-    int32 count;
+    size_t head;
+    size_t tail;
+    size_t count;
     } KEY_EVENT_QUEUE;
 
 typedef struct {
     SIM_MOUSE_EVENT events[MAX_EVENTS];
     SDL_sem *sem;
-    int32 head;
-    int32 tail;
-    int32 count;
+    size_t head;
+    size_t tail;
+    size_t count;
     } MOUSE_EVENT_QUEUE;
 
 int vid_thread (void* arg);
@@ -1264,8 +1264,12 @@ if (SDL_SemWait (vid_mouse_events.sem) == 0) {
     vid_mouse_b1 = (event->state & SDL_BUTTON(SDL_BUTTON_LEFT)) ? TRUE : FALSE;
     vid_mouse_b2 = (event->state & SDL_BUTTON(SDL_BUTTON_MIDDLE)) ? TRUE : FALSE;
     vid_mouse_b3 = (event->state & SDL_BUTTON(SDL_BUTTON_RIGHT)) ? TRUE : FALSE;
-    sim_debug (SIM_VID_DBG_MOUSE, vid_dev, "Mouse Move Event: pos:(%d,%d) rel:(%d,%d) buttons:(%d,%d,%d) - Count: %d vid_cursor:(%d,%d)\n", 
-                                            event->x, event->y, event->xrel, event->yrel, (event->state & SDL_BUTTON(SDL_BUTTON_LEFT)) ? 1 : 0, (event->state & SDL_BUTTON(SDL_BUTTON_MIDDLE)) ? 1 : 0, (event->state & SDL_BUTTON(SDL_BUTTON_RIGHT)) ? 1 : 0, vid_mouse_events.count, vid_cursor_x, vid_cursor_y);
+    sim_debug (SIM_VID_DBG_MOUSE, vid_dev, "Mouse Move Event: pos:(%d,%d) rel:(%d,%d) buttons:(%d,%d,%d) - Count: %" PRI_SIZE_T " vid_cursor:(%d,%d)\n", 
+               event->x, event->y, event->xrel, event->yrel,
+               (event->state & SDL_BUTTON(SDL_BUTTON_LEFT)) ? 1 : 0,
+               (event->state & SDL_BUTTON(SDL_BUTTON_MIDDLE)) ? 1 : 0,
+               (event->state & SDL_BUTTON(SDL_BUTTON_RIGHT)) ? 1 : 0,
+               vid_mouse_events.count, vid_cursor_x, vid_cursor_y);
     if (vid_mouse_events.count < MAX_EVENTS) {
         SIM_MOUSE_EVENT *tail = &vid_mouse_events.events[(vid_mouse_events.tail+MAX_EVENTS-1)%MAX_EVENTS];
 
@@ -1295,7 +1299,7 @@ if (SDL_SemWait (vid_mouse_events.sem) == 0) {
             }
         }
     else {
-        sim_debug (SIM_VID_DBG_MOUSE, vid_dev, "Mouse Move Event Discarded: Count: %d\n", vid_mouse_events.count);
+        sim_debug (SIM_VID_DBG_MOUSE, vid_dev, "Mouse Move Event Discarded: Count: %" PRI_SIZE_T "\n", vid_mouse_events.count);
         }
     if (SDL_SemPost (vid_mouse_events.sem))
         sim_printf ("%s: vid_mouse_move(): SDL_SemPost error: %s\n", sim_dname(vid_dev), SDL_GetError());
@@ -1359,7 +1363,7 @@ if (SDL_SemWait (vid_mouse_events.sem) == 0) {
             vid_mouse_events.tail = 0;
         }
     else {
-        sim_debug (SIM_VID_DBG_MOUSE, vid_dev, "Mouse Button Event Discarded: Count: %d\n", vid_mouse_events.count);
+        sim_debug (SIM_VID_DBG_MOUSE, vid_dev, "Mouse Button Event Discarded: Count: %" PRI_SIZE_T "\n", vid_mouse_events.count);
         }
     if (SDL_SemPost (vid_mouse_events.sem))
         sim_printf ("%s: Mouse Button Event: SDL_SemPost error: %s\n", sim_dname(vid_dev), SDL_GetError());

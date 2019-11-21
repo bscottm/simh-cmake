@@ -114,7 +114,7 @@ The other test was to configure DECnet on VMS 4.6 and do SET HOST.
 
 #define DMC_CONNECT_POLL    2   /* Seconds */
 
-extern int32 IREQ (HLVL);
+extern uint32 IREQ (HLVL);
 extern int32 tmxr_poll;                                 /* calibrated delay */
 extern int32 clk_tps;                                   /* clock ticks per second */
 extern int32 tmr_poll;                                  /* instructions per tick */
@@ -1763,7 +1763,7 @@ t_stat dmc_shownumdevices (FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
 DEVICE *dptr = (UNIBUS) ? find_dev_from_unit (uptr) : &dmv_dev;
 
-fprintf (st, "lines=%d", dptr->numunits-2);
+fprintf (st, "lines=%" PRI_SIZE_T, dptr->numunits-2);
 return SCPE_OK;
 }
 
