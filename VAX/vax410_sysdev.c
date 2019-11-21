@@ -770,7 +770,7 @@ return;
 
 /* Machine check */
 
-int32 machine_check (int32 p1, int32 opc, int32 cc, int32 delta)
+int32 machine_check (int32 p1, int32 opc, uint32 cc, int32 delta)
 {
 int32 st, p2, acc;
 

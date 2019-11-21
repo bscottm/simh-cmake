@@ -116,7 +116,7 @@ int32 ka_tmr = 0;                                       /* IS1000 diag timer */
 int32 CADR = 0;                                         /* cache disable reg */
 int32 SCCR = 0;                                         /* secondary cache control */
 int32 sys_model = 0;                                    /* MicroVAX or VAXstation */
-int32 int_req[IPL_HLVL] = { 0 };                        /* interrupt requests */
+uint32 int_req[IPL_HLVL] = { 0 };                       /* interrupt requests */
 int32 int_mask = 0;                                     /* interrupt mask */
 int32 vc_sel, vc_org;
 int32 dz_csr = 0;                                       /* control/status */
@@ -843,7 +843,7 @@ return 1;
 
 /* Machine check */
 
-int32 machine_check (int32 p1, int32 opc, int32 cc, int32 delta)
+int32 machine_check (int32 p1, int32 opc, uint32 cc, int32 delta)
 {
 int32 p2, acc;
 

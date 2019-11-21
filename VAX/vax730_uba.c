@@ -91,7 +91,7 @@ uint32 int_vec_set[IPL_HLVL][32] = { 0 };               /* bits to set in vector
 uint32 uba_csr = 0;                                     /* control & status reg */
 uint32 uba_fmer = 0;                                    /* failing map reg */
 uint32 uba_map[UBA_NMAPR] = { 0 };                      /* map registers */
-int32 autcon_enb = 1;                                   /* autoconfig enable */
+uint32 autcon_enb = 1;                                  /* autoconfig enable */
 
 t_stat uba_reset (DEVICE *dptr);
 const char *uba_description (DEVICE *dptr);
