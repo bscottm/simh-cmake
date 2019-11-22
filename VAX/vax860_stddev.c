@@ -271,7 +271,7 @@ void tmr_sched (uint32 incr);
 t_stat todr_resync (void);
 t_stat lc_wr_txdb (int32 data);
 
-extern int32 con_halt (int32 code, int32 cc);
+extern int32 con_halt (int32 code, uint32 cc);
 
 /* TTI data structures
 

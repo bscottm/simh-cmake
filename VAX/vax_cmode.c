@@ -72,7 +72,7 @@ else return FALSE;
 
 /* Compatibility mode execution */
 
-int32 op_cmode (int32 cc)
+uint32 op_cmode (uint32 cc)
 {
 int32 IR, srcspec, dstspec, srcreg, dstreg, ea;
 int32 i, t, src, src2, dst, sign, oc;
@@ -1306,7 +1306,7 @@ t_bool BadCmPSL (int32 newpsl)
 return TRUE;                                            /* always bad */
 }
 
-int32 op_cmode (int32 cc)
+uint32 op_cmode (uint32 cc)
 {
 RSVD_INST_FAULT(0);
 return cc;

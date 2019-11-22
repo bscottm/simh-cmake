@@ -327,7 +327,7 @@ static SIM_INLINE int32 get_istr (int32 lnt, int32 acc);
 int32 ReadOcta (int32 va, int32 *opnd, int32 j, int32 acc);
 t_bool cpu_show_opnd (FILE *st, InstHistory *h, int32 line);
 t_stat cpu_show_hist_records (FILE *st, t_bool do_header, int32 start, int32 count);
-int32 cpu_emulate_exception (int32 *opnd, int32 cc, int32 opc, int32 acc);
+uint32 cpu_emulate_exception (int32 *opnd, uint32 cc, int32 opc, int32 acc);
 void cpu_idle (void);
 
 /* CPU data structures
@@ -3242,7 +3242,7 @@ return j;
    In both cases, the exception occurs in the current mode.
 */
 
-int32 cpu_emulate_exception (int32 *opnd, int32 cc, int32 opc, int32 acc)
+uint32 cpu_emulate_exception (int32 *opnd, uint32 cc, int32 opc, int32 acc)
 {
 int32 vec;
 
@@ -3935,16 +3935,13 @@ return r;
 
 t_stat cpu_help (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, const char *cptr)
 {
+MTAB *mptr;
 fprintf (st, "The ");cpu_print_model (st);fprintf (st, " CPU help\n\n");
 fprintf (st, "CPU options include the size of main memory.\n\n");
-if (dptr->modifiers) {
-    MTAB *mptr;
-
-    for (mptr = dptr->modifiers; mptr->mask != 0; mptr++)
-        if (mptr->valid == &cpu_set_size)
-            fprintf (st, "   sim> SET CPU %4s                    set memory size = %sB\n", mptr->mstring, mptr->mstring);
-    fprintf (st, "\n");
-    }
+for (mptr = dptr->modifiers; mptr != NULL && mptr->mask != 0; mptr++)
+    if (mptr->valid == &cpu_set_size)
+        fprintf (st, "   sim> SET CPU %4s                    set memory size = %sB\n", mptr->mstring, mptr->mstring);
+fprintf (st, "\n");
 cpu_model_help (st, dptr, uptr, flag, cptr);
 fprintf (st, "CPU options include the treatment of the HALT instruction.\n\n");
 fprintf (st, "   sim> SET CPU SIMHALT                 kernel HALT returns to simulator\n");

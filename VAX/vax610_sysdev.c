@@ -487,7 +487,7 @@ return cc;
 
 /* Console entry */
 
-int32 con_halt (int32 code, int32 cc)
+int32 con_halt (int32 code, uint32 cc)
 {
 if ((vax610_boot_parse (0, cpu_boot_cmd) != SCPE_OK) || /* reparse the boot cmd */ 
     (reset_all (0) != SCPE_OK) ||                       /* reset the world */

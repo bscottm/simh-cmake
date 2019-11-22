@@ -303,7 +303,7 @@ int32 tmr1_inta (void);
 int32 parity (int32 val, int32 odd);
 t_stat sysd_powerup (void);
 
-extern int32 intexc (int32 vec, int32 cc, int32 ipl, int ei);
+extern uint32 intexc (int32 vec, uint32 cc, int32 ipl, int ei);
 extern int32 cqmap_rd (int32 pa);
 extern void cqmap_wr (int32 pa, int32 val, int32 lnt);
 extern int32 cqipc_rd (int32 pa);
@@ -1675,7 +1675,7 @@ return cc;
 
 /* Console entry */
 
-int32 con_halt (int32 code, int32 cc)
+int32 con_halt (int32 code, uint32 cc)
 {
 int32 temp;
 

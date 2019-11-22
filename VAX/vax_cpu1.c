@@ -1096,7 +1096,7 @@ return (R[0]? 0: CC_Z);
                         1:  interrupt
 */
 
-int32 intexc (int32 vec, int32 cc, int32 ipl, int ei)
+uint32 intexc (int32 vec, uint32 cc, int32 ipl, int ei)
 {
 int32 oldpsl = PSL | cc;
 int32 oldcur = PSL_GETCUR (oldpsl);
@@ -1153,7 +1153,7 @@ return 0;
         opnd[0] =       operand
 */
 
-int32 op_chm (int32 *opnd, int32 cc, int32 opc)
+uint32 op_chm (int32 *opnd, uint32 cc, int32 opc)
 {
 int32 mode = opc & PSL_M_MODE;
 int32 cur = PSL_GETCUR (PSL);

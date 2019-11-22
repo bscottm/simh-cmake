@@ -158,7 +158,7 @@ void nvr_wr (int32 pa, int32 val, int32 lnt);
 int32 ka_rd (int32 pa, int32 lnt);
 void ka_wr (int32 pa, int32 val, int32 lnt);
 t_stat sysd_powerup (void);
-int32 con_halt (int32 code, int32 cc);
+int32 con_halt (int32 code, uint32 cc);
 
 extern int32 qbmap_rd (int32 pa, int32 lnt);
 extern void qbmap_wr (int32 pa, int32 val, int32 lnt);
@@ -876,7 +876,7 @@ return cc;
 
 /* Console entry */
 
-int32 con_halt (int32 code, int32 cc)
+int32 con_halt (int32 code, uint32 cc)
 {
 int32 temp;
 

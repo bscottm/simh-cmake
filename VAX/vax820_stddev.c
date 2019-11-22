@@ -251,7 +251,7 @@ t_stat todr_resync (void);
 t_bool fl_test_xfr (UNIT *uptr, t_bool wr);
 void fl_protocol_error (void);
 
-extern int32 con_halt (int32 code, int32 cc);
+extern int32 con_halt (int32 code, uint32 cc);
 
 /* TTI data structures
 

@@ -155,7 +155,7 @@ t_stat sysd_reset (DEVICE *dptr);
 const char *sysd_description (DEVICE *dptr);
 int32 ka_rd (int32 pa);
 void ka_wr (int32 pa, int32 val, int32 lnt);
-int32 con_halt (int32 code, int32 cc);
+int32 con_halt (int32 code, uint32 cc);
 
 extern int32 iccs_rd (void);
 extern int32 rom_rd (int32 pa);
@@ -932,7 +932,7 @@ return cc;
 
 /* Console entry */
 
-int32 con_halt (int32 code, int32 cc)
+int32 con_halt (int32 code, uint32 cc)
 {
 int32 temp;
 

@@ -91,7 +91,7 @@ t_stat tto_help (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, const char *cpt
 void txdb_func (int32 data);
 
 extern int32 sysd_hlt_enb (void);
-extern int32 con_halt (int32 code, int32 cc);
+extern int32 con_halt (int32 code, uint32 cc);
 
 /* TTI data structures
 

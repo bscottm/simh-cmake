@@ -674,10 +674,10 @@ enum opcodes {
 
 /* Repeated operations */
 
-#define SXTB(x)         (((x) & BSIGN)? ((x) | ~BMASK): ((x) & BMASK))
-#define SXTW(x)         (((x) & WSIGN)? ((x) | ~WMASK): ((x) & WMASK))
-#define SXTBW(x)        (((x) & BSIGN)? ((x) | (WMASK - BMASK)): ((x) & BMASK))
-#define SXTL(x)         (((x) & LSIGN)? ((x) | ~LMASK): ((x) & LMASK))
+#define SXTB(x)         (((uint32) (x) & BSIGN)? (int32) (((uint32) (x) | ~BMASK)): (int32) (((uint32) (x)) & BMASK))
+#define SXTW(x)         (((uint32) (x) & WSIGN)? (int32) (((uint32) (x)) | ~WMASK): (int32) (((uint32) (x)) & WMASK))
+#define SXTBW(x)        (((uint32) (x) & BSIGN)? (int32) (((uint32) (x)) | (WMASK - BMASK)): (int32) (((uint32) (x)) & BMASK))
+#define SXTL(x)         (((uint32) (x) & LSIGN)? (int32) (((uint32) (x)) | ~LMASK): (int32) (((uint32) (x)) & LMASK))
 #define INTOV           if (PSL & PSW_IV) SET_TRAP (TRAP_INTOV)
 #define V_INTOV         cc = cc | CC_V; INTOV
 #define NEG(x)          ((~(x) + 1) & LMASK)
@@ -740,8 +740,8 @@ enum opcodes {
             else if ((r) == 0) cc = CC_Z; \
             else cc = 0
 #define CC_IIZZ_L(r) \
-            if ((r) & LSIGN) cc = CC_N; \
-            else if ((r) == 0) cc = CC_Z; \
+            if ((uint32) (r) & LSIGN) cc = CC_N; \
+            else if (((uint32) (r)) == 0) cc = CC_Z; \
             else cc = 0
 #define CC_IIZZ_Q(rl,rh) \
             if ((rh) & LSIGN) cc = CC_N; \
@@ -794,11 +794,11 @@ enum opcodes {
             C_ADD (r, s1, s2)
 
 #define V_SUB_B(r,s1,s2) \
-            if ((((s1) ^ (s2)) & (~(s1) ^ (r))) & BSIGN) { V_INTOV; }
+            if ((((uint8) (s1) ^ (uint8) (s2)) & (((uint8) ~(s1)) ^ (uint8) (r))) & BSIGN) { V_INTOV; }
 #define V_SUB_W(r,s1,s2) \
-            if ((((s1) ^ (s2)) & (~(s1) ^ (r))) & WSIGN) { V_INTOV; }
+            if ((((uint16) (s1) ^ (uint16) (s2)) & (((uint16) ~(s1)) ^ (uint16) (r))) & WSIGN) { V_INTOV; }
 #define V_SUB_L(r,s1,s2) \
-            if ((((s1) ^ (s2)) & (~(s1) ^ (r))) & LSIGN) { V_INTOV; }
+            if ((((uint32) (s1) ^ (uint32) (s2)) & (~((uint32) (s1)) ^ (uint32) (r))) & LSIGN) { V_INTOV; }
 #define C_SUB(r,s1,s2) \
             if (((uint32) s2) < ((uint32) s1)) cc = cc | CC_C
 
@@ -847,7 +847,7 @@ extern int32 extra_bytes;           /* bytes referenced by current string instru
 extern BITFIELD cpu_psl_bits[];
 extern char const * const opcode[];
 extern const uint16 drom[NUM_INST][MAX_SPEC + 1];
-extern int32 cpu_emulate_exception (int32 *opnd, int32 cc, int32 opc, int32 acc);
+extern uint32 cpu_emulate_exception (int32 *opnd, uint32 cc, int32 opc, int32 acc);
 void cpu_idle (void);
 
 /* Instruction History */
@@ -915,14 +915,14 @@ extern int32 op_movc (int32 *opnd, int32 opc, int32 acc);
 extern int32 op_cmpc (int32 *opnd, int32 opc, int32 acc);
 extern int32 op_locskp (int32 *opnd, int32 opc, int32 acc);
 extern int32 op_scnspn (int32 *opnd, int32 opc, int32 acc);
-extern int32 op_chm (int32 *opnd, int32 cc, int32 opc);
+extern uint32 op_chm (int32 *opnd, uint32 cc, int32 opc);
 extern int32 op_rei (int32 acc);
 extern void op_ldpctx (int32 acc);
 extern void op_svpctx (int32 acc);
 extern int32 op_probe (int32 *opnd, int32 opc);
 extern int32 op_mtpr (int32 *opnd);
 extern int32 op_mfpr (int32 *opnd);
-extern int32 intexc (int32 vec, int32 cc, int32 ipl, int ei);
+extern uint32 intexc (int32 vec, uint32 cc, int32 ipl, int ei);
 
 /* vax_cis.c externals */
 extern uint32 op_cis (int32 *opnd, uint32 cc, int32 opc, int32 acc);
@@ -959,10 +959,10 @@ extern void op_polyd (int32 *opnd, int32 acc);
 extern void op_polyg (int32 *opnd, int32 acc);
 
 /* vax_octa.c externals */
-extern int32 op_octa (int32 *opnd, int32 cc, int32 opc, int32 acc, int32 spec, int32 va, InstHistory *hst);
+extern uint32 op_octa (int32 *opnd, uint32 cc, int32 opc, int32 acc, int32 spec, int32 va, InstHistory *hst);
 
 /* vax_cmode.c externals */
-extern int32 op_cmode (int32 cc);
+extern uint32 op_cmode (uint32 cc);
 extern t_bool BadCmPSL (int32 newpsl);
 
 /* vax_sys.c externals */
@@ -972,7 +972,7 @@ extern const uint16 drom[NUM_INST][MAX_SPEC + 1];
 extern int32 eval_int (void);
 extern int32 machine_check (int32 p1, int32 opc, uint32 cc, int32 delta);
 extern int32 get_vector (int32 lvl);
-extern int32 con_halt (int32 code, int32 cc);
+extern int32 con_halt (int32 code, uint32 cc);
 extern t_stat cpu_boot (int32 unitno, DEVICE *dptr);
 extern t_stat build_dib_tab (void);
 extern void rom_wr_B (int32 pa, int32 val);

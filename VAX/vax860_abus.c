@@ -664,7 +664,7 @@ return cc;
 
 /* Console entry */
 
-int32 con_halt (int32 code, int32 cc)
+int32 con_halt (int32 code, uint32 cc)
 {
 if ((cpu_boot_cmd[0] == 0) ||                           /* saved boot cmd? */
     (vax860_boot_parse (0, cpu_boot_cmd) != SCPE_OK) || /* reparse the boot cmd */ 

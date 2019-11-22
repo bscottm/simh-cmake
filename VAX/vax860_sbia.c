@@ -86,7 +86,7 @@ void sbi_set_tmo (int32 pa);
 t_stat (*nexusR[NEXUS_NUM])(int32 *dat, int32 ad, int32 md);
 t_stat (*nexusW[NEXUS_NUM])(int32 dat, int32 ad, int32 md);
 
-extern int32 intexc (int32 vec, int32 cc, int32 ipl, int ei);
+extern uint32 intexc (int32 vec, uint32 cc, int32 ipl, int ei);
 extern int32 eval_int (void);
 
 /* SBIA data structures

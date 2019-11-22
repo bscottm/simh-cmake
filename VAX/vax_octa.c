@@ -110,7 +110,7 @@ static int32 z_octa[4] = { 0, 0, 0, 0 };
 
 /* Octaword instructions */
 
-int32 op_octa (int32 *opnd, int32 cc, int32 opc, int32 acc, int32 spec, int32 va, InstHistory *hst)
+uint32 op_octa (int32 *opnd, uint32 cc, int32 opc, int32 acc, int32 spec, int32 va, InstHistory *hst)
 {
 int32 r, rh, temp, flg;
 int32 r_octa[4];
