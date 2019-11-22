@@ -71,7 +71,7 @@ uint32 int_req[IPL_HLVL] = { 0 };                       /* intr, IPL 14-17 */
 uint32 int_vec_set[IPL_HLVL][32] = { 0 };               /* bits to set in vector */
 int32 qb_ipc = 0;                                       /* IPC */
 int32 qb_map[QBNMAPR] = { 0 };                          /* map registers */
-int32 autcon_enb = 1;                                   /* autoconfig enable */
+uint32 autcon_enb = 1;                                   /* autoconfig enable */
 
 extern int32 ka_mser;                                   /* KA630 mem sys err */
 extern int32 sys_model;

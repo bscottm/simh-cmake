@@ -176,7 +176,7 @@ uint32 uba_aiip = 0;                                    /* adapter init in prog 
 uint32 uba_uiip = 0;                                    /* Unibus init in prog */
 uint32 uba_aitime = 250;                                /* adapter init time */
 uint32 uba_uitime = 12250;                              /* Unibus init time */
-int32 autcon_enb = 1;                                   /* autoconfig enable */
+uint32 autcon_enb = 1;                                  /* autoconfig enable */
 
 extern uint32 nexus_req[NEXUS_HLVL];
 

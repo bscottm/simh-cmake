@@ -16,12 +16,13 @@
 # "scooter me fecit"
 
 find_path(PCAP_INCLUDE_DIR pcap.h
-        HINTS
-	  ENV PCAP_DIR
-	# path suffixes to search inside ENV{PCAP_DIR}
-	include/pcap include/PCAP include
-	PATHS ${PCAP_PATH}
-        )
+    HINTS
+      ENV PCAP_DIR
+      # path suffixes to search inside ENV{PCAP_DIR}
+      include/pcap include/PCAP include
+    PATHS
+      ${PCAP_PATH}
+    )
 
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
   set(LIB_PATH_SUFFIXES lib64 lib/x64 lib/amd64 lib/x86_64-linux-gnu lib)
@@ -38,6 +39,8 @@ find_library(PCAP_LIBRARY
         PATHS
           ${PCAP_PATH}
         )
+message(STATUS "LIB_PATH_SUFFIXES ${LIB_PATH_SUFFIXES}")
+message(STATUS "PCAP_LIBRARY is ${PCAP_LIBRARY}")
 
 if (WIN32 AND PCAP_LIBRARY)
     ## Only worry about the packet library on Windows.
@@ -45,12 +48,15 @@ if (WIN32 AND PCAP_LIBRARY)
 	    NAMES packet Packet
 	    HINTS
 	      ENV PCAP_DIR
-	    PATH_SUFFIXES lib
-	    PATHS ${PCAP_PATH}
+      PATH_SUFFIXES
+        ${LIB_PATH_SUFFIXES}
+      PATHS
+        ${PCAP_PATH}
 	    )
 else (WIN32 AND PCAP_LIBRARY)
     set(PACKET_LIBRARY)
 endif (WIN32 AND PCAP_LIBRARY)
+message(STATUS "PACKET_LIBRARY is ${PACKET_LIBRARY}")
 
 set(PCAP_LIBRARIES ${PCAP_LIBRARY} ${PACKET_LIBRARY})
 set(PCAP_INCLUDE_DIRS ${PCAP_INCLUDE_DIR})
