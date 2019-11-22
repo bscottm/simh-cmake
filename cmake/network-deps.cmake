@@ -31,10 +31,10 @@ if (WITH_NETWORK)
 				set(NPCAP_PACKET_DLL C:/Windows/SysWOW64/Npcap/Packet.DLL)
 			endif(CMAKE_SIZEOF_VOID_P EQUAL 8)
 
-			execute_process(
-				COMMAND ${CMAKE_COMMAND} -E copy ${NPCAP_PACKET_DLL} build-stage/bin
-				WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-			)
+			# execute_process(
+			# 	COMMAND ${CMAKE_COMMAND} -E copy ${NPCAP_PACKET_DLL} build-stage/bin
+			# 	WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+			# )
 
 			execute_process(
 				COMMAND ${CMAKE_COMMAND} -E tar xzf ${NPCAP_ARCHIVE} Include/ Lib/
