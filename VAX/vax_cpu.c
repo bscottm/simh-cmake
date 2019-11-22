@@ -262,7 +262,7 @@ int32 fault_PC;                                         /* fault PC */
 int32 mxpr_cc_vc = 0;                                   /* MxPR V,C bits */
 int32 pcq_p = 0;                                        /* PC queue ptr */
 int32 badabo = 0;
-int32 cpu_instruction_set = CPU_INSTRUCTION_SET;        /* Instruction Groups  */
+uint32 cpu_instruction_set = CPU_INSTRUCTION_SET;       /* Instruction Groups  */
 int32 cpu_astop = 0;
 int32 mchk_va, mchk_ref;                                /* mem ref param */
 int32 ibufl, ibufh;                                     /* prefetch buf */
@@ -3777,7 +3777,7 @@ return SCPE_OK;
 }
  
 static struct {
-    int32 mask;
+    uint32 mask;
     const char *match;
     const char *desc;
     } inst_groups[] = {
@@ -3830,7 +3830,7 @@ const char **b = (const char **)pb;
 return strcmp (*a, *b);
 }
 
-t_stat cpu_show_instruction_group (FILE *st, int32 groupmask)
+t_stat cpu_show_instruction_group (FILE *st, uint32 groupmask)
 {
 int opc;
 int group;

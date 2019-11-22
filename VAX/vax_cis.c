@@ -74,8 +74,8 @@ static DSTR Dstr_zero = { 0, {0, 0, 0, 0} };
 static DSTR Dstr_one = { 0, {0x10, 0, 0, 0} };
 
 int32 ReadDstr (int32 lnt, int32 addr, DSTR *dec, int32 acc);
-int32 WriteDstr (int32 lnt, int32 addr, DSTR *dec, int32 v, int32 acc);
-int32 SetCCDstr (int32 lnt, DSTR *src, int32 pslv);
+uint32 WriteDstr (size_t lnt, uint32 addr, DSTR *dec, int32 v, int32 acc);
+uint32 SetCCDstr (size_t lnt, DSTR *src, uint32 pslv);
 int32 AddDstr (DSTR *src1, DSTR *src2, DSTR *dst, int32 cin);
 void SubDstr (DSTR *src1, DSTR *src2, DSTR *dst);
 int32 CmpDstr (DSTR *src1, DSTR *src2);
@@ -96,7 +96,7 @@ extern int32 eval_int (void);
 
 /* CIS emulator */
 
-int32 op_cis (int32 *op, int32 cc, int32 opc, int32 acc)
+uint32 op_cis (int32 *op, uint32 cc, int32 opc, int32 acc)
 {
 int32 i, j, c, t, rpt = 0, V;
 int32 match, fill_ch, sign, shift;
@@ -153,7 +153,7 @@ switch (opc) {                                          /* case on opcode */
     case MOVTC:
         if (PSL & PSL_FPD) {                            /* FPD set? */
             SETPC (fault_PC + STR_GETDPC (R[0]));       /* reset PC */
-            fill_ch = STR_GETCHR (R[0]);                   /* get fill */
+            fill_ch = STR_GETCHR (R[0]);                /* get fill */
             R[2] = R[2] & STR_LNMASK;                   /* remaining move */
             cc = (R[4] >> 16) & CC_MASK;                /* restore cc's */
             }
@@ -161,7 +161,7 @@ switch (opc) {                                          /* case on opcode */
             CC_CMP_W (op[0], op[4]);                    /* set cc's */
             R[0] = STR_PACK (op[2], op[0]);             /* src len, fill */
             R[1] = op[1];                               /* src addr */
-            fill_ch = op[2];                               /* set fill */
+            fill_ch = op[2];                            /* set fill */
             R[3] = op[3];                               /* table addr */
             R[4] = op[4] | ((cc & CC_MASK) << 16);      /* dst len + cc's */
             R[5] = op[5];                               /* dst addr */
@@ -778,14 +778,18 @@ switch (opc) {                                          /* case on opcode */
         result = op[0];
         if ((result & LSIGN) != 0) {
             dst.sign = 1;
-            result = (~result + 1) & LMASK;
+            result = (-result) & LMASK;
             }
         for (i = 1; (i < (DSTRLNT * 8)) && result; i++) {
-            d = result % 10;
+            size_t d_idx = i / 8;
+            uint32 digit = result % 10;
+
             result = result / 10;
-            dst.val[i / 8] = dst.val[i / 8] | (d << ((i % 8) * 4));
+            dst.val[d_idx] = dst.val[d_idx] | (digit << ((i % 8) * 4));
             }
+#if 0
         cc = WriteDstr (op[1], op[2], &dst, 0, acc);    /* write result */
+#endif
         R[0] = 0;
         R[1] = 0;
         R[2] = 0;
@@ -1194,7 +1198,6 @@ switch (opc) {                                          /* case on opcode */
         R[1] = R[1] - (R[0] >> 1);                      /* restore src addr */
         R[2] = R[4] = 0;
         return cc;
-
     default:
         RSVD_INST_FAULT(opc);
         }
@@ -1268,9 +1271,10 @@ return TestDstr (src);                                  /* clean -0 */
    sign, but PSL.N is clear
 */
 
-int32 WriteDstr (int32 lnt, int32 adr, DSTR *dst, int32 pslv, int32 acc)
+uint32 WriteDstr (size_t lnt, uint32 adr, DSTR *dst, int32 pslv, int32 acc)
 {
-int32 i, cc, end;
+size_t i, end;
+uint32_t cc;
 
 end = lnt / 2;                                          /* end of string */
 ProbeDstr (end, adr, WA);                               /* test writeability */
@@ -1294,13 +1298,14 @@ return cc;
         cc      =       condition codes
 */
 
-int32 SetCCDstr (int32 lnt, DSTR *dst, int32 pslv)
+uint32 SetCCDstr (size_t lnt, DSTR *dst, uint32 pslv)
 {
-int32 psln, pslz, i, limit;
+uint32 psln, pslz, i;
+size_t limit;
 uint32 mask;
 static uint32 masktab[8] = {
-    0xFFFFFFF0, 0xFFFFFF00, 0xFFFFF000, 0xFFFF0000,
-    0xFFF00000, 0xFF000000, 0xF0000000, 0x00000000
+    0xFFFFFFF0u, 0xFFFFFF00u, 0xFFFFF000u, 0xFFFF0000u,
+    0xFFF00000u, 0xFF000000u, 0xF0000000u, 0x00000000u
     };
 
 mask = 0;                                               /* can't ovflo */

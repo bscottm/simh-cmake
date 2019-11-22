@@ -509,9 +509,10 @@ int32 ubexp;
 
 *flg = 0;                                               /* clear ovflo */
 h_unpackh (hf, &a);                                     /* unpack */
-ubexp = a.exp - H_BIAS;                                 /* unbiased exp */
-if ((a.exp == 0) || (ubexp < 0))                        /* true zero or frac? */
+if (a.exp < H_BIAS || a.exp == 0)                       /* true zero or frac? */
     return 0;
+
+ubexp = a.exp - H_BIAS;                                 /* unbiased exp */
 if (ubexp <= UH_V_NM) {                                 /* exp in range? */
     static uint32 maxv[4] = { 0x7F, 0x7FFF, 0x7FFFFFFF, 0x7FFFFFFF };
 

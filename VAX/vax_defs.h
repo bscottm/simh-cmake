@@ -146,13 +146,13 @@ extern jmp_buf save_env;
 
 /* Architectural constants */
 
-#define BMASK           0x000000FF                      /* byte */
-#define BSIGN           0x00000080
-#define WMASK           0x0000FFFF                      /* word */
-#define WSIGN           0x00008000
-#define LMASK           0xFFFFFFFF                      /* longword */
-#define LSIGN           0x80000000
-#define FPSIGN          0x00008000                      /* floating point */
+#define BMASK           0x000000FFu                     /* byte */
+#define BSIGN           0x00000080u
+#define WMASK           0x0000FFFFu                     /* word */
+#define WSIGN           0x00008000u
+#define LMASK           0xFFFFFFFFu                     /* longword */
+#define LSIGN           0x80000000u
+#define FPSIGN          0x00008000u                     /* floating point */
 #define L_BYTE          1                               /* bytes per */
 #define L_WORD          2                               /* data type */
 #define L_LONG          4
@@ -925,7 +925,7 @@ extern int32 op_mfpr (int32 *opnd);
 extern int32 intexc (int32 vec, int32 cc, int32 ipl, int ei);
 
 /* vax_cis.c externals */
-extern int32 op_cis (int32 *opnd, int32 cc, int32 opc, int32 acc);
+extern uint32 op_cis (int32 *opnd, uint32 cc, int32 opc, int32 acc);
 
 /* vax_fpa.c externals */
 extern int32 op_ashq (int32 *opnd, int32 *rh, int32 *flg);
@@ -976,7 +976,7 @@ extern int32 con_halt (int32 code, int32 cc);
 extern t_stat cpu_boot (int32 unitno, DEVICE *dptr);
 extern t_stat build_dib_tab (void);
 extern void rom_wr_B (int32 pa, int32 val);
-extern int32 cpu_instruction_set;
+extern uint32 cpu_instruction_set;
 
 #if defined (VAX_780)
 #include "vax780_defs.h"

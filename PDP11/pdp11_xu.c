@@ -1890,15 +1890,15 @@ void xu_dump_rxring (CTLR* xu)
 
 void xu_dump_txring (CTLR* xu)
 {
-  int i;
-  int trlen = xu->var->trlen;
+  uint32 i;
+  uint32 trlen = xu->var->trlen;
   sim_printf ("transmit ring[%s]: base address: %08x  headers: %d, header size: %d, current: %d\n", xu->dev->name, xu->var->tdrb, xu->var->trlen, xu->var->telen, xu->var->txnext);
   for (i=0; i<trlen; i++) {
     uint16 txhdr[4];
     uint32 ba = xu->var->tdrb + (xu->var->telen * 2) * i;
     t_stat tstatus = Map_ReadW (ba, 8, txhdr);  /* get rxring entry[i] */
-    int own = (txhdr[2] & RXR_OWN) >> 15;
-    int len = txhdr[0];
+    uint16 own = (txhdr[2] & RXR_OWN) >> 15;
+    uint16 len = txhdr[0];
     uint32 addr = txhdr[1] + ((txhdr[2] & 3) << 16);
     if (tstatus == 0)
       sim_printf ("  header[%d]: own:%d, len:%d, address:%08x data:{%04x,%04x,%04x,%04x}\n", i, own, len, addr, txhdr[0], txhdr[1], txhdr[2], txhdr[3]);

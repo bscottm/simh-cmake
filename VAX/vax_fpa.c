@@ -267,21 +267,23 @@ int32 op_cvtfdgi (int32 *opnd, int32 *flg, int32 opc)
 UFP a;
 int32 lnt = opc & 03;
 int32 ubexp;
+int32 exp_bias;
 static t_uint64 maxv[4] = { 0x7F, 0x7FFF, 0x7FFFFFFF, 0x7FFFFFFF };
 
 *flg = 0;
 if (opc & 0x100) {
     unpackg (opnd[0], opnd[1], &a);
-    ubexp = a.exp - G_BIAS;
+    exp_bias = G_BIAS;
     }
 else {
     if (opc & 0x20)
         unpackd (opnd[0], opnd[1], &a);
     else unpackf (opnd[0], &a);
-    ubexp = a.exp - FD_BIAS;
+    exp_bias = FD_BIAS;
     }
-if ((a.exp == 0) || (ubexp < 0))
+if (a.exp < exp_bias || a.exp == 0)
     return 0;
+ubexp = a.exp - exp_bias;
 if (ubexp <= UF_V_NM) {
     a.frac = a.frac >> (UF_V_NM - ubexp);               /* leave rnd bit */
     if ((opc & 03) == 03)                               /* if CVTR, round */

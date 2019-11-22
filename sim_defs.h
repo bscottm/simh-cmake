@@ -144,15 +144,19 @@ extern int sim_vax_snprintf(char *buf, size_t buf_size, const char *fmt, ...);
 #endif
 
 /* Get size_t printing properly configured and avoid compiler warnings. */
+/* Possible "fixme" on platforms where "z" doesn't mean "size_t" */
 #ifdef _WIN32
 #  include <inttypes.h>
 #  ifdef _WIN64
 #    define PRI_SIZE_T PRIu64
+#    define PRX_SIZE_T PRIX64
 #  else
 #    define PRI_SIZE_T PRIu32
+#    define PRX_SIZE_T PRIX64
 #  endif
 #else
 #  define PRI_SIZE_T "zu"
+#  define PRX_SIZE_T "zX"
 #endif
 
 #ifdef USE_REGEX
