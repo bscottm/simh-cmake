@@ -732,16 +732,16 @@ enum opcodes {
 #define CC_ZZ1P cc = CC_Z | (cc & CC_C)
 
 #define CC_IIZZ_B(r) \
-            if ((r) & BSIGN) cc = CC_N; \
+            if ((uint8) (r) & (uint8) BSIGN) cc = CC_N; \
             else if ((r) == 0) cc = CC_Z; \
             else cc = 0
 #define CC_IIZZ_W(r) \
-            if ((r) & WSIGN) cc = CC_N; \
+            if ((uint16) (r) & (uint16) WSIGN) cc = CC_N; \
             else if ((r) == 0) cc = CC_Z; \
             else cc = 0
 #define CC_IIZZ_L(r) \
-            if ((uint32) (r) & LSIGN) cc = CC_N; \
-            else if (((uint32) (r)) == 0) cc = CC_Z; \
+            if ((int32) (r) < 0 /*(r) & LSIGN*/) cc = CC_N; \
+            else if ((r) == 0) cc = CC_Z; \
             else cc = 0
 #define CC_IIZZ_Q(rl,rh) \
             if ((rh) & LSIGN) cc = CC_N; \
@@ -794,11 +794,11 @@ enum opcodes {
             C_ADD (r, s1, s2)
 
 #define V_SUB_B(r,s1,s2) \
-            if ((((uint8) (s1) ^ (uint8) (s2)) & (((uint8) ~(s1)) ^ (uint8) (r))) & BSIGN) { V_INTOV; }
+            if ((((uint32) (s1) ^ (uint32) (s2)) & (~((uint32) (s1)) ^ (uint32) (r))) & ((uint32) BSIGN)) { V_INTOV; }
 #define V_SUB_W(r,s1,s2) \
-            if ((((uint16) (s1) ^ (uint16) (s2)) & (((uint16) ~(s1)) ^ (uint16) (r))) & WSIGN) { V_INTOV; }
+            if ((((uint32) (s1) ^ (uint32) (s2)) & (~((uint32) (s1)) ^ (uint32) (r))) & ((uint32) WSIGN)) { V_INTOV; }
 #define V_SUB_L(r,s1,s2) \
-            if ((((uint32) (s1) ^ (uint32) (s2)) & (~((uint32) (s1)) ^ (uint32) (r))) & LSIGN) { V_INTOV; }
+            if ((((uint32) (s1) ^ (uint32) (s2)) & (~((uint32) (s1)) ^ (uint32) (r))) & ((uint32) LSIGN)) { V_INTOV; }
 #define C_SUB(r,s1,s2) \
             if (((uint32) s2) < ((uint32) s1)) cc = cc | CC_C
 
