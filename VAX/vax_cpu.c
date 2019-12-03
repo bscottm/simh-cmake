@@ -1762,13 +1762,7 @@ for ( ;; ) {
     case MNEGL:
         r = (-op0) & LMASK;                             /* negate opnd */
         WRITE_L (r);                                    /* store result */
-        /* CC_SUB_L (r, op0, 0);                           * set cc's */
-            CC_IIZZ_L (r);
-            printf("CC_IIZZ_L cc = %08x\n", cc);
-            V_SUB_L (r, op0, 0);
-            printf("V_SUB_L   cc = %08x\n", cc);
-            C_SUB (r, op0, 0);
-            printf("C_SUB     cc = %08x\n", cc);
+        CC_SUB_L (r, op0, 0);                           /* set cc's */
         break;
 
     case CVTBW:
