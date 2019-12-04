@@ -731,18 +731,28 @@ enum opcodes {
 
 #define CC_ZZ1P cc = CC_Z | (cc & CC_C)
 
-#define CC_IIZZ_B(r) \
-            if ((uint8) (r) & (uint8) BSIGN) cc = CC_N; \
-            else if ((r) == 0) cc = CC_Z; \
-            else cc = 0
-#define CC_IIZZ_W(r) \
-            if ((uint16) (r) & (uint16) WSIGN) cc = CC_N; \
-            else if ((r) == 0) cc = CC_Z; \
-            else cc = 0
-#define CC_IIZZ_L(r) \
-            if ((int32) (r) < 0 /*(r) & LSIGN*/) cc = CC_N; \
-            else if ((r) == 0) cc = CC_Z; \
-            else cc = 0
+#define CC_IIZZ_B(_arg_r) \
+    do { \
+        uint8 _a = (uint8) _arg_r; \
+        if (_a & BSIGN)    { cc = CC_N; } \
+        else if (_a == 0)  { cc = CC_Z; } \
+        else               { cc = 0; } \
+    } while (0)
+#define CC_IIZZ_W(_arg_r) \
+    do { \
+        uint16 _a = (uint16) _arg_r; \
+        if (_a & WSIGN)   { cc = CC_N; } \
+        else if (_a == 0) { cc = CC_Z; } \
+        else              { cc = 0; } \
+    } while (0)
+#define CC_IIZZ_L(_arg_r) \
+    do { \
+        uint32 _a = (uint32) _arg_r; \
+        if (_a & LSIGN)   { cc = CC_N; } \
+        else if (_a == 0) { cc = CC_Z; } \
+        else              { cc = 0; } \
+    } while (0)
+            
 #define CC_IIZZ_Q(rl,rh) \
             if ((rh) & LSIGN) cc = CC_N; \
             else if (((rl) | (rh)) == 0) cc = CC_Z; \
