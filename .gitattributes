@@ -1,14 +1,20 @@
-*.jpg binary
-*.png binary
-*.sln binary
-*.vcproj binary
-*.exe binary
-*.lda binary
-*.bin binary
-*.imd binary
-*.rim binary
-*.tap binary
-*.dsk binary
-*.vhd binary
+*         text=auto
+*.bat     text eol=crlf
+*.bin     -text
+*.cmd     text eol=crlf
+*.doc     -text
+*.docx    -text
+*.dsk     -text
+*.exe     -text
+*.imd     -text
+*.jpg     -text
+*.lda     -text
+*.pdf     -text
+*.png     -text
+*.ps1     text eol=crlf
+*.rim     -text
+*.sln     -text
+*.tap     -text
+*.vcproj  -text
+*.vhd     -text
 sim_rev.h export-subst
-

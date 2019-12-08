@@ -1,57 +1,89 @@
-# SIMH v4.0 - 19-01 Current
+# SIMH-CMAKE, based on SIMH v4.0 - 19-01 Current
 
-[![Coverity Scan Build Status](https://scan.coverity.com/projects/11982/badge.svg)](https://scan.coverity.com/projects/simh)
-[![Build Status](https://travis-ci.org/simh/simh.svg)](https://travis-ci.org/simh/simh)
-[![AppVeyor](https://ci.appveyor.com/api/projects/status/github/simh/simh)](https://ci.appveyor.com/project/simh/simh/history)
+Travis: [![Build Status](https://travis-ci.org/bscottm/simh-cmake.svg)](https://travis-ci.org/bscottm/simh-cmake)
+AppVeyor: [![AppVeyor](https://ci.appveyor.com/api/projects/status/ernqf5m10xfc47fl?svg=true)](https://ci.appveyor.com/project/bscottm/simh-cmake)
 
+## SIMH-CMAKE: What and Why?
+
+`simh-cmake` is a [CMake][cmake]-based fork from the [simh/simh](https://github.com/simh/simh)
+project. In a nutshell, `simh` could be more maintainable across Unix, Unix-like and Windows
+using a cross-platform build system instead of the existing `makefile`-based, `Visual Studio Projects/`
+and parallel `..\windows-build` structure. [CMake][cmake] can download `simh`'s
+library dependencies and build them in-place with the simulators, which obviates having the
+parallel `..\windows-build` directory. And [CMake][cmake] can regenerate MSVC solution files, which
+reduces maintainer effort.
+
+If you're not familiar with [CMake][cmake], it is a "meta-build" system: [CMake][cmake] takes a
+description of what you want to build (executables, DLLs/shared objects, static libraries) and
+generates the build environment for your platform's tools. For example, [CMake][cmake] on
+Windows can generate the build environment for Microsoft Visual Studio (2019, 2017, 2015, ...,
+2008), GCC/MinGW makefiles, and GCC/Ninja recipies. On Unix and Unix-like systems,
+[CMake][cmake] will generate Unix Makefiles and Ninja build recipies.
+
+Other objectives include, besides [CMake][cmake]:
+
+- 64-bit hygiene: operating system support for 32-bit "legacy" applications will likely disappear someday, so
+  why not ensure `simh` has a 64-bit future? (It does, mostly, but not completely.)
+- Reduce compiler warnings to a minimum (GCC `-Wformat` and MSVC warning C4244 "possible loss of data")
+- Add more automated simulator checkout tests, like the Vax simulators have, to gain confidence
+  in the simulator implementations.
+
+[cmake]: https://cmake.org
+
+<!-- omit in toc -->
 ## Table of Contents:
-[WHAT'S NEW since simh v3.9](#whats-new-since-simh-v39)  
-. . [New Simulators](#new-simulators)  
-. . [Simulator Front Panel API](#simulator-front-panel-api)  
-. . [New Functionality](#new-functionality)  
-. . . . [Remote Console Facility](#remote-console-facility)  
-. . . . [VAX/PDP11 Enhancements](#vaxpdp11-enhancements)  
-. . . . [PDP11 Specific Enhancements](#pdp11-specific-enhancements)  
-. . . . [PDP10 Enhancements](#pdp10-enhancements)  
-. . . . [SDS 940 Enhancements](#sds-940-enhancements)  
-. . . . [Terminal Multiplexer additions](#terminal-multiplexer-additions)  
-. . . . [Video Display Capabilities](#video-display-capabilities)  
-. . . . [Asynchronous I/O](#asynchronous-io)  
-. . . . [Clock/Timer Enhancements](#clocktimer-enhancements)  
-. . . . [Ethernet Transport Enhancements](#ethernet-transport-enhancements)  
-. . . . [Disk Extensions](#disk-extensions)  
-. . . . [Embedded ROM support](#embedded-rom-support)  
-. . . . [Control Flow](#control-flow)  
-. . . . [Scriptable interactions with running simulators](#scriptable-interactions-with-running-simulators)  
-. . . . [Help](#help)  
-. . . . [Generic SCP support Clock Coscheduling as opposed to per simulator implementations](#generic-scp-support-clock-coscheduling-as-opposed-to-per-simulator-implementations)  
-. . . . [New SCP Commands](#new-scp-commands)  
-. . . . [Command Processing Enhancements](#command-processing-enhancements)  
-. . . . . . [Environment variable insertion](#environment-variable-insertion)  
-. . . . . . [Command aliases](#command-aliases)  
-. . . . . . [Do command argument manipulation](#do-command-argument-manipulation)  
-. . [Building and running a simulator](#building-and-running-a-simulator)  
-. . . . [Use Prebuilt Windows Simulators](#use-prebuilt-windows-simulators)  
-. . . . [Building simulators yourself](#building-simulators-yourself)  
-. . . . . . [Linux/OSX other *nix platforms](#linuxosx-other-nix-platforms)  
-. . . . . . . . [Build Dependencies](#build-dependencies)  
-. . . . . . . . . . [OS X - Dependencies](#os-x---dependencies)  
-. . . . . . . . . . [Linux - Dependencies](#linux---dependencies)  
-. . . . . . [Windows](#windows)  
-. . . . . . . . [Required related files](#required-related-files)  
-. . . . . . . . [Visual Studio (Standard or Express) 2008, 2010, 2012, 2013 or Visual Studio Community 2015, 2017, 2019](#visual-studio-standard-or-express-2008-2010-2012-2013-or-visual-studio-community-2015-2017-2019)  
-. . . . . . . . [MinGW32](#mingw32)  
-. . . . . . [VMS](#vms)  
-. . [Problem Reports](#problem-reports)  
+- [SIMH-CMAKE: What and Why?](#simh-cmake-what-and-why)
+- [WHAT'S NEW since simh v3.9](#whats-new-since-simh-v39)
+  - [New Simulators](#new-simulators)
+  - [New Host Platform support - HP-UX and AIX](#new-host-platform-support---hp-ux-and-aix)
+  - [Simulator Front Panel API](#simulator-front-panel-api)
+  - [New Functionality](#new-functionality)
+    - [Remote Console Facility](#remote-console-facility)
+    - [VAX/PDP11 Enhancements](#vaxpdp11-enhancements)
+    - [PDP11 Specific Enhancements](#pdp11-specific-enhancements)
+    - [PDP10 Enhancements](#pdp10-enhancements)
+    - [SDS 940 Enhancements](#sds-940-enhancements)
+    - [Terminal Multiplexer additions](#terminal-multiplexer-additions)
+    - [Video Display Capabilities](#video-display-capabilities)
+    - [Asynchronous I/O](#asynchronous-io)
+    - [Clock/Timer Enhancements](#clocktimer-enhancements)
+    - [Ethernet Transport Enhancements](#ethernet-transport-enhancements)
+    - [Disk Extensions](#disk-extensions)
+    - [Tape Extensions](#tape-extensions)
+    - [Embedded ROM support](#embedded-rom-support)
+    - [Control Flow](#control-flow)
+    - [Scriptable interactions with running simulators](#scriptable-interactions-with-running-simulators)
+    - [Help](#help)
+    - [Generic SCP support Clock Coscheduling as opposed to per simulator implementations](#generic-scp-support-clock-coscheduling-as-opposed-to-per-simulator-implementations)
+    - [New SCP Commands:](#new-scp-commands)
+    - [Command Processing Enhancements](#command-processing-enhancements)
+      - [Environment variable insertion](#environment-variable-insertion)
+      - [Command aliases](#command-aliases)
+      - [Do command argument manipulation](#do-command-argument-manipulation)
+  - [Use Prebuilt Windows Simulators](#use-prebuilt-windows-simulators)
+  - [Building simulators yourself](#building-simulators-yourself)
+    - [Linux/OSX other *nix platforms](#linuxosx-other-nix-platforms)
+      - [Build Dependencies](#build-dependencies)
+        - [OS X - Dependencies](#os-x---dependencies)
+        - [Linux - Dependencies](#linux---dependencies)
+    - [Windows](#windows)
+      - [Required related files](#required-related-files)
+      - [Visual Studio (Standard or Express) 2008, 2010, 2012, 2013 or Visual Studio Community 2015, 2017, 2019](#visual-studio-standard-or-express-2008-2010-2012-2013-or-visual-studio-community-2015-2017-2019)
+      - [MinGW32](#mingw32)
+    - [VMS](#vms)
+- [Problem Reports](#problem-reports)
 
 ## WHAT'S NEW since simh v3.9
 
 ### New Simulators
 
+<!-- omit in toc -->
 #### Seth Morabito has implemented a AT&T 3B2 simulator.
 
+<!-- omit in toc -->
 #### Leonid Broukhis and Serge Vakulenko have implemented a simulator for the Soviet mainframe BESM-6 computer.
 
+<!-- omit in toc -->
 #### Matt Burke has implemented new VAX model simulators:
 
     VAX-11/730
@@ -74,31 +106,44 @@
     MicroVAX 3100 M80
     InfoServer 1000
 
+<!-- omit in toc -->
 #### Howard Harte has implemented a Lincoln Labs TX-0 simulator.
 
+<!-- omit in toc -->
 #### Gerardo Ospina has implemented a Manchester University SSEM (Small Scale Experimental Machine) simulator.
 
+<!-- omit in toc -->
 #### Richard Cornwell has implemented a Burroughs B5500.
 
+<!-- omit in toc -->
 #### Richard Cornwell has implemented the IBM 701, IBM 704, IBM 7010/1410, IBM 7070/7074, IBM 7080/702/705/7053 and IBM 7090/7094/709/704 simulators.
 
+<!-- omit in toc -->
 #### Richard Cornwell has implemented the PDP6, PDP10-KA, and PDP10-KI simulators.
 
+<!-- omit in toc -->
 #### Dave Bryan has implemented an HP-3000 Series III simulator.
 
+<!-- omit in toc -->
 #### Updated AltairZ80 simulator from Peter Schorn.
 
+<!-- omit in toc -->
 #### Updated HP2100 simulator from Dave Bryan.
 
+<!-- omit in toc -->
 #### Sigma 5, 6 & 7 simulator from Bob Supnik
 
+<!-- omit in toc -->
 #### Beta SAGE-II and PDQ-3 simulators from Holger Veit
 
+<!-- omit in toc -->
 #### Intel Systems 8010 and 8020 simulators from Bill Beech
 
+<!-- omit in toc -->
 #### CDC 1700 simulator from John Forecast
 
-#### Hans-Åke Lund has implemented an SCELBI (SCientic-ELectronics-BIology) simulator.
+<!-- omit in toc -->
+#### Hans-ï¿½ke Lund has implemented an SCELBI (SCientic-ELectronics-BIology) simulator.
 
 ### New Host Platform support - HP-UX and AIX
 
@@ -477,6 +522,7 @@ Commands can be aliases with environment variables.  For example:
 
 The SHIFT command will shift the %1 thru %9 arguments to the left one position.
 
+<!-- omit in toc -->
 ## Building and running a simulator
 
 ### Use Prebuilt Windows Simulators
