@@ -47,22 +47,6 @@ find_library(PCRE_LIBRARY_DEBUG
         PATHS ${PCRE_PATH}
         )
 
-find_library(PCREPOSIX_LIBRARY_RELEASE
-	NAMES pcreposix
-	HINTS
-	  ENV PCRE_DIR
-	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
-	PATHS ${PCRE_PATH}
-	)
-
-find_library(PCREPOSIX_LIBRARY_DEBUG
-	NAMES pcreposixd
-	HINTS
-	  ENV PCRE_DIR
-	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
-	PATHS ${PCRE_PATH}
-	)
-
 if (PCRE_INCLUDE_DIR)
     if (EXISTS "${PCRE_INCLUDE_DIR}/pcre.h")
 	file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE_VERSION_MAJOR_LINE REGEX "^#define[ \t]+PCRE_MAJOR[ \t]+[0-9]+$")
@@ -87,17 +71,15 @@ endif ()
 include(SelectLibraryConfigurations)
 
 select_library_configurations(PCRE)
-select_library_configurations(PCREPOSIX)
 
 set(PCRE_LIBRARIES ${PCRE_LIBRARY})
 set(PCRE_INCLUDE_DIRS ${PCRE_INCLUDE_DIR})
-set(PCREPOSIX_LIBRARIES ${PCREPOSIX_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
 
 ### Note: If the libpcre.cmake configuration file isn't installed,
 ### asking for a version is going to fail.
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(PCRE
-    REQUIRED PCRE_LIBRARY PCREPOSIX_LIBRARY PCRE_INCLUDE_DIR
+    REQUIRED PCRE_LIBRARY PCRE_INCLUDE_DIR
     # VERSION_VAR PCRE_VERSION_STRING
 )

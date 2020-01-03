@@ -452,7 +452,7 @@ t_stat fprint_addr (FILE *of, uint32 addr) {
 t_stat
 fprint_reg (FILE *of, uint32 rdx, t_value *val, UNIT *uptr, int32 sw)
 {
-    fprintf(of, "Register(%d, %x)", rdx, *val);
+    fprintf(of, "Register(%d, %" T_VALUE_FMT "x)", rdx, *val);
     return SCPE_OK;
 }
 
@@ -566,7 +566,7 @@ if (sw & SWMASK ('M')) {                                /* machine code? */
     }
     return -(i - 1);
 }
-fprintf (of, " %02o ", val[0] & 077);
+fprintf (of, " %02" T_VALUE_FMT "o ", val[0] & 077);
 return SCPE_OK;
 }
 

@@ -146,14 +146,26 @@ extern int sim_vax_snprintf(char *buf, size_t buf_size, const char *fmt, ...);
 #ifdef USE_REGEX
 #undef USE_REGEX
 #endif
+
+/* sim_regex_t: Type alias for the appropriate PCRE package to reduce
+   conditional compiles in this header. Unfortunately, that's not the
+   case when the actual PCRE/PCRE2 functions are called in scp.c. */
+
 #if defined(HAVE_PCRE_H)
 #include <pcre.h>
+
+typedef pcre sim_regex_t;
+typedef uint32 sim_regex_offs;
+
 #define USE_REGEX 1
-#elif defined(HAVE_PCRE2_POSIX_H)
+#elif defined(HAVE_PCRE2_H)
 #define PCRE2_STATIC
 #define PCRE2_CODE_UNIT_WIDTH 8
-#include <pcre2posix.h>
 #include <pcre2.h>
+
+typedef pcre2_code sim_regex_t;
+typedef PCRE2_SIZE sim_regex_offs;
+
 #define USE_REGEX 1
 #endif
 
@@ -223,6 +235,20 @@ typedef uint32_t        uint32;
 typedef int             t_stat;                         /* status */
 typedef int             t_bool;                         /* boolean */
 
+/* size_t format specifier */
+
+#if defined(_WIN64)
+#  define FMT_SIZE_T "I64"
+#elif defined(_WIN32)
+#  define FMT_SIZE_T "I32"
+#elif defined(__GNU_LIBRARY__) || defineD(__GLIBC__) || defined(__GLIBC_MINOR__)
+/* glibc (basically, most Linuxes */
+#  define FMT_SIZE_T "z"
+#else
+/* punt. */
+#define FMT_SIZE_T LL_FMT
+#endif
+
 /* 64b integers */
 
 #if defined (__GNUC__)                                  /* GCC */
@@ -250,11 +276,17 @@ typedef t_int64         t_svalue;                       /* signed value */
 typedef t_uint64        t_value;                        /* value */
 #define T_VALUE_MAX     0xffffffffffffffffuLL
 #define T_SVALUE_MAX    0x7fffffffffffffffLL
+
+#define T_VALUE_FMT     LL_FMT
+#define T_SVALUE_FMT    LL_FMT
 #else                                                   /* 32b data */
 typedef int32           t_svalue;
 typedef uint32          t_value;
 #define T_VALUE_MAX     0xffffffffUL
 #define T_SVALUE_MAX    0x7fffffffL
+
+#define T_VALUE_FMT     ""
+#define T_SVALUE_FMT    ""
 #endif                                                  /* end 64b data */
 
 #if defined (USE_INT64) && defined (USE_ADDR64)         /* 64b address */
@@ -819,10 +851,8 @@ struct EXPTAB {
 #define EXP_TYP_REGEX           (SWMASK ('R'))      /* rule pattern is a regular expression */
 #define EXP_TYP_REGEX_I         (SWMASK ('I'))      /* regular expression pattern matching should be case independent */
 #define EXP_TYP_TIME            (SWMASK ('T'))      /* halt delay is in microseconds instead of instructions */
-#if defined(USE_REGEX)
-    pcre                *regex;                         /* compiled regular expression */
+    sim_regex_t         *regex;                         /* compiled regular expression */
     int                 re_nsub;                        /* regular expression sub expression count */
-#endif
     char                *act;                           /* action string */
     };
 
@@ -832,11 +862,11 @@ struct EXPECT {
     DEVICE              *dptr;                          /* Device (for Debug) */
     uint32              dbit;                           /* Debugging Bit */
     EXPTAB              *rules;                         /* match rules */
-    int32               size;                           /* count of match rules */
+    size_t              size;                           /* count of match rules */
     uint8               *buf;                           /* buffer of output data which has produced */
-    uint32              buf_ins;                        /* buffer insertion point for the next output data */
+    size_t              buf_ins;                        /* buffer insertion point for the next output data */
     uint32              buf_size;                       /* buffer size */
-    uint32              buf_data;                       /* count of data in buffer */
+    size_t              buf_data;                       /* count of data in buffer */
     };
 
 /* Send Context */
@@ -850,8 +880,8 @@ struct SEND {
     double              next_time;                      /* execution time when next data can be sent */
     uint8               *buffer;                        /* buffer */
     size_t              bufsize;                        /* buffer size */
-    int32               insoff;                         /* insert offset */
-    int32               extoff;                         /* extra offset */
+    size_t              insoff;                         /* insert offset */
+    size_t              extoff;                         /* extra offset */
     };
 
 /* Debug table */
