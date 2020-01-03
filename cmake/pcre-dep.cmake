@@ -11,28 +11,21 @@ include (FindPCRE)
 include (FindPCRE2)
 
 if (NOT (PCRE_FOUND OR PCRE2_FOUND) AND PKG_CONFIG_FOUND)
-    if (NOT (PCRE2_FOUND OR PCRE2POSIX_BROKEN))
-	pkg_check_modules(PCRE2 IMPORTED_TARGET libpcre2-8)
-	pkg_check_modules(PCRE2_POSIX IMPORTED_TARGET libpcre2-posix)
-    endif (NOT (PCRE2_FOUND OR PCRE2POSIX_BROKEN))
-
-    if (NOT PCRE_FOUND)
-	pkg_check_modules(PCRE IMPORTED_TARGET libpcre)
-	pkg_check_modules(PCREPOSIX IMPORTED_TARGET libpcreposix)
-    endif (NOT PCRE_FOUND)
+    pkg_check_modules(PCRE2 IMPORTED_TARGET libpcre2-8)
+    pkg_check_modules(PCRE IMPORTED_TARGET libpcre)
 endif (NOT (PCRE_FOUND OR PCRE2_FOUND) AND PKG_CONFIG_FOUND)
 
-## Prefer PCRE2 over older PCRE, unless PCRE2 Posix is broken (Ubuntu).
+## Prefer PCRE2 over older PCRE
 if (PCRE2_FOUND)
-    target_compile_definitions(regexp_lib INTERFACE HAVE_PCRE2_POSIX_H)
+    target_compile_definitions(regexp_lib INTERFACE HAVE_PCRE2_H PCRE_STATIC)
     target_include_directories(regexp_lib INTERFACE ${PCRE2_INCLUDE_DIRS})
-    target_link_libraries(regexp_lib INTERFACE ${PCRE2_POSIX_LIBRARY} ${PCRE2_LIBRARY})
+    target_link_libraries(regexp_lib INTERFACE ${PCRE2_LIBRARY})
 
     set(PCRE_PKG_STATUS "installed pcre2")
 elseif (PCRE_FOUND)
-    target_compile_definitions(regexp_lib INTERFACE HAVE_PCREPOSIX_H PCRE_STATIC)
+    target_compile_definitions(regexp_lib INTERFACE HAVE_PCRE_H PCRE_STATIC)
     target_include_directories(regexp_lib INTERFACE ${PCRE_INCLUDE_DIRS})
-    target_link_libraries(regexp_lib INTERFACE ${PCREPOSIX_LIBRARY} ${PCRE_LIBRARY})
+    target_link_libraries(regexp_lib INTERFACE ${PCRE_LIBRARY})
 
     set(PCRE_PKG_STATUS "installed pcre")
 else ()
