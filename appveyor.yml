@@ -1,5 +1,9 @@
-platform:
-  - x86
+cache:
+    - cmake-vs2019\build-stage -> appveyor.yml, CMakeLists.txt, cmake\*.cmake
+    - cmake-vs2017\build-stage -> appveyor.yml, CMakeLists.txt, cmake\*.cmake
+    - cmake-vs2015\build-stage -> appveyor.yml, CMakeLists.txt, cmake\*.cmake
+    - cmake-mingw\build-stage  -> appveyor.yml, CMakeLists.txt, cmake\*.cmake
+    - cmake-ninja\build-stage  -> appveyor.yml, CMakeLists.txt, cmake\*.cmake
 
 environment:
   DIST_DIR: '%APPVEYOR_BUILD_FOLDER%\dist'
@@ -53,6 +57,7 @@ before_build:
   #
   ## Use PS to install Scoop. Scoop is not strictly needed. Added it here for "show and tell."
   # - ps: scoop install winflexbison
+
   - ps: if (${env:SIMH_BUILD_FLAVOR} -eq "ninja") { choco install ninja; }
 
   ## Npcap install
@@ -69,19 +74,11 @@ build_script:
   # - set PATH=%PATH:C:\Program Files\Git\usr\bin;=% 
   # Note: This is handled by the cmake-builder.ps1 script.
   - ps: if (!([string]::IsNullOrEmpty($env:MINGW))) { $env:PATH=$(@(${env:MINGW}, ${env:PATH}) -join ";"); }
-  - ps: .\cmake-builder.ps1 -parallel -clean -nonetwork -notest -config ${env:CONFIGURATION} ${env:SIMH_BUILD_FLAVOR}
+  - ps: .\cmake-builder.ps1 -parallel -clean -nonetwork -notest -config ${env:CONFIGURATION}
+            -flavor ${env:SIMH_BUILD_FLAVOR}
 
 test_script:
-  - ps: if (!([string]::IsNullOrEmpty($env:SIMH_BUILD_FLAVOR))) {
-          $subdirPrefix = "vs";
-          if ($env:SIMH_BUILD_FLAVOR -eq "mingw") { $subdirPrefix = "" };
-          $buildStagePath = "$(Get-Location)\cmake-${subdirPrefix}${env:SIMH_BUILD_FLAVOR}";
-          $buildStageBin = [System.IO.Path]::GetFullPath("${buildStagePath}\build-stage\bin");
-          $env:PATH =  "${buildStageBin};${env:PATH}";
-          push-location $buildStagePath;
-          ctest -C ${env:CONFIGURATION};
-          pop-location
-        }
+  - ps: .\cmake-builder -testonly -config ${env:CONFIGURATION} -flavor ${env:SIMH_BUILD_FLAVOR}
 
 # notifications:
 #   - provider: Email
