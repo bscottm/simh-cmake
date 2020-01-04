@@ -5,24 +5,21 @@ before_script:
 
 stages:
   - build
-  - test
 
 simh:
   stage: build
-  # instead of calling g++ directly you can also use some build toolkit like make
-  # install the necessary build tools when needed
-  # before_script: 
-  #   - apt update && apt -y install make autoconf 
   script: 
     - mkdir cmake-unix
     - cd cmake-unix
     - cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DWITH_NETWORK:Bool=Off -DWITH_PCAP:Bool=Off -DWITH_SLIRP:Bool=Off ..
     - cmake --build . --config Release --parallel -- -j 10
+    - ctest -C Release
     - cd ..
     - mkdir cmake-ninja
     - cd cmake-ninja
     - cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DWITH_NETWORK:Bool=Off -DWITH_PCAP:Bool=Off -DWITH_SLIRP:Bool=Off ..
     - cmake --build . --config Release --parallel -- -j 10
+    - ctest -C Debug
   
 # run tests using the binary built before
 test:
