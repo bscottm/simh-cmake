@@ -42,6 +42,7 @@ ipch/
 # CMake artifacts
 cmake-*
 !cmake-builder.ps1
+!cmake-builder.sh
 build
 
 # VS Code stuff...
