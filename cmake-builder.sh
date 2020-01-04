@@ -101,8 +101,7 @@ while true; do
 	    shift
 	    ;;
 	-p | --parallel)
-	    buildArgs="${buildArgs} --parallel"
-	    buildPostArgs="${buildPostArgs} -j 8"
+	    buildParallel=yes
 	    shift
 	    ;;
 	-g | --generate)
@@ -120,6 +119,12 @@ while true; do
 	    ;;
     esac
 done
+
+## Parallel only applies to the unix flavor.
+if [ x"$buildParallel" = xyes -a "$buildFlavor" != Ninja ] ; then
+    buildPostArgs="${buildPostArgs} -j 8"
+fi
+
 
 if [ x"$testOnly" = x ]; then
     if [ x"$buildClean" != x ]; then
