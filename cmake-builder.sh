@@ -30,10 +30,12 @@ EOF
 }
 
 scriptName=$0
+buildArgs=
+buildPostArgs="--"
 buildClean=
+buildFlavor="Unix Makefiles"
 buildSubdir=cmake-unix
 buildConfig=Release
-nonetwork=
 notest=
 buildParallel=yes
 generateOnly=
@@ -65,10 +67,12 @@ while true; do
 	-f | --flavor)
 	    case "$2" in
 		unix)
+		    buildFlavor="Unix Makefiles"
 		    buildSubdir=cmake-unix
 		    shift 2
 		    ;;
 		ninja)
+		    buildFlavor=Ninja
 		    buildSubdir=cmake-ninja
 		    shift 2
 		    ;;
@@ -89,25 +93,46 @@ while true; do
 	    esac
 	    ;;
 	--nonetwork)
-	    nonetwork=yes; shift
+	    buildArgs="${buildArgs} -DWITH_NETWORK:Bool=Off -DWITH_PCAP:Bool=Off -DWITH_SLIRP:Bool=Off"
+	    shift
 	    ;;
 	--notest)
-	    notest=yes; shift
+	    notest=yes
+	    shift
 	    ;;
 	-p | --parallel)
-	    buildParallel=yes; shift
+	    buildArgs="${buildArgs} --parallel"
+	    buildPostArgs="${buildPostArgs} -j 8"
+	    shift
 	    ;;
 	-g | --generate)
-	    generateOnly=yes; shift
+	    generateOnly=yes
+	    shift
 	    ;;
 	--testonly)
-	    testOnly=yes; shift
+	    testOnly=yes
+	    shift
 	    ;;
 	--)
-	    ## End of options, which we'll ignore.
-	    shift; break
+	    ## End of options. we'll ignore.
+	    shift
+	    break
 	    ;;
     esac
 done
 
-[ x"$clean" != x ] && rm -rf ${buildSubdir}
+if [ x"$testOnly" = x ]; then
+    if [ x"$buildClean" != x ]; then
+	rm -rf ${buildSubdir}
+	mkdir ${buildSubdir}
+    fi
+
+    ( cd "${buildSubdir}" \
+	&& cmake -G "${buildFlavor}" -DCMAKE_BUILD_TYPE="${buildConfig}" .. \
+	&& { [ x$generateOnly = x ] && cmake --build . --config "${buildConfig}" ${buildArgs} ${buildPostArgs}; } \
+    )
+fi
+
+if [ x"$notest" = x ]; then
+    (cd ${buildSubdir} && ctest -C ${buildConfig})
+fi

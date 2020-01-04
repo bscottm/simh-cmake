@@ -9,14 +9,18 @@ stages:
 simh:
   stage: build
   script: 
-    - mkdir cmake-unix
-    - cd cmake-unix
-    - cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DWITH_NETWORK:Bool=Off -DWITH_PCAP:Bool=Off -DWITH_SLIRP:Bool=Off ..
-    - cmake --build . --config Release --parallel -- -j 10
-    - ctest -C Release
-    - cd ..
-    - mkdir cmake-ninja
-    - cd cmake-ninja
-    - cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DWITH_NETWORK:Bool=Off -DWITH_PCAP:Bool=Off -DWITH_SLIRP:Bool=Off ..
-    - cmake --build . --config Release --parallel -- -j 10
-    - ctest -C Debug
+    - ./cmake-build.sh --config Release --flavor unix  --parallel --clean
+    - ./cmake-build.sh --config Debug   --flavor unix  --parallel --clean
+    - ./cmake-build.sh --config Release --flavor ninja --parallel --clean
+    - ./cmake-build.sh --config Debug   --flavor ninja --parallel --clean
+#     - mkdir cmake-unix
+#     - cd cmake-unix
+#     - cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DWITH_NETWORK:Bool=Off -DWITH_PCAP:Bool=Off -DWITH_SLIRP:Bool=Off ..
+#     - cmake --build . --config Release --parallel -- -j 10
+#     - ctest -C Release
+#     - cd ..
+#     - mkdir cmake-ninja
+#     - cd cmake-ninja
+#     - cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DWITH_NETWORK:Bool=Off -DWITH_PCAP:Bool=Off -DWITH_SLIRP:Bool=Off ..
+#     - cmake --build . --config Release --parallel -- -j 10
+#     - ctest -C Debug
