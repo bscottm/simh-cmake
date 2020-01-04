@@ -44,6 +44,7 @@ if (WITH_VIDEO)
         ExternalProject_Add(png-dep
             URL ${PNG_SOURCE_URL}
             CMAKE_ARGS 
+		${DEP_CMAKE_ARGS}
                 -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
                 -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
                 -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
@@ -81,6 +82,7 @@ if (WITH_VIDEO)
             GIT_REPOSITORY https://git.sv.nongnu.org/r/freetype/freetype2.git
             GIT_TAG VER-2-10-1
             CMAKE_ARGS 
+		${DEP_CMAKE_ARGS}
                 -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
                 -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
                 -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
@@ -139,6 +141,7 @@ if (WITH_VIDEO)
             ExternalProject_Add(sdl2-dep
                 URL https://www.libsdl.org/release/SDL2-2.0.10.zip
                 CMAKE_ARGS 
+		    ${DEP_CMAKE_ARGS}
                     -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
                     -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
                     -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
@@ -169,6 +172,7 @@ if (WITH_VIDEO)
             ExternalProject_Add(sdl2-ttf-dep
                 URL https://www.libsdl.org/projects/SDL_ttf/release/SDL2_ttf-2.0.15.zip
                 CMAKE_ARGS 
+		    ${DEP_CMAKE_ARGS}
                     -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
                     -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
                     -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}

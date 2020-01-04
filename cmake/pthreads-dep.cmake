@@ -28,6 +28,7 @@ if (WIN32)
                 GIT_REPOSITORY ${PTHREADS4W_URL}
                 GIT_TAG mingw
                 CMAKE_ARGS 
+		    ${DEP_CMAKE_ARGS}
                     -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
                     -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
                     -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}

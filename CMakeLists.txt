@@ -35,6 +35,7 @@ include(CheckCSourceCompiles)
 include(CheckCCompilerFlag)
 include (ExternalProject)
 
+## pkg-config is our fallback when find_package() can't find a package.
 find_package(PkgConfig)
 
 ##-- Options --##
@@ -96,6 +97,11 @@ if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     endif ()
 endif()
 
+## Additional command line arguments for dependencies. Need this because Powershell will report
+## an error if anything is sent to stderr and $ErrorDefaultAction is set to "Stop".
+set(DEP_CMAKE_ARGS "-Wno-dev" "--no-warn-unused-cli")
+
+## build-stage directory hierarchy for dependency installs:
 message(STATUS "Creating build-stage directory hierarchy (include, lib, bin)")
 execute_process(
     COMMAND ${CMAKE_COMMAND} -E make_directory build-stage build-stage/include build-stage/lib build-stage/bin
