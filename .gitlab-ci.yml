@@ -1,7 +1,8 @@
 image: gcc
 
 before_script:
-  - apt-get update -qq -y && apt-get install -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev ninja-build
+  - apt-get update -qq -y && apt-get install -qq -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev \
+      libpcap-dev ninja-build
 
 stages:
   - build
