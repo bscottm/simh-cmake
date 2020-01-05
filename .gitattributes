@@ -13,8 +13,9 @@
 *.png     -text
 *.ps1     text eol=crlf
 *.rim     -text
-*.sln     -text
+*.sh      text eol=lf
+*.sln     text eol=crlf
 *.tap     -text
-*.vcproj  -text
+*.vcproj  text eol=crlf
 *.vhd     -text
 sim_rev.h export-subst
