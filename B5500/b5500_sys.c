@@ -346,7 +346,7 @@ print_opcode(FILE * of, t_value val, int chr_mode)
     uint16      op;
     t_opcode   *tab = (chr_mode) ? char_ops: word_ops;
 
-    op = val;
+    op = (uint16) (val & 0xffff);
     while (tab->name != NULL) {
         switch(tab->type) {
         case TYPE_A:
