@@ -99,7 +99,7 @@ endif()
 
 ## Additional command line arguments for dependencies. Need this because Powershell will report
 ## an error if anything is sent to stderr and $ErrorDefaultAction is set to "Stop".
-set(DEP_CMAKE_FLAGS "-Wno-dev" "--no-warn-unused-cli")
+set(DEP_CMAKE_ARGS "-Wno-dev" "--no-warn-unused-cli")
 
 ## build-stage directory hierarchy for dependency installs:
 message(STATUS "Creating build-stage directory hierarchy (include, lib, bin)")
