@@ -81,8 +81,8 @@ struct card_context
     t_addr              punch_count;     /* Number of cards punched */
     char                cbuff[1024];     /* Read in buffer for cards */
     uint8               hol_to_ascii[4096]; /* Back conversion table */
-    t_addr              hopper_size;     /* Size of hopper */
-    t_addr              hopper_cards;    /* Number of cards in hopper */
+    size_t              hopper_size;     /* Size of hopper */
+    size_t              hopper_cards;    /* Number of cards in hopper */
     uint16              (*images)[1][80];
 };
 
