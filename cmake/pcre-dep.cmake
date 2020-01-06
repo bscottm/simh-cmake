@@ -35,9 +35,10 @@ else ()
     endif (NOT ZLIB_FOUND)
 
     ExternalProject_Add(pcre-ext
-        URL https://ftp.pcre.org/pub/pcre/pcre2-10.33.zip
+        URL https://ftp.pcre.org/pub/pcre/pcre2-10.34.zip
         CMAKE_ARGS 
-	    ${DEP_CMAKE_ARGS}
+            ${DEP_CMAKE_ARGS}
+            -DBUILD_SHARED_LIBS=On
             -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
             -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
             -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
@@ -50,5 +51,5 @@ else ()
     list(APPEND SIMH_BUILD_DEPS pcre)
     list(APPEND SIMH_DEP_TARGETS pcre-ext)
     message(STATUS "Building PCRE from https://ftp.pcre.org/pub/pcre/pcre2-10.33.zip")
-    set(PCRE_PKG_STATUS "pcre2 dependent build")
+    set(PCRE_PKG_STATUS "pcre2 source build")
 endif ()
