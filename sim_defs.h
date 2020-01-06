@@ -242,7 +242,7 @@ typedef int             t_bool;                         /* boolean */
 #  define FMT_SIZE_T "I64"
 #elif defined(_WIN32)
 #  define FMT_SIZE_T "I32"
-#elif defined(__GNU_LIBRARY__) || defineD(__GLIBC__) || defined(__GLIBC_MINOR__)
+#elif defined(__GNU_LIBRARY__) || defined(__GLIBC__) || defined(__GLIBC_MINOR__)
 /* glibc (basically, most Linuxes */
 #  define FMT_SIZE_T "z"
 #else
