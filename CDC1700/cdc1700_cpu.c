@@ -949,7 +949,7 @@ t_stat executeAnInstruction(void)
                       INTprefix, buf);
             }
             fprintf(DBGOUT,
-                    "%s===> Interrupt %d entered at 0x%04X, from %04X, Inst: %llu\r\n",
+                    "%s===> Interrupt %d entered at 0x%04X, from %04X, Inst: %" T_UINT64_FMT "u\r\n",
                     INTprefix, i, Preg, from, Instructions);
           }
 
@@ -977,7 +977,7 @@ t_stat executeAnInstruction(void)
   if (((cpu_dev.dctrl & DBG_TRACE) != 0) ||
       (((cpu_dev.dctrl & DBG_ITRACE) != 0) && (INTlevel != 0))) {
     fprintf(DBGOUT, 
-            "%sA:%04X Q:%04X I:%04X M:%04X Ovf:%d Pfault: %d Inst:%llu\r\n",
+            "%sA:%04X Q:%04X I:%04X M:%04X Ovf:%d Pfault: %d Inst:%" T_UINT64_FMT "u\r\n",
             INTprefix, Areg, Qreg, LoadFromMem(0xFF),
             Mreg, Oflag, Pfault, Instructions);
   }

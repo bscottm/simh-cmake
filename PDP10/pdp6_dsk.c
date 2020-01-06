@@ -200,7 +200,7 @@ dsk_devio(uint32 dev, uint64 *data) {
           if (uptr->flags & UNIT_WLK)
               res |= WLE;
           *data = res;
-          sim_debug(DEBUG_CONI, &dsk_dev, "DSK %03o CONI %012llo PC=%o\n", dev,
+          sim_debug(DEBUG_CONI, &dsk_dev, "DSK %03o CONI %012" T_UINT64_FMT "o PC=%o\n", dev,
                             *data, PC);
           break;
      case CONO:
@@ -228,11 +228,11 @@ dsk_devio(uint32 dev, uint64 *data) {
                     (uint32)*data, PC, dsk_status);
           break;
      case DATAI:
-          sim_debug(DEBUG_DATAIO, &dsk_dev, "DSK %03o DATI %012llo PC=%o\n",
+          sim_debug(DEBUG_DATAIO, &dsk_dev, "DSK %03o DATI %012" T_UINT64_FMT "o PC=%o\n",
                    dev, *data, PC);
           break;
      case DATAO:
-          sim_debug(DEBUG_DATAIO, &dsk_dev, "DSK %03o DATO %012llo, PC=%o %03o\n",
+          sim_debug(DEBUG_DATAIO, &dsk_dev, "DSK %03o DATO %012" T_UINT64_FMT "o, PC=%o %03o\n",
                    dev, *data, PC, dsk_octflp);
           /* If not in right state we can't change it */
           if (dsk_octflp & (SCE|SCS|CMS|ALS))
@@ -311,7 +311,7 @@ dsk_svc (UNIT *uptr)
                    if (dsk_buf[uptr->DATAPTR] != data)
                        dsk_status |= RCE;
                } else {
-                   sim_debug(DEBUG_DETAIL, dptr, "DSK %d Write %012llo %d\n",
+                   sim_debug(DEBUG_DETAIL, dptr, "DSK %d Write %012" T_UINT64_FMT "o %d\n",
                                ctlr, data, uptr->DATAPTR);
                    if ((uptr->flags & UNIT_WLK) != 0)
                        dsk_status |= DCE|PER|FER;

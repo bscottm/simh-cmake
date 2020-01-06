@@ -415,12 +415,12 @@ t_stat rs_devio(uint32 dev, uint64 *data) {
                *data |= ((uint64)(rs_drive[ctlr])) << 18;
         }
         *data |= ((uint64)(rs_reg[ctlr])) << 30;
-        sim_debug(DEBUG_DATAIO, dptr, "RS %03o DATI %012llo, %d %d PC=%06o\n",
+        sim_debug(DEBUG_DATAIO, dptr, "RS %03o DATI %012" T_UINT64_FMT "o, %d %d PC=%06o\n",
                     dev, *data, ctlr, rs_drive[ctlr], PC);
         return SCPE_OK;
 
      case DATAO:
-         sim_debug(DEBUG_DATAIO, dptr, "RS %03o DATO %012llo, %d PC=%06o %06o\n",
+         sim_debug(DEBUG_DATAIO, dptr, "RS %03o DATO %012" T_UINT64_FMT "o, %d PC=%06o %06o\n",
                     dev, *data, ctlr, PC, df10->status);
          rs_reg[ctlr] = ((int)(*data >> 30)) & 077;
          if (rs_reg[ctlr] < 040 && rs_reg[ctlr] != 04) {
@@ -443,7 +443,7 @@ t_stat rs_devio(uint32 dev, uint64 *data) {
                    df10->status |= CXR_ILC;
                    df10_setirq(df10);
                    sim_debug(DEBUG_DATAIO, dptr,
-                       "RS %03o command abort %012llo, %d[%d] PC=%06o %06o\n",
+                       "RS %03o command abort %012" T_UINT64_FMT "o, %d[%d] PC=%06o %06o\n",
                        dev, *data, ctlr, rs_drive[ctlr], PC, df10->status);
                    return SCPE_OK;
                 }
@@ -453,7 +453,7 @@ t_stat rs_devio(uint32 dev, uint64 *data) {
                 rs_xfer_drive[ctlr] = (int)(*data >> 18) & 07;
                 rs_write(ctlr, rs_drive[ctlr], 0, (uint32)(*data & 077));
                 sim_debug(DEBUG_DATAIO, dptr,
-                    "RS %03o command %012llo, %d[%d] PC=%06o %06o\n",
+                    "RS %03o command %012" T_UINT64_FMT "o, %d[%d] PC=%06o %06o\n",
                     dev, *data, ctlr, rs_drive[ctlr], PC, df10->status);
              } else if (rs_reg[ctlr] == 044) {
                 /* Set KI10 Irq vector */
@@ -740,7 +740,7 @@ t_stat rs_svc (UNIT *uptr)
         }
 
         df->buf = rs_buf[ctlr][uptr->DATAPTR++];
-        sim_debug(DEBUG_DATA, dptr, "RSA%o read word %d %012llo %09o %06o\n",
+        sim_debug(DEBUG_DATA, dptr, "RSA%o read word %d %012" T_UINT64_FMT "o %09o %06o\n",
                 unit, uptr->DATAPTR, df->buf, df->cda, df->wcr);
         if (df10_write(df)) {
             if (uptr->DATAPTR == uptr->hwmark) {
@@ -777,7 +777,7 @@ t_stat rs_svc (UNIT *uptr)
         }
         r = df10_read(df);
         rs_buf[ctlr][uptr->DATAPTR++] = df->buf;
-        sim_debug(DEBUG_DATA, dptr, "RSA%o write word %d %012llo %09o %06o\n",
+        sim_debug(DEBUG_DATA, dptr, "RSA%o write word %d %012" T_UINT64_FMT "o %09o %06o\n",
                  unit, uptr->DATAPTR, df->buf, df->cda, df->wcr);
         if (r == 0 || uptr->DATAPTR == RS_NUMWD) {
             while (uptr->DATAPTR < RS_NUMWD)
