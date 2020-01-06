@@ -150,7 +150,7 @@ t_stat drm_srv(UNIT * uptr)
         }
         switch (r) {
         case DATA_OK:
-            sim_debug(DEBUG_DATA, &drm_dev, "loc %6o data %012llo\n", addr,
+            sim_debug(DEBUG_DATA, &drm_dev, "loc %6o data %012" LL_FMT "o\n", addr,
                                  buf[addr]);
             addr++;
             addr &= DRMMASK;

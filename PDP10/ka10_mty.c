@@ -107,7 +107,7 @@ static t_stat mty_devio(uint32 dev, uint64 *data)
 
     switch(dev & 07) {
     case CONO:
-        sim_debug(DEBUG_CONO, &mty_dev, "%06llo\n", *data);
+        sim_debug(DEBUG_CONO, &mty_dev, "%06" LL_FMT "o\n", *data);
         status &= ~MTY_CONO_BITS;
         status |= *data & MTY_CONO_BITS;
         line = (status & MTY_LINE) >> 12;
@@ -127,12 +127,12 @@ static t_stat mty_devio(uint32 dev, uint64 *data)
         break;
     case CONI:
         *data = status & MTY_CONI_BITS;
-        sim_debug(DEBUG_CONI, &mty_dev, "%06llo\n", *data);
+        sim_debug(DEBUG_CONI, &mty_dev, "%06" LL_FMT "o\n", *data);
         break;
     case DATAO:
         line = (status & MTY_LINE) >> 12;
         word = *data;
-        sim_debug(DEBUG_DATAIO, &mty_dev, "DATAO line %d -> %012llo\n",
+        sim_debug(DEBUG_DATAIO, &mty_dev, "DATAO line %d -> %012" LL_FMT "o\n",
                   line, word);
         lp = &mty_ldsc[line];
         mty_output_word[line] = word | MTY_FIRST;
@@ -144,7 +144,7 @@ static t_stat mty_devio(uint32 dev, uint64 *data)
         line = (status & MTY_LINE) >> 12;
         lp = &mty_ldsc[line];
         *data = mty_input_character;
-        sim_debug(DEBUG_DATAIO, &mty_dev, "DATAI line %d -> %012llo\n",
+        sim_debug(DEBUG_DATAIO, &mty_dev, "DATAI line %d -> %012" LL_FMT "o\n",
                   line, *data);
         status &= ~MTY_IDONE;
         sim_activate_abs (&mty_unit[0], 0);

@@ -269,7 +269,7 @@ t_stat mt_devio(uint32 dev, uint64 *data) {
           uptr->CNTRL = (int32)(*data & 077300);
           mt_df10.buf = 0;
           sim_debug(DEBUG_CONO, dptr,
-                  "MT CONO %03o start %o %o %o %012llo %012llo PC=%06o\n",
+                  "MT CONO %03o start %o %o %o %012" LL_FMT "o %012" LL_FMT "o PC=%06o\n",
                       dev, uptr->CNTRL, mt_sel_unit, mt_pia, *data, mt_status, PC);
           if ((uptr->flags & UNIT_ATT) != 0) {
               /* Check if Write */
@@ -287,7 +287,7 @@ t_stat mt_devio(uint32 dev, uint64 *data) {
                          clr_interrupt(MT_DEVNUM+4);
                      }
                      clr_interrupt(MT_DEVNUM);
-                     sim_debug(DEBUG_EXP, dptr, "Setting status %012llo\n", mt_status);
+                     sim_debug(DEBUG_EXP, dptr, "Setting status %012" LL_FMT "o\n", mt_status);
                      return SCPE_OK;
 
               case REWIND:
@@ -347,7 +347,7 @@ t_stat mt_devio(uint32 dev, uint64 *data) {
                  set_interrupt_mpx(MT_DEVNUM, mt_pia, mt_mpx_lvl);
              }
           }
-          sim_debug(DEBUG_DATA, dptr, "MT %03o >%012llo\n", dev, *data);
+          sim_debug(DEBUG_DATA, dptr, "MT %03o >%012" LL_FMT "o\n", dev, *data);
           break;
 
      case DATAO:
@@ -356,7 +356,7 @@ t_stat mt_devio(uint32 dev, uint64 *data) {
           mt_status &= ~DATA_REQUEST;
           clr_interrupt(MT_DEVNUM);
           uptr->CNTRL |= MT_BUFFUL;
-          sim_debug(DEBUG_DATA, dptr, "MT %03o <%012llo, %012llo\n",
+          sim_debug(DEBUG_DATA, dptr, "MT %03o <%012" LL_FMT "o, %012" LL_FMT "o\n",
                     dev, mt_hold_reg, mt_df10.buf);
           break;
 
@@ -383,7 +383,7 @@ t_stat mt_devio(uint32 dev, uint64 *data) {
               res |= B22_FLAG;
 #endif
           *data = res;
-          sim_debug(DEBUG_CONI, dptr, "MT CONI %03o status2 %012llo %o %012llo PC=%06o\n",
+          sim_debug(DEBUG_CONI, dptr, "MT CONI %03o status2 %012" LL_FMT "o %o %012" LL_FMT "o PC=%06o\n",
                       dev, res, mt_sel_unit, mt_status, PC);
           break;
 
@@ -391,7 +391,7 @@ t_stat mt_devio(uint32 dev, uint64 *data) {
           if (*data & 1) {
               uptr->CNTRL |= MT_STOP;
               hri_mode = 0;
-              sim_debug(DEBUG_DETAIL, dptr, "MT stop %03o %012llo\n", dev, mt_status);
+              sim_debug(DEBUG_DETAIL, dptr, "MT stop %03o %012" LL_FMT "o\n", dev, mt_status);
           }
           if (*data & 2) {
               mt_hold_reg ^= mt_df10.buf;
@@ -402,7 +402,7 @@ t_stat mt_devio(uint32 dev, uint64 *data) {
               if (*data & 010)
                   mt_status &= ~(WT_CW_DONE);
           }
-          sim_debug(DEBUG_CONO, dptr, "MT CONO %03o control %o %o %012llo %012llo\n",
+          sim_debug(DEBUG_CONO, dptr, "MT CONO %03o control %o %o %012" LL_FMT "o %012" LL_FMT "o\n",
                       dev, uptr->CNTRL, mt_sel_unit, mt_hold_reg, mt_df10.buf);
           break;
 
@@ -416,7 +416,7 @@ t_stat mt_devio(uint32 dev, uint64 *data) {
               df10_setup(&mt_df10, (uint32) *data);
           else
               mt_df10.buf ^= mt_hold_reg;
-          sim_debug(DEBUG_DATAIO, dptr, "MT DATAO %03o %012llo\n", dev, *data);
+          sim_debug(DEBUG_DATAIO, dptr, "MT DATAO %03o %012" LL_FMT "o\n", dev, *data);
           break;
      }
      return SCPE_OK;
@@ -428,7 +428,7 @@ void mt_df10_read(DEVICE *dptr, UNIT *uptr) {
          if (!df10_read(&mt_df10)) {
              uptr->CNTRL |= MT_STOP;
          }
-         sim_debug(DEBUG_DATA, dptr, "MT  <%012llo %o\n", mt_df10.buf, uptr->CPOS);
+         sim_debug(DEBUG_DATA, dptr, "MT  <%012" LL_FMT "o %o\n", mt_df10.buf, uptr->CPOS);
      } else {
         if (uptr->CNTRL & MT_BUFFUL) {
             mt_df10.buf = mt_hold_reg;
@@ -459,7 +459,7 @@ void mt_df10_write(DEVICE *dptr, UNIT *uptr) {
             uptr->CNTRL |= MT_STOP;
             return;
         }
-        sim_debug(DEBUG_DATA, dptr, "MT  >%012llo %o\n", mt_df10.buf, uptr->CPOS);
+        sim_debug(DEBUG_DATA, dptr, "MT  >%012" LL_FMT "o %o\n", mt_df10.buf, uptr->CPOS);
         uptr->CNTRL &= ~(MT_BUFFUL|MT_BRFUL);
      } else {
         if ((uptr->CNTRL & MT_BUFFUL) == 0) {
@@ -524,7 +524,7 @@ t_stat mt_error(UNIT * uptr, t_stat r, DEVICE * dptr)
        }
        mt_status |= JOB_DONE;
        uptr->CNTRL &= ~MT_BUSY;
-       sim_debug(DEBUG_EXP, dptr, "Setting status %d %012llo\n", r, mt_status);
+       sim_debug(DEBUG_EXP, dptr, "Setting status %d %012" LL_FMT "o\n", r, mt_status);
        set_interrupt(MT_DEVNUM+4, mt_pia >> 3);
        return SCPE_OK;
 }

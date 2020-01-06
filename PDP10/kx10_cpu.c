@@ -1035,7 +1035,7 @@ t_stat dev_pi(uint32 dev, uint64 *data) {
         if (res & 0100000)  /* Bit 20 */
            parity_irq = 0;
         check_apr_irq();
-        sim_debug(DEBUG_CONO, &cpu_dev, "CONO PI %012llo\n", *data);
+        sim_debug(DEBUG_CONO, &cpu_dev, "CONO PI %012" LL_FMT "o\n", *data);
         break;
 
      case CONI:
@@ -1047,7 +1047,7 @@ t_stat dev_pi(uint32 dev, uint64 *data) {
 #endif
         res |= (parity_irq << 15);
         *data = res;
-        sim_debug(DEBUG_CONI, &cpu_dev, "CONI PI %012llo\n", *data);
+        sim_debug(DEBUG_CONI, &cpu_dev, "CONI PI %012" LL_FMT "o\n", *data);
         break;
 
     case DATAO:
@@ -1097,14 +1097,14 @@ t_stat dev_pag(uint32 dev, uint64 *data) {
         *data = (uint64)(pag_reload ^ 040);
         *data |= ((uint64)last_page) << 8;
         *data |= (uint64)((apr_serial == -1) ? DEF_SERIAL : apr_serial) << 26;
-        sim_debug(DEBUG_CONI, &cpu_dev, "CONI PAG %012llo\n", *data);
+        sim_debug(DEBUG_CONI, &cpu_dev, "CONI PAG %012" LL_FMT "o\n", *data);
         break;
 
      case CONO:
         /* Set Stack AC and Page Table Reload Counter */
         ac_stack = (*data >> 9) & 0760;
         pag_reload = (*data & 037) | (pag_reload & 040);
-        sim_debug(DEBUG_CONO, &cpu_dev, "CONI PAG %012llo\n", *data);
+        sim_debug(DEBUG_CONO, &cpu_dev, "CONI PAG %012" LL_FMT "o\n", *data);
         break;
 
     case DATAO:
@@ -1129,7 +1129,7 @@ t_stat dev_pag(uint32 dev, uint64 *data) {
        }
        pag_reload = 0;
        sim_debug(DEBUG_DATAIO, &cpu_dev,
-                    "DATAO PAG %012llo ebr=%06o ubr=%06o\n",
+                    "DATAO PAG %012" LL_FMT "o ebr=%06o ubr=%06o\n",
                     *data, eb_ptr, ub_ptr);
        break;
 
@@ -1144,7 +1144,7 @@ t_stat dev_pag(uint32 dev, uint64 *data) {
            res |= 00040000000000LL;
        res |= ((uint64)(fm_sel)) << 29;
        *data = res;
-       sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAI PAG %012llo\n", *data);
+       sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAI PAG %012" LL_FMT "o\n", *data);
        break;
     }
     return SCPE_OK;
@@ -1178,7 +1178,7 @@ t_stat dev_apr(uint32 dev, uint64 *data) {
         res |= (inout_fail << 7) | (clk_flg << 9) | (clk_en << 10);
         res |= (timer_irq << 14) | (parity_irq << 15) | (timer_flg << 17);
         *data = res;
-        sim_debug(DEBUG_CONI, &cpu_dev, "CONI APR %012llo\n", *data);
+        sim_debug(DEBUG_CONI, &cpu_dev, "CONI APR %012" LL_FMT "o\n", *data);
         break;
 
      case CONO:
@@ -1212,17 +1212,17 @@ t_stat dev_apr(uint32 dev, uint64 *data) {
         if (res & 0400000)
             timer_flg = 0;
         check_apr_irq();
-        sim_debug(DEBUG_CONO, &cpu_dev, "CONO APR %012llo\n", *data);
+        sim_debug(DEBUG_CONO, &cpu_dev, "CONO APR %012" LL_FMT "o\n", *data);
         break;
 
     case DATAO:
-        sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAO APR %012llo\n", *data);
+        sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAO APR %012" LL_FMT "o\n", *data);
         break;
 
     case DATAI:
         /* Read switches */
         *data = SW;
-        sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAI APR %012llo\n", *data);
+        sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAI APR %012" LL_FMT "o\n", *data);
         break;
     }
     return SCPE_OK;
@@ -1284,7 +1284,7 @@ t_stat dev_pag(uint32 dev, uint64 *data) {
                  exec_map = 1;
                  break;
         }
-        sim_debug(DEBUG_CONO, &cpu_dev, "CONO PAG %012llo\n", *data);
+        sim_debug(DEBUG_CONO, &cpu_dev, "CONO PAG %012" LL_FMT "o\n", *data);
         break;
 
     case DATAO:
@@ -1343,7 +1343,7 @@ t_stat dev_apr(uint32 dev, uint64 *data) {
         res |= (mem_prot << 13) | (((FLAGS & USERIO) != 0) << 15);
         res |= (push_ovf << 16) | (maoff >> 1);
         *data = res;
-        sim_debug(DEBUG_CONI, &cpu_dev, "CONI APR %012llo\n", *data);
+        sim_debug(DEBUG_CONI, &cpu_dev, "CONI APR %012" LL_FMT "o\n", *data);
         break;
 
      case CONO:
@@ -1393,7 +1393,7 @@ t_stat dev_apr(uint32 dev, uint64 *data) {
         if (res & 0400000)
             push_ovf = 0;
         check_apr_irq();
-        sim_debug(DEBUG_CONO, &cpu_dev, "CONO APR %012llo\n", *data);
+        sim_debug(DEBUG_CONO, &cpu_dev, "CONO APR %012" LL_FMT "o\n", *data);
         break;
 
     case DATAO:
@@ -1403,14 +1403,14 @@ t_stat dev_apr(uint32 dev, uint64 *data) {
         Pflag = 01 & (*data >> 18);
         Ph = ((0377 & (*data >> 19)) << 10) + 01777;
         Pl = ((0377 & (*data >> 28)) << 10) + 01777;
-        sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAO APR %012llo\n", *data);
+        sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAO APR %012" LL_FMT "o\n", *data);
 sim_debug(DEBUG_DATAIO, &cpu_dev, "Rl=%06o Pl=%06o, Rh=%06o, Ph=%06o\n", Rl, Pl, Rh, Ph);
         break;
 
     case DATAI:
         /* Read switches */
         *data = SW;
-        sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAI APR %012llo\n", *data);
+        sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAI APR %012" LL_FMT "o\n", *data);
         break;
     }
     return SCPE_OK;
@@ -2447,7 +2447,7 @@ t_stat dev_apr(uint32 dev, uint64 *data) {
         res |= (mem_prot << 13) | (((FLAGS & USER) != 0) << 14) | (user_io << 15);
         res |= (push_ovf << 16);
         *data = res;
-        sim_debug(DEBUG_CONI, &cpu_dev, "CONI APR %012llo\n", *data);
+        sim_debug(DEBUG_CONI, &cpu_dev, "CONI APR %012" LL_FMT "o\n", *data);
         break;
 
      case CONO:
@@ -2497,20 +2497,20 @@ t_stat dev_apr(uint32 dev, uint64 *data) {
         if (res & 0400000)   /* Bit 18 */
             push_ovf = 0;
         check_apr_irq();
-        sim_debug(DEBUG_CONO, &cpu_dev, "CONO APR %012llo\n", *data);
+        sim_debug(DEBUG_CONO, &cpu_dev, "CONO APR %012" LL_FMT "o\n", *data);
         break;
 
     case DATAO:
         /* Set protection registers */
         Rl = 0776000 & *data;
         Pl = (0776000 & (*data >> 18)) + 01777;
-        sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAO APR %012llo\n", *data);
+        sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAO APR %012" LL_FMT "o\n", *data);
         break;
 
     case DATAI:
         /* Read switches */
         *data = SW;
-        sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAI APR %012llo\n", *data);
+        sim_debug(DEBUG_DATAIO, &cpu_dev, "DATAI APR %012" LL_FMT "o\n", *data);
         break;
     }
     return SCPE_OK;

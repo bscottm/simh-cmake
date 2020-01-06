@@ -925,7 +925,7 @@ cpu_show_hist(FILE * st, UNIT * uptr, int32 val, CONST void *desc)
             if (
                 (fprint_sym
                  (st, h->ic & AMASK, &sim_eval, &cpu_unit,
-                  SWMASK('M'))) > 0) fprintf(st, "(undefined) %012llo",
+                  SWMASK('M'))) > 0) fprintf(st, "(undefined) %012" LL_FMT "o",
                                              h->op);
             fputc('\n', st);    /* end line */
         }                       /* end else instruction */

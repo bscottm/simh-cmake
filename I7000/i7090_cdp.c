@@ -203,7 +203,7 @@ t_stat cdp_srv(UNIT * uptr)
     wd = 0;
     switch (chan_read(chan, &wd, 0)) {
     case DATA_OK:
-        sim_debug(DEBUG_DATA, &cdp_dev, " %012llo\n", wd);
+        sim_debug(DEBUG_DATA, &cdp_dev, " %012" LL_FMT "o\n", wd);
         /* Bit flip into temp buffer */
         bit = 1 << (pos / 2);
         mask = 1;

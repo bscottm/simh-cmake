@@ -234,7 +234,7 @@ t_stat dpy_devio(uint32 dev, uint64 *data) {
          * (Thanks to Lars for figuring this out!)
          */
         *data |= SMASK;                 /* always assigned to us */
-        sim_debug(DEBUG_CONI, &dpy_dev, "DPY  %03o CONI PC=%06o %012llo\n",
+        sim_debug(DEBUG_CONI, &dpy_dev, "DPY  %03o CONI PC=%06o %012" LL_FMT "o\n",
                   dev, PC, *data);
         break;
 
@@ -255,7 +255,7 @@ t_stat dpy_devio(uint32 dev, uint64 *data) {
         uptr->INT_COUNTDOWN = 0;
 
         /* if fed using BLKO from interrupt vector, PC will be wrong! */
-        sim_debug(DEBUG_DATAIO, &dpy_dev, "DPY %03o DATO %012llo PC=%06o\n",
+        sim_debug(DEBUG_DATAIO, &dpy_dev, "DPY %03o DATO %012" LL_FMT "o PC=%06o\n",
                   dev, *data, PC);
         
         inst = (uint32)LRZ(*data);
@@ -434,10 +434,10 @@ t_stat wcnsls_devio(uint32 dev, uint64 *data) {
 #undef SWSW
 
         if (spacewar_switches)
-            DEBUGSW(("in %#lo out %#llo\r\n", spacewar_switches, switches));
+            DEBUGSW(("in %#lo out %#" LL_FMT "o\r\n", spacewar_switches, switches));
 
         *data = switches;
-        sim_debug(DEBUG_DATAIO, &wcnsls_dev, "WCNSLS %03o DATI %012llo PC=%06o\n",
+        sim_debug(DEBUG_DATAIO, &wcnsls_dev, "WCNSLS %03o DATI %012" LL_FMT "o PC=%06o\n",
                   dev, switches, PC);
         break;
     }

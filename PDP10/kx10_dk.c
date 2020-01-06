@@ -169,7 +169,7 @@ set_clock:
 
     case DATAO:
         uptr->INT_REG = (uint32)(*data & RMASK);
-        sim_debug(DEBUG_DATAIO, &dk_dev, "DK %03o DATO %012llo PC=%06o\n",
+        sim_debug(DEBUG_DATAIO, &dk_dev, "DK %03o DATO %012" LL_FMT "o PC=%06o\n",
                     dev, *data, PC);
         goto set_clock;
 
@@ -180,7 +180,7 @@ set_clock:
            sim_cancel(uptr);
         }
         *data = (uint64)(uptr->CLK_REG);
-        sim_debug(DEBUG_DATAIO, &dk_dev, "DK %03o DATI %012llo PC=%06o\n",
+        sim_debug(DEBUG_DATAIO, &dk_dev, "DK %03o DATI %012" LL_FMT "o PC=%06o\n",
                     dev, *data, PC);
         goto set_clock;
     }

@@ -279,11 +279,11 @@ t_stat rc_devio(uint32 dev, uint64 *data) {
          unit = (rc_ipr[ctlr] & SEC_SCTR) >> 16;
          uptr = &rc_unit[(ctlr * NUM_UNITS_RC) + unit];
          *data |= (uptr->UFLAGS >> 3) & 0177;
-         sim_debug(DEBUG_DATAIO, dptr, "HK %03o DATI %012llo PC=%o F=%o\n",
+         sim_debug(DEBUG_DATAIO, dptr, "HK %03o DATI %012" LL_FMT "o PC=%o F=%o\n",
                   dev, *data, PC, uptr->UFLAGS);
          break;
      case DATAO:
-         sim_debug(DEBUG_DATAIO, dptr, "HK %03o DATO %012llo, PC=%o\n",
+         sim_debug(DEBUG_DATAIO, dptr, "HK %03o DATO %012" LL_FMT "o, PC=%o\n",
                   dev, *data, PC);
          if (df10->status & BUSY) {
             return SCPE_OK;
@@ -406,7 +406,7 @@ t_stat rc_svc (UNIT *uptr)
         df10->buf = rc_buf[ctlr][uptr->DATAPTR];
         r = df10_write(df10);
     }
-    sim_debug(DEBUG_DATA, dptr, "Xfer %d %012llo %06o %06o\n", uptr->DATAPTR, df10->buf,
+    sim_debug(DEBUG_DATA, dptr, "Xfer %d %012" LL_FMT "o %06o %06o\n", uptr->DATAPTR, df10->buf,
              df10->wcr, df10->cda);
 
     uptr->DATAPTR++;

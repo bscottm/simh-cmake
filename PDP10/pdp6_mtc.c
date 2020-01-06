@@ -250,7 +250,7 @@ mtc_devio(uint32 dev, uint64 *data) {
               clr_interrupt(MTC_DEVCTL);
               mtc_pia = (uint16)(*data) & (FLAG_PIA);
               mtc_hold_cmd = (*data & CMD_MASK);
-              sim_debug(DEBUG_CONO, dptr, "MTC CONO %03o start %o %o%012llo PC=%06o\n",
+              sim_debug(DEBUG_CONO, dptr, "MTC CONO %03o start %o %o%012" LL_FMT "o PC=%06o\n",
                             dev, mtc_sel_unit, mtc_pia, *data, PC);
               /* If nop done */
               if ((mtc_hold_cmd & FUNCTION) == 0)
@@ -297,7 +297,7 @@ mtc_devio(uint32 dev, uint64 *data) {
               if ((uptr->flags & UNIT_ATT) == 0 || (uptr->CNTRL & (MTC_START|MTC_MOTION|MTC_BUSY)) == 0)
                   res |= TAPE_FREE;
               *data = res;
-              sim_debug(DEBUG_CONI, dptr, "MTC CONI %03o status %012llo %o %08o PC=%06o\n",
+              sim_debug(DEBUG_CONI, dptr, "MTC CONI %03o status %012" LL_FMT "o %o %08o PC=%06o\n",
                           dev, res, mtc_sel_unit, mtc_status, PC);
               break;
 
@@ -309,7 +309,7 @@ mtc_devio(uint32 dev, uint64 *data) {
                  /* Switch to drive to check status */
                  mtc_sel_unit = (mtc_hold_cmd >> 4) & 07;
               } 
-              sim_debug(DEBUG_CONO, dptr, "MTC CONO %03o status %012llo %o %08o PC=%06o\n",
+              sim_debug(DEBUG_CONO, dptr, "MTC CONO %03o status %012" LL_FMT "o %o %08o PC=%06o\n",
                           dev, *data, mtc_sel_unit, mtc_status, PC);
               uptr = &mtc_unit[mtc_sel_unit];
               mtc_checkirq(uptr);
@@ -332,7 +332,7 @@ mtc_devio(uint32 dev, uint64 *data) {
                   res |= UNIT_SEL_NEW;
               if (mtc_hold_cmd & CMD_FULL) 
                   res |= CMD_HOLD;
-              sim_debug(DEBUG_CONI, dptr, "MTC CONI %03o status2 %012llo %o %08o PC=%06o\n",
+              sim_debug(DEBUG_CONI, dptr, "MTC CONI %03o status2 %012" LL_FMT "o %o %08o PC=%06o\n",
                           dev, res, mtc_sel_unit, mtc_status, PC);
               break;
 
@@ -595,7 +595,7 @@ mtc_srv(UNIT * uptr)
              }
              uptr->BPOS++;
          }
-         sim_debug(DEBUG_DETAIL, dptr, "MTC%o read data %012llo\n", unit, hold_reg);
+         sim_debug(DEBUG_DETAIL, dptr, "MTC%o read data %012" LL_FMT "o\n", unit, hold_reg);
          if (dct_write(mtc_dct, &hold_reg, i) == 0 ||(uint32)uptr->BPOS >= uptr->hwmark) {
              uptr->CNTRL &= ~(MTC_BUSY);
              mtc_status |= EOR_FLAG;
@@ -686,7 +686,7 @@ mtc_srv(UNIT * uptr)
              break;
          }
          if (dct_read(mtc_dct, &hold_reg, 0)) {
-            sim_debug(DEBUG_DETAIL, dptr, "MTC%o Write data %012llo\n", unit, hold_reg);
+            sim_debug(DEBUG_DETAIL, dptr, "MTC%o Write data %012" LL_FMT "o\n", unit, hold_reg);
             for(i = 0; i < cc_max; i++) {
                 if (uptr->flags & MTUF_7TRK) {
                     cc = 6 * (6 - i);

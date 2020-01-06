@@ -470,7 +470,7 @@ t_stat dt_devio(uint32 dev, uint64 *data) {
           *data = dtdb;
           dtsb &= ~DTB_DATREQ;
           clr_interrupt(dev|4);
-          sim_debug(DEBUG_DATAIO, &dt_dev, "DTA %03o DATI %012llo PC=%06o\n",
+          sim_debug(DEBUG_DATAIO, &dt_dev, "DTA %03o DATI %012" LL_FMT "o PC=%06o\n",
                     dev, *data, PC);
 
           break;
@@ -479,7 +479,7 @@ t_stat dt_devio(uint32 dev, uint64 *data) {
           dtdb = *data;
           dtsb &= ~DTB_DATREQ;
           clr_interrupt(dev|4);
-          sim_debug(DEBUG_DATAIO, &dt_dev, "DTA %03o DATO %012llo PC=%06o\n",
+          sim_debug(DEBUG_DATAIO, &dt_dev, "DTA %03o DATO %012" LL_FMT "o PC=%06o\n",
                     dev, *data, PC);
           break;
 
@@ -487,7 +487,7 @@ t_stat dt_devio(uint32 dev, uint64 *data) {
           *data = dtsb;
           if (dtsb & 0770000) 
              *data |= DTB_FLGREQ;
-          sim_debug(DEBUG_CONI, &dt_dev, "DTB %03o CONI %012llo PC=%o\n",
+          sim_debug(DEBUG_CONI, &dt_dev, "DTB %03o CONI %012" LL_FMT "o PC=%o\n",
                dev, *data, PC);
           break;
 
@@ -508,16 +508,16 @@ t_stat dt_devio(uint32 dev, uint64 *data) {
           if (*data & DTS_FUNC_STOP)
               dtsb |= DTB_STOP;
 
-          sim_debug(DEBUG_CONO, &dt_dev, "DTB %03o CONO %06o PC=%o DTSB=%012llo\n",
+          sim_debug(DEBUG_CONO, &dt_dev, "DTB %03o CONO %06o PC=%o DTSB=%012" LL_FMT "o\n",
                dev, (uint32)*data, PC, dtsb);
           break;
 
      case DATAI|4:
-          sim_debug(DEBUG_DATAIO, &dt_dev, "DTB %03o DATI %012llo PC=%06o\n",
+          sim_debug(DEBUG_DATAIO, &dt_dev, "DTB %03o DATI %012" LL_FMT "o PC=%06o\n",
                     dev, *data, PC);
           break;
      case DATAO|4:
-          sim_debug(DEBUG_DATAIO, &dt_dev, "DTB %03o DATO %012llo PC=%06o\n",
+          sim_debug(DEBUG_DATAIO, &dt_dev, "DTB %03o DATO %012" LL_FMT "o PC=%06o\n",
                     dev, *data, PC);
           break;
 
@@ -732,7 +732,7 @@ if (uptr->DSTATE & DTC_MOT) {
                dtsb |= DTB_FIN;
            }
            sim_debug(DEBUG_DETAIL, &dt_dev,
-                      "DTA %o rev data word %o:%o %012llo %d %06o %06o\n",
+                      "DTA %o rev data word %o:%o %012" LL_FMT "o %d %06o %06o\n",
                          u, blk, word, data, off, fbuf[off], fbuf[off+1]);
            break;
 
@@ -954,7 +954,7 @@ if (uptr->DSTATE & DTC_MOT) {
                dtsb &= ~DTB_DAT;
                dtsb |= DTB_FIN;
            }
-           sim_debug(DEBUG_DETAIL, &dt_dev, "DTA %o data word %o:%o %012llo %d %06o %06o\n",
+           sim_debug(DEBUG_DETAIL, &dt_dev, "DTA %o data word %o:%o %012" LL_FMT "o %d %06o %06o\n",
                       u, blk, word, data, off, fbuf[off], fbuf[off+1]);
            break;
 

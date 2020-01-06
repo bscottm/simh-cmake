@@ -368,7 +368,7 @@ t_stat auxcpu_devio(uint32 dev, t_uint64 *data)
 
     switch(dev & 07) {
     case CONO:
-        sim_debug(DEBUG_CONO, &auxcpu_dev, "CONO %012llo\n", *data);
+        sim_debug(DEBUG_CONO, &auxcpu_dev, "CONO %012" LL_FMT "o\n", *data);
         pia = *data & 7;
         if (*data & 010)
           {
@@ -381,14 +381,14 @@ t_stat auxcpu_devio(uint32 dev, t_uint64 *data)
         break;
     case CONI:
         *data = (status & 010) | pia;
-        sim_debug(DEBUG_CONI, &auxcpu_dev, "CONI %012llo\n", *data);
+        sim_debug(DEBUG_CONI, &auxcpu_dev, "CONI %012" LL_FMT "o\n", *data);
         break;
     case DATAI:
         *data = 0;
-        sim_debug(DEBUG_CONI, &auxcpu_dev, "DATAI %012llo\n", *data);
+        sim_debug(DEBUG_CONI, &auxcpu_dev, "DATAI %012" LL_FMT "o\n", *data);
         break;
     case DATAO:
-        sim_debug(DEBUG_CONI, &auxcpu_dev, "DATAO %012llo\n", *data);
+        sim_debug(DEBUG_CONI, &auxcpu_dev, "DATAO %012" LL_FMT "o\n", *data);
         break;
     }
 

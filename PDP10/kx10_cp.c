@@ -126,11 +126,11 @@ t_stat cp_devio(uint32 dev, uint64 *data) {
      switch(dev & 3) {
      case CONI:
         *data = uptr->STATUS;
-         sim_debug(DEBUG_CONI, &cp_dev, "CP: CONI %012llo\n", *data);
+         sim_debug(DEBUG_CONI, &cp_dev, "CP: CONI %012" LL_FMT "o\n", *data);
         break;
      case CONO:
          clr_interrupt(dev);
-         sim_debug(DEBUG_CONO, &cp_dev, "CP: CONO %012llo\n", *data);
+         sim_debug(DEBUG_CONO, &cp_dev, "CP: CONO %012" LL_FMT "o\n", *data);
          uptr->STATUS &= ~PIA;
          uptr->STATUS |= *data & PIA;
          if (*data & CLR_PUNCH) {
@@ -191,7 +191,7 @@ t_stat cp_devio(uint32 dev, uint64 *data) {
          cp_buffer[uptr->COL++] = col;
          uptr->STATUS &= ~DATA_REQ;
          clr_interrupt(dev);
-         sim_debug(DEBUG_DATAIO, &cp_dev, "CP: DATAO %012llo %d\n", *data,
+         sim_debug(DEBUG_DATAIO, &cp_dev, "CP: DATAO %012" LL_FMT "o %d\n", *data,
                  uptr->COL);
          sim_activate(uptr, uptr->wait);
          break;
