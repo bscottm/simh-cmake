@@ -259,7 +259,7 @@ tempbase[1] &= ~((d10) TIM_BASE_RAZ);
  */
 Write (ea, tempbase[0], prv);
 Write (INCA(ea), tempbase[1], prv);
-sim_debug (DEB_RRD, &tim_dev, "rdtim() = %012" LL_FMT "o %012" LL_FMT "o\n", tempbase[0], tempbase[1]);
+sim_debug (DEB_RRD, &tim_dev, "rdtim() = %012" T_UINT64_FMT "o %012" T_UINT64_FMT "o\n", tempbase[0], tempbase[1]);
 return FALSE;
 }
 
@@ -272,7 +272,7 @@ t_bool wrtim (a10 ea, int32 prv)
 {
 tim_base[0] = Read (ea, prv);
 tim_base[1] = CLRS (Read (INCA (ea), prv) & ~((d10) TIM_HWRE_MASK));
-sim_debug (DEB_RWR, &tim_dev, "wrtim(%012" LL_FMT "o, %012" LL_FMT "o)\n", tim_base[0], tim_base[1]);
+sim_debug (DEB_RWR, &tim_dev, "wrtim(%012" T_UINT64_FMT "o, %012" T_UINT64_FMT "o)\n", tim_base[0], tim_base[1]);
 return FALSE;
 }
 
@@ -283,7 +283,7 @@ return FALSE;
 t_bool rdint (a10 ea, int32 prv)
 {
 Write (ea, tim_interval, prv);
-sim_debug (DEB_RRD, &tim_dev, "rdint() = %012" LL_FMT "o\n", tim_interval);
+sim_debug (DEB_RRD, &tim_dev, "rdint() = %012" T_UINT64_FMT "o\n", tim_interval);
 return FALSE;
 }
 
@@ -299,7 +299,7 @@ return FALSE;
 t_bool wrint (a10 ea, int32 prv)
 {
 tim_interval = CLRS (Read (ea, prv));
-sim_debug (DEB_RWR, &tim_dev, "wrint(%012" LL_FMT "o)\n", tim_interval);
+sim_debug (DEB_RWR, &tim_dev, "wrint(%012" T_UINT64_FMT "o)\n", tim_interval);
 return update_interval (tim_interval);
 }
 
@@ -336,7 +336,7 @@ int32 old_tick_in_usecs = tick_in_usecs;
  * time base. This allows a maximum interval of 223 ms, which is almost 140
  * minutes. At the end of each interval, the :microcode sets Interval Done
  * (RDAPR bit 30), requesting an interrupt on the level assigned to the system
- * flags (§4.8). In a separate workspace register, the microcode starts with
+ * flags (ï¿½4.8). In a separate workspace register, the microcode starts with
  * the given period, decrements it by 4096 (2**12) every time the millisecond 
  * counter overflows, and sets the flag when the contents of this "time to go"
  * register reach zero or less. Hence the countdown is by milliseconds, and 
@@ -399,7 +399,7 @@ tmxr_poll = tim_mult * (int32)(sim_timer_inst_per_sec () / clk_tps);/* set mux p
 tim_incr_base (tim_base, tim_period);                   /* incr time base based on period of expired interval */
 tim_period = tim_new_period;                            /* If interval has changed, update period */
 apr_flg = apr_flg | APRF_TIM;                           /* request interrupt */
-sim_debug (DEB_INT, &tim_dev, "tim_svc(INT) tmr_poll=%d, tmxr_poll=%d, tim_period=%" LL_FMT "d\n", tmr_poll, tmxr_poll, tim_period);
+sim_debug (DEB_INT, &tim_dev, "tim_svc(INT) tmr_poll=%d, tmxr_poll=%d, tim_period=%" T_UINT64_FMT "d\n", tmr_poll, tmxr_poll, tim_period);
 if (Q_ITS) {                                            /* ITS? */
     if (pi_act == 0)
         quant = (quant + TIM_ITS_QUANT) & DMASK;

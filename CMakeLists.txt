@@ -124,10 +124,10 @@ link_directories(${SIMH_DEP_TOPDIR}/lib)
 
 # A bunch of Windows customizations
 if (WIN32)
-    set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} ${SIMH_DEP_TOPDIR}/lib)
-    set(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} ${SIMH_DEP_TOPDIR}/include)
+    list(APPEND CMAKE_LIBRARY_PATH ${SIMH_DEP_TOPDIR}/lib)
+    list(APPEND CMAKE_INCLUDE_PATH ${SIMH_DEP_TOPDIR}/include)
 
-    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+    ## add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
     if (MSVC_VERSION GREATER_EQUAL 1920)
 	    add_compile_definitions(USE_ISO_C99_NAMES)
@@ -148,6 +148,7 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     include(fpintrin)
     # Turn on warnings about strict overflow/potential overflows.
     ## LIST(APPEND EXTRA_CFLAGS "-Wall" "-fno-inline" "-fstrict-overflow" "-Wstrict-overflow=3")
+    LIST(APPEND EXTRA_CFLAGS "-Wformat")
 
     # 'O3' optimization and strict overflow cause all kinds of simulator issues, especially inside
     # the VAX simulators. Reduce optimization and ensure strict overflow is turned off.

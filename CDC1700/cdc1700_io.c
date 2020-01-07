@@ -431,7 +431,7 @@ enum IOstatus doIO(t_bool output, DEVICE **device)
         /*
          * Trace location of the I/O instruction + instruction count
          */
-        fprintf(DBGOUT, "%s[%s: P: %04X, Inst: %llu]\r\n",
+        fprintf(DBGOUT, "%s[%s: P: %04X, Inst: %" T_UINT64_FMT "u]\r\n",
                 INTprefix, name, OrigPreg, Instructions);
       }
     }

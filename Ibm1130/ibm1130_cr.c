@@ -2382,7 +2382,7 @@ static DWORD CALLBACK pcr_thread (LPVOID arg)
                 if (! GetOverlappedResult(hpcr, &ovRd, &nrcvd, TRUE))
                     report_error("PCR_Read", GetLastError());
                 else if (cr_unit.flags & UNIT_DEBUG)
-                    printf("PCR_Read: event, %d rcvd\n", nrcvd);
+                    printf("PCR_Read: event, %ld rcvd\n", nrcvd);
                 break;
 
             case WAIT_OBJECT_0+1:                       /* write complete */
@@ -2391,7 +2391,7 @@ static DWORD CALLBACK pcr_thread (LPVOID arg)
                 if (! GetOverlappedResult(hpcr, &ovWr, &nwritten, TRUE))
                     report_error("PCR_Write", GetLastError());
                 else if (cr_unit.flags & UNIT_DEBUG)
-                    printf("PCR_Write: event, %d sent\n", nwritten);
+                    printf("PCR_Write: event, %ld sent\n", nwritten);
                 continue;
 
             case WAIT_OBJECT_0+2:                       /* reset request from simulator */
@@ -2473,7 +2473,7 @@ static DWORD CALLBACK pcr_thread (LPVOID arg)
 
             case PCR_STATE_WAIT_DATA:                   /* waiting for data from P command */
                 if (cr_unit.flags & UNIT_DEBUG)
-                    printf((nrcvd <= 0) ? "PCR: NO RESP!\n" : "PCR: GOT %d BYTES\n", nrcvd);
+                    printf((nrcvd <= 0) ? "PCR: NO RESP!\n" : "PCR: GOT %ld BYTES\n", nrcvd);
 
                 if (nrcvd > 0) {
                     pcr_nleft -= nrcvd;

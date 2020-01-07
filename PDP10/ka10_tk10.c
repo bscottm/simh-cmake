@@ -105,7 +105,7 @@ static t_stat tk10_devio(uint32 dev, uint64 *data)
 
     switch(dev & 07) {
     case CONO:
-        sim_debug(DEBUG_CONO, &tk10_dev, "%06llo\n", *data);
+        sim_debug(DEBUG_CONO, &tk10_dev, "%06" T_UINT64_FMT "o\n", *data);
         if (*data & TK10_CLEAR) {
             status &= ~TK10_INT;
             status |= TK10_GO;
@@ -115,19 +115,19 @@ static t_stat tk10_devio(uint32 dev, uint64 *data)
             status &= ~TK10_ODONE;
             if (!(status & TK10_IDONE))
                 status &= ~TK10_INT;
-            sim_debug(DEBUG_CMD, &tk10_dev, "Clear output done port %lld\n",
+            sim_debug(DEBUG_CMD, &tk10_dev, "Clear output done port %" T_UINT64_FMT "d\n",
                       (status & TK10_TYO) >> 12);
         }
         if (*data & TK10_RQINT) {
             status &= ~TK10_TYI;
             status |= ((status & TK10_TYO) >> 4) | TK10_ODONE | TK10_INT;
-            sim_debug(DEBUG_CMD, &tk10_dev, "Request interrupt port %lld\n",
+            sim_debug(DEBUG_CMD, &tk10_dev, "Request interrupt port %" T_UINT64_FMT "d\n",
                       (status & TK10_TYO) >> 12);
         }
         if (*data & TK10_SELECT) {
             status &= ~TK10_TYO;
             status |= ((*data) & TK10_TYO);
-            sim_debug(DEBUG_DETAIL, &tk10_dev, "Select port %lld\n",
+            sim_debug(DEBUG_DETAIL, &tk10_dev, "Select port %" T_UINT64_FMT "d\n",
                       (status & TK10_TYO) >> 12);
         }
         status &= ~TK10_PIA;
@@ -135,11 +135,11 @@ static t_stat tk10_devio(uint32 dev, uint64 *data)
         break;
     case CONI:
         *data = status & TK10_CONI_BITS;
-        sim_debug(DEBUG_CONI, &tk10_dev, "%06llo\n", *data);
+        sim_debug(DEBUG_CONI, &tk10_dev, "%06" T_UINT64_FMT "o\n", *data);
         break;
     case DATAO:
         port = (status & TK10_TYO) >> 12;
-        sim_debug(DEBUG_DATAIO, &tk10_dev, "DATAO port %d -> %012llo\n",
+        sim_debug(DEBUG_DATAIO, &tk10_dev, "DATAO port %d -> %012" T_UINT64_FMT "o\n",
                   port, *data);
         if (tk10_ldsc[port].conn) {
             lp = &tk10_ldsc[port];
@@ -156,7 +156,7 @@ static t_stat tk10_devio(uint32 dev, uint64 *data)
         port = (status & TK10_TYO) >> 12;
         lp = &tk10_ldsc[port];
         *data = tmxr_getc_ln (lp);
-        sim_debug(DEBUG_DATAIO, &tk10_dev, "DATAI port %d -> %012llo\n",
+        sim_debug(DEBUG_DATAIO, &tk10_dev, "DATAI port %d -> %012" T_UINT64_FMT "o\n",
                   port, *data);
         status &= ~TK10_IDONE;
         if (!(status & TK10_ODONE)) {
