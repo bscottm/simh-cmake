@@ -59,6 +59,7 @@ extern "C" {
 #include <pthread.h>
 
 #include "sim_sock.h"
+#include "sim_iso_names.h"
 
 #if defined(_WIN32)
 #include <process.h>
@@ -786,7 +787,7 @@ else {
     p->temp_config = (char *)_panel_malloc (strlen (sim_config) + 40);
     if (p->temp_config == NULL)
         goto Error_Return;
-    sprintf (p->temp_config, "%s-Panel-%d", sim_config, getpid());
+    sprintf (p->temp_config, "%s-Panel-%d", sim_config, sim_getpid());
     fOut = fopen (p->temp_config, "w");
     if (fOut == NULL) {
         sim_panel_set_error (NULL, "Can't create temporary configuration file '%s': %s", p->temp_config, strerror(errno));

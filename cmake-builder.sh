@@ -31,7 +31,7 @@ EOF
 
 scriptName=$0
 buildArgs=
-buildPostArgs="--"
+buildPostArgs=""
 buildClean=
 buildFlavor="Unix Makefiles"
 buildSubdir=cmake-unix
@@ -134,10 +134,10 @@ if [ x"$testOnly" = x ]; then
 
     ( cd "${buildSubdir}" \
 	&& cmake -G "${buildFlavor}" -DCMAKE_BUILD_TYPE="${buildConfig}" .. \
-	&& { [ x$generateOnly = x ] && cmake --build . --config "${buildConfig}" ${buildArgs} ${buildPostArgs}; } \
+	&& { [ x$generateOnly = x ] && cmake --build . --config "${buildConfig}" ${buildArgs} -- ${buildPostArgs}; } \
     )
 fi
 
 if [ x"$notest" = x ]; then
-    (cd ${buildSubdir} && ctest -C ${buildConfig})
+    (cd ${buildSubdir} && ctest -C ${buildConfig} --output-on-failure)
 fi

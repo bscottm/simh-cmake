@@ -9,8 +9,9 @@ stages:
 
 simh:
   stage: build
+
   script: 
-    - ./cmake-builder.sh --config Release --flavor unix  --parallel --clean
     - ./cmake-builder.sh --config Debug   --flavor unix  --parallel --clean
-    - ./cmake-builder.sh --config Release --flavor ninja --parallel --clean
     - ./cmake-builder.sh --config Debug   --flavor ninja --parallel --clean
+    - ./cmake-builder.sh --config Release --flavor unix  --parallel --clean
+    - ./cmake-builder.sh --config Release --flavor ninja --parallel --clean
