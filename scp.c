@@ -12158,7 +12158,7 @@ if (exp->buf_size) {
     char *bstr = sim_encode_quoted_string (exp->buf, exp->buf_ins);
 
     fprintf (st, "  Match Buffer Size: %d\n", exp->buf_size);
-    fprintf (st, "  Buffer Insert Offset: %"FMT_SIZE_T"u\n", exp->buf_ins);
+    fprintf (st, "  Buffer Insert Offset: %"SIZE_T_FMT"u\n", exp->buf_ins);
     fprintf (st, "  Buffer Contents: %s\n", bstr);
     if (default_haltafter)
         fprintf (st, "  Default HaltAfter: %u instructions\n", (unsigned)default_haltafter);
@@ -12310,7 +12310,7 @@ for (i=0; i < exp->size; i++) {
                     char *estr = sim_encode_quoted_string (exp->buf, exp->buf_ins);
                     char *mstr = sim_encode_quoted_string (&ep->match[ep->size-exp->buf_ins], exp->buf_ins);
 
-                    sim_debug (exp->dbit, exp->dptr, "Checking String[0:%"FMT_SIZE_T"u]: %s\n", exp->buf_ins, estr);
+                    sim_debug (exp->dbit, exp->dptr, "Checking String[0:%"SIZE_T_FMT"u]: %s\n", exp->buf_ins, estr);
                     sim_debug (exp->dbit, exp->dptr, "Against Match Data: %s\n", mstr);
                     free (estr);
                     free (mstr);
@@ -12322,7 +12322,7 @@ for (i=0; i < exp->size; i++) {
                 char *estr = sim_encode_quoted_string (&exp->buf[exp->buf_size-(ep->size-exp->buf_ins)], ep->size-exp->buf_ins);
                 char *mstr = sim_encode_quoted_string (ep->match, ep->size-exp->buf_ins);
 
-                sim_debug (exp->dbit, exp->dptr, "Checking String[%"FMT_SIZE_T"u:%"FMT_SIZE_T"u]: %s\n",
+                sim_debug (exp->dbit, exp->dptr, "Checking String[%"SIZE_T_FMT"u:%"SIZE_T_FMT"u]: %s\n",
                            exp->buf_size-(ep->size-exp->buf_ins), ep->size-exp->buf_ins, estr);
                 sim_debug (exp->dbit, exp->dptr, "Against Match Data: %s\n", mstr);
                 free (estr);
@@ -12337,7 +12337,7 @@ for (i=0; i < exp->size; i++) {
                 char *estr = sim_encode_quoted_string (&exp->buf[exp->buf_ins-ep->size], ep->size);
                 char *mstr = sim_encode_quoted_string (ep->match, ep->size);
 
-                sim_debug (exp->dbit, exp->dptr, "Checking String[%"FMT_SIZE_T"u:%d]: %s\n",
+                sim_debug (exp->dbit, exp->dptr, "Checking String[%"SIZE_T_FMT"u:%d]: %s\n",
                            exp->buf_ins-ep->size, ep->size, estr);
                 sim_debug (exp->dbit, exp->dptr, "Against Match Data: %s\n", mstr);
                 free (estr);
@@ -12359,7 +12359,7 @@ if (exp->buf_ins == exp->buf_size) {                    /* At end of match buffe
         memmove (exp->buf, &exp->buf[exp->buf_size/2], exp->buf_size-(exp->buf_size/2));
         exp->buf_ins -= exp->buf_size/2;
         exp->buf_data = exp->buf_ins;
-        sim_debug (exp->dbit, exp->dptr, "Buffer Full - sliding the last %d bytes to start of buffer new insert at: %"FMT_SIZE_T"u\n",
+        sim_debug (exp->dbit, exp->dptr, "Buffer Full - sliding the last %d bytes to start of buffer new insert at: %"SIZE_T_FMT"u\n",
                    (exp->buf_size/2), exp->buf_ins);
         }
     else {
@@ -12450,7 +12450,7 @@ uint32 after = get_default_env_parameter (dev_name, "SIM_SEND_AFTER", delay);
 
 fprintf (st, "%s\n", tmxr_send_line_name (snd));
 if (snd->extoff < snd->insoff) {
-    fprintf (st, "  %"FMT_SIZE_T"u bytes of pending input Data:\n    ", snd->insoff-snd->extoff);
+    fprintf (st, "  %"SIZE_T_FMT"u bytes of pending input Data:\n    ", snd->insoff-snd->extoff);
     fprint_buffer_string (st, snd->buffer+snd->extoff, snd->insoff-snd->extoff);
     fprintf (st, "\n");
     }

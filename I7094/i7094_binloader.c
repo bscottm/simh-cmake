@@ -131,7 +131,7 @@ binloader (FILE *fd, const char *file, int loadpt)
         break;
         strncpy (item, op, CHARWORD);
         item[CHARWORD] = '\0';
-        sscanf (item, "%" LL_FMT "o", &ldata);
+        sscanf (item, "%" T_UINT64_FMT "o", &ldata);
 
 #ifdef DEBUGLOADER
         fprintf (lfd, "loadaddr = %05o, curraddr = %05o\n",

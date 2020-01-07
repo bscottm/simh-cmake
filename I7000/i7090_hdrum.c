@@ -146,7 +146,7 @@ t_stat hsdrm_srv(UNIT * uptr)
             switch (r) {
             case DATA_OK:
                 sim_debug(DEBUG_DATA, &hsdrm_dev,
-                          "transfer %s %o: %012" LL_FMT "o\n\r",
+                          "transfer %s %o: %012" T_UINT64_FMT "o\n\r",
                           (uptr->u5 & DRMSTA_READ) ? "read" : "write",
                           addr, buf[addr]);
                 hsdrm_addr++;

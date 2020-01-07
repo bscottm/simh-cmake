@@ -620,7 +620,7 @@ void mt_trace(UNIT *uptr, const char *what, t_stat st, t_bool xfer)
     else fprintf(DBGOUT, "MT%d: %s - %s\r\n", u, what, status);
   } else fprintf(DBGOUT, "MT%d: %s\r\n", u, what);
   if ((mt_dev.dctrl & DBG_DLOC) != 0)
-    fprintf(DBGOUT, "MT%d: Inst: %" LL_FMT "u\r\n", u, Instructions);
+    fprintf(DBGOUT, "MT%d: Inst: %" T_UINT64_FMT "u\r\n", u, Instructions);
 }
 
 /* MT trace routine (DSA mode) */
