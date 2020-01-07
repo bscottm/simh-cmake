@@ -39,6 +39,10 @@ _ReSharper*/
 BIN/
 ipch/
 
+# 3B2 diagnostic temporaries
+3B2/tests/diags/nvram.bin
+3B2/tests/diags/tod.bin
+
 # CMake artifacts
 cmake-*
 !cmake-builder.ps1
