@@ -18,4 +18,6 @@ add_simulator(3b2
     INCLUDES
 	3B2
     FULL64
-    BUILDROMS)
+    BUILDROMS
+    TEST
+        3b2-diag)

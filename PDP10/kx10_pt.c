@@ -130,7 +130,7 @@ t_stat ptp_devio(uint32 dev, uint64 *data) {
          if (cpu_unit[0].flags & UNIT_WAITS)
              *data |= 0200;
 #endif
-         sim_debug(DEBUG_CONI, &ptp_dev, "PP: CONI %012llo\n\r", *data);
+         sim_debug(DEBUG_CONI, &ptp_dev, "PP: CONI %012" T_UINT64_FMT "o\n\r", *data);
          break;
 
     case CONO:
@@ -144,7 +144,7 @@ t_stat ptp_devio(uint32 dev, uint64 *data) {
          }
          if (uptr->STATUS & DONE_FLG)
              set_interrupt(dev, uptr->STATUS);
-         sim_debug(DEBUG_CONO, &ptp_dev, "PP: CONO %012llo\n\r", *data);
+         sim_debug(DEBUG_CONO, &ptp_dev, "PP: CONO %012" T_UINT64_FMT "o\n\r", *data);
          break;
 
     case DATAO:
@@ -159,7 +159,7 @@ t_stat ptp_devio(uint32 dev, uint64 *data) {
              clr_interrupt(dev);
              sim_activate (&ptp_unit, ptp_unit.wait);
          }
-         sim_debug(DEBUG_DATAIO, &ptp_dev, "PP: DATAO %012llo\n\r", *data);
+         sim_debug(DEBUG_DATAIO, &ptp_dev, "PP: DATAO %012" T_UINT64_FMT "o\n\r", *data);
          break;
     case DATAI:
          *data = 0;
@@ -229,7 +229,7 @@ t_stat ptr_devio(uint32 dev, uint64 *data) {
     switch(dev & 3) {
     case CONI:
          *data = uptr->STATUS;
-         sim_debug(DEBUG_CONI, &ptr_dev, "PT: CONI %012llo\n\r", *data);
+         sim_debug(DEBUG_CONI, &ptr_dev, "PT: CONI %012" T_UINT64_FMT "o\n\r", *data);
          break;
 
     case CONO:
@@ -244,7 +244,7 @@ t_stat ptr_devio(uint32 dev, uint64 *data) {
          }
          if (uptr->STATUS & DONE_FLG)
              set_interrupt(dev, uptr->STATUS);
-         sim_debug(DEBUG_CONO, &ptr_dev, "PT: CONO %012llo\n\r", *data);
+         sim_debug(DEBUG_CONO, &ptr_dev, "PT: CONO %012" T_UINT64_FMT "o\n\r", *data);
          break;
 
     case DATAI:
@@ -256,7 +256,7 @@ t_stat ptr_devio(uint32 dev, uint64 *data) {
              sim_activate (&ptr_unit, ptr_unit.wait);
          }
              uptr->STATUS |= BUSY_FLG;
-         sim_debug(DEBUG_DATAIO, &ptr_dev, "PT: DATAI %012llo\n\r", *data);
+         sim_debug(DEBUG_DATAIO, &ptr_dev, "PT: DATAI %012" T_UINT64_FMT "o\n\r", *data);
          break;
     case DATAO:
          break;

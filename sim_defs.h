@@ -236,20 +236,6 @@ typedef uint32_t        uint32;
 typedef int             t_stat;                         /* status */
 typedef int             t_bool;                         /* boolean */
 
-/* size_t format specifier */
-
-#if defined(_WIN64)
-#  define FMT_SIZE_T "I64"
-#elif defined(_WIN32)
-#  define FMT_SIZE_T "I32"
-#elif defined(__GNU_LIBRARY__) || defined(__GLIBC__) || defined(__GLIBC_MINOR__)
-/* glibc (basically, most Linuxes */
-#  define FMT_SIZE_T "z"
-#else
-/* punt. */
-#define FMT_SIZE_T LL_FMT
-#endif
-
 /* 64b integers */
 
 #if defined (__GNUC__)                                  /* GCC */
@@ -324,6 +310,32 @@ typedef uint32          t_addr;
 #define LL_TYPE long long
 #endif
 #endif
+
+/* cross-platform printf() format specifiers: 
+ *
+ * Note: MS apparently does recognize "ll" as "l" in its printf() routines, but "I64" is
+ * preferred for 64-bit types. And tamps down on MinGW's "-Wformat" diagnostics.
+ */
+#if defined(_WIN64)
+#  define SIZE_T_FMT   "I64"
+#  define T_UINT64_FMT "I64"
+#  define T_INT64_FMT  "I64"
+#elif defined(_WIN32)
+#  define SIZE_T_FMT   ""
+#  define T_UINT64_FMT "I64"
+#  define T_INT64_FMT  "I64"
+#elif defined(__GNU_LIBRARY__) || defined(__GLIBC__) || defined(__GLIBC_MINOR__)
+/* glibc (basically, most Linuxen) */
+#  define SIZE_T_FMT   "z"
+#  define T_UINT64_FMT "ll"
+#  define T_INT64_FMT  "ll"
+#else
+/* punt. */
+#  define SIZE_T_FMT   LL_FMT
+#  define T_UINT64_FMT LL_FMT
+#  define T_INT64_FMT  LL_FMT
+#endif
+
 
 #if defined (VMS) && (defined (__ia64) || defined (__ALPHA))
 #define HAVE_GLOB

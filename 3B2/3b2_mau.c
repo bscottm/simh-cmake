@@ -1611,7 +1611,7 @@ static DFP xfp_to_dfp(XFP *val, RM rounding_mode)
     frac = XFP_FRAC(val);
 
     sim_debug(TRACE_DBG, &mau_dev,
-              "[xfp_to_dfp] input=%04x%016llx input_exp=%04x  packed_exp=%04x\n",
+              "[xfp_to_dfp] input=%04x%016" T_UINT64_FMT "x input_exp=%04x  packed_exp=%04x\n",
               val->sign_exp, val->frac, (uint16)exp, (uint16)(exp - 0x3c01));
 
     if (exp == 0x7fff) {
@@ -1888,13 +1888,13 @@ void mau_decimal_to_xfp(DEC *d, XFP *a)
     }
 
     sim_debug(TRACE_DBG, &mau_dev,
-              "[%08x] [mau_decimal_to_xfp] tmp val = %lld\n",
+              "[%08x] [mau_decimal_to_xfp] tmp val = %" T_INT64_FMT "d\n",
               R[NUM_PC], signed_tmp);
 
     mau_int64_to_xfp((t_uint64) signed_tmp, a);
 
     sim_debug(TRACE_DBG, &mau_dev,
-              "[%08x] [mau_decimal_to_xfp] XFP = %04x%016llx\n",
+              "[%08x] [mau_decimal_to_xfp] XFP = %04x%016" T_UINT64_FMT "x\n",
               R[NUM_PC], a->sign_exp, a->frac);
 
 }
@@ -2032,7 +2032,7 @@ static void xfp_add_fracs(XFP *a, XFP *b, t_bool sign, XFP *result, RM rounding_
     int32 exp_diff;
 
     sim_debug(TRACE_DBG, &mau_dev,
-              "[%08x] [ADD_FRACS] a=%04x%016llx  b=%04x%016llx\n",
+              "[%08x] [ADD_FRACS] a=%04x%016" T_UINT64_FMT "x  b=%04x%016" T_UINT64_FMT "x\n",
               R[NUM_PC],
               a->sign_exp, a->frac,
               b->sign_exp, b->frac);
@@ -2366,7 +2366,7 @@ static void xfp_mul(XFP *a, XFP *b, XFP *result, RM rounding_mode)
     t_uint64 a_frac, b_frac, r_frac_0, r_frac_1;
 
     sim_debug(TRACE_DBG, &mau_dev,
-              "[%08x] [MUL] op1=%04x%016llx  op2=%04x%016llx\n",
+              "[%08x] [MUL] op1=%04x%016" T_UINT64_FMT "x  op2=%04x%016" T_UINT64_FMT "x\n",
               R[NUM_PC],
               a->sign_exp, a->frac,
               b->sign_exp, b->frac);
@@ -2451,7 +2451,7 @@ static void xfp_div(XFP *a, XFP *b, XFP *result, RM rounding_mode)
     t_uint64 rem0, rem1, rem2, term0, term1, term2;
 
     sim_debug(TRACE_DBG, &mau_dev,
-              "[%08x] [DIV] op1=%04x%016llx op2=%04x%016llx\n",
+              "[%08x] [DIV] op1=%04x%016" T_UINT64_FMT "x op2=%04x%016" T_UINT64_FMT "x\n",
               R[NUM_PC], b->sign_exp, b->frac, a->sign_exp, a->frac);
 
     a_sign = XFP_SIGN(a);
@@ -2565,7 +2565,7 @@ static void xfp_sqrt(XFP *a, XFP *result, RM rounding_mode)
     t_mau_128 nan_128, rem, y, term;
 
     sim_debug(TRACE_DBG, &mau_dev,
-              "[%08x] [SQRT] op1=%04x%016llx\n",
+              "[%08x] [SQRT] op1=%04x%016" T_UINT64_FMT "x\n",
               R[NUM_PC], a->sign_exp, a->frac);
 
     a_sign = XFP_SIGN(a);
@@ -2834,11 +2834,11 @@ static void load_src_op(uint8 op, XFP *xfp)
         dfp = (t_uint64) read_w(mau_state.src + 4, ACC_AF);
         dfp |= ((t_uint64) read_w(mau_state.src, ACC_AF)) << 32;
         sim_debug(TRACE_DBG, &mau_dev,
-                  "[load_src_op][DOUBLE] Loaded %016llx\n",
+                  "[load_src_op][DOUBLE] Loaded %016" T_UINT64_FMT "x\n",
                   dfp);
         dfp_to_xfp(dfp, xfp);
         sim_debug(TRACE_DBG, &mau_dev,
-                  "[load_src_op][DOUBLE] Expanded To %04x%016llx\n",
+                  "[load_src_op][DOUBLE] Expanded To %04x%016" T_UINT64_FMT "x\n",
                   xfp->sign_exp, xfp->frac);
         break;
     case M_OP_MEM_TRIPLE:
@@ -2981,7 +2981,7 @@ static void store_op3(XFP *xfp)
     t_bool store_dr = FALSE;
 
     sim_debug(TRACE_DBG, &mau_dev,
-              "[%08x] [store_op3] op3=%04x%016llx\n",
+              "[%08x] [store_op3] op3=%04x%016" T_UINT64_FMT "x\n",
               R[NUM_PC],
               xfp->sign_exp,
               xfp->frac);
@@ -3189,7 +3189,7 @@ static void mau_ldr()
 
     load_src_op(mau_state.op1, &xfp);
     sim_debug(TRACE_DBG, &mau_dev,
-              "[%08x] [LDR] Loading DR with %04x%016llx\n",
+              "[%08x] [LDR] Loading DR with %04x%016" T_UINT64_FMT "x\n",
               R[NUM_PC], xfp.sign_exp, xfp.frac);
     mau_state.dr.sign_exp = xfp.sign_exp;
     mau_state.dr.frac = xfp.frac;
@@ -3332,7 +3332,7 @@ static void mau_div()
     load_src_op(mau_state.op1, &a);
     load_src_op(mau_state.op2, &b);
     sim_debug(TRACE_DBG, &mau_dev,
-              "[%08x] [DIV OP2/OP1] OP2=0x%04x%016llx OP1=0x%04x%016llx\n",
+              "[%08x] [DIV OP2/OP1] OP2=0x%04x%016" T_UINT64_FMT "x OP1=0x%04x%016" T_UINT64_FMT "x\n",
               R[NUM_PC],
               b.sign_exp, b.frac,
               a.sign_exp, a.frac);
