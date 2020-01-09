@@ -154,19 +154,10 @@ extern int sim_vax_snprintf(char *buf, size_t buf_size, const char *fmt, ...);
 
 #if defined(HAVE_PCRE_H)
 #include <pcre.h>
-
-typedef pcre sim_regex_t;
-typedef uint32 sim_regex_offs;
-
 #define USE_REGEX 1
 #elif defined(HAVE_PCRE2_H)
-#define PCRE2_STATIC
 #define PCRE2_CODE_UNIT_WIDTH 8
 #include <pcre2.h>
-
-typedef pcre2_code sim_regex_t;
-typedef PCRE2_SIZE sim_regex_offs;
-
 #define USE_REGEX 1
 #endif
 
@@ -386,6 +377,18 @@ typedef uint32          t_addr;
 #endif
 #else
 #define WEAK 
+#endif
+
+/* sim_regex_t: Type alias for the appropriate PCRE package to reduce
+   conditional compiles in this header. Unfortunately, that's not the
+   case when the actual PCRE/PCRE2 functions are called in scp.c. */
+
+#if defined(HAVE_PCRE_H)
+typedef pcre sim_regex_t;
+typedef uint32 sim_regex_offs;
+#elif defined(HAVE_PCRE2_H)
+typedef pcre2_code sim_regex_t;
+typedef PCRE2_SIZE sim_regex_offs;
 #endif
 
 /* System independent definitions */
