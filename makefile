@@ -1193,16 +1193,10 @@ else
 endif
 ifneq (3,$(GCC_MAJOR_VERSION))
   ifeq (,$(GCC_WARNINGS_CMD))
-    GCC_WARNINGS_CMD = $(GCC) --help=warnings
-  endif
-  ifneq (,$(findstring -Wunused-result,$(shell $(GCC_WARNINGS_CMD))))
-    CFLAGS_O += -Wno-unused-result
-  endif
-  ifneq (,$(findstring -Wformat-truncation,$(shell $(GCC_WARNINGS_CMD))))
-    CFLAGS_O += -Wno-format-truncation
+    GCC_WARNINGS_CMD = ${GCC} --help=warnings
   endif
 endif
-ifneq (clean,$(MAKECMDGOALS))
+ifneq (clean,${MAKECMDGOALS})
   BUILD_FEATURES := $(BUILD_FEATURES). $(COMPILER_NAME)
   $(info ***)
   $(info *** $(BUILD_SINGLE)Simulator$(BUILD_MULTIPLE) being built with:)
@@ -1262,7 +1256,7 @@ PDP1_DISPLAY_OPT = -DDISPLAY_TYPE=DIS_TYPE30 -DPIX_SCALE=RES_HALF
 PDP1 = ${PDP1D}/pdp1_lp.c ${PDP1D}/pdp1_cpu.c ${PDP1D}/pdp1_stddev.c \
 	${PDP1D}/pdp1_sys.c ${PDP1D}/pdp1_dt.c ${PDP1D}/pdp1_drm.c \
 	${PDP1D}/pdp1_clk.c ${PDP1D}/pdp1_dcs.c ${PDP1D}/pdp1_dpy.c ${DISPLAYL}
-PDP1_OPT = -I ${PDP1D} ${DISPLAY_OPT} ${PDP1_DISPLAY_OPT}
+PDP1_OPT = -I ${PDP1D} ${DISPLAY_OPT} $(PDP1_DISPLAY_OPT)
 
 
 NOVAD = ${SIMHD}/NOVA

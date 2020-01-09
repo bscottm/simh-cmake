@@ -847,7 +847,9 @@ struct EXPTAB {
 #define EXP_TYP_REGEX           (SWMASK ('R'))      /* rule pattern is a regular expression */
 #define EXP_TYP_REGEX_I         (SWMASK ('I'))      /* regular expression pattern matching should be case independent */
 #define EXP_TYP_TIME            (SWMASK ('T'))      /* halt delay is in microseconds instead of instructions */
+#if defined(USE_REGEX)
     sim_regex_t         *regex;                         /* compiled regular expression */
+#endif
     int                 re_nsub;                        /* regular expression sub expression count */
     char                *act;                           /* action string */
     };
