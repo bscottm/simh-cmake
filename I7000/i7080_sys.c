@@ -472,15 +472,21 @@ fprint_reg (FILE *of, uint32 rdx, t_value *val, UNIT *uptr, int32 sw)
 
 t_stat fprint_sym (FILE *of, t_addr addr, t_value *val, UNIT *uptr, int32 sw)
 {
-int32   i, t;
+int32   i;
 uint8   op;
+size_t  ch;
 
 if (sw & SIM_SW_REG)
     return fprint_reg(of, addr, val, uptr, sw);
 
 if (sw & SWMASK ('C')) {                                /* character? */
-    t = val[0];
-    fprintf (of, " %c<%02o> ", mem_to_ascii[t & 077], t & 077);
+    if (val[0] <= 077) {
+        ch = (size_t)val[0];
+        fprintf(of, " %c<%02o> ", mem_to_ascii[ch & 077], (uint32) (ch & 077));
+    }
+    else {
+        fprintf(of, " ?<%02" T_VALUE_FMT "o> ", val[0]);
+    }
     return SCPE_OK;
     }
 if ((uptr != NULL) && (uptr != &cpu_unit)) return SCPE_ARG;     /* CPU? */
@@ -491,13 +497,18 @@ if (sw & SWMASK ('D')) {                                /* dump? */
 if (sw & SWMASK ('S')) {                                /* string? */
     i = 0;
     do {
-        t = val[i++];
-        fprintf (of, "%c", mem_to_ascii[t & 077]);
+        if (val[0] <= 077) {
+            ch = (size_t) val[i++];
+            fprintf(of, "%c", mem_to_ascii[ch & 077]);
+        }
+        else {
+            fprintf(of, " ?<%02" T_VALUE_FMT "o> ", val[0]);
+        }
     } while (i < 50);
     return -(i - 1);
     }
 if (sw & SWMASK ('M')) {                                /* machine code? */
-    uint32      addr;
+    uint32      addr, t;
     t_opcode    *tab;
     uint8       zone;
     uint8       reg;
@@ -505,25 +516,25 @@ if (sw & SWMASK ('M')) {                                /* machine code? */
 
     i = 0;
     op = val[i++] & 077;
-    t = val[i++];       /* First address char */
+    t = (uint32) val[i++]; /* First address char */
     zone = (t & 060) >> 4;
     t &= 0xf;
     if (t == 10)
         t = 0;
     addr = t * 1000;
-    t = val[i++];       /* Second address char */
+    t = (uint32) val[i++]; /* Second address char */
     reg = (t & 060) >> 2;
     t &= 0xf;
     if (t == 10)
         t = 0;
     addr += t * 100;
-    t = val[i++];       /* Third address char */
+    t = (uint32) val[i++]; /* Third address char */
     reg |= (t & 060) >> 4;
     t &= 0xf;
     if (t == 10)
         t = 0;
     addr += t * 10;
-    t = val[i++];       /* Forth address char */
+    t = (uint32) val[i++]; /* Forth address char */
     zone |= (t & 060) >> 2;
         /* Switch BA bits in high zone */
     zone = (zone & 03) | ((zone & 04) << 1) | ((zone & 010) >> 1);
@@ -711,7 +722,7 @@ parse_sym(CONST char *cptr, t_addr addr, UNIT * uptr, t_value * val, int32 sw)
             if (!(*cptr >= '0' && *cptr <= '9'))
                 return SCPE_ARG;
             while(*cptr >= '0' && *cptr <= '9') {
-                d = *cptr++ - '0';
+                d = ((t_value) *cptr++) - '0';
                 if (d == 0)
                     d = 10;
                 val[i++] = d;

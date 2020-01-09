@@ -125,6 +125,7 @@ extern int sim_vax_snprintf(char *buf, size_t buf_size, const char *fmt, ...);
 #include <limits.h>
 #include <ctype.h>
 #include "sim_iso_names.h"
+#include "sim_printf_fmts.h"
 
 #ifndef EXIT_FAILURE
 #define EXIT_FAILURE 1
@@ -227,6 +228,20 @@ typedef uint32_t        uint32;
 typedef int             t_stat;                         /* status */
 typedef int             t_bool;                         /* boolean */
 
+/* size_t format specifier */
+
+#if defined(_WIN64)
+#  define FMT_SIZE_T "I64"
+#elif defined(_WIN32)
+#  define FMT_SIZE_T "I32"
+#elif defined(__GNU_LIBRARY__) || defined(__GLIBC__) || defined(__GLIBC_MINOR__)
+/* glibc (basically, most Linuxes */
+#  define FMT_SIZE_T "z"
+#else
+/* punt. */
+#define FMT_SIZE_T LL_FMT
+#endif
+
 /* 64b integers */
 
 #if defined (__GNUC__)                                  /* GCC */
@@ -254,27 +269,19 @@ typedef t_int64         t_svalue;                       /* signed value */
 typedef t_uint64        t_value;                        /* value */
 #define T_VALUE_MAX     0xffffffffffffffffuLL
 #define T_SVALUE_MAX    0x7fffffffffffffffLL
-
-#define T_VALUE_FMT     LL_FMT
-#define T_SVALUE_FMT    LL_FMT
 #else                                                   /* 32b data */
 typedef int32           t_svalue;
 typedef uint32          t_value;
 #define T_VALUE_MAX     0xffffffffUL
 #define T_SVALUE_MAX    0x7fffffffL
-
-#define T_VALUE_FMT     ""
-#define T_SVALUE_FMT    ""
 #endif                                                  /* end 64b data */
 
 #if defined (USE_INT64) && defined (USE_ADDR64)         /* 64b address */
 typedef t_uint64        t_addr;
 #define T_ADDR_W        64
-#define T_ADDR_FMT      LL_FMT
 #else                                                   /* 32b address */
 typedef uint32          t_addr;
 #define T_ADDR_W        32
-#define T_ADDR_FMT      ""
 #endif                                                  /* end 64b address */
 
 #if defined (_WIN32)
@@ -290,41 +297,13 @@ typedef uint32          t_addr;
 #endif
 
 #if defined (_WIN32) /* Actually, a GCC issue */
-#define LL_FMT "I64"
 #define LL_TYPE long long
 #else
 #if defined (__VAX) /* No 64 bit ints on VAX */
-#define LL_FMT "l"
 #define LL_TYPE long
 #else
-#define LL_FMT "ll"
 #define LL_TYPE long long
 #endif
-#endif
-
-/* cross-platform printf() format specifiers: 
- *
- * Note: MS apparently does recognize "ll" as "l" in its printf() routines, but "I64" is
- * preferred for 64-bit types. And tamps down on MinGW's "-Wformat" diagnostics.
- */
-#if defined(_WIN64)
-#  define SIZE_T_FMT   "I64"
-#  define T_UINT64_FMT "I64"
-#  define T_INT64_FMT  "I64"
-#elif defined(_WIN32)
-#  define SIZE_T_FMT   ""
-#  define T_UINT64_FMT "I64"
-#  define T_INT64_FMT  "I64"
-#elif defined(__GNU_LIBRARY__) || defined(__GLIBC__) || defined(__GLIBC_MINOR__)
-/* glibc (basically, most Linuxen) */
-#  define SIZE_T_FMT   "z"
-#  define T_UINT64_FMT "ll"
-#  define T_INT64_FMT  "ll"
-#else
-/* punt. */
-#  define SIZE_T_FMT   LL_FMT
-#  define T_UINT64_FMT LL_FMT
-#  define T_INT64_FMT  LL_FMT
 #endif
 
 

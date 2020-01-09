@@ -554,7 +554,7 @@ int chan_write_char(int chan, uint8 *ch, int flags) {
                 uint16      addr = (uint16)(D[chan] & CORE);
 
                 M[addr] = W[chan];
-                sim_debug(DEBUG_DATA, &chan_dev, "writef(%d, %05o, %016" SIZE_T_FMT "o)\n",
+                sim_debug(DEBUG_DATA, &chan_dev, "writef(%d, %05o, %016" T_UINT64_FMT "o)\n",
                          chan, addr, W[chan]);   
                 (void)chan_advance(chan);
                 W[chan] = 0;

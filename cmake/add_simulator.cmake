@@ -122,7 +122,7 @@ function (add_simulator _targ)
 
     if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 	    target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
-	elseif (MSYS)
+	elseif (MINGW)
     	target_compile_options(${_targ} PRIVATE "-fms-extensions" "-mconsole")
     elseif (MSVC)
         target_link_options(${_targ} PRIVATE "/SUBSYSTEM:CONSOLE")
@@ -170,7 +170,7 @@ function (add_simulator _targ)
     endif (DEFINED SIMH_TEST AND EXISTS "${test_fname}")
 
     if (NOT DONT_USE_ROMS AND SIMH_BUILDROMS)
-	add_dependencies(${_targ} BuildROMs)
+	    add_dependencies(${_targ} BuildROMs)
     endif (NOT DONT_USE_ROMS AND SIMH_BUILDROMS)
 
     # Create target 'cppcheck' rule, if cppcheck detected:
