@@ -579,14 +579,15 @@ t_stat fprint_addr_1401 (FILE *of, uint32 addr) {
 
 t_stat fprint_sym (FILE *of, t_addr addr, t_value *val, UNIT *uptr, int32 sw)
 {
-int32   i, t;
+int32   i;
 uint32  a, b;
 uint8   op, mod, flags;
+size_t  ch;
 
 if (sw & SWMASK ('C')) {                                /* character? */
-    t = val[0];
-    fprintf (of, (t & WM)? "`%c<%02o> ": " %c<%02o> ", mem_to_ascii[t & 077],
-                         t & 077);
+    ch = (size_t) val[0];
+    fprintf (of, (ch & WM)? "`%c<%02o> ": " %c<%02o> ", mem_to_ascii[ch & 077],
+                         (uint32) (ch & 077));
     return SCPE_OK;
     }
 if ((uptr != NULL) && (uptr != &cpu_unit)) return SCPE_ARG;     /* CPU? */
@@ -599,8 +600,8 @@ if (sw & SWMASK ('D')) {                                /* dump? */
 if (sw & SWMASK ('S')) {                                /* string? */
     i = 0;
     do {
-        t = val[i++];
-        fprintf (of, (t & WM)? "`%c": "%c", mem_to_ascii[t & 077]);
+        ch = (size_t) val[i++];
+        fprintf (of, (ch & WM)? "`%c": "%c", mem_to_ascii[ch & 077]);
     } while ((i < 50) && ((val[i] & WM) == 0));
     return -(i - 1);
     }
@@ -625,13 +626,13 @@ if (sw & SWMASK ('N')) {                                /* 1401 machine code? */
         /* Grab next value if one */
         /* Grab 3 address digits */
         do {
-            a = (a << 6) | (val[i++] & 077);
+            a = (((t_value) a) << 6) | (val[i++] & 077);
         } while((val[i] & WM) == 0 && i < 4);
     }
     /* If more then grab B address and or modifier */
     if ((val[i] & WM) == 0) {
         do {
-            b = (b << 6) | (val[i++] & 077);
+            b = (((t_value) b) << 6) | (val[i++] & 077);
         } while((val[i] & WM) == 0 && i < 7);
     }
 
@@ -716,9 +717,11 @@ if (sw & SWMASK ('N')) {                                /* 1401 machine code? */
         }
         break;
     case TYPE_IO:        /* Tape opcode or move */
-        if (flags & 020)
-             for (t = 18; t >= 0; t-=6)
-                 fprintf (of, "%c", mem_to_ascii[(a>>t)&077]) ;
+        if (flags & 020) {
+            int32 x;
+            for (x = 18; x >= 0; x -= 6)
+                fprintf(of, "%c", mem_to_ascii[(a >> x) & 077]);
+        }
         else if (flags & 02)
              fprint_addr_1401(of, a);
         if (flags & 04) {
@@ -729,9 +732,11 @@ if (sw & SWMASK ('N')) {                                /* 1401 machine code? */
              fprintf (of, ",%c", mem_to_ascii[mod]);
         break;
     case TYPE_T:         /* Tape opcode, option */
-        if (flags & 02)
-             for (t = 18; t >= 0; t-=6)
-                 fprintf (of, "%c", mem_to_ascii[(a>>t)&077]) ;
+        if (flags & 02) {
+            int32 x;
+            for (x = 18; x >= 0; x -= 6)
+                fprintf(of, "%c", mem_to_ascii[(a >> x) & 077]);
+        }
         if (flags & 04) {
                 fputc(',', of);
                 fprint_addr_1401(of, b);
@@ -795,13 +800,13 @@ if (sw & SWMASK ('M')) {                                /* machine code? */
         if (op == OP_RD || op == OP_RDW || op == OP_UC) {
            /* Three digit IO address */
             do {
-                 a = (a << 6) | (val[i++] & 077);
+                 a = (((t_value) a) << 6) | (val[i++] & 077);
             } while((val[i] & WM) == 0 && i < 4);
             flags = 1;
         } else {
             /* Grab 5 address digits */
             do {
-                 a = (a << 6) | (val[i++] & 077);
+                 a = (((t_value) a) << 6) | (val[i++] & 077);
             } while((val[i] & WM) == 0 && i < 6);
         }
     }
@@ -809,7 +814,7 @@ if (sw & SWMASK ('M')) {                                /* machine code? */
     if ((val[i] & WM) == 0) {
         int     j = 0;
         do {
-            b = (b << 6) | (val[i++] & 077);
+            b = (((t_value) b) << 6) | (val[i++] & 077);
         } while((val[i] & WM) == 0 && ++j < 5);
     }
 
@@ -864,9 +869,11 @@ if (sw & SWMASK ('M')) {                                /* machine code? */
     case TYPE_T:         /* Tape opcode, option */
         if (flags & 010)
              fprintf (of, "%c", mem_to_ascii[mod]);
-        if (flags & 02)
-             for (t = 18; t >= 0; t-=6)
-                 fprintf (of, "%c", mem_to_ascii[(a>>t)&077]) ;
+        if (flags & 02) {
+            int32 x;
+            for (x = 18; x >= 0; x -= 6)
+                fprintf(of, "%c", mem_to_ascii[(a >> x) & 077]);
+        }
         if (flags & 04) {
                 fputc(',', of);
                 fprint_addr(of, b);
@@ -910,8 +917,7 @@ if (sw & SWMASK ('M')) {                                /* machine code? */
     }
     return -(i - 1);
 }
-t = val[0];
-fprintf (of, (t & WM)? "~%02o ": " %02o ", t & 077);
+fprintf (of, (val[0] & WM)? "~%02o ": " %02o ", ((uint32) val[0]) & 077);
 return 0;
 }
 
@@ -1228,7 +1234,7 @@ parse_sym(CONST char *cptr, t_addr addr, UNIT * uptr, t_value * val, int32 sw)
             if (!(*cptr >= '0' && *cptr <= '9'))
                 return SCPE_ARG;
             while(*cptr >= '0' && *cptr <= '9') {
-                d = *cptr++ - '0';
+                d = ((t_value) *cptr++) - '0';
                 if (d == 0)
                     d = 10;
                 if (wm_seen) {

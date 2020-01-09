@@ -627,7 +627,7 @@ static int32 sim_goto_line[MAX_DO_NEST_LVL+1];          /* the current line numb
 static int32 sim_do_echo = 0;                           /* the echo status of the currently open do file */
 static int32 sim_show_message = 1;                      /* the message display status of the currently open do file */
 static int32 sim_on_inherit = 0;                        /* the inherit status of on state and conditions when executing do files */
-static int32 sim_do_depth = 0;
+static size_t sim_do_depth = 0;
 static t_bool sim_cmd_echoed = FALSE;                   /* Command was emitted already prior to message output */
 static char **sim_exp_argv = NULL;
 static int32 sim_on_check[MAX_DO_NEST_LVL+1];
@@ -3544,7 +3544,7 @@ return do_cmd_label (flag, fcptr, NULL);
 
 static char *do_position(void)
 {
-static char cbuf[CBUFSIZE];
+static char cbuf[5120];
 
 snprintf (cbuf, sizeof (cbuf), "%s%s%s-%d", sim_do_filename[sim_do_depth], sim_do_label[sim_do_depth] ? "::" : "", sim_do_label[sim_do_depth] ? sim_do_label[sim_do_depth] : "", sim_goto_line[sim_do_depth]);
 return cbuf;
@@ -3632,7 +3632,7 @@ if (flag >= 0) {                                        /* Only bump nesting fro
         }
     }
 
-sim_debug (SIM_DBG_DO, &sim_scp_dev, "do_cmd_label(%d, flag=%d, '%s', '%s')\n", sim_do_depth, flag, fcptr, label ? label : "");
+sim_debug (SIM_DBG_DO, &sim_scp_dev, "do_cmd_label(%" SIZE_T_FMT "d, flag=%d, '%s', '%s')\n", sim_do_depth, flag, fcptr, label ? label : "");
 if (NULL == (c = sim_filepath_parts (cbuf, "f"))) {
     stat = SCPE_MEM;
     goto Cleanup_Return;
@@ -3785,7 +3785,7 @@ if ((flag >= 0) || (!sim_on_inherit)) {
         }
     sim_on_check[sim_do_depth] = 0;                     /* clear on mode */
     }
-sim_debug (SIM_DBG_DO, &sim_scp_dev, "do_cmd_label - exiting - stat:%d (%d, flag=%d, '%s', '%s')\n", stat, sim_do_depth, flag, fcptr, label ? label : "");
+sim_debug (SIM_DBG_DO, &sim_scp_dev, "do_cmd_label - exiting - stat:%d (%" SIZE_T_FMT "d, flag=%d, '%s', '%s')\n", stat, sim_do_depth, flag, fcptr, label ? label : "");
 if (flag >= 0) {
     sim_brk_clract ();                                  /* defang breakpoint actions */
     --sim_do_depth;                                     /* unwind nesting */
@@ -4982,7 +4982,7 @@ return SCPE_UNK;                                        /* only valid inside of 
 
 t_stat call_cmd (int32 flag, CONST char *fcptr)
 {
-char cbuf[CBUFSIZE], gbuf[CBUFSIZE];
+char cbuf[CBUFSIZE*2+2], gbuf[CBUFSIZE];
 const char *cptr;
 
 if (NULL == sim_gotofile) return SCPE_UNK;              /* only valid inside of do_cmd */
@@ -11657,7 +11657,7 @@ else {
     sim_brk_clract ();                                  /* no more */
     }
 sim_trim_endspc (buf);
-sim_debug (SIM_DBG_BRK_ACTION, &sim_scp_dev, "sim_brk_getact(%d) - Returning: '%s'\n", sim_do_depth, buf);
+sim_debug (SIM_DBG_BRK_ACTION, &sim_scp_dev, "sim_brk_getact(%" SIZE_T_FMT "d) - Returning: '%s'\n", sim_do_depth, buf);
 return buf;
 }
 
@@ -11666,7 +11666,7 @@ return buf;
 char *sim_brk_clract (void)
 {
 if (sim_brk_act[sim_do_depth])
-    sim_debug (SIM_DBG_BRK_ACTION, &sim_scp_dev, "sim_brk_clract(%d) - Clearing: '%s'\n", sim_do_depth, sim_brk_act[sim_do_depth]);
+    sim_debug (SIM_DBG_BRK_ACTION, &sim_scp_dev, "sim_brk_clract(%" SIZE_T_FMT "d) - Clearing: '%s'\n", sim_do_depth, sim_brk_act[sim_do_depth]);
 free (sim_brk_act_buf[sim_do_depth]);
 return sim_brk_act[sim_do_depth] = sim_brk_act_buf[sim_do_depth] = NULL;
 }
@@ -11687,13 +11687,13 @@ if (action) {
         strlcpy (sim_brk_act_buf[sim_do_depth], action, new_size);
         strlcat (sim_brk_act_buf[sim_do_depth], "; ", new_size);
         strlcat (sim_brk_act_buf[sim_do_depth], old_action, new_size);
-        sim_debug (SIM_DBG_BRK_ACTION, &sim_scp_dev, "sim_brk_setact(%d) - Pushed: '%s' ahead of: '%s'\n", sim_do_depth, action, old_action);
+        sim_debug (SIM_DBG_BRK_ACTION, &sim_scp_dev, "sim_brk_setact(%" SIZE_T_FMT "d) - Pushed: '%s' ahead of: '%s'\n", sim_do_depth, action, old_action);
         free (old_action);
         }
     else {
         sim_brk_act_buf[sim_do_depth] = (char *)realloc (sim_brk_act_buf[sim_do_depth], strlen (action) + 1);
         strcpy (sim_brk_act_buf[sim_do_depth], action);
-        sim_debug (SIM_DBG_BRK_ACTION, &sim_scp_dev, "sim_brk_setact(%d) - Set to: '%s'\n", sim_do_depth, action);
+        sim_debug (SIM_DBG_BRK_ACTION, &sim_scp_dev, "sim_brk_setact(%" SIZE_T_FMT "d) - Set to: '%s'\n", sim_do_depth, action);
         }
     sim_brk_act[sim_do_depth] = sim_brk_act_buf[sim_do_depth];
     }

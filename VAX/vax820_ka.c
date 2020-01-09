@@ -284,6 +284,7 @@ int32 rg;
 int32 rval;
 t_stat r;
 char conv[10];
+const size_t conv_size = sizeof(conv) / sizeof(conv[0]);
 
 if (ka_rxcd[cpu] & 0x8000) {                            /* busy? */
     mxpr_cc_vc |= CC_V;                                 /* set overflow */
@@ -296,9 +297,13 @@ switch (ch) {
         rxcd_ibuf[rxcd_iptr++] = '\0';                  /* terminator */
         printf (">>> %s\n", &rxcd_ibuf[0]);
         if (rxcd_ibuf[0] == 'D') {                      /* DEPOSIT */
-            snprintf (&conv[0], 2, "%s", &rxcd_ibuf[4]);
+            /* why? snprintf (&conv[0], 2, "%s", &rxcd_ibuf[4]); */
+            strncpy(conv, rxcd_ibuf + 4, conv_size);
+            conv[conv_size - 1] = '\0';
             rg = (int32)get_uint (&conv[0], 16, 0xF, &r); /* get register number */
-            snprintf (&conv[0], 9, "%s", &rxcd_ibuf[6]);
+            /* why? snprintf (&conv[0], 9, "%s", &rxcd_ibuf[6]); */
+            strncpy(conv, rxcd_ibuf + 6, conv_size);
+            conv[conv_size - 1] = '\0';
             rval = (int32)get_uint (&conv[0], 16, 0xFFFFFFFF, &r); /* get deposit value */
 #if defined (VAX_MP)
             cpu_setreg (cpu, rg, rval);
@@ -313,7 +318,9 @@ switch (ch) {
             rxcd_optr = 0;
             }
         else if (rxcd_ibuf[0] == 'S') {                 /* START */
-            snprintf (&conv[0], 9, "%s", &rxcd_ibuf[2]);
+            /* why? snprintf (&conv[0], 9, "%s", &rxcd_ibuf[2]); */
+            strncpy(conv, rxcd_ibuf + 2, conv_size);
+            conv[conv_size - 1] = '\0';
             rval = (int32)get_uint (&conv[0], 16, 0xFFFFFFFF, &r);
 #if defined (VAX_MP)
             cpu_start (cpu, rval);
