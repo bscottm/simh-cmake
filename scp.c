@@ -632,7 +632,7 @@ static int32 sim_goto_line[MAX_DO_NEST_LVL+1];          /* the current line numb
 static int32 sim_do_echo = 0;                           /* the echo status of the currently open do file */
 static int32 sim_show_message = 1;                      /* the message display status of the currently open do file */
 static int32 sim_on_inherit = 0;                        /* the inherit status of on state and conditions when executing do files */
-static int32 sim_do_depth = 0;
+static size_t sim_do_depth = 0;
 static t_bool sim_cmd_echoed = FALSE;                   /* Command was emitted already prior to message output */
 static char **sim_exp_argv = NULL;
 static int32 sim_on_check[MAX_DO_NEST_LVL+1];
