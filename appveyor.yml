@@ -59,7 +59,7 @@ before_build:
         if (${env:SIMH_BUILD_FLAVOR} -eq "ninja") { choco install ninja; }
       }
   - sh: |
-      apt-get update -y -qq && apt-get install -qq -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev
+      apt-get update -y -qq && apt-get install -qq -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev \
           libpcap-dev ninja-build
 
   ## Npcap install
@@ -78,7 +78,7 @@ build_script:
   - ps: |
       if ($isWindows) {
         if (!([string]::IsNullOrEmpty($env:MINGW))) { $env:PATH=$(@(${env:MINGW}, ${env:PATH}) -join ";"); };
-        .\cmake-builder.ps1 -parallel -clean -nonetwork -notest -config ${env:CONFIGURATION}
+        .\cmake-builder.ps1 -parallel -clean -nonetwork -notest -config ${env:CONFIGURATION} `
             -flavor ${env:SIMH_BUILD_FLAVOR}
       }
   - sh: |
