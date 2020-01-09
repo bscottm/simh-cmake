@@ -15,3 +15,4 @@ simh:
     - ./cmake-builder.sh --config Debug   --flavor ninja --parallel --clean
     - ./cmake-builder.sh --config Release --flavor unix  --parallel --clean
     - ./cmake-builder.sh --config Release --flavor ninja --parallel --clean
+    - make -f makefile
