@@ -59,8 +59,9 @@ before_build:
         if (${env:SIMH_BUILD_FLAVOR} -eq "ninja") { choco install ninja; }
       }
   - sh: |
-      apt-get update -y -qq && apt-get install -qq -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev \
-          libpcap-dev ninja-build
+      sudo apt-get update -y -qq && \
+          sudo apt-get install -qq -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev \
+              libpcap-dev ninja-build
 
   ## Npcap install
   ## Answer: Don't. If we could disable the Npcap installer's GUI (silent mode),
