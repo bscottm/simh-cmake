@@ -200,6 +200,17 @@ if ($tmp_path -ne ${env:PATH})
     $env:PATH = $tmp_path
 }
 
+## Also make sure that none of the other cmake-* directories are in the user's PATH
+## because CMake's find_package does traverse PATH looking for potential candidates
+## for dependency libraries.
+
+$bdirs = $(Get-ChildItem -Attribute Directory cmake-*).ForEach({ $_.FullName + "\build-stage\bin" })
+$p = ${env:PATH}
+$p = ($p.Split(';') | Where-Object { $bdirs -notcontains $_ }) -join ';'
+if ($p -ne ${env:PATH}) {
+  "** ${scriptName}: Removed cmake-* build directories from PATH."
+  $env:PATH = $p
+}
 
 ## Setup:
 $buildDir  = "cmake-vs"
