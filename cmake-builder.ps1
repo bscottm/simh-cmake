@@ -205,11 +205,10 @@ if ($tmp_path -ne ${env:PATH})
 ## for dependency libraries.
 
 $bdirs = $(Get-ChildItem -Attribute Directory cmake-*).ForEach({ $_.FullName + "\build-stage\bin" })
-$p = ${env:PATH}
-$p = ($p.Split(';') | Where-Object { $bdirs -notcontains $_ }) -join ';'
-if ($p -ne ${env:PATH}) {
+$origPath = $env:PATH
+$modPath  = (${env:Path}.Split(';') | Where-Object { $bdirs -notcontains $_ }) -join ';'
+if ($modPath -ne $origPath) {
   "** ${scriptName}: Removed cmake-* build directories from PATH."
-  $env:PATH = $p
 }
 
 ## Setup:
@@ -309,7 +308,9 @@ if (!$testonly)
 
     $exitval = 0
 
+    $env:PATH = $modPath
     Push-Location ${buildDir}
+
     try
     {
 	"** ${scriptName}: Configuring and generating"
@@ -337,6 +338,7 @@ if (!$testonly)
     finally
     {
 	Pop-Location
+	$env:PATH = $origPath
     }
 }
 
@@ -350,6 +352,7 @@ if (!$notest)
 	## Note: We're in the build directory already, so we can prepend $(Get-Location) for the
 	## full path to the build directory, then normalize it.
 	Push-Location ${buildDir}
+	$env:PATH = $modPath
 
 	$currentPath = $env:PATH
 	$buildStageBin = [System.IO.Path]::GetFullPath("$(Get-Location)\build-stage\bin")
@@ -366,6 +369,7 @@ if (!$notest)
     finally
     {
 	Pop-Location
+	$env:PATH = $origPath
     }
 }
 
