@@ -21,6 +21,18 @@ project(simh VERSION "${SIMH_VERSION}" LANGUAGES C)
 set(SIMH_DEP_TOPDIR ${CMAKE_BINARY_DIR}/build-stage)
 message(STATUS "SIMH_DEP_TOPDIR is ${SIMH_DEP_TOPDIR}")
 
+## Provide a default CMAKE_BUILD_TYPE if CMAKE_CONFIGURATION_TYPES is empty or not defined.
+if (NOT CMAKE_CONFIGURATION_TYPES)
+    if (NOT CMAKE_BUILD_TYPE)
+        set(CMAKE_BUILD_TYPE "Release")
+        message(STATUS "CMAKE_BUILD_TYPE defaulted to ${CMAKE_BUILD_TYPE}")
+    else (NOT CMAKE_BUILD_TYPE)
+        message(STATUS "CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
+    endif (NOT CMAKE_BUILD_TYPE)
+else ()
+    message(STATUS "Available build configurations: ${CMAKE_CONFIGURATION_TYPES}")
+endif ()
+
 # Places to look for CMake modules/includes
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -63,18 +75,6 @@ option(DONT_USE_ROMS
 option(ENABLE_CPPCHECK
        "Enable (=1)/disable (=0) 'cppcheck' static code analysis. (def: disabled.)"
        FALSE)
-
-## Provide a default CMAKE_BUILD_TYPE if CMAKE_CONFIGURATION_TYPES is empty or not defined.
-if (NOT CMAKE_CONFIGURATION_TYPES)
-    if (NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE "Release")
-	message(STATUS "CMAKE_BUILD_TYPE defaulted to ${CMAKE_BUILD_TYPE}")
-    else (NOT CMAKE_BUILD_TYPE)
-	message(STATUS "CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
-    endif (NOT CMAKE_BUILD_TYPE)
-else ()
-    message(STATUS "Available build configurations: ${CMAKE_CONFIGURATION_TYPES}")
-endif ()
 
 # For 64-bit builds (and this is especially true for MSVC), set the library
 # architecture.
@@ -130,7 +130,7 @@ if (WIN32)
     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
     if (MSVC_VERSION GREATER_EQUAL 1920)
-	    add_compile_definitions(USE_ISO_C99_NAMES)
+            add_compile_definitions(USE_ISO_C99_NAMES)
     endif ()
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     # For some reason, the MSVC solution builds as 32-bit, but none of the
@@ -252,14 +252,14 @@ unset(ROM_STATUS)
 
 if (NOT DEFINED DO_DEPENDENCY_BUILD OR SIMH_BUILD_DEPS)
     if (DEFINED DO_DEPENDENCY_BUILD AND NOT DO_DEPENDENCY_BUILD AND SIMH_BUILD_DEPS)
-	message(FATAL_ERROR "Dependency libraries did not build successfully!!??")
+        message(FATAL_ERROR "Dependency libraries did not build successfully!!??")
     endif()
 
     if (SIMH_BUILD_DEPS)
-	message(STATUS "Building dependency libraries as a superbuild")
-	set(DO_DEPENDENCY_BUILD ON CACHE BOOL "Superbuild flag" FORCE)
+        message(STATUS "Building dependency libraries as a superbuild")
+        set(DO_DEPENDENCY_BUILD ON CACHE BOOL "Superbuild flag" FORCE)
     else ()
-	set(DO_DEPENDENCY_BUILD OFF CACHE BOOL "Superbuild flag" FORCE)
+        set(DO_DEPENDENCY_BUILD OFF CACHE BOOL "Superbuild flag" FORCE)
     endif ()
 else ()
     set(DO_DEPENDENCY_BUILD ${DO_DEPENDENCY_BUILD} CACHE BOOL "Superbuild flag" FORCE)
@@ -334,12 +334,12 @@ if (NOT DO_DEPENDENCY_BUILD)
 
     # Install the DLLs... including Packet.DLL
     if (WIN32 AND EXISTS ${CMAKE_BINARY_DIR}/build-stage/bin)
-	file(GLOB SIMH_DLLS ${CMAKE_BINARY_DIR}/build-stage/bin/*.dll)
+        file(GLOB SIMH_DLLS ${CMAKE_BINARY_DIR}/build-stage/bin/*.dll)
 
-	install(
-	    FILES ${SIMH_DLLS}
-	    DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
-	)
+        install(
+            FILES ${SIMH_DLLS}
+            DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
+        )
     endif (WIN32 AND EXISTS ${CMAKE_BINARY_DIR}/build-stage/bin)
 else (NOT DO_DEPENDENCY_BUILD)
     message(STATUS "")
@@ -350,19 +350,19 @@ else (NOT DO_DEPENDENCY_BUILD)
 
     ExternalProject_Add (simh_superbuild
         DEPENDS
-	    ${SIMH_DEP_TARGETS}
-	SOURCE_DIR
-	    ${CMAKE_SOURCE_DIR}
-	CMAKE_ARGS
-	    -DDO_DEPENDENCY_BUILD:BOOL=OFF
-	    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-	    -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
-	    -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-	INSTALL_COMMAND ""
-	BINARY_DIR
-	    ${CMAKE_CURRENT_BINARY_DIR}
-	USES_TERMINAL_CONFIGURE TRUE
-	USES_TERMINAL_BUILD     TRUE
+            ${SIMH_DEP_TARGETS}
+        SOURCE_DIR
+            ${CMAKE_SOURCE_DIR}
+        CMAKE_ARGS
+            -DDO_DEPENDENCY_BUILD:BOOL=OFF
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+            -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+            -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+        INSTALL_COMMAND ""
+        BINARY_DIR
+            ${CMAKE_CURRENT_BINARY_DIR}
+        USES_TERMINAL_CONFIGURE TRUE
+        USES_TERMINAL_BUILD     TRUE
     )
 
     ## Ensure that the next build rechecks the dependency
