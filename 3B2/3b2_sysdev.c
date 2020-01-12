@@ -454,7 +454,7 @@ DEVICE timer_dev = {
 
 
 t_stat timer_reset(DEVICE *dptr) {
-    int32 i, t;
+    size_t i;
 
     memset(&TIMERS, 0, sizeof(struct timer_ctr) * 3);
 
@@ -467,7 +467,7 @@ t_stat timer_reset(DEVICE *dptr) {
     TIMERS[1].gate = 1;
 
     if (!sim_is_running) {
-        t = sim_rtcn_init_unit(timer_clk_unit, TPS_CLK, TMR_CLK);
+        int32 t = sim_rtcn_init_unit(timer_clk_unit, TPS_CLK, TMR_CLK);
         sim_activate_after(timer_clk_unit, 1000000 / t);
     }
 

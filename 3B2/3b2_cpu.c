@@ -84,7 +84,7 @@ volatile uint32 abort_context;
 instr *cpu_instr;
 
 /* The instruction to use if there is no history storage */
-instr inst;
+instr default_inst;
 
 /* Circular buffer of instructions */
 instr *INST = NULL;
@@ -615,8 +615,8 @@ const uint32 shift_32_table[65] =
 
 t_stat cpu_show_stack(FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 {
-    uint32 i, j;
-    uint32 addr, v, count;
+    size_t i, count;
+    uint32 j;
     uint8 tmp;
     char *cptr = (char *) desc;
     t_stat result;
@@ -631,8 +631,8 @@ t_stat cpu_show_stack(FILE *st, UNIT *uptr, int32 val, CONST void *desc)
     }
 
     for (i = 0; i < (count * 4); i += 4) {
-        v = 0;
-        addr = R[NUM_SP] - i;
+        uint32 v = 0;
+        uint32 addr = R[NUM_SP] - i;
 
         for (j = 0; j < 4; j++) {
             result = examine(addr + j, &tmp);
@@ -663,13 +663,15 @@ t_stat cpu_show_cio(FILE *st, UNIT *uptr, int32 val, CONST void *desc)
 
 void cpu_load_rom()
 {
-    uint32 i, index, sc, mask, val;
+    size_t i;
 
     if (ROM == NULL) {
         return;
     }
 
     for (i = 0; i < BOOT_CODE_SIZE; i++) {
+        uint32 index, sc, mask, val;
+
         val = BOOT_CODE_ARRAY[i];
         sc = (~(i & 3) << 3) & 0x1f;
         mask = 0xffu << sc;
@@ -737,14 +739,13 @@ t_stat cpu_ex(t_value *vptr, t_addr addr, UNIT *uptr, int32 sw)
 {
     uint32 uaddr = (uint32) addr;
     uint8 value;
-    t_stat succ;
 
     if (vptr == NULL) {
         return SCPE_ARG;
     }
 
     if (sw & EX_V_FLAG) {
-        succ = examine(uaddr, &value);
+        t_stat succ = examine(uaddr, &value);
         *vptr = value;
         return succ;
     } else {
@@ -776,8 +777,6 @@ t_stat cpu_dep(t_value val, t_addr addr, UNIT *uptr, int32 sw)
 
 t_stat cpu_reset(DEVICE *dptr)
 {
-    int i;
-
     /* Link in our special "boot" command so we can boot with both
      * "BO{OT}" and "BO{OT} CPU" */
     sim_vm_cmd = sys_cmd;
@@ -786,6 +785,8 @@ t_stat cpu_reset(DEVICE *dptr)
     sim_clock_precalibrate_commands = att3b2_clock_precalibrate_commands;
 
     if (!sim_is_running) {
+        size_t i;
+
         /* Clear registers */
         for (i = 0; i < 16; i++) {
             R[i] = 0;
@@ -877,12 +878,14 @@ t_bool cpu_is_pc_a_subroutine_call (t_addr **ret_addrs)
 
 t_stat cpu_set_hist(UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 {
-    uint32 i, size;
+    uint32 size;
     t_stat result;
 
     if (cptr == NULL) {
         /* Disable the feature */
         if (INST != NULL) {
+            size_t i;
+
             for (i = 0; i < cpu_hist_size; i++) {
                 INST[i].valid = FALSE;
             }
@@ -1126,12 +1129,12 @@ void fprint_sym_hist(FILE *st, instr *ip)
 
 t_stat cpu_show_virt(FILE *of, UNIT *uptr, int32 val, CONST void *desc)
 {
-    uint32 va, pa;
+    uint32 pa;
     t_stat r;
 
     const char *cptr = (const char *)desc;
     if (cptr) {
-        va = (uint32) get_uint(cptr, 16, 0xffffffff, &r);
+        uint32 va = (uint32) get_uint(cptr, 16, 0xffffffff, &r);
         if (r == SCPE_OK) {
             r = mmu_decode_va(va, 0, FALSE, &pa);
             if (r == SCPE_OK) {
@@ -1158,7 +1161,6 @@ t_stat cpu_show_hist(FILE *st, UNIT *uptr, int32 val, CONST void *desc)
     size_t j, count;
     char *cptr = (char *) desc;
     t_stat result;
-    instr *ip;
 
     int32 di;
 
@@ -1187,7 +1189,7 @@ t_stat cpu_show_hist(FILE *st, UNIT *uptr, int32 val, CONST void *desc)
     fprintf(st, "PSW      SP       PC        IR\n");
 
     for (i = 0; i < count; i++) {
-        ip = &INST[(di++) % (int32) cpu_hist_size];
+        instr *ip = &INST[(di++) % (int32) cpu_hist_size];
         if (ip->valid) {
             /* Show the opcode mnemonic */
             fprintf(st, "%08x %08x %08x  ", ip->psw, ip->sp, ip->pc);
@@ -1538,7 +1540,6 @@ uint8 decode_instruction(instr *instr)
 {
     uint8 offset = 0;
     uint8 b1, b2;
-    uint16 hword_op;
     uint32 pa;
     mnemonic *mn = NULL;
     int i;
@@ -1564,6 +1565,8 @@ uint8 decode_instruction(instr *instr)
        would cause a page fault. */
 
     if (b1 == 0x30) {
+        uint16 hword_op;
+
         read_operand(pa + offset++, &b2);
         hword_op = (uint16) ((uint16)b1 << 8) | (uint16) b2;
         for (i = 0; i < HWORD_OP_COUNT; i++) {
@@ -1759,8 +1762,6 @@ void cpu_on_interrupt(uint16 vec)
 
 t_stat sim_instr(void)
 {
-    uint8 et, isc, trap;
-
     /* Temporary register used for overflow detection */
     t_uint64 result;
 
@@ -1790,6 +1791,8 @@ t_stat sim_instr(void)
      * normal-exception, it needs to be treated as a stack-exception.
      */
     if (abort_reason != 0) {
+        uint8 et, isc;
+
         if (cpu_exception_stack_depth++ >= 10) {
             return STOP_ESTK;
         }
@@ -1849,7 +1852,7 @@ t_stat sim_instr(void)
     }
 
     while (stop_reason == 0) {
-        trap = 0;
+        uint8 trap = 0;
         abort_context = C_NONE;
 
         if (sim_brk_summ && sim_brk_test(R[NUM_PC], SWMASK ('E'))) {
@@ -1924,7 +1927,7 @@ t_stat sim_instr(void)
             cpu_instr = &INST[cpu_hist_p];
             cpu_hist_p = (cpu_hist_p + 1) % cpu_hist_size;
         } else {
-            cpu_instr = &inst;
+            cpu_instr = &default_inst;
         }
 
         /* Decode the instruction */
@@ -2659,7 +2662,6 @@ t_stat sim_instr(void)
             cpu_set_nz_flags(result, dst);
             cpu_set_c_flag(0);
             cpu_set_v_flag_op(result, dst);
-            break;
             break;
         case MODW3:
             a = cpu_read_op(src1);

@@ -756,7 +756,6 @@ t_stat iu_tx(uint8 portno, uint8 val)
     IU_PORT *p = (portno == PORT_A) ? &iu_console : &iu_contty;
     uint8 ists = (portno == PORT_A) ? ISTS_RAI : ISTS_RBI;
     uint8 imr_mask = (portno == PORT_A) ? IMR_RXRA : IMR_RXRB;
-    int32 c;
     t_stat status = SCPE_OK;
 
     if (p->conf & TX_EN) {
@@ -780,7 +779,7 @@ t_stat iu_tx(uint8 portno, uint8 val)
 
             return SCPE_OK;
         } else {                                      /* Direct mode */
-            c = sim_tt_outcvt(val, TTUF_MODE_8B);
+            int32 c = sim_tt_outcvt(val, TTUF_MODE_8B);
 
             if (c >= 0) {
                 p->txbuf = c;
@@ -913,9 +912,6 @@ static SIM_INLINE void iu_w_cmd(uint8 portno, uint8 cmd)
  */
 void iu_dma_console(uint8 channel, uint32 service_address)
 {
-    uint8 data;
-    uint32 addr;
-    t_stat status = SCPE_OK;
     dma_channel *chan = &dma_state.channels[channel];
     UNIT *uptr = &tto_unit;
     IU_PORT *port = &iu_console;
@@ -929,6 +925,10 @@ void iu_dma_console(uint8 channel, uint32 service_address)
     }
 
     if (port->dma == DMA_READ) {
+        t_stat status;
+        uint8 data;
+        uint32 addr;
+
         addr = dma_address(channel, chan->ptr, TRUE);
         chan->addr_c = chan->addr + chan->ptr + 1;
         data = pread_b(addr);
@@ -956,13 +956,9 @@ void iu_dma_console(uint8 channel, uint32 service_address)
 
 void iu_dma_contty(uint8 channel, uint32 service_address)
 {
-    uint8 data;
-    uint32 addr;
-    t_stat status = SCPE_OK;
     dma_channel *chan = &dma_state.channels[channel];
     UNIT *uptr = contty_xmt_unit;
     IU_PORT *port = &iu_contty;
-    uint32 wait = 0x7fffffff;
 
     /* Immediate acknowledge of DMA */
     port->drq = FALSE;
@@ -973,6 +969,11 @@ void iu_dma_contty(uint8 channel, uint32 service_address)
     }
 
     if (port->dma == DMA_READ) {
+        t_stat status;
+        uint32 wait = 0x7fffffff;
+        uint32 addr;
+        uint8 data;
+
         addr = dma_address(channel, chan->ptr, TRUE);
         chan->addr_c = chan->addr + chan->ptr + 1;
         data = pread_b(addr);

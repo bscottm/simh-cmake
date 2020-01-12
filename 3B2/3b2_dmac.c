@@ -180,10 +180,12 @@ uint32 dmac_read(uint32 pa, size_t size)
  */
 void dmac_program(uint8 reg, uint8 val)
 {
-    uint8 channel_id, i, chan_num;
+    uint8 channel_id, i;
     dma_channel *channel;
 
     if (reg < 8) {
+        uint8 chan_num;
+
         switch (reg) {
         case 0:
         case 1:

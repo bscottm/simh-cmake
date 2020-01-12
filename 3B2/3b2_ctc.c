@@ -61,6 +61,10 @@ extern UNIT cio_unit;
 #define ATOW(arr,i)  ((uint32)arr[i+3] + ((uint32)arr[i+2] << 8) +      \
                       ((uint32)arr[i+1] << 16) + ((uint32)arr[i] << 24))
 
+/* typedefs */
+typedef uint8 ctc_rapp_data[12];
+typedef uint8 ctc_capp_data[8];
+
 /* Static function declarations */
 static t_stat ctc_show_cqueue(FILE *st, UNIT *uptr, int32 val, CONST void *desc);
 static t_stat ctc_show_rqueue(FILE *st, UNIT *uptr, int32 val, CONST void *desc);
@@ -258,8 +262,8 @@ static void ctc_update_vtoc(uint32 maxpass,
  * Completion Queue entry. It can be confusing to follow.
  */
 static void ctc_cmd(uint8 cid,
-                    cio_entry *rqe, uint8 *rapp_data,
-                    cio_entry *cqe, uint8 *capp_data)
+                    cio_entry *rqe, ctc_rapp_data rapp_data,
+                    cio_entry *cqe, ctc_capp_data capp_data)
 {
     uint32 vtoc_addr, pdinfo_addr, ctjob_addr;
     uint32 maxpass, blkno, delay, last_byte;
@@ -638,7 +642,7 @@ static void ctc_cmd(uint8 cid,
 void ctc_sysgen(uint8 cid)
 {
     cio_entry cqe = {0};
-    uint8 rapp_data[12] = {0};
+    ctc_rapp_data rapp_data = {0};
 
     ctc_crc = 0;
 
@@ -662,8 +666,8 @@ void ctc_sysgen(uint8 cid)
 void ctc_express(uint8 cid)
 {
     cio_entry rqe, cqe;
-    uint8 rapp_data[12] = {0};
-    uint8 capp_data[8] = {0};
+    ctc_rapp_data rapp_data = {0};
+    ctc_capp_data capp_data = {0};
 
     sim_debug(TRACE_DBG, &ctc_dev, "[ctc_express] Handling Express Request\n");
 
@@ -679,8 +683,8 @@ void ctc_express(uint8 cid)
 void ctc_full(uint8 cid)
 {
     cio_entry rqe, cqe;
-    uint8 rapp_data[12] = {0};
-    uint8 capp_data[8] = {0};
+    ctc_rapp_data rapp_data = {0};
+    ctc_capp_data capp_data = {0};
 
     sim_debug(TRACE_DBG, &ctc_dev, "[ctc_full] Handling Full Request\n");
 
@@ -808,7 +812,7 @@ static t_stat ctc_show_queue_common(FILE *st, UNIT *uptr, int32 val,
     uint8 cid;
     char *cptr = (char *) desc;
     t_stat result;
-    uint32 ptr, size, no_rque, i, j;
+    uint32 ptr, size, no_rque, i;
     uint8  op, dev, seq, cmdstat;
 
     if (cptr) {
@@ -841,6 +845,8 @@ static t_stat ctc_show_queue_common(FILE *st, UNIT *uptr, int32 val,
         ptr += CTQRESIZE;
 
         for (i = 0; i < no_rque; i++) {
+            uint32 j;
+
             fprintf(st, "---------------------------------------------------------\n");
             fprintf(st, "REQUEST QUEUE %d\n", i);
             fprintf(st, "---------------------------------------------------------\n");
@@ -868,7 +874,7 @@ static t_stat ctc_show_queue_common(FILE *st, UNIT *uptr, int32 val,
     } else {
         ptr = cio[cid].cqp;
         size = cio[cid].cqs;
-        no_rque = 0; /* Not used */
+        /* no_rque = 0; * Not used */
         fprintf(st, "Dumping Completion Queue\n");
         fprintf(st, "---------------------------------------------------------\n");
         fprintf(st, "EXPRESS ENTRY:\n");

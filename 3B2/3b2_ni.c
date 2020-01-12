@@ -102,11 +102,14 @@ extern CIO_STATE cio[CIO_SLOTS];
 /* State container for the card */
 NI_STATE  ni;
 
+/* typedefs */
+typedef uint8 ni_rapp_data[4];
+
 /* Static Function Declarations */
 static void dump_packet(const char *direction, ETH_PACK *pkt);
 static void ni_enable();
 static void ni_disable();
-static void ni_cmd(uint8 cid, cio_entry *rentry, uint8 *rapp_data, t_bool is_exp);
+static void ni_cmd(uint8 cid, cio_entry *rentry, ni_rapp_data rapp_data, t_bool is_exp);
 static t_stat ni_show_queue_common(FILE *st, UNIT *uptr, int32 val,
                                    CONST void *desc, t_bool rq);
 static t_stat ni_show_rqueue(FILE *st, UNIT *uptr, int32 val, CONST void *desc);
@@ -294,7 +297,7 @@ static void ni_disable()
     sim_cancel(sanity_unit);
 }
 
-static void ni_cmd(uint8 cid, cio_entry *rentry, uint8 *rapp_data, t_bool is_exp)
+static void ni_cmd(uint8 cid, cio_entry *rentry, ni_rapp_data rapp_data, t_bool is_exp)
 {
     int i, j;
     int32 delay;
@@ -404,7 +407,7 @@ static void ni_cmd(uint8 cid, cio_entry *rentry, uint8 *rapp_data, t_bool is_exp
                   "[ni_cmd] NI SETID: New MAC: %s\n",
                   ni.mac_str);
 
-        status = ni_setmac(ni_dev.units, 0, ni.mac_str, NULL);
+        /*status =*/ ni_setmac(ni_dev.units, 0, ni.mac_str, NULL);
 
         cio_cqueue(cid, CIO_STAT, NIQESIZE, &centry, app_data);
 
@@ -575,7 +578,6 @@ t_stat ni_showmac(FILE* st, UNIT* uptr, int32 val, CONST void* desc)
 t_stat ni_show_filters(FILE* st, UNIT* uptr, int32 val, CONST void* desc)
 {
     char  buffer[20];
-    int i;
 
     UNUSED(uptr);
     UNUSED(val);
@@ -584,10 +586,12 @@ t_stat ni_show_filters(FILE* st, UNIT* uptr, int32 val, CONST void* desc)
     eth_mac_fmt(&ni.macs[NI_NIC_MAC], buffer);
     fprintf(st, "Physical Address=%s\n", buffer);
     if (ni.filter_count > 0) {
+        size_t i;
+
         fprintf(st, "Filters:\n");
         for (i=0; i < ni.filter_count; i++) {
             eth_mac_fmt((ETH_MAC *) ni.macs[i], buffer);
-            fprintf(st, "[%2d]: %s\n", i, buffer);
+            fprintf(st, "[%2" SIZE_T_FMT "d]: %s\n", i, buffer);
         }
         fprintf(st, "\n");
     }
@@ -632,7 +636,7 @@ void ni_sysgen(uint8 cid)
 void ni_express(uint8 cid)
 {
     cio_entry rqe = {0};
-    uint8 app_data[4] = {0};
+    ni_rapp_data app_data = {0};
 
     sim_debug(DBG_TRACE, &ni_dev,
               "[ni_express] Handling express CIO request.\n");
@@ -647,7 +651,7 @@ void ni_express(uint8 cid)
 void ni_full(uint8 cid)
 {
     cio_entry rqe = {0};
-    uint8 app_data[4] = {0};
+    ni_rapp_data app_data = {0};
 
     sim_debug(DBG_TRACE, &ni_dev,
               "[ni_full] INT1 received. Handling full CIO request.\n");
@@ -713,7 +717,6 @@ t_stat ni_autoconfig()
 
 t_stat ni_reset(DEVICE *dptr)
 {
-    t_stat status;
     char uname[16];
 
     sim_debug(DBG_TRACE, &ni_dev,
@@ -724,7 +727,8 @@ t_stat ni_reset(DEVICE *dptr)
         /* Autoconfiguration will select the correct backplane slot
          * for the device, and enable CIO routines. This should only
          * be done once. */
-        status = ni_autoconfig();
+        t_stat status = ni_autoconfig();
+
         if (status != SCPE_OK) {
             return status;
         }
@@ -764,8 +768,6 @@ t_stat ni_reset(DEVICE *dptr)
 
 t_stat ni_rcv_svc(UNIT *uptr)
 {
-    t_stat read_succ;
-
     UNUSED(uptr);
 
     /* Since we cannot know which queue (large packet or small packet
@@ -773,7 +775,7 @@ t_stat ni_rcv_svc(UNIT *uptr)
      * safety reasons we will not call eth_read() until we're certain
      * there's room available in BOTH queues. */
     while (ni.enabled && NI_BUFFERS_AVAIL) {
-        read_succ = eth_read(ni.eth, &ni.rd_buf, NULL);
+        t_stat read_succ = eth_read(ni.eth, &ni.rd_buf, NULL);
         if (!read_succ) {
             break;
         }
@@ -1034,18 +1036,18 @@ t_stat ni_detach(UNIT *uptr)
 
 t_stat ni_set_stats(UNIT* uptr, int32 val, CONST char* cptr, void* desc)
 {
-    int init, elements, i;
-    uint32 *stats_array;
-
     UNUSED(uptr);
     UNUSED(val);
     UNUSED(cptr);
     UNUSED(desc);
 
     if (cptr) {
-        init = atoi(cptr);
-        stats_array = (uint32 *)&ni.stats;
-        elements = sizeof(ni_stat_info) / sizeof(uint32);
+        /* Initialize the stats ni_stat_info structure so thta all members
+           have a specific initial value. */
+        int init = atoi(cptr);
+        uint32 *stats_array = (uint32 *)&ni.stats;
+        size_t elements = sizeof(ni_stat_info) / sizeof(uint32);
+        size_t i;
 
         for (i = 0 ; i < elements; i++) {
             stats_array[i] = init;
@@ -1176,7 +1178,7 @@ static t_stat ni_show_queue_common(FILE *st, UNIT *uptr, int32 val,
     uint8 cid;
     char *cptr = (char *) desc;
     t_stat result;
-    uint32 ptr, size, no_rque, i, j;
+    uint32 ptr, size, no_rque, i;
     uint16 lp, ulp;
     uint8  op, dev, seq, cmdstat;
 
@@ -1237,6 +1239,8 @@ static t_stat ni_show_queue_common(FILE *st, UNIT *uptr, int32 val,
 
     if (rq) {
         for (i = 0; i < no_rque; i++) {
+            uint32 j;
+
             lp = pread_h(ptr);
             ulp = pread_h(ptr + 2);
             ptr += 4;

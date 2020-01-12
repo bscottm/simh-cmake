@@ -169,7 +169,6 @@ t_stat fprint_sym(FILE *of, t_addr addr, t_value *val, UNIT *uptr, int32 sw)
 {
     uint32 len = 4;
     int32 k, vp, num;
-    unsigned int c;
 
     num = 0;
     vp = 0;
@@ -189,7 +188,7 @@ t_stat fprint_sym(FILE *of, t_addr addr, t_value *val, UNIT *uptr, int32 sw)
     if (sw & (int32) SWMASK('C')) {
         len = 16;
         for (k = (int32) len - 1; k >= 0; k--) {
-            c = (unsigned int)val[vp++];
+            unsigned int c = (unsigned int)val[vp++];
             if (c >= 0x20 && c < 0x7f) {
                 fprintf(of, "%c", c);
             } else {

@@ -415,9 +415,6 @@ static void SIM_INLINE id_update_chs()
 uint32 id_read(uint32 pa, size_t size)
 {
     uint8 reg;
-    uint16 cyl;
-    t_lba lba;
-    uint32 data;
     t_seccnt sectsread;
 
     reg = (uint8) (pa - IDBASE);
@@ -428,6 +425,8 @@ uint32 id_read(uint32 pa, size_t size)
          * the disk buffer. Otherwise, we're reading from the FIFO. */
 
         if (id_drq) {
+            uint32 data;
+
             /* If the drive isn't attached, there's really nothing we
                can do. */
             if ((id_sel_unit->flags & UNIT_ATT) == 0) {
@@ -453,6 +452,9 @@ uint32 id_read(uint32 pa, size_t size)
 
                 /* If the disk buffer is empty, fill it. */
                 if (id_buf_ptr == 0 || id_buf_ptr >= ID_SEC_SIZE) {
+                    uint16 cyl;
+                    t_lba lba;
+
                     /* It's time to read a new sector into our sector buf */
                     id_buf_ptr = 0;
                     cyl = (uint16) (((uint16)id_lcnh << 8)|(uint16)id_lcnl);
@@ -551,8 +553,6 @@ uint32 id_read(uint32 pa, size_t size)
 void id_write(uint32 pa, uint32 val, size_t size)
 {
     uint8 reg;
-    uint16 cyl;
-    t_lba lba;
     t_seccnt sectswritten;
 
     reg = (uint8) (pa - IDBASE);
@@ -589,6 +589,9 @@ void id_write(uint32 pa, uint32 val, size_t size)
 
             /* If we've hit the end of a sector, flush it */
             if (id_buf_ptr >= ID_SEC_SIZE) {
+                uint16 cyl;
+                t_lba lba;
+
                 /* It's time to start the next sector, and flush the old. */
                 id_buf_ptr = 0;
                 cyl = (uint16) (((uint16) id_lcnh << 8)|(uint16)id_lcnl);
@@ -637,16 +640,17 @@ void id_write(uint32 pa, uint32 val, size_t size)
 
 void id_handle_command(uint8 val)
 {
-    uint8 cmd, aux_cmd, sec, pattern;
+    uint8 cmd, pattern;
     uint16 cyl;
     uint32 time;
-    t_lba lba;
 
     /* Reset the FIFO pointer */
     id_clear_fifo();
 
     /* Is this an aux command or a full command? */
     if ((val & 0xf0) == 0) {
+        uint8 aux_cmd;
+
         aux_cmd = val & 0x0f;
 
         if (aux_cmd & ID_AUX_CLCE) {
@@ -799,9 +803,11 @@ void id_handle_command(uint8 val)
         /* Format scnt sectors with the given pattern, if attached */
         if (id_sel_unit->flags & UNIT_ATT) {
             /* Formatting soft-sectored disks always begins at sector 0 */
-            sec = 0;
+            uint8 sec = 0;
 
             while (id_scnt-- > 0) {
+                t_lba lba;
+
                 /* Write one sector of pattern */
                 for (id_buf_ptr = 0; id_buf_ptr < ID_SEC_SIZE; id_buf_ptr++) {
                     id_buf[id_buf_ptr] = pattern;

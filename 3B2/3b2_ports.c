@@ -195,8 +195,10 @@ static void cio_irq(uint8 cid, uint8 dev, int32 delay)
  */
 t_stat ports_setnl(UNIT *uptr, int32 val, CONST char *cptr, void *desc)
 {
-    int32 newln, i, t;
+    int32 newln;
     t_stat r = SCPE_OK;
+    TMLN *bigger_ports_ldsc;
+    PORTS_LINE_STATE *bigger_ports_state;
 
     if (cptr == NULL) {
         return SCPE_ARG;
@@ -213,6 +215,9 @@ t_stat ports_setnl(UNIT *uptr, int32 val, CONST char *cptr, void *desc)
     }
 
     if (newln < ports_desc.lines) {
+        size_t i;
+        uint32 t;
+
         for (i = newln, t = 0; i < ports_desc.lines; i++) {
             t = t | ports_ldsc[i].conn;
         }
@@ -235,8 +240,15 @@ t_stat ports_setnl(UNIT *uptr, int32 val, CONST char *cptr, void *desc)
         }
     }
 
-    ports_desc.ldsc = ports_ldsc = (TMLN *)realloc(ports_ldsc, newln*sizeof(*ports_ldsc));
-    ports_state = (PORTS_LINE_STATE *)realloc(ports_state, newln*sizeof(*ports_state));
+    bigger_ports_ldsc = (TMLN *)realloc(ports_ldsc, newln*sizeof(*ports_ldsc));
+    bigger_ports_state = (PORTS_LINE_STATE *)realloc(ports_state, newln*sizeof(*ports_state));
+
+    if (bigger_ports_ldsc == NULL || bigger_ports_state == NULL) {
+        return sim_messagef(SCPE_MEM, "3b2_ports.c:ports_setnl: realloc() fail, new ports not added.");
+    }
+    
+    ports_desc.ldsc = ports_ldsc = bigger_ports_ldsc;
+    ports_state = bigger_ports_state;
 
     if (ports_desc.lines < newln) {
         memset(ports_ldsc + ports_desc.lines, 0, sizeof(*ports_ldsc)*(newln-ports_desc.lines));
@@ -256,7 +268,6 @@ static void ports_cmd(uint8 cid, cio_entry *rentry, uint8 *rapp_data)
     cio_entry centry = {0};
     uint32 ln, i;
     PORTS_OPTIONS opts;
-    char line_config[16];
     uint8 app_data[4] = {0};
 
     centry.address = rentry->address;
@@ -339,17 +350,17 @@ static void ports_cmd(uint8 cid, cio_entry *rentry, uint8 *rapp_data)
                   "[%08x] [ports_cmd] PPC Options Operation\n",
                   R[NUM_PC]);
 
-        opts.line   = pread_h(rentry->address);
-        opts.iflag  = pread_h(rentry->address + 4);
+        /* Unused: opts.line   = pread_h(rentry->address); */
+        /* Unused: opts.iflag  = pread_h(rentry->address + 4); */
         opts.oflag  = pread_h(rentry->address + 6);
         opts.cflag  = pread_h(rentry->address + 8);
         opts.lflag  = pread_h(rentry->address + 10);
-        opts.cerase = pread_b(rentry->address + 11);
-        opts.ckill  = pread_b(rentry->address + 12);
-        opts.cinter = pread_b(rentry->address + 13);
-        opts.cquit  = pread_b(rentry->address + 14);
-        opts.ceof   = pread_b(rentry->address + 15);
-        opts.ceol   = pread_b(rentry->address + 16);
+        /* Unused: opts.cerase = pread_b(rentry->address + 11); */
+        /* Unused: opts.ckill  = pread_b(rentry->address + 12); */
+        /* Unused: opts.cinter = pread_b(rentry->address + 13); */
+        /* Unused: opts.cquit  = pread_b(rentry->address + 14); */
+        /* Unused: opts.ceof   = pread_b(rentry->address + 15); */
+        /* Unused: opts.ceol   = pread_b(rentry->address + 16); */
         opts.itime  = pread_b(rentry->address + 17);
         opts.vtime  = pread_b(rentry->address + 18);
         opts.vcount = pread_b(rentry->address + 19);
@@ -366,6 +377,8 @@ static void ports_cmd(uint8 cid, cio_entry *rentry, uint8 *rapp_data)
         ports_state[ln].oflag = opts.oflag;
 
         if ((rentry->subdevice & 0xf) < PORTS_LINES) {
+            char line_config[16];
+
             /* Adjust baud rate */
             sprintf(line_config, "%s-8N1",
                     ports_baud[opts.cflag&0xf]);
@@ -377,7 +390,8 @@ static void ports_cmd(uint8 cid, cio_entry *rentry, uint8 *rapp_data)
             tmxr_set_config_line(&ports_ldsc[ln], line_config);
         }
 
-        centry.byte_count = sizeof(PPC_OPTIONS);
+        /* Very, very suspect: centry.byte_count = sizeof(PPC_OPTIONS); */
+        centry.byte_count = sizeof(uint32);
         centry.opcode = PPC_OPTIONS;
         centry.subdevice = rentry->subdevice;
         centry.address = rentry->address;
@@ -695,7 +709,6 @@ t_stat ports_cio_svc(UNIT *uptr)
 
 t_stat ports_rcv_svc(UNIT *uptr)
 {
-    uint8 cid, subdev;
     int32 temp, ln;
     char c;
     cio_entry rentry = {0};
@@ -715,8 +728,8 @@ t_stat ports_rcv_svc(UNIT *uptr)
     tmxr_poll_rx(&ports_desc);
 
     for (ln = 0; ln < ports_desc.lines; ln++) {
-        cid = LCID(ln);
-        subdev = LPORT(ln);
+        uint8 cid = LCID(ln);
+        /* Unused: uint8 subdev = LPORT(ln); */
 
         if (!ports_ldsc[ln].conn && ports_state[ln].conn) {
             ports_update_conn(ln);
@@ -760,7 +773,7 @@ t_stat ports_rcv_svc(UNIT *uptr)
 
 t_stat ports_xmt_svc(UNIT *uptr)
 {
-    uint8 cid, ln;
+    uint8 ln;
     char c;
     t_bool tx = FALSE; /* Did a tx ever occur? */
     cio_entry centry = {0};
@@ -769,7 +782,7 @@ t_stat ports_xmt_svc(UNIT *uptr)
 
     /* Scan all lines for output */
     for (ln = 0; ln < ports_desc.lines; ln++) {
-        cid = LCID(ln);
+        uint8 cid = LCID(ln);
         if (ports_ldsc[ln].conn && ports_state[ln].tx_chars > 0) {
             tx = TRUE; /* Even an attempt at TX counts for rescheduling */
             c = sim_tt_outcvt(pread_b(ports_state[ln].tx_addr),
@@ -885,7 +898,7 @@ static t_stat ports_show_queue_common(FILE *st, UNIT *uptr, int32 val,
     uint8 cid;
     char *cptr = (char *) desc;
     t_stat result;
-    uint32 ptr, size, no_rque, i, j;
+    uint32 ptr, size, no_rque, i;
     uint8  op, dev, seq, cmdstat;
 
     if (cptr) {
@@ -931,6 +944,8 @@ static t_stat ports_show_queue_common(FILE *st, UNIT *uptr, int32 val,
 
     if (rq) {
         for (i = 0; i < no_rque; i++) {
+            size_t j;
+
             fprintf(st, "---------------------------------------------------------\n");
             fprintf(st, "REQUEST QUEUE %d\n", i);
             fprintf(st, "---------------------------------------------------------\n");
@@ -943,7 +958,7 @@ static t_stat ports_show_queue_common(FILE *st, UNIT *uptr, int32 val,
                 op = pread_b(ptr + 3);
                 seq = (dev & 0x40) >> 6;
                 cmdstat = (dev & 0x80) >> 7;
-                fprintf(st, "REQUEST ENTRY %d\n", j);
+                fprintf(st, "REQUEST ENTRY %" SIZE_T_FMT "d\n", j);
                 fprintf(st, "    Byte Count: %d\n",          pread_h(ptr));
                 fprintf(st, "    Subdevice:  %d\n",          dev & 0x3f);
                 fprintf(st, "    Cmd/Stat:   %d\n",          cmdstat);

@@ -360,7 +360,6 @@ t_bool cio_rqueue_avail(uint8 cid, uint32 qnum, uint32 esize)
 uint32 io_read(uint32 pa, size_t size)
 {
     struct iolink *p;
-    uint8 cid, reg, data;
 
     /* Special devices */
     if (pa == MEMSIZE_REG) {
@@ -387,7 +386,18 @@ uint32 io_read(uint32 pa, size_t size)
 
     /* CIO board area */
     if (pa >= CIO_BOTTOM && pa < CIO_TOP) {
+        uint8 cid, reg;
+        uint8 data;
+
         cid = CID(pa);
+        if (cid >= sizeof(cio) / sizeof(cio[0])) {
+            /* Bounds check. cppcheck seems to think that the bounds can be exceeded via
+               pa < CIO_TOP. */
+            sim_debug(IO_DBG, &cpu_dev, "[READ] cid=%d index out of bounds (pa = %08x)", cid, pa);
+            csr_data |= CSRTIMO;
+            cpu_abort(NORMAL_EXCEPTION, EXTERNAL_MEMORY_FAULT);
+            return 0;
+        }
         reg = pa - CADDR(cid);
 
         if (cio[cid].id == 0) {
@@ -524,11 +534,18 @@ uint32 io_read(uint32 pa, size_t size)
 void io_write(uint32 pa, uint32 val, size_t size)
 {
     struct iolink *p;
-    uint8 cid, reg;
 
     /* Feature Card Area */
     if (pa >= CIO_BOTTOM && pa < CIO_TOP) {
-        cid = CID(pa);
+        uint8 cid = CID(pa);
+        uint8 reg;
+
+        if (cid >= sizeof(cio) / sizeof(cio[0])) {
+            fprintf(stderr, "[READ] cid=%d index out of bounds (pa = %08x), raising EXTERNAL_MEMORY_FAULT", cid, pa);
+            csr_data |= CSRTIMO;
+            cpu_abort(NORMAL_EXCEPTION, EXTERNAL_MEMORY_FAULT);
+            return;
+        }
         reg = pa - CADDR(cid);
 
         if (cio[cid].id == 0) {

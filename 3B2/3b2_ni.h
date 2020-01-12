@@ -184,7 +184,7 @@ typedef struct {
     ETH_PACK        rd_buf;
     ETH_PACK        wr_buf;
     ETH_MAC         macs[NI_FILTER_MAX];    /* List of all filter addresses */
-    int             filter_count;           /* Number of filters available */
+    size_t          filter_count;           /* Number of filters available */
     ETH_PCALLBACK   callback;
 } NI_STATE;
 

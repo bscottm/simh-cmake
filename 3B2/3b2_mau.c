@@ -813,7 +813,7 @@ static void mul_64_by_shifted_32_to_128(t_uint64 a, uint32 b, t_mau_128 *result)
  */
 static t_uint64 estimate_div_128_to_64(t_uint64 a0, t_uint64 a1, t_uint64 b)
 {
-    t_uint64 b0, b1;
+    t_uint64 b0;
     t_uint64 rem0, rem1, term0, term1;
     t_uint64 z;
 
@@ -829,8 +829,9 @@ static t_uint64 estimate_div_128_to_64(t_uint64 a0, t_uint64 a1, t_uint64 b)
     sub_128( a0, a1, term0, term1, &rem0, &rem1 );
 
     while (((int64_t)rem0) < 0) {
+        t_uint64 b1 = b << 32;
+
         z -= 0x100000000ull;
-        b1 = b << 32;
         add_128(rem0, rem1, b0, b1, &rem0, &rem1);
     }
 
@@ -1029,9 +1030,7 @@ static t_int64 round_pack_int64(t_bool sign,
 static SFP round_pack_sfp(t_bool sign, int16 exp, uint32 frac, RM rounding_mode)
 {
     int8 round_increment, round_bits;
-    uint8 is_tiny;
 
-    is_tiny = 0;
     round_increment = 0x40;
 
     if (rounding_mode != ROUND_NEAREST) {
@@ -1060,13 +1059,18 @@ static SFP round_pack_sfp(t_bool sign, int16 exp, uint32 frac, RM rounding_mode)
             return PACK_SFP(sign, 0xff, 0) - (round_increment == 0);
         }
         if (exp < 0) {
+#if 0
+            uint8 is_tiny;
+
+            /* TININESS_BEFORE_ROUNDING is TRUE -> is_tiny is always TRUE */
             is_tiny = (TININESS_BEFORE_ROUNDING ||
                        ((exp < -1) ||
                         (frac + round_increment < 0x80000000)));
+#endif
             shift_right_32_jamming(frac, -exp, &frac);
             exp = 0;
             round_bits = frac & 0x7f;
-            if (is_tiny && round_bits) {
+            if (/* is_tiny && */ round_bits) {
                 mau_exc(MAU_ASR_US, MAU_ASR_UM);
             }
         }
@@ -1095,10 +1099,7 @@ static DFP round_pack_dfp(t_bool sign, int16 exp, t_uint64 frac,
                           t_bool xfp_sticky, RM rounding_mode)
 {
     int16 round_increment, round_bits;
-    t_bool lsb, round, sticky;
-    uint8 is_tiny;
 
-    is_tiny = 0;
     round_increment = 0;
 
     if (rounding_mode != ROUND_NEAREST) {
@@ -1122,13 +1123,18 @@ static DFP round_pack_dfp(t_bool sign, int16 exp, t_uint64 frac,
 
     if (0x7fd <= (uint16) exp) {
         if (exp < 0) {
+#if 0
+            uint8 is_tiny = 0;
+
+            /* is_tiny is always true because TININESS_BEFORE_ROUNDING is TRUE */
             is_tiny = (TININESS_BEFORE_ROUNDING ||
                        (exp < -1) ||
                        ((frac + round_increment) < 0x8000000000000000ull));
+#endif
             shift_right_64_jamming(frac, -exp, &frac);
             exp = 0;
             round_bits = frac & 0x7ff;
-            if (is_tiny && round_bits) {
+            if (/*is_tiny &&*/ round_bits) {
                 mau_exc(MAU_ASR_US, MAU_ASR_UM);
             }
         } else if (0x7fd < exp) {
@@ -1143,6 +1149,8 @@ static DFP round_pack_dfp(t_bool sign, int16 exp, t_uint64 frac,
     }
 
     if (rounding_mode == ROUND_NEAREST) {
+        t_bool lsb, round, sticky;
+
         frac >>= 11;
         lsb = (frac & 1) != 0;
         round = (round_bits & 0x400) != 0;
@@ -1171,19 +1179,20 @@ static void round_pack_xfp(t_bool sign, int32 exp,
                            t_uint64 frac_a, t_uint64 frac_b,
                            RM rounding_mode, XFP *result)
 {
+#if 0
     uint8 round_nearest_even, is_tiny;
-    t_int64 round_mask;
 
     round_nearest_even = (rounding_mode == ROUND_NEAREST);
+#endif
 
     if (0x7ffd <= (uint32)(exp - 1)) {
         if (0x7ffe < exp) {
-            round_mask = 0;
             mau_exc(MAU_ASR_OS, MAU_ASR_OM);
             mau_exc(MAU_ASR_PS, MAU_ASR_PM);
             if ((rounding_mode == ROUND_ZERO) ||
                 (sign && (rounding_mode == ROUND_PLUS_INF)) ||
                 (!sign && (rounding_mode == ROUND_MINUS_INF))) {
+                t_int64 round_mask = 0;
                 PACK_XFP(sign, 0x7ffe, ~round_mask, result);
                 return;
             }
@@ -1191,17 +1200,27 @@ static void round_pack_xfp(t_bool sign, int32 exp,
             return;
         }
         if (exp <= 0) {
+#if 0
+            /* TININESS_BEFORE_ROUNDING is TRUE -> is_tiny is always TRUE. */
             is_tiny = (TININESS_BEFORE_ROUNDING ||
                        (exp < 0) ||
                        (frac_a < 0xffffffffffffffffull));
+#endif
             shift_right_extra_64_jamming(frac_a, frac_b, (int16)(1 - exp), &frac_a, &frac_b);
             exp = 0;
+#if 0
             if (is_tiny && frac_b) {
                 mau_exc(MAU_ASR_US, MAU_ASR_UM);
             }
             if (frac_b) {
                 mau_exc(MAU_ASR_PS, MAU_ASR_PM);
             }
+#else
+            if (frac_b) {
+                mau_exc(MAU_ASR_US, MAU_ASR_UM);
+                mau_exc(MAU_ASR_PS, MAU_ASR_PM);
+            }
+#endif
             PACK_XFP(sign, exp, frac_a, result);
             return;
         }
@@ -1697,16 +1716,14 @@ static uint32 xfp_lt(XFP *a, XFP *b)
  */
 void mau_int_to_xfp(int32 val, XFP *result)
 {
-    int32 shift_width;
-    t_bool sign;
-    uint32 abs_val;
     uint16 sign_exp = 0;
     t_uint64 frac = 0;
 
     if (val) {
-        sign = (val < 0);
-        abs_val = (uint32)(sign ? -val : val);
-        shift_width = leading_zeros(abs_val);
+        t_bool sign = (val < 0);
+        uint32 abs_val = (uint32)(sign ? -val : val);
+        int32 shift_width = leading_zeros(abs_val);
+
         sign_exp = (sign << 15) | (0x401e - shift_width);
         frac = (t_uint64) (abs_val << shift_width) << 32;
     }
@@ -1937,7 +1954,6 @@ uint32 xfp_to_int(XFP *val, RM rounding_mode)
  */
 void mau_round_xfp_to_int(XFP *val, XFP *result, RM rounding_mode)
 {
-    t_bool sign;
     int32 exp;
     t_uint64 last_bit_mask, round_bits_mask;
 
@@ -1953,6 +1969,8 @@ void mau_round_xfp_to_int(XFP *val, XFP *result, RM rounding_mode)
         return;
     }
     if (exp < 0x3ff) {
+        t_bool sign;
+
         if ((exp == 0) && ((t_uint64)(XFP_FRAC(val) << 1) == 0)) {
             result->sign_exp = val->sign_exp;
             result->frac = val->frac;
@@ -2682,7 +2700,7 @@ static void xfp_sqrt(XFP *a, XFP *result, RM rounding_mode)
 
 static void xfp_remainder(XFP *a, XFP *b, XFP *result, RM rounding_mode)
 {
-    uint32 a_sign, b_sign, r_sign;
+    uint32 a_sign, /*b_sign,*/ r_sign;
     int32 a_exp, b_exp, exp_diff;
     t_uint64 a_frac_0, a_frac_1, b_frac;
     t_uint64 q, term_0, term_1, alt_a_frac_0, alt_a_frac_1;
@@ -2690,7 +2708,7 @@ static void xfp_remainder(XFP *a, XFP *b, XFP *result, RM rounding_mode)
     a_sign = XFP_SIGN(a);
     a_exp = XFP_EXP(a);
     a_frac_0 = XFP_FRAC(a);
-    b_sign = XFP_SIGN(b);
+    /* Unused. b_sign = XFP_SIGN(b); */
     b_exp = XFP_EXP(b);
     b_frac = XFP_FRAC(b);
 
@@ -2925,14 +2943,15 @@ static void store_op3_decimal(DEC *d)
 
 static void store_op3_reg(XFP *xfp, XFP *reg)
 {
-    DFP dfp;
-    SFP sfp;
     XFP xfp_r;
 
     if (mau_state.ntnan) {
         reg->sign_exp = GEN_NONTRAPPING_NAN.sign_exp;
         reg->frac = GEN_NONTRAPPING_NAN.frac;
     } else {
+        DFP dfp;
+        SFP sfp;
+
         switch(mau_state.op3) {
         case M_OP3_F0_SINGLE:
         case M_OP3_F1_SINGLE:

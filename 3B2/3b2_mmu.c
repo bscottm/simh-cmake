@@ -676,8 +676,6 @@ uint8 pread_b(uint32 pa)
  */
 void pwrite_b(uint32 pa, uint8 val)
 {
-    uint32 *m;
-    int32 index;
     int32 sc = (~(pa & 3) << 3) & 0x1f;
     uint32 mask = 0xffu << sc;
 
@@ -687,9 +685,8 @@ void pwrite_b(uint32 pa, uint8 val)
     }
 
     if (addr_is_mem(pa)) {
-        m = RAM;
-        index = (pa - PHYS_MEM_BASE) >> 2;
-        m[index] = (m[index] & ~mask) | (uint32) (val << sc);
+        size_t index = (pa - PHYS_MEM_BASE) >> 2;
+        RAM[index] = (RAM[index] & ~mask) | (uint32) (val << sc);
         return;
     }
 }
