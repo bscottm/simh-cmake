@@ -127,7 +127,7 @@ if (WIN32)
     list(APPEND CMAKE_LIBRARY_PATH ${SIMH_DEP_TOPDIR}/lib)
     list(APPEND CMAKE_INCLUDE_PATH ${SIMH_DEP_TOPDIR}/include)
 
-    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+    ## add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
     if (MSVC_VERSION GREATER_EQUAL 1920)
             add_compile_definitions(USE_ISO_C99_NAMES)
