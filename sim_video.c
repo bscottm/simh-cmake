@@ -427,8 +427,8 @@ sim_os_set_thread_priority (PRIORITY_ABOVE_NORMAL);
 vid_beep_setup (400, 660);
 
 while (1) {
-    int status = SDL_WaitEvent (&event);
-    if (status == 1) {
+    int ev_status = SDL_WaitEvent (&event);
+    if (ev_status == 1) {
         if (event.type == SDL_USEREVENT) {
             if (event.user.code == EVENT_EXIT)
                 break;
@@ -456,7 +456,7 @@ while (1) {
             }
         }
     else {
-        if (status < 0)
+        if (ev_status < 0)
             sim_printf ("main() - ` error: %s\n", SDL_GetError());
         }
     }
@@ -513,7 +513,6 @@ return SCPE_OK;
 t_stat vid_open (DEVICE *dptr, const char *title, uint32 width, uint32 height, int flags)
 {
 if (!vid_active) {
-    int wait_count = 0;
     t_stat stat;
 
     if ((strlen(sim_name) + 7 + (dptr ? strlen (dptr->name) : 0) + (title ? strlen (title) : 0)) < sizeof (vid_title))
@@ -1366,12 +1365,14 @@ if (SDL_SemWait (vid_mouse_events.sem) == 0) {
 
 void vid_update (void)
 {
+#if SDL_MAJOR_VERSION == 1
 SDL_Rect vid_dst;
 
 vid_dst.x = 0;
 vid_dst.y = 0;
 vid_dst.w = vid_width;
 vid_dst.h = vid_height;
+#endif
 
 sim_debug (SIM_VID_DBG_VIDEO, vid_dev, "Video Update Event: \n");
 if (sim_deb)
@@ -2011,7 +2012,7 @@ for (i = 0; i < SDL_GetNumRenderDrivers(); ++i) {
             fprintf (st, "        Max Texture: %d by %d\n", info.max_texture_height, info.max_texture_width);
         fprintf (st, "        Pixel Formats:\n");
         for (j=0; j<info.num_texture_formats; j++) {
-            for (k=0; 1; k++) {
+            for (k=0; k < sizeof(PixelFormats) / sizeof(PixelFormats[0]); k++) {
                 if (PixelFormats[k].format == info.texture_formats[j]) {
                     fprintf (st, "            %s\n", PixelFormats[k].name);
                     break;
@@ -2150,7 +2151,9 @@ _show_stat = _vid_show_video (_show_st, _show_uptr, _show_val, _show_desc);
 
 t_stat vid_show_video (FILE* st, UNIT* uptr, int32 val, CONST void* desc)
 {
+#if defined (SDL_MAIN_AVAILABLE)
 SDL_Event user_event;
+#endif
 
 _show_stat = -1;
 _show_st = st;
@@ -2158,11 +2161,11 @@ _show_uptr = uptr;
 _show_val = val;
 _show_desc = desc;
 
+#if defined (SDL_MAIN_AVAILABLE)
 user_event.type = SDL_USEREVENT;
 user_event.user.code = EVENT_SHOW;
 user_event.user.data1 = NULL;
 user_event.user.data2 = NULL;
-#if defined (SDL_MAIN_AVAILABLE)
 while (SDL_PushEvent (&user_event) < 0)
     sim_os_ms_sleep (10);
 #else
@@ -2175,6 +2178,7 @@ return _show_stat;
 
 static t_stat _vid_screenshot (const char *filename)
 {
+#if defined(SDL_MAJOR_VERSION)
 int stat;
 char *fullname = NULL;
 
@@ -2220,6 +2224,7 @@ if (1) {
     SDL_FreeSurface(sshot);
     }
 #endif
+
 if (stat) {
     sim_printf ("Error saving screenshot to %s: %s\n", fullname, SDL_GetError());
     free (fullname);
@@ -2231,6 +2236,11 @@ else {
     free (fullname);
     return SCPE_OK;
     }
+#else
+if (!sim_quiet)
+    sim_printf("Screenshot command not available.\n");
+return SCPE_OK;
+#endif
 }
 
 static t_stat _screenshot_stat;
@@ -2243,16 +2253,18 @@ _screenshot_stat = _vid_screenshot (_screenshot_filename);
 
 t_stat vid_screenshot (const char *filename)
 {
+#if defined (SDL_MAIN_AVAILABLE)
 SDL_Event user_event;
+#endif
 
 _screenshot_stat = -1;
 _screenshot_filename = filename;
 
+#if defined (SDL_MAIN_AVAILABLE)
 user_event.type = SDL_USEREVENT;
 user_event.user.code = EVENT_SCREENSHOT;
 user_event.user.data1 = NULL;
 user_event.user.data2 = NULL;
-#if defined (SDL_MAIN_AVAILABLE)
 while (SDL_PushEvent (&user_event) < 0)
     sim_os_ms_sleep (10);
 #else
@@ -2330,13 +2342,13 @@ SDL_PauseAudio (0);                 /* Play sound */
 
 void vid_beep (void)
 {
+#if defined (SDL_MAIN_AVAILABLE)
 SDL_Event user_event;
 
 user_event.type = SDL_USEREVENT;
 user_event.user.code = EVENT_BEEP;
 user_event.user.data1 = NULL;
 user_event.user.data2 = NULL;
-#if defined (SDL_MAIN_AVAILABLE)
 while (SDL_PushEvent (&user_event) < 0)
     sim_os_ms_sleep (10);
 #else

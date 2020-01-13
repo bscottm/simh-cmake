@@ -2840,6 +2840,7 @@ return stat;
 t_stat set_prompt (int32 flag, CONST char *cptr)
 {
 char gbuf[CBUFSIZE], *gptr;
+char *new_prompt;
 
 if ((!cptr) || (*cptr == '\0'))
     return SCPE_ARG;
@@ -2852,7 +2853,11 @@ if (gbuf[0] == '\0') {                                  /* Token started with qu
     if (gptr)
         *gptr = '\0';
     }
-sim_prompt = (char *)realloc (sim_prompt, strlen (gbuf) + 2);   /* nul terminator and trailing blank */
+new_prompt = (char *)realloc (sim_prompt, strlen (gbuf) + 2);   /* nul terminator and trailing blank */
+if (new_prompt == NULL) {
+    fprintf(stderr, "scp.c: set_prompt: realloc() failed mysteriously. Proceed with caution.\n");
+}
+sim_prompt = new_prompt;
 sprintf (sim_prompt, "%s ", gbuf);
 return SCPE_OK;
 }
@@ -2974,7 +2979,7 @@ if (dptr->registers)
         if (rptr->flags & REG_HIDDEN)
             continue;
         if (rptr->depth > 1)
-            sprintf (rangebuf, "[%d:%d]", 0, rptr->depth-1);
+            sprintf (rangebuf, "[0:%u]", rptr->depth-1);
         else
             strcpy (rangebuf, "");
         if (max_namelen < (strlen(rptr->name) + strlen (rangebuf)))
@@ -2997,7 +3002,7 @@ else {
         if (rptr->depth <= 1)
             sprintf (namebuf, "%*s", -((int)max_namelen), rptr->name);
         else {
-            sprintf (rangebuf, "[%d:%d]", 0, rptr->depth-1);
+            sprintf (rangebuf, "[0:%u]", rptr->depth-1);
             sprintf (namebuf, "%s%*s", rptr->name, (int)(strlen(rptr->name))-((int)max_namelen), rangebuf);
             }
         if (all_unique) {
@@ -5837,7 +5842,7 @@ fprintf (st, "%s", sprint_capac (dptr, uptr));
 
 t_stat show_version (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, CONST char *cptr)
 {
-int32 vmaj = SIM_MAJOR, vmin = SIM_MINOR, vpat = SIM_PATCH, vdelt = SIM_DELTA;
+int32 vmaj = SIM_MAJOR, vmin = SIM_MINOR, vpat = SIM_PATCH;
 char vmaj_s[12], vmin_s[12], vpat_s[12], vdelt_s[12];
 const char *cpp = "";
 const char *build = "";
@@ -5856,11 +5861,11 @@ if (sim_vm_release != NULL) {                           /* if a release string i
     setenv ("SIM_VM_RELEASE", sim_vm_release, 1);
     fprintf (st, " Release %s", sim_vm_release);        /*   then display it */
     }
-if (vdelt) {
-    sprintf (vdelt_s, "%d", vdelt);
-    setenv ("SIM_DELTA", vdelt_s, 1);
-    fprintf (st, " delta %d", vdelt);
-    }
+#if defined(SIM_DELTA) && SIM_DELTA > 0
+sprintf (vdelt_s, "%d", SIM_DELTA);
+setenv ("SIM_DELTA", vdelt_s, 1);
+fprintf (st, " delta %d", SIM_DELTA);
+#endif
 #if defined (SIM_VERSION_MODE)
 fprintf (st, " %s", SIM_VERSION_MODE);
 setenv ("SIM_VERSION_MODE", SIM_VERSION_MODE, 1);
@@ -6643,14 +6648,15 @@ t_stat copy_cmd (int32 flg, CONST char *cptr)
 char sname[CBUFSIZE];
 COPY_CTX copy_state;
 t_stat stat;
+CONST char *glyph;
 
+if (cptr == NULL || *cptr == 0)
+    return SCPE_2FARG;
 memset (&copy_state, 0, sizeof (copy_state));
-if ((!cptr) || (*cptr == 0))
+glyph = get_glyph_quoted (cptr, sname, 0);
+if (glyph == NULL || *glyph == 0)
     return SCPE_2FARG;
-cptr = get_glyph_quoted (cptr, sname, 0);
-if ((!cptr) || (*cptr == 0))
-    return SCPE_2FARG;
-cptr = get_glyph_quoted (cptr, copy_state.destname, 0);
+glyph = get_glyph_quoted (glyph, copy_state.destname, 0);
 stat = sim_dir_scan (sname, sim_copy_entry, &copy_state);
 if ((stat == SCPE_OK) && (copy_state.count))
     return sim_messagef (SCPE_OK, "      %3d file(s) copied\n", copy_state.count);
@@ -8626,10 +8632,13 @@ for (rptr = lowr; rptr <= highr; rptr++) {
                         return reason;
                     }
                 else {
-                    if (val_start+1 != idx-1)
-                        fprintf (ofile, "%s[%d]-%s[%d]: same as above\n", rptr->name, val_start+1, rptr->name, idx-1);
+#if 1
+                    /* condition is always true: if (val_start+1 != idx-1) */
+                    fprintf (ofile, "%s[%d]-%s[%d]: same as above\n", rptr->name, val_start+1, rptr->name, idx-1);
+#else
                     else
                         fprintf (ofile, "%s[%d]: same as above\n", rptr->name, val_start+1);
+#endif
                     }
                 }
             sim_last_val = last_val = val;
@@ -11500,8 +11509,8 @@ if (sim_brk_ent >= sim_brk_lnt) {                       /* out of space? */
     sim_brk_lnt = t;
     }
 if ((sim_brk_ins == sim_brk_ent) ||
-    ((sim_brk_ins != sim_brk_ent) &&
-     (sim_brk_tab[sim_brk_ins]->addr != loc))) {        /* need to open a hole? */
+    /* redundant condition (sim_brk_ins != sim_brk_ent) && */
+     (sim_brk_tab[sim_brk_ins]->addr != loc)) {        /* need to open a hole? */
     for (i = sim_brk_ent; i > sim_brk_ins; --i)
         sim_brk_tab[i] = sim_brk_tab[i - 1];
     sim_brk_tab[sim_brk_ins] = NULL;
@@ -12861,7 +12870,7 @@ dbits &= (dptr->dctrl | (uptr ? uptr->dctrl : 0));/* Look for just the bits that
 
 /* Find matching words for bitmask */
 
-while (dptr->debflags[offset].name && (offset < 32)) {
+while (offset < 32 && dptr->debflags[offset].name) {
     if (dptr->debflags[offset].mask == dbits)   /* All Bits Match */
         return dptr->debflags[offset].name;
     if (dptr->debflags[offset].mask & dbits)
@@ -13566,7 +13575,7 @@ for (hblock = astrings; (htext = *hblock) != NULL; hblock++) {
                             if (dptr) {
                                 char buf[129];
                                 n = uptr? uptr - dptr->units: 0;
-                                sprintf (buf, "%s%u", dptr->name, (int)n);
+                                sprintf (buf, "%s%" SIZE_T_FMT "u", dptr->name, n);
                                 appendText (topic, buf, strlen (buf));
                                 }
                             break;
