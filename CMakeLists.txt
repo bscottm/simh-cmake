@@ -21,6 +21,18 @@ project(simh VERSION "${SIMH_VERSION}" LANGUAGES C)
 set(SIMH_DEP_TOPDIR ${CMAKE_BINARY_DIR}/build-stage)
 message(STATUS "SIMH_DEP_TOPDIR is ${SIMH_DEP_TOPDIR}")
 
+## Provide a default CMAKE_BUILD_TYPE if CMAKE_CONFIGURATION_TYPES is empty or not defined.
+if (NOT CMAKE_CONFIGURATION_TYPES)
+    if (NOT CMAKE_BUILD_TYPE)
+        set(CMAKE_BUILD_TYPE "Release")
+        message(STATUS "CMAKE_BUILD_TYPE defaulted to ${CMAKE_BUILD_TYPE}")
+    else (NOT CMAKE_BUILD_TYPE)
+        message(STATUS "CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
+    endif (NOT CMAKE_BUILD_TYPE)
+else ()
+    message(STATUS "Available build configurations: ${CMAKE_CONFIGURATION_TYPES}")
+endif ()
+
 # Places to look for CMake modules/includes
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -63,18 +75,6 @@ option(DONT_USE_ROMS
 option(ENABLE_CPPCHECK
        "Enable (=1)/disable (=0) 'cppcheck' static code analysis. (def: disabled.)"
        FALSE)
-
-## Provide a default CMAKE_BUILD_TYPE if CMAKE_CONFIGURATION_TYPES is empty or not defined.
-if (NOT CMAKE_CONFIGURATION_TYPES)
-    if (NOT CMAKE_BUILD_TYPE)
-        set(CMAKE_BUILD_TYPE "Release")
-        message(STATUS "CMAKE_BUILD_TYPE defaulted to ${CMAKE_BUILD_TYPE}")
-    else (NOT CMAKE_BUILD_TYPE)
-        message(STATUS "CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
-    endif (NOT CMAKE_BUILD_TYPE)
-else ()
-    message(STATUS "Available build configurations: ${CMAKE_CONFIGURATION_TYPES}")
-endif ()
 
 # For 64-bit builds (and this is especially true for MSVC), set the library
 # architecture.
@@ -127,7 +127,7 @@ if (WIN32)
     list(APPEND CMAKE_LIBRARY_PATH ${SIMH_DEP_TOPDIR}/lib)
     list(APPEND CMAKE_INCLUDE_PATH ${SIMH_DEP_TOPDIR}/include)
 
-    ## add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 
     if (MSVC_VERSION GREATER_EQUAL 1920)
             add_compile_definitions(USE_ISO_C99_NAMES)
