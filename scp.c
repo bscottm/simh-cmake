@@ -6416,7 +6416,7 @@ if ((!cptr) || (*cptr == 0))
 gbuf[sizeof(gbuf)-1] = '\0';
 strlcpy (gbuf, cptr, sizeof(gbuf));
 sim_trim_endspc(gbuf);
-if (sim_chdir(gbuf) != 0)
+if (host_os_chdir(gbuf) != 0)
     return sim_messagef(SCPE_IOERR, "Unable to directory change to: %s\n", gbuf);
 return SCPE_OK;
 }
@@ -6596,7 +6596,7 @@ char FullPath[PATH_MAX + 1];
 
 sprintf (FullPath, "%s%s", directory, filename);
 
-if (!sim_unlink (FullPath))
+if (!host_os_unlink (FullPath))
     return;
 ctx->stat = sim_messagef (SCPE_ARG, "%s\n", strerror (errno));
 }
@@ -6717,9 +6717,9 @@ while ((c = strchr (c, '/'))) {
         }
     if (
 #if defined(_WIN32)
-        sim_mkdir (path)
+        host_os_mkdir (path)
 #else
-        sim_mkdir (path, 0777)
+        host_os_mkdir (path, 0777)
 #endif
                           )
         return sim_messagef (SCPE_ARG, "Can't create directory: %s - %s\n", path, strerror (errno));
@@ -6728,9 +6728,9 @@ while ((c = strchr (c, '/'))) {
     }
 if (
 #if defined(_WIN32)
-    sim_mkdir (path)
+    host_os_mkdir (path)
 #else
-    sim_mkdir (path, 0777)
+    host_os_mkdir (path, 0777)
 #endif
                       )
     return sim_messagef (SCPE_ARG, "Can't create directory: %s - %s\n", path, strerror (errno));
@@ -6742,7 +6742,7 @@ t_stat rmdir_cmd (int32 flg, CONST char *cptr)
 GET_SWITCHES (cptr);                                    /* get switches */
 if ((!cptr) || (*cptr == '\0'))
     return sim_messagef (SCPE_2FARG, "Must specify a directory\n");
-if (sim_rmdir (cptr))
+if (host_os_rmdir (cptr))
     return sim_messagef (SCPE_ARG, "Can't remove directory: %s - %s\n", cptr, strerror (errno));
 return SCPE_OK;
 }
@@ -7750,7 +7750,7 @@ sim_switches &= ~(SWMASK ('F') | SWMASK ('D') | SWMASK ('Q'));  /* remove digest
     goto Cleanup_Return;                                                \
     }
 
-if (fstat (sim_fileno (rfile), &rstat)) {
+if (fstat (host_os_fileno (rfile), &rstat)) {
     r = SCPE_IOERR;
     goto Cleanup_Return;
     }
