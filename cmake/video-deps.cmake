@@ -6,23 +6,23 @@
 #~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
 add_library(simh_video INTERFACE)
+add_library(png_lib INTERFACE)
 
 if (WITH_VIDEO)
-    add_library(png_lib INTERFACE)
     find_package (PNG)
     if (NOT PNG_FOUND AND PKG_CONFIG_FOUND)
-	pkg_check_modules(PNG IMPORTED_TARGET libpng)
+        pkg_check_modules(PNG IMPORTED_TARGET libpng)
     endif (NOT PNG_FOUND AND PKG_CONFIG_FOUND)
 
     if (PNG_FOUND)
-	if (TARGET PkgConfig::PNG)
-	    target_link_libraries(png_lib INTERFACE PkgConfig::PNG)
-	else (TARGET PkgConfig::PNG)
-	    target_include_directories(png_lib INTERFACE ${PNG_INCLUDE_DIRS})
-	    target_link_libraries(png_lib INTERFACE ${PNG_LIBRARIES})
-	endif (TARGET PkgConfig::PNG)
+        if (TARGET PkgConfig::PNG)
+            target_link_libraries(png_lib INTERFACE PkgConfig::PNG)
+        else (TARGET PkgConfig::PNG)
+            target_include_directories(png_lib INTERFACE ${PNG_INCLUDE_DIRS})
+            target_link_libraries(png_lib INTERFACE ${PNG_LIBRARIES})
+        endif (TARGET PkgConfig::PNG)
 
-	target_compile_definitions(png_lib INTERFACE ${PNG_DEFINITIONS} HAVE_LIBPNG)
+        target_compile_definitions(png_lib INTERFACE ${PNG_DEFINITIONS} HAVE_LIBPNG)
         target_link_libraries(simh_video INTERFACE png_lib)
 
         set(VIDEO_PKG_STATUS "installed PNG")
@@ -33,44 +33,44 @@ if (WITH_VIDEO)
         endif (NOT ZLIB_FOUND)
 
         set(PNG_SOURCE_URL "https://sourceforge.net/projects/libpng/files/libpng16/1.6.37/libpng-1.6.37.tar.xz/download")
-	set(PNG_CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE})
-	if (CMAKE_C_COMPILER_ID STREQUAL "GNU" AND
-	    CMAKE_C_COMPILER_VERSION VERSION_EQUAL "8.1" AND
-	    NOT CMAKE_BUILD_VERSION)
-	    message(STATUS "PNG: Build using MinSizeRel CMAKE_BUILD_TYPE with GCC 8.1")
-	    set(PNG_CMAKE_BUILD_TYPE "MinSizeRel")
-	endif()
+        set(PNG_CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE})
+        if (CMAKE_C_COMPILER_ID STREQUAL "GNU" AND
+            CMAKE_C_COMPILER_VERSION VERSION_EQUAL "8.1" AND
+            NOT CMAKE_BUILD_VERSION)
+            message(STATUS "PNG: Build using MinSizeRel CMAKE_BUILD_TYPE with GCC 8.1")
+            set(PNG_CMAKE_BUILD_TYPE "MinSizeRel")
+        endif()
 
         ExternalProject_Add(png-dep
             URL ${PNG_SOURCE_URL}
             CMAKE_ARGS 
-		${DEP_CMAKE_ARGS}
+                ${DEP_CMAKE_ARGS}
                 -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
                 -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
                 -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
-		-DCMAKE_BUILD_TYPE=${PNG_CMAKE_BUILD_TYPE}
+                -DCMAKE_BUILD_TYPE=${PNG_CMAKE_BUILD_TYPE}
                 -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
             DEPENDS
                 ${PNG_DEPS}
         )
 
         list(APPEND SIMH_BUILD_DEPS "png")
-	list(APPEND SIMH_DEP_TARGETS "png-dep")
+        list(APPEND SIMH_DEP_TARGETS "png-dep")
         message(STATUS "Building PNG from ${PNG_SOURCE_URL}")
         set(VIDEO_PKG_STATUS "PNG source build")
     endif ()
 
     find_package(Freetype)
     if (NOT FREETYPE_FOUND AND PKG_CONFIG_FOUND)
-	pkg_check_modules(FREETYPE IMPORTED_TARGET freetype2)
+        pkg_check_modules(FREETYPE IMPORTED_TARGET freetype2)
     endif (NOT FREETYPE_FOUND AND PKG_CONFIG_FOUND)
 
     if (FREETYPE_FOUND)
-	if (TARGET Freetype::Freetype)
-	    target_link_libraries(simh_video INTERFACE Freetype::Freetype)
-	elseif (TARGET PkgConfig::FREETYPE)
-	    target_link_libraries(simh_video INTERFACE PkgConfig::FREETYPE)
-	endif (TARGET Freetype::Freetype)
+        if (TARGET Freetype::Freetype)
+            target_link_libraries(simh_video INTERFACE Freetype::Freetype)
+        elseif (TARGET PkgConfig::FREETYPE)
+            target_link_libraries(simh_video INTERFACE PkgConfig::FREETYPE)
+        endif (TARGET Freetype::Freetype)
 
         set(VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}, installed Freetype")
     else (FREETYPE_FOUND)
@@ -82,7 +82,7 @@ if (WITH_VIDEO)
             GIT_REPOSITORY https://git.sv.nongnu.org/r/freetype/freetype2.git
             GIT_TAG VER-2-10-1
             CMAKE_ARGS 
-		${DEP_CMAKE_ARGS}
+                ${DEP_CMAKE_ARGS}
                 -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
                 -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
                 -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
@@ -93,19 +93,19 @@ if (WITH_VIDEO)
         )
 
         list(APPEND SIMH_BUILD_DEPS "freetype")
-	list(APPEND SIMH_DEP_TARGETS "freetype-dep")
+        list(APPEND SIMH_DEP_TARGETS "freetype-dep")
         message(STATUS "Building Freetype from github repository.")
         set(VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}, Freetype source build")
     endif (FREETYPE_FOUND)
 
     find_package(SDL2 CONFIG)
     if (NOT SDL2_FOUND AND PKG_CONFIG_FOUND)
-	pkg_check_modules(SDL2 IMPORTED_TARGET SDL2)
+        pkg_check_modules(SDL2 IMPORTED_TARGET SDL2)
     endif (NOT SDL2_FOUND AND PKG_CONFIG_FOUND)
 
     find_package(SDL2_ttf CONFIG)
     IF (NOT SDL2_ttf_FOUND AND PKG_CONFIG_FOUND)
-	pkg_check_modules(SDL2_ttf IMPORTED_TARGET SDL2_ttf)
+        pkg_check_modules(SDL2_ttf IMPORTED_TARGET SDL2_ttf)
     ENDIF (NOT SDL2_ttf_FOUND AND PKG_CONFIG_FOUND)
     
     IF (SDL2_FOUND AND SDL2_ttf_FOUND)
@@ -113,10 +113,10 @@ if (WITH_VIDEO)
 
         IF (TARGET SDL2_ttf::SDL2_ttf)
             target_link_libraries(simh_video INTERFACE SDL2_ttf::SDL2_ttf)
-	ELSEIF (TARGET PkgConfig::SDL2_ttf)
-	    target_link_libraries(simh_video INTERFACE PkgConfig::SDL2_ttf)
+        ELSEIF (TARGET PkgConfig::SDL2_ttf)
+            target_link_libraries(simh_video INTERFACE PkgConfig::SDL2_ttf)
         ELSEIF (DEFINED SDL2_ttf_LIBRARIES AND DEFINED SDL2_ttf_INCLUDE_DIRS)
-	    ## target_link_directories(simh_video INTERFACE ${SDL2_ttf_LIBDIR})
+            ## target_link_directories(simh_video INTERFACE ${SDL2_ttf_LIBDIR})
             target_link_libraries(simh_video INTERFACE ${SDL2_ttf_LIBRARIES})
             target_include_directories(simh_video INTERFACE ${SDL2_ttf_INCLUDE_DIRS})
         ELSE ()
@@ -125,10 +125,10 @@ if (WITH_VIDEO)
 
         IF (TARGET SDL2::SDL2)
             target_link_libraries(simh_video INTERFACE SDL2::SDL2)
-	ELSEIF (TARGET PkgConfig::SDL2)
-	    target_link_libraries(simh_video INTERFACE PkgConfig::SDL2)
+        ELSEIF (TARGET PkgConfig::SDL2)
+            target_link_libraries(simh_video INTERFACE PkgConfig::SDL2)
         ELSEIF (DEFINED SDL2_LIBRARIES AND DEFINED SDL2_INCLUDE_DIRS)
-	    ## target_link_directories(simh_video INTERFACE ${SDL2_LIBDIR})
+            ## target_link_directories(simh_video INTERFACE ${SDL2_LIBDIR})
             target_link_libraries(simh_video INTERFACE ${SDL2_LIBRARIES})
             target_include_directories(simh_video INTERFACE ${SDL2_INCLUDE_DIRS})
         ELSE ()
@@ -141,7 +141,7 @@ if (WITH_VIDEO)
             ExternalProject_Add(sdl2-dep
                 URL https://www.libsdl.org/release/SDL2-2.0.10.zip
                 CMAKE_ARGS 
-		    ${DEP_CMAKE_ARGS}
+                    ${DEP_CMAKE_ARGS}
                     -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
                     -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
                     -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
@@ -150,7 +150,7 @@ if (WITH_VIDEO)
             )
 
             list(APPEND SIMH_BUILD_DEPS "SDL2")
-	    list(APPEND SIMH_DEP_TARGETS "sdl2-dep")
+            list(APPEND SIMH_DEP_TARGETS "sdl2-dep")
             message(STATUS "Building SDL2 from https://www.libsdl.org/release/SDL2-2.0.10.zip.")
             set(VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}, SDL2 source build")
         ELSE (NOT SDL2_FOUND)
@@ -172,7 +172,7 @@ if (WITH_VIDEO)
             ExternalProject_Add(sdl2-ttf-dep
                 URL https://www.libsdl.org/projects/SDL_ttf/release/SDL2_ttf-2.0.15.zip
                 CMAKE_ARGS 
-		    ${DEP_CMAKE_ARGS}
+                    ${DEP_CMAKE_ARGS}
                     -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
                     -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
                     -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
@@ -185,7 +185,7 @@ if (WITH_VIDEO)
             )
 
             list(APPEND SIMH_BUILD_DEPS "SDL2_ttf")
-	    list(APPEND SIMH_DEP_TARGETS "sdl2-ttf-dep")
+            list(APPEND SIMH_DEP_TARGETS "sdl2-ttf-dep")
             message(STATUS "Building SDL2_ttf from https://www.libsdl.org/release/SDL2_ttf-2.0.15.zip.")
             set(VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}, SDL2_ttf source build")
         ELSE (NOT SDL2_ttf_FOUND)
