@@ -283,17 +283,17 @@ static int SDL_SavePNG_RW(SDL_Surface *surface, SDL_RWops *dst, int freedst)
 typedef struct {
     SIM_KEY_EVENT events[MAX_EVENTS];
     SDL_sem *sem;
-    int32 head;
-    int32 tail;
-    int32 count;
+    size_t head;
+    size_t tail;
+    size_t count;
     } KEY_EVENT_QUEUE;
 
 typedef struct {
     SIM_MOUSE_EVENT events[MAX_EVENTS];
     SDL_sem *sem;
-    int32 head;
-    int32 tail;
-    int32 count;
+    size_t head;
+    size_t tail;
+    size_t count;
     } MOUSE_EVENT_QUEUE;
 
 int vid_thread (void* arg);
@@ -341,12 +341,13 @@ static void _XInitThreads (void)
 static void *hLib = NULL;                   /* handle to Library */
 #define __STR_QUOTE(tok) #tok
 #define __STR(tok) __STR_QUOTE(tok)
-static const char* lib_name = "libX11." __STR(HAVE_DLOPEN);
 typedef int (*_func)();
 _func _func_ptr = NULL;
 
-if (!hLib)
+if (!hLib) {
+    static const char* lib_name = "libX11." __STR(HAVE_DLOPEN);
     hLib = dlopen(lib_name, RTLD_NOW);
+    }
 if (hLib)
     _func_ptr = (_func)((size_t)dlsym(hLib, "XInitThreads"));
 if (_func_ptr)
@@ -601,10 +602,11 @@ return SCPE_EOF;
 t_stat vid_poll_mouse (SIM_MOUSE_EVENT *ev)
 {
 t_stat stat = SCPE_EOF;
-SIM_MOUSE_EVENT *nev;
 
 if (SDL_SemTryWait (vid_mouse_events.sem) == 0) {
     if (vid_mouse_events.count > 0) {
+        SIM_MOUSE_EVENT *nev;
+
         stat = SCPE_OK;
         *ev = vid_mouse_events.events[vid_mouse_events.head++];
         vid_mouse_events.count--;
@@ -734,11 +736,10 @@ if ((x_delta) || (y_delta)) {
     /* Any queued mouse motion events need to have their relative 
        positions adjusted since they were queued based on different info. */
     if (SDL_SemWait (vid_mouse_events.sem) == 0) {
-        int32 i;
-        SIM_MOUSE_EVENT *ev;
+        size_t i;
 
         for (i=0; i<vid_mouse_events.count; i++) {
-            ev = &vid_mouse_events.events[(vid_mouse_events.head + i)%MAX_EVENTS];
+            SIM_MOUSE_EVENT *ev = &vid_mouse_events.events[(vid_mouse_events.head + i)%MAX_EVENTS];
             sim_debug (SIM_VID_DBG_CURSOR, vid_dev, "Pending Mouse Motion Event Adjusted from: (%d, %d) to (%d, %d)\n", ev->x_rel, ev->y_rel, ev->x_rel + x_delta, ev->y_rel + y_delta);
             ev->x_rel += x_delta;
             ev->y_rel += y_delta;
@@ -1261,7 +1262,7 @@ if (SDL_SemWait (vid_mouse_events.sem) == 0) {
     vid_mouse_b1 = (event->state & SDL_BUTTON(SDL_BUTTON_LEFT)) ? TRUE : FALSE;
     vid_mouse_b2 = (event->state & SDL_BUTTON(SDL_BUTTON_MIDDLE)) ? TRUE : FALSE;
     vid_mouse_b3 = (event->state & SDL_BUTTON(SDL_BUTTON_RIGHT)) ? TRUE : FALSE;
-    sim_debug (SIM_VID_DBG_MOUSE, vid_dev, "Mouse Move Event: pos:(%d,%d) rel:(%d,%d) buttons:(%d,%d,%d) - Count: %d vid_cursor:(%d,%d)\n", 
+    sim_debug (SIM_VID_DBG_MOUSE, vid_dev, "Mouse Move Event: pos:(%d,%d) rel:(%d,%d) buttons:(%d,%d,%d) - Count: %" SIZE_T_FMT "u vid_cursor:(%d,%d)\n", 
                                             event->x, event->y, event->xrel, event->yrel, (event->state & SDL_BUTTON(SDL_BUTTON_LEFT)) ? 1 : 0, (event->state & SDL_BUTTON(SDL_BUTTON_MIDDLE)) ? 1 : 0, (event->state & SDL_BUTTON(SDL_BUTTON_RIGHT)) ? 1 : 0, vid_mouse_events.count, vid_cursor_x, vid_cursor_y);
     if (vid_mouse_events.count < MAX_EVENTS) {
         SIM_MOUSE_EVENT *tail = &vid_mouse_events.events[(vid_mouse_events.tail+MAX_EVENTS-1)%MAX_EVENTS];
@@ -1292,7 +1293,7 @@ if (SDL_SemWait (vid_mouse_events.sem) == 0) {
             }
         }
     else {
-        sim_debug (SIM_VID_DBG_MOUSE, vid_dev, "Mouse Move Event Discarded: Count: %d\n", vid_mouse_events.count);
+        sim_debug (SIM_VID_DBG_MOUSE, vid_dev, "Mouse Move Event Discarded: Count: %" SIZE_T_FMT "u\n", vid_mouse_events.count);
         }
     if (SDL_SemPost (vid_mouse_events.sem))
         sim_printf ("%s: vid_mouse_move(): SDL_SemPost error: %s\n", sim_dname(vid_dev), SDL_GetError());
@@ -1356,7 +1357,7 @@ if (SDL_SemWait (vid_mouse_events.sem) == 0) {
             vid_mouse_events.tail = 0;
         }
     else {
-        sim_debug (SIM_VID_DBG_MOUSE, vid_dev, "Mouse Button Event Discarded: Count: %d\n", vid_mouse_events.count);
+        sim_debug (SIM_VID_DBG_MOUSE, vid_dev, "Mouse Button Event Discarded: Count: %" SIZE_T_FMT "u\n", vid_mouse_events.count);
         }
     if (SDL_SemPost (vid_mouse_events.sem))
         sim_printf ("%s: Mouse Button Event: SDL_SemPost error: %s\n", sim_dname(vid_dev), SDL_GetError());
@@ -1899,8 +1900,6 @@ return SCPE_OK;
 
 static t_stat _vid_show_video (FILE* st, UNIT* uptr, int32 val, CONST void* desc)
 {
-int i;
-
 fprintf (st, "Video support using SDL: %s\n", vid_version());
 #if defined (SDL_MAIN_AVAILABLE)
 fprintf (st, "  SDL Events being processed on the main process thread\n");
@@ -1940,196 +1939,204 @@ if (1) {
     fprintf (st, "  Video Memory:                                     %dKb\n", info->video_mem);
     }
 #else
-for (i = 0; i < SDL_GetNumVideoDisplays(); ++i) {
-    SDL_DisplayMode display;
+do {
+    int i;
 
-    if (SDL_GetCurrentDisplayMode(i, &display)) {
-        fprintf (st, "Could not get display mode for video display #%d: %s", i, SDL_GetError());
-        }
-    else {
-        fprintf (st, "  Display %s(#%d): current display mode is %dx%dpx @ %dhz. \n", SDL_GetDisplayName(i), i, display.w, display.h, display.refresh_rate);
-        }
-    }
-fprintf (st, "  Available SDL Renderers:\n");
-for (i = 0; i < SDL_GetNumRenderDrivers(); ++i) {
-    SDL_RendererInfo info;
+    for (i = 0; i < SDL_GetNumVideoDisplays(); ++i) {
+        SDL_DisplayMode display;
 
-    if (SDL_GetRenderDriverInfo (i, &info)) {
-        fprintf (st, "Could not get render driver info for driver #%d: %s", i, SDL_GetError());
+        if (SDL_GetCurrentDisplayMode(i, &display)) {
+            fprintf (st, "Could not get display mode for video display #%d: %s", i, SDL_GetError());
+            }
+        else {
+            fprintf (st, "  Display %s(#%d): current display mode is %dx%dpx @ %dhz. \n", SDL_GetDisplayName(i), i, display.w, display.h, display.refresh_rate);
+            }
         }
-    else {
-        uint32 j, k;
-        static struct {uint32 format; const char *name;} PixelFormats[] = {
-            {SDL_PIXELFORMAT_INDEX1LSB,     "Index1LSB"},
-            {SDL_PIXELFORMAT_INDEX1MSB,     "Index1MSB"},
-            {SDL_PIXELFORMAT_INDEX4LSB,     "Index4LSB"},
-            {SDL_PIXELFORMAT_INDEX4MSB,     "Index4MSB"},
-            {SDL_PIXELFORMAT_INDEX8,        "Index8"},
-            {SDL_PIXELFORMAT_RGB332,        "RGB332"},
-            {SDL_PIXELFORMAT_RGB444,        "RGB444"},
-            {SDL_PIXELFORMAT_RGB555,        "RGB555"},
-            {SDL_PIXELFORMAT_BGR555,        "BGR555"},
-            {SDL_PIXELFORMAT_ARGB4444,      "ARGB4444"},
-            {SDL_PIXELFORMAT_RGBA4444,      "RGBA4444"},
-            {SDL_PIXELFORMAT_ABGR4444,      "ABGR4444"},
-            {SDL_PIXELFORMAT_BGRA4444,      "BGRA4444"},
-            {SDL_PIXELFORMAT_ARGB1555,      "ARGB1555"},
-            {SDL_PIXELFORMAT_RGBA5551,      "RGBA5551"},
-            {SDL_PIXELFORMAT_ABGR1555,      "ABGR1555"},
-            {SDL_PIXELFORMAT_BGRA5551,      "BGRA5551"},
-            {SDL_PIXELFORMAT_RGB565,        "RGB565"},
-            {SDL_PIXELFORMAT_BGR565,        "BGR565"},
-            {SDL_PIXELFORMAT_RGB24,         "RGB24"},
-            {SDL_PIXELFORMAT_BGR24,         "BGR24"},
-            {SDL_PIXELFORMAT_RGB888,        "RGB888"},
-            {SDL_PIXELFORMAT_RGBX8888,      "RGBX8888"},
-            {SDL_PIXELFORMAT_BGR888,        "BGR888"},
-            {SDL_PIXELFORMAT_BGRX8888,      "BGRX8888"},
-            {SDL_PIXELFORMAT_ARGB8888,      "ARGB8888"},
-            {SDL_PIXELFORMAT_RGBA8888,      "RGBA8888"},
-            {SDL_PIXELFORMAT_ABGR8888,      "ABGR8888"},
-            {SDL_PIXELFORMAT_BGRA8888,      "BGRA8888"},
-            {SDL_PIXELFORMAT_ARGB2101010,   "ARGB2101010"},
-            {SDL_PIXELFORMAT_YV12,          "YV12"},
-            {SDL_PIXELFORMAT_IYUV,          "IYUV"},
-            {SDL_PIXELFORMAT_YUY2,          "YUY2"},
-            {SDL_PIXELFORMAT_UYVY,          "UYVY"},
-            {SDL_PIXELFORMAT_YVYU,          "YVYU"},
-            {SDL_PIXELFORMAT_UNKNOWN,       "Unknown"}};
+    fprintf (st, "  Available SDL Renderers:\n");
+    for (i = 0; i < SDL_GetNumRenderDrivers(); ++i) {
+        SDL_RendererInfo info;
 
-        fprintf (st, "     Render #%d - %s\n", i, info.name);
-        fprintf (st, "        Flags: 0x%X - ", info.flags);
-        if (info.flags & SDL_RENDERER_SOFTWARE)
-            fprintf (st, "Software|");
-        if (info.flags & SDL_RENDERER_ACCELERATED)
-            fprintf (st, "Accelerated|");
-        if (info.flags & SDL_RENDERER_PRESENTVSYNC)
-            fprintf (st, "PresentVSync|");
-        if (info.flags & SDL_RENDERER_TARGETTEXTURE)
-            fprintf (st, "TargetTexture|");
-        fprintf (st, "\n");
-        if ((info.max_texture_height != 0) || (info.max_texture_width != 0))
-            fprintf (st, "        Max Texture: %d by %d\n", info.max_texture_height, info.max_texture_width);
-        fprintf (st, "        Pixel Formats:\n");
-        for (j=0; j<info.num_texture_formats; j++) {
-            for (k=0; k < sizeof(PixelFormats) / sizeof(PixelFormats[0]); k++) {
-                if (PixelFormats[k].format == info.texture_formats[j]) {
-                    fprintf (st, "            %s\n", PixelFormats[k].name);
-                    break;
-                    }
-                if (PixelFormats[k].format == SDL_PIXELFORMAT_UNKNOWN) {
-                    fprintf (st, "            %s - 0x%X\n", PixelFormats[k].name, info.texture_formats[j]);
-                    break;
+        if (SDL_GetRenderDriverInfo (i, &info)) {
+            fprintf (st, "Could not get render driver info for driver #%d: %s", i, SDL_GetError());
+            }
+        else {
+            uint32 j;
+            size_t k;
+
+            static struct {uint32 format; const char *name;} PixelFormats[] = {
+                {SDL_PIXELFORMAT_INDEX1LSB,     "Index1LSB"},
+                {SDL_PIXELFORMAT_INDEX1MSB,     "Index1MSB"},
+                {SDL_PIXELFORMAT_INDEX4LSB,     "Index4LSB"},
+                {SDL_PIXELFORMAT_INDEX4MSB,     "Index4MSB"},
+                {SDL_PIXELFORMAT_INDEX8,        "Index8"},
+                {SDL_PIXELFORMAT_RGB332,        "RGB332"},
+                {SDL_PIXELFORMAT_RGB444,        "RGB444"},
+                {SDL_PIXELFORMAT_RGB555,        "RGB555"},
+                {SDL_PIXELFORMAT_BGR555,        "BGR555"},
+                {SDL_PIXELFORMAT_ARGB4444,      "ARGB4444"},
+                {SDL_PIXELFORMAT_RGBA4444,      "RGBA4444"},
+                {SDL_PIXELFORMAT_ABGR4444,      "ABGR4444"},
+                {SDL_PIXELFORMAT_BGRA4444,      "BGRA4444"},
+                {SDL_PIXELFORMAT_ARGB1555,      "ARGB1555"},
+                {SDL_PIXELFORMAT_RGBA5551,      "RGBA5551"},
+                {SDL_PIXELFORMAT_ABGR1555,      "ABGR1555"},
+                {SDL_PIXELFORMAT_BGRA5551,      "BGRA5551"},
+                {SDL_PIXELFORMAT_RGB565,        "RGB565"},
+                {SDL_PIXELFORMAT_BGR565,        "BGR565"},
+                {SDL_PIXELFORMAT_RGB24,         "RGB24"},
+                {SDL_PIXELFORMAT_BGR24,         "BGR24"},
+                {SDL_PIXELFORMAT_RGB888,        "RGB888"},
+                {SDL_PIXELFORMAT_RGBX8888,      "RGBX8888"},
+                {SDL_PIXELFORMAT_BGR888,        "BGR888"},
+                {SDL_PIXELFORMAT_BGRX8888,      "BGRX8888"},
+                {SDL_PIXELFORMAT_ARGB8888,      "ARGB8888"},
+                {SDL_PIXELFORMAT_RGBA8888,      "RGBA8888"},
+                {SDL_PIXELFORMAT_ABGR8888,      "ABGR8888"},
+                {SDL_PIXELFORMAT_BGRA8888,      "BGRA8888"},
+                {SDL_PIXELFORMAT_ARGB2101010,   "ARGB2101010"},
+                {SDL_PIXELFORMAT_YV12,          "YV12"},
+                {SDL_PIXELFORMAT_IYUV,          "IYUV"},
+                {SDL_PIXELFORMAT_YUY2,          "YUY2"},
+                {SDL_PIXELFORMAT_UYVY,          "UYVY"},
+                {SDL_PIXELFORMAT_YVYU,          "YVYU"},
+                {SDL_PIXELFORMAT_UNKNOWN,       "Unknown"}};
+
+            fprintf (st, "     Render #%d - %s\n", i, info.name);
+            fprintf (st, "        Flags: 0x%X - ", info.flags);
+            if (info.flags & SDL_RENDERER_SOFTWARE)
+                fprintf (st, "Software|");
+            if (info.flags & SDL_RENDERER_ACCELERATED)
+                fprintf (st, "Accelerated|");
+            if (info.flags & SDL_RENDERER_PRESENTVSYNC)
+                fprintf (st, "PresentVSync|");
+            if (info.flags & SDL_RENDERER_TARGETTEXTURE)
+                fprintf (st, "TargetTexture|");
+            fprintf (st, "\n");
+            if ((info.max_texture_height != 0) || (info.max_texture_width != 0))
+                fprintf (st, "        Max Texture: %d by %d\n", info.max_texture_height, info.max_texture_width);
+            fprintf (st, "        Pixel Formats:\n");
+            for (j=0; j<info.num_texture_formats; j++) {
+                for (k=0; k < sizeof(PixelFormats) / sizeof(PixelFormats[0]); k++) {
+                    if (PixelFormats[k].format == info.texture_formats[j]) {
+                        fprintf (st, "            %s\n", PixelFormats[k].name);
+                        break;
+                        }
+                    if (PixelFormats[k].format == SDL_PIXELFORMAT_UNKNOWN) {
+                        fprintf (st, "            %s - 0x%X\n", PixelFormats[k].name, info.texture_formats[j]);
+                        break;
+                        }
                     }
                 }
             }
         }
-    }
-if (vid_active) {
-    SDL_RendererInfo info;
 
-    SDL_GetRendererInfo (vid_renderer, &info);
-    fprintf (st, "  Currently Active Renderer: %s\n", info.name);
-    }
-if (1) {
-    static const char *hints[] = {
-#if defined (SDL_HINT_FRAMEBUFFER_ACCELERATION)
-                SDL_HINT_FRAMEBUFFER_ACCELERATION   ,
-#endif
-#if defined (SDL_HINT_RENDER_DRIVER)
-                SDL_HINT_RENDER_DRIVER              ,
-#endif
-#if defined (SDL_HINT_RENDER_OPENGL_SHADERS)
-                SDL_HINT_RENDER_OPENGL_SHADERS      ,
-#endif
-#if defined (SDL_HINT_RENDER_DIRECT3D_THREADSAFE)
-                SDL_HINT_RENDER_DIRECT3D_THREADSAFE ,
-#endif
-#if defined (SDL_HINT_RENDER_DIRECT3D11_DEBUG)
-                SDL_HINT_RENDER_DIRECT3D11_DEBUG    ,
-#endif
-#if defined (SDL_HINT_RENDER_SCALE_QUALITY)
-                SDL_HINT_RENDER_SCALE_QUALITY       ,
-#endif
-#if defined (SDL_HINT_RENDER_VSYNC)
-                SDL_HINT_RENDER_VSYNC               ,
-#endif
-#if defined (SDL_HINT_VIDEO_ALLOW_SCREENSAVER)
-                SDL_HINT_VIDEO_ALLOW_SCREENSAVER    ,
-#endif
-#if defined (SDL_HINT_VIDEO_X11_XVIDMODE)
-                SDL_HINT_VIDEO_X11_XVIDMODE         ,
-#endif
-#if defined (SDL_HINT_VIDEO_X11_XINERAMA)
-                SDL_HINT_VIDEO_X11_XINERAMA         ,
-#endif
-#if defined (SDL_HINT_VIDEO_X11_XRANDR)
-                SDL_HINT_VIDEO_X11_XRANDR           ,
-#endif
-#if defined (SDL_HINT_GRAB_KEYBOARD)
-                SDL_HINT_GRAB_KEYBOARD              ,
-#endif
-#if defined (SDL_HINT_MOUSE_RELATIVE_MODE_WARP)
-                SDL_HINT_MOUSE_RELATIVE_MODE_WARP    ,
-#endif
-#if defined (SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS)
-                SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS   ,
-#endif
-#if defined (SDL_HINT_IDLE_TIMER_DISABLED)
-                SDL_HINT_IDLE_TIMER_DISABLED ,
-#endif
-#if defined (SDL_HINT_ORIENTATIONS)
-                SDL_HINT_ORIENTATIONS ,
-#endif
-#if defined (SDL_HINT_ACCELEROMETER_AS_JOYSTICK)
-                SDL_HINT_ACCELEROMETER_AS_JOYSTICK ,
-#endif
-#if defined (SDL_HINT_XINPUT_ENABLED)
-                SDL_HINT_XINPUT_ENABLED ,
-#endif
-#if defined (SDL_HINT_GAMECONTROLLERCONFIG)
-                SDL_HINT_GAMECONTROLLERCONFIG ,
-#endif
-#if defined (SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS)
-                SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS ,
-#endif
-#if defined (SDL_HINT_ALLOW_TOPMOST)
-                SDL_HINT_ALLOW_TOPMOST ,
-#endif
-#if defined (SDL_HINT_TIMER_RESOLUTION)
-                SDL_HINT_TIMER_RESOLUTION ,
-#endif
-#if defined (SDL_HINT_VIDEO_HIGHDPI_DISABLED)
-                SDL_HINT_VIDEO_HIGHDPI_DISABLED ,
-#endif
-#if defined (SDL_HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK)
-                SDL_HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK ,
-#endif
-#if defined (SDL_HINT_VIDEO_WIN_D3DCOMPILER)
-                SDL_HINT_VIDEO_WIN_D3DCOMPILER              ,
-#endif
-#if defined (SDL_HINT_VIDEO_WINDOW_SHARE_PIXEL_FORMAT)
-                SDL_HINT_VIDEO_WINDOW_SHARE_PIXEL_FORMAT    ,
-#endif
-#if defined (SDL_HINT_WINRT_PRIVACY_POLICY_URL)
-                SDL_HINT_WINRT_PRIVACY_POLICY_URL ,
-#endif
-#if defined (SDL_HINT_WINRT_PRIVACY_POLICY_LABEL)
-                SDL_HINT_WINRT_PRIVACY_POLICY_LABEL ,
-#endif
-#if defined (SDL_HINT_WINRT_HANDLE_BACK_BUTTON)
-                SDL_HINT_WINRT_HANDLE_BACK_BUTTON ,
-#endif
-#if defined (SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES)
-                SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES,
-#endif
-                NULL};
-    fprintf (st, "  Currently Active SDL Hints:\n");
-    for (i=0; hints[i]; i++) {
-        if (SDL_GetHint (hints[i]))
-            fprintf (st, "      %s = %s\n", hints[i], SDL_GetHint (hints[i]));
+    if (vid_active) {
+        SDL_RendererInfo info;
+
+        SDL_GetRendererInfo (vid_renderer, &info);
+        fprintf (st, "  Currently Active Renderer: %s\n", info.name);
+        }
+    if (1) {
+        static const char *hints[] = {
+    #if defined (SDL_HINT_FRAMEBUFFER_ACCELERATION)
+                    SDL_HINT_FRAMEBUFFER_ACCELERATION   ,
+    #endif
+    #if defined (SDL_HINT_RENDER_DRIVER)
+                    SDL_HINT_RENDER_DRIVER              ,
+    #endif
+    #if defined (SDL_HINT_RENDER_OPENGL_SHADERS)
+                    SDL_HINT_RENDER_OPENGL_SHADERS      ,
+    #endif
+    #if defined (SDL_HINT_RENDER_DIRECT3D_THREADSAFE)
+                    SDL_HINT_RENDER_DIRECT3D_THREADSAFE ,
+    #endif
+    #if defined (SDL_HINT_RENDER_DIRECT3D11_DEBUG)
+                    SDL_HINT_RENDER_DIRECT3D11_DEBUG    ,
+    #endif
+    #if defined (SDL_HINT_RENDER_SCALE_QUALITY)
+                    SDL_HINT_RENDER_SCALE_QUALITY       ,
+    #endif
+    #if defined (SDL_HINT_RENDER_VSYNC)
+                    SDL_HINT_RENDER_VSYNC               ,
+    #endif
+    #if defined (SDL_HINT_VIDEO_ALLOW_SCREENSAVER)
+                    SDL_HINT_VIDEO_ALLOW_SCREENSAVER    ,
+    #endif
+    #if defined (SDL_HINT_VIDEO_X11_XVIDMODE)
+                    SDL_HINT_VIDEO_X11_XVIDMODE         ,
+    #endif
+    #if defined (SDL_HINT_VIDEO_X11_XINERAMA)
+                    SDL_HINT_VIDEO_X11_XINERAMA         ,
+    #endif
+    #if defined (SDL_HINT_VIDEO_X11_XRANDR)
+                    SDL_HINT_VIDEO_X11_XRANDR           ,
+    #endif
+    #if defined (SDL_HINT_GRAB_KEYBOARD)
+                    SDL_HINT_GRAB_KEYBOARD              ,
+    #endif
+    #if defined (SDL_HINT_MOUSE_RELATIVE_MODE_WARP)
+                    SDL_HINT_MOUSE_RELATIVE_MODE_WARP    ,
+    #endif
+    #if defined (SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS)
+                    SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS   ,
+    #endif
+    #if defined (SDL_HINT_IDLE_TIMER_DISABLED)
+                    SDL_HINT_IDLE_TIMER_DISABLED ,
+    #endif
+    #if defined (SDL_HINT_ORIENTATIONS)
+                    SDL_HINT_ORIENTATIONS ,
+    #endif
+    #if defined (SDL_HINT_ACCELEROMETER_AS_JOYSTICK)
+                    SDL_HINT_ACCELEROMETER_AS_JOYSTICK ,
+    #endif
+    #if defined (SDL_HINT_XINPUT_ENABLED)
+                    SDL_HINT_XINPUT_ENABLED ,
+    #endif
+    #if defined (SDL_HINT_GAMECONTROLLERCONFIG)
+                    SDL_HINT_GAMECONTROLLERCONFIG ,
+    #endif
+    #if defined (SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS)
+                    SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS ,
+    #endif
+    #if defined (SDL_HINT_ALLOW_TOPMOST)
+                    SDL_HINT_ALLOW_TOPMOST ,
+    #endif
+    #if defined (SDL_HINT_TIMER_RESOLUTION)
+                    SDL_HINT_TIMER_RESOLUTION ,
+    #endif
+    #if defined (SDL_HINT_VIDEO_HIGHDPI_DISABLED)
+                    SDL_HINT_VIDEO_HIGHDPI_DISABLED ,
+    #endif
+    #if defined (SDL_HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK)
+                    SDL_HINT_MAC_CTRL_CLICK_EMULATE_RIGHT_CLICK ,
+    #endif
+    #if defined (SDL_HINT_VIDEO_WIN_D3DCOMPILER)
+                    SDL_HINT_VIDEO_WIN_D3DCOMPILER              ,
+    #endif
+    #if defined (SDL_HINT_VIDEO_WINDOW_SHARE_PIXEL_FORMAT)
+                    SDL_HINT_VIDEO_WINDOW_SHARE_PIXEL_FORMAT    ,
+    #endif
+    #if defined (SDL_HINT_WINRT_PRIVACY_POLICY_URL)
+                    SDL_HINT_WINRT_PRIVACY_POLICY_URL ,
+    #endif
+    #if defined (SDL_HINT_WINRT_PRIVACY_POLICY_LABEL)
+                    SDL_HINT_WINRT_PRIVACY_POLICY_LABEL ,
+    #endif
+    #if defined (SDL_HINT_WINRT_HANDLE_BACK_BUTTON)
+                    SDL_HINT_WINRT_HANDLE_BACK_BUTTON ,
+    #endif
+    #if defined (SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES)
+                    SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES,
+    #endif
+                    NULL};
+        fprintf (st, "  Currently Active SDL Hints:\n");
+        for (i=0; hints[i]; i++) {
+            if (SDL_GetHint (hints[i]))
+                fprintf (st, "      %s = %s\n", hints[i], SDL_GetHint (hints[i]));
+            }
         }
     }
+while (0);
 #endif /* SDL_MAJOR_VERSION != 1 */
 #if !defined (SDL_MAIN_AVAILABLE)
 if (!vid_active)
@@ -2287,7 +2294,7 @@ static int vid_beep_samples;
 
 static void vid_audio_callback(void *ctx, Uint8 *stream, int length)
 {
-int16 *data = (int16 *)stream;
+/*Unused: int16 *data = (int16 *)stream;*/
 int i, sum, remnant = ((vid_beep_samples - vid_beep_offset) * sizeof (*vid_beep_data));
 
 if (length > remnant) {

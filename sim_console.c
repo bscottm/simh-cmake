@@ -607,7 +607,7 @@ if (sim_rem_active_number >= 0) {
         fprintf (st, "Running from Remote Console Connection %d\n", sim_rem_active_number);
     }
 if (sim_rem_con_tmxr.lines > 1)
-    fprintf (st, "Remote Console Input Connections from %d sources are supported concurrently\n", sim_rem_con_tmxr.lines);
+    fprintf (st, "Remote Console Input Connections from %" FMT_SIZE_T "u sources are supported concurrently\n", sim_rem_con_tmxr.lines);
 if (sim_rem_read_timeout)
     fprintf (st, "Remote Console Input automatically continues after %d seconds\n", sim_rem_read_timeout);
 if (!sim_rem_con_tmxr.master)
@@ -1864,7 +1864,7 @@ t_stat sim_rem_con_reset (DEVICE *dptr)
 if (sim_rem_con_tmxr.lines) {
     int32 i;
 
-    sim_debug (DBG_REP, &sim_remote_console, "sim_rem_con_reset(lines=%d)\n", sim_rem_con_tmxr.lines);
+    sim_debug (DBG_REP, &sim_remote_console, "sim_rem_con_reset(lines=%" FMT_SIZE_T "u)\n", sim_rem_con_tmxr.lines);
     for (i=0; i<sim_rem_con_tmxr.lines; i++) {
         REMOTE *rem = &sim_rem_consoles[i];
 
@@ -2560,7 +2560,7 @@ if (cptr && (*cptr != 0))
 if (!sim_con_tmxr.ldsc->txbfd)
     fprintf (st, "Unbuffered\n");
 else
-    fprintf (st, "Buffer Size = %d\n", sim_con_tmxr.ldsc->txbsz);
+    fprintf (st, "Buffer Size = %" FMT_SIZE_T "u\n", sim_con_tmxr.ldsc->txbsz);
 return SCPE_OK;
 }
 

@@ -147,19 +147,19 @@ struct tmln {
     int32               dstb;                           /* disable Telnet binary mode */
     t_bool              notelnet;                       /* raw binary data (no telnet interpretation) */
     uint8               *telnet_sent_opts;              /* Telnet Options which we have sent a DON'T/WON'T */
-    int32               rxbpr;                          /* rcv buf remove */
-    int32               rxbpi;                          /* rcv buf insert */
-    int32               rxbsz;                          /* rcv buffer size */
-    int32               rxcnt;                          /* rcv count */
-    int32               rxpcnt;                         /* rcv packet count */
-    int32               txbpr;                          /* xmt buf remove */
-    int32               txbpi;                          /* xmt buf insert */
-    int32               txcnt;                          /* xmt count */
-    int32               txpcnt;                         /* xmt packet count */
-    int32               txdrp;                          /* xmt drop count */
-    int32               txstall;                        /* xmt stall count */
-    int32               txbsz;                          /* xmt buffer size */
-    int32               txbfd;                          /* xmt buffered flag */
+    size_t              rxbpr;                          /* rcv buf remove */
+    size_t              rxbpi;                          /* rcv buf insert */
+    size_t              rxbsz;                          /* rcv buffer size */
+    size_t              rxcnt;                          /* rcv count */
+    size_t              rxpcnt;                         /* rcv packet count */
+    size_t              txbpr;                          /* xmt buf remove */
+    size_t              txbpi;                          /* xmt buf insert */
+    size_t              txcnt;                          /* xmt count */
+    size_t              txpcnt;                         /* xmt packet count */
+    size_t              txdrp;                          /* xmt drop count */
+    size_t              txstall;                        /* xmt stall count */
+    size_t              txbsz;                          /* xmt buffer size */
+    size_t              txbfd;                          /* xmt buffered flag */
     t_bool              modem_control;                  /* line supports modem control behaviors */
     t_bool              port_speed_control;             /* line programmatically sets port speed */
     int32               modembits;                      /* modem bits which are currently set */
@@ -208,7 +208,7 @@ struct tmln {
     };
 
 struct tmxr {
-    int32               lines;                          /* # lines */
+    size_t              lines;                          /* # lines */
     char                *port;                          /* listening port */
     SOCKET              master;                         /* master socket */
     TMLN                *ldsc;                          /* line descriptors */
