@@ -541,7 +541,7 @@ void io_write(uint32 pa, uint32 val, size_t size)
         uint8 reg;
 
         if (cid >= sizeof(cio) / sizeof(cio[0])) {
-            fprintf(stderr, "[READ] cid=%d index out of bounds (pa = %08x), raising EXTERNAL_MEMORY_FAULT", cid, pa);
+            sim_printf("[READ] cid=%d index out of bounds (pa = %08x), raising EXTERNAL_MEMORY_FAULT", cid, pa);
             csr_data |= CSRTIMO;
             cpu_abort(NORMAL_EXCEPTION, EXTERNAL_MEMORY_FAULT);
             return;
