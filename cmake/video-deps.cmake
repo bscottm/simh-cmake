@@ -33,26 +33,26 @@ if (WITH_VIDEO)
         endif (NOT ZLIB_FOUND)
 
         set(PNG_SOURCE_URL "https://sourceforge.net/projects/libpng/files/libpng16/1.6.37/libpng-1.6.37.tar.xz/download")
-        set(PNG_CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE})
+
+        ExternalProject_Add(png-dep
+            URL ${PNG_SOURCE_URL}
+            DEPENDS
+                ${PNG_DEPS}
+            CONFIGURE_COMMAND ""
+            BUILD_COMMAND ""
+            INSTALL_COMMAND ""
+        )
+
+        ## Work around the GCC 8.1.0 SEH index regression.
+        set(PNG_CMAKE_BUILD_TYPE_RELEASE "Release")
         if (CMAKE_C_COMPILER_ID STREQUAL "GNU" AND
             CMAKE_C_COMPILER_VERSION VERSION_EQUAL "8.1" AND
             NOT CMAKE_BUILD_VERSION)
             message(STATUS "PNG: Build using MinSizeRel CMAKE_BUILD_TYPE with GCC 8.1")
-            set(PNG_CMAKE_BUILD_TYPE "MinSizeRel")
+            set(PNG_CMAKE_BUILD_TYPE_RELEASE "MinSizeRel")
         endif()
 
-        ExternalProject_Add(png-dep
-            URL ${PNG_SOURCE_URL}
-            CMAKE_ARGS 
-                ${DEP_CMAKE_ARGS}
-                -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
-                -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
-                -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
-                -DCMAKE_BUILD_TYPE=${PNG_CMAKE_BUILD_TYPE}
-                -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
-            DEPENDS
-                ${PNG_DEPS}
-        )
+        BuildDepMatrix(png-dep libpng RELEASE_BUILD ${PNG_CMAKE_BUILD_TYPE_RELEASE})
 
         list(APPEND SIMH_BUILD_DEPS "png")
         list(APPEND SIMH_DEP_TARGETS "png-dep")
@@ -81,16 +81,14 @@ if (WITH_VIDEO)
         ExternalProject_Add(freetype-dep
             GIT_REPOSITORY https://git.sv.nongnu.org/r/freetype/freetype2.git
             GIT_TAG VER-2-10-1
-            CMAKE_ARGS 
-                ${DEP_CMAKE_ARGS}
-                -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
-                -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
-                -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
-                -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+            CONFIGURE_COMMAND ""
+            BUILD_COMMAND ""
+            INSTALL_COMMAND ""
             DEPENDS
                 ${FREETYPE_DEPS}
         )
+
+        BuildDepMatrix(freetype-dep FreeType)
 
         list(APPEND SIMH_BUILD_DEPS "freetype")
         list(APPEND SIMH_DEP_TARGETS "freetype-dep")
@@ -140,14 +138,12 @@ if (WITH_VIDEO)
         IF (NOT SDL2_FOUND)
             ExternalProject_Add(sdl2-dep
                 URL https://www.libsdl.org/release/SDL2-2.0.10.zip
-                CMAKE_ARGS 
-                    ${DEP_CMAKE_ARGS}
-                    -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
-                    -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
-                    -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
-                    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                    -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+                CONFIGURE_COMMAND ""
+                BUILD_COMMAND ""
+                INSTALL_COMMAND ""
             )
+
+            BuildDepMatrix(sdl2-dep SDL2)
 
             list(APPEND SIMH_BUILD_DEPS "SDL2")
             list(APPEND SIMH_DEP_TARGETS "sdl2-dep")
@@ -171,18 +167,16 @@ if (WITH_VIDEO)
 
             ExternalProject_Add(sdl2-ttf-dep
                 URL https://www.libsdl.org/projects/SDL_ttf/release/SDL2_ttf-2.0.15.zip
-                CMAKE_ARGS 
-                    ${DEP_CMAKE_ARGS}
-                    -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
-                    -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
-                    -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
-                    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                    -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+                CONFIGURE_COMMAND ""
+                BUILD_COMMAND ""
+                INSTALL_COMMAND ""
                 UPDATE_COMMAND
                     ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/dep-patches/SDL2_ttf/SDL2_ttfConfig.cmake ${SDL2_ttf_depdir}
                 DEPENDS
                     ${SDL2_ttf_DEPS}
             )
+
+            BuildDepMatrix(sdl2-ttf-dep SDL2_ttf)
 
             list(APPEND SIMH_BUILD_DEPS "SDL2_ttf")
             list(APPEND SIMH_DEP_TARGETS "sdl2-ttf-dep")
