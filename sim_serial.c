@@ -330,7 +330,7 @@ for (i=0; i<count && !found; i++) {
   return (found ? temp : NULL);
 }
 
-t_stat sim_show_serial (FILE* st, DEVICE *dptr, UNIT* uptr, int32 val, CONST char* desc)
+t_stat sim_show_serial (FILE* st, DEVICE *dptr, UNIT* uptr, cmd_flag_t val, CONST char* desc)
 {
 SERIAL_LIST  list[SER_MAX_DEVICE];
 int number = sim_serial_devices(SER_MAX_DEVICE, list);

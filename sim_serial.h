@@ -96,7 +96,7 @@ extern t_stat    sim_control_serial (SERHANDLE port, int32 bits_to_set, int32 bi
 extern int32     sim_read_serial    (SERHANDLE port, char *buffer, int32 count, char *brk);
 extern int32     sim_write_serial   (SERHANDLE port, char *buffer, int32 count);
 extern void      sim_close_serial   (SERHANDLE port);
-extern t_stat    sim_show_serial    (FILE* st, DEVICE *dptr, UNIT* uptr, int32 val, CONST char* desc);
+extern t_stat    sim_show_serial    (FILE* st, DEVICE *dptr, UNIT* uptr, cmd_flag_t val, CONST char* desc);
 
 #ifdef  __cplusplus
 }

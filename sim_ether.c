@@ -809,7 +809,7 @@ t_stat eth_show (FILE* st, UNIT* uptr, int32 val, CONST void* desc)
   return SCPE_OK;
 }
 
-t_stat eth_show_devices (FILE* st, DEVICE *dptr, UNIT* uptr, int32 val, CONST char *desc)
+t_stat eth_show_devices (FILE* st, DEVICE *dptr, UNIT* uptr, cmd_flag_t val, CONST char *desc)
 {
 return eth_show (st, uptr, val, NULL);
 }

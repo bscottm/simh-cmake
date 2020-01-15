@@ -508,6 +508,20 @@ typedef struct BITFIELD BITFIELD;
 
 typedef t_stat (*ACTIVATE_API)(UNIT *unit, int32 interval);
 
+/* Command tables, base and alternate formats */
+
+/* Command flag type: This is the first argument to the command
+   processors. Needs to be the same type as sim_do_depth but
+   be more descriptive. */
+typedef size_t cmd_flag_t;
+
+/* Command flags: If >= 0, then the command flag is the current depth of
+   the command processor's "do", "call" and "if" commands (i.e., recursion
+   depth.) Otherwise, it's a special value. */
+
+   /* do_cmd() processing an ".ini" initialization file. */
+#define CMD_FLAG_INI ((cmd_flag_t) -1)
+
 /* Device data structure */
 
 struct DEVICE {
@@ -539,10 +553,10 @@ struct DEVICE {
                                                         /* mem size routine */
     char                *lname;                         /* logical name */
     t_stat              (*help)(FILE *st, DEVICE *dptr,
-                            UNIT *uptr, int32 flag, const char *cptr); 
+                            UNIT *uptr, cmd_flag_t flag, const char *cptr); 
                                                         /* help */
     t_stat              (*attach_help)(FILE *st, DEVICE *dptr,
-                            UNIT *uptr, int32 flag, const char *cptr);
+                            UNIT *uptr, cmd_flag_t flag, const char *cptr);
                                                         /* attach help */
     void *help_ctx;                                     /* Context available to help routines */
     const char          *(*description)(DEVICE *dptr);  /* Device Description */
@@ -738,11 +752,9 @@ struct REG {
 #define REG_UFMASK      (~((1u << REG_V_UF) - 1))       /* user flags mask */
 #define REG_VMFLAGS     (REG_VMIO | REG_UFMASK)         /* call VM routine if any of these are set */
 
-/* Command tables, base and alternate formats */
-
 struct CTAB {
     const char          *name;                          /* name */
-    t_stat              (*action)(int32 flag, CONST char *cptr);
+    t_stat              (*action)(cmd_flag_t flag, CONST char *cptr);
                                                         /* action routine */
     int32               arg;                            /* argument */
     const char          *help;                          /* help string/structured locator */
@@ -754,7 +766,7 @@ struct CTAB {
 struct C1TAB {
     const char          *name;                          /* name */
     t_stat              (*action)(DEVICE *dptr, UNIT *uptr,
-                            int32 flag, CONST char *cptr);/* action routine */
+                            cmd_flag_t flag, CONST char *cptr);/* action routine */
     int32               arg;                            /* argument */
     const char          *help;                          /* help string */
     };
@@ -762,7 +774,7 @@ struct C1TAB {
 struct SHTAB {
     const char          *name;                          /* name */
     t_stat              (*action)(FILE *st, DEVICE *dptr,
-                            UNIT *uptr, int32 flag, CONST char *cptr);
+                            UNIT *uptr, cmd_flag_t flag, CONST char *cptr);
     int32               arg;                            /* argument */
     const char          *help;                          /* help string */
     };

@@ -362,7 +362,7 @@ void eth_packet_trace_ex (ETH_DEV* dev, const uint8 *msg, int len, const char* t
 t_stat eth_show (FILE* st, UNIT* uptr,                  /* show ethernet devices */
                  int32 val, CONST void* desc);
 t_stat eth_show_devices (FILE* st, DEVICE *dptr,        /* show ethernet devices */
-                         UNIT* uptr, int32 val, CONST char* desc);
+                         UNIT* uptr, cmd_flag_t val, CONST char* desc);
 void eth_show_dev (FILE*st, ETH_DEV* dev);              /* show ethernet device state */
 
 void eth_mac_fmt (ETH_MAC* const add, char* buffer);    /* format ethernet mac address */

@@ -74,49 +74,49 @@ extern "C" {
 
 /* Command processors */
 
-t_stat reset_cmd (int32 flag, CONST char *ptr);
-t_stat exdep_cmd (int32 flag, CONST char *ptr);
-t_stat eval_cmd (int32 flag, CONST char *ptr);
-t_stat load_cmd (int32 flag, CONST char *ptr);
-t_stat run_cmd (int32 flag, CONST char *ptr);
+t_stat reset_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat exdep_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat eval_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat load_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat run_cmd (cmd_flag_t flag, CONST char *ptr);
 void run_cmd_message (const char *unechod_cmdline, t_stat r);
-t_stat attach_cmd (int32 flag, CONST char *ptr);
-t_stat detach_cmd (int32 flag, CONST char *ptr);
-t_stat assign_cmd (int32 flag, CONST char *ptr);
-t_stat deassign_cmd (int32 flag, CONST char *ptr);
-t_stat save_cmd (int32 flag, CONST char *ptr);
-t_stat restore_cmd (int32 flag, CONST char *ptr);
-t_stat exit_cmd (int32 flag, CONST char *ptr);
-t_stat set_cmd (int32 flag, CONST char *ptr);
-t_stat show_cmd (int32 flag, CONST char *ptr);
-t_stat set_default_cmd (int32 flg, CONST char *cptr);
-t_stat pwd_cmd (int32 flg, CONST char *cptr);
-t_stat dir_cmd (int32 flg, CONST char *cptr);
-t_stat type_cmd (int32 flg, CONST char *cptr);
-t_stat delete_cmd (int32 flg, CONST char *cptr);
-t_stat copy_cmd (int32 flg, CONST char *cptr);
-t_stat rename_cmd (int32 flg, CONST char *cptr);
-t_stat mkdir_cmd (int32 flg, CONST char *cptr);
-t_stat rmdir_cmd (int32 flg, CONST char *cptr);
-t_stat brk_cmd (int32 flag, CONST char *ptr);
-t_stat do_cmd (int32 flag, CONST char *ptr);
-t_stat goto_cmd (int32 flag, CONST char *ptr);
-t_stat return_cmd (int32 flag, CONST char *ptr);
-t_stat shift_cmd (int32 flag, CONST char *ptr);
-t_stat call_cmd (int32 flag, CONST char *ptr);
-t_stat on_cmd (int32 flag, CONST char *ptr);
-t_stat noop_cmd (int32 flag, CONST char *ptr);
-t_stat assert_cmd (int32 flag, CONST char *ptr);
-t_stat send_cmd (int32 flag, CONST char *ptr);
-t_stat expect_cmd (int32 flag, CONST char *ptr);
-t_stat sleep_cmd (int32 flag, CONST char *ptr);
-t_stat help_cmd (int32 flag, CONST char *ptr);
-t_stat screenshot_cmd (int32 flag, CONST char *ptr);
-t_stat spawn_cmd (int32 flag, CONST char *ptr);
-t_stat echo_cmd (int32 flag, CONST char *ptr);
-t_stat echof_cmd (int32 flag, CONST char *ptr);
-t_stat debug_cmd (int32 flag, CONST char *ptr);
-t_stat runlimit_cmd (int32 flag, CONST char *ptr);
+t_stat attach_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat detach_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat assign_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat deassign_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat save_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat restore_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat exit_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat set_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat show_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat set_default_cmd (cmd_flag_t flg, CONST char *cptr);
+t_stat pwd_cmd (cmd_flag_t flg, CONST char *cptr);
+t_stat dir_cmd (cmd_flag_t flg, CONST char *cptr);
+t_stat type_cmd (cmd_flag_t flg, CONST char *cptr);
+t_stat delete_cmd (cmd_flag_t flg, CONST char *cptr);
+t_stat copy_cmd (cmd_flag_t flg, CONST char *cptr);
+t_stat rename_cmd (cmd_flag_t flg, CONST char *cptr);
+t_stat mkdir_cmd (cmd_flag_t flg, CONST char *cptr);
+t_stat rmdir_cmd (cmd_flag_t flg, CONST char *cptr);
+t_stat brk_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat do_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat goto_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat return_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat shift_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat call_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat on_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat noop_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat assert_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat send_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat expect_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat sleep_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat help_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat screenshot_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat spawn_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat echo_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat echof_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat debug_cmd (cmd_flag_t flag, CONST char *ptr);
+t_stat runlimit_cmd (cmd_flag_t flag, CONST char *ptr);
 
 /* Allow compiler to help validate printf style format arguments */
 #if !defined __GNUC__
@@ -145,7 +145,7 @@ int32 sim_activate_time (UNIT *uptr);
 int32 _sim_activate_queue_time (UNIT *uptr);
 int32 _sim_activate_time (UNIT *uptr);
 double sim_activate_time_usecs (UNIT *uptr);
-t_stat sim_run_boot_prep (int32 flag);
+t_stat sim_run_boot_prep (cmd_flag_t flag);
 double sim_gtime (void);
 uint32 sim_grtime (void);
 int32 sim_qcount (void);
@@ -254,7 +254,7 @@ CONST char *get_glyph_cmd (const char *iptr, char *optr);
 t_value get_uint (const char *cptr, uint32 radix, t_value max, t_stat *status);
 CONST char *get_range (DEVICE *dptr, CONST char *cptr, t_addr *lo, t_addr *hi,
     uint32 rdx, t_addr max, char term);
-t_stat sim_set_environment (int32 flag, CONST char *cptr);
+t_stat sim_set_environment (cmd_flag_t flag, CONST char *cptr);
 t_stat sim_decode_quoted_string (const char *iptr, uint8 *optr, uint32 *osize);
 char *sim_encode_quoted_string (const uint8 *iptr, size_t size);
 void fprint_buffer_string (FILE *st, const uint8 *buf, size_t size);
@@ -311,9 +311,9 @@ t_stat sim_exp_showall (FILE *st, const EXPECT *exp);
 t_stat sim_exp_check (EXPECT *exp, uint8 data);
 CONST char *match_ext (CONST char *fnam, const char *ext);
 int sim_cmp_string (const char *s1, const char *s2);
-t_stat show_version (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, CONST char *cptr);
-t_stat set_dev_debug (DEVICE *dptr, UNIT *uptr, int32 flag, CONST char *cptr);
-t_stat show_dev_debug (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, CONST char *cptr);
+t_stat show_version (FILE *st, DEVICE *dptr, UNIT *uptr, cmd_flag_t flag, CONST char *cptr);
+t_stat set_dev_debug (DEVICE *dptr, UNIT *uptr, cmd_flag_t flag, CONST char *cptr);
+t_stat show_dev_debug (FILE *st, DEVICE *dptr, UNIT *uptr, cmd_flag_t flag, CONST char *cptr);
 t_stat sim_add_debug_flags (DEVICE *dptr, DEBTAB *debflags);
 const char *sim_error_text (t_stat stat);
 t_stat sim_string_to_stat (const char *cptr, t_stat *cond);
@@ -347,13 +347,13 @@ void fprint_stopped_gen (FILE *st, t_stat v, REG *pc, DEVICE *dptr);
 #define SCP_HELP_ONECMD (1u << 30)       /* Display one topic, do not prompt */
 #define SCP_HELP_ATTACH (1u << 29)       /* Top level topic is ATTACH help */
 t_stat scp_help (FILE *st, DEVICE *dptr,
-                 UNIT *uptr, int32 flag, const char *help, const char *cptr, ...);
+                 UNIT *uptr, cmd_flag_t flag, const char *help, const char *cptr, ...);
 t_stat scp_vhelp (FILE *st, DEVICE *dptr,
-                  UNIT *uptr, int32 flag, const char *help, const char *cptr, va_list ap);
+                  UNIT *uptr, cmd_flag_t flag, const char *help, const char *cptr, va_list ap);
 t_stat scp_helpFromFile (FILE *st, DEVICE *dptr,
-                         UNIT *uptr, int32 flag, const char *help, const char *cptr, ...);
+                         UNIT *uptr, cmd_flag_t flag, const char *help, const char *cptr, ...);
 t_stat scp_vhelpFromFile (FILE *st, DEVICE *dptr,
-                          UNIT *uptr, int32 flag, const char *help, const char *cptr, va_list ap);
+                          UNIT *uptr, cmd_flag_t flag, const char *help, const char *cptr, va_list ap);
 
 /* Global data */
 

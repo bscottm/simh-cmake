@@ -4095,7 +4095,7 @@ return SCPE_OK;
 }
 
 
-t_stat tmxr_show_open_devices (FILE* st, DEVICE *dptr, UNIT* uptr, int32 val, CONST char* cptr)
+t_stat tmxr_show_open_devices (FILE* st, DEVICE *dptr, UNIT* uptr, cmd_flag_t val, CONST char* cptr)
 {
 int i;
 char gbuf[CBUFSIZE];

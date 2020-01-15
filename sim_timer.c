@@ -1176,7 +1176,7 @@ return (sim_idle_rate_ms != 0);
 }
 
 /* sim_show_timers - show running timer information */
-t_stat sim_show_timers (FILE* st, DEVICE *dptr, UNIT* uptr, int32 val, CONST char* desc)
+t_stat sim_show_timers (FILE* st, DEVICE *dptr, UNIT* uptr, cmd_flag_t val, CONST char* desc)
 {
 int tmr, clocks;
 struct timespec now;
@@ -1308,7 +1308,7 @@ if (clocks == 0)
 return SCPE_OK;
 }
 
-t_stat sim_show_clock_queues (FILE *st, DEVICE *dptr, UNIT *uptr, int32 flag, CONST char *cptr)
+t_stat sim_show_clock_queues (FILE *st, DEVICE *dptr, UNIT *uptr, cmd_flag_t flag, CONST char *cptr)
 {
 int tmr;
 
@@ -1418,7 +1418,7 @@ REG sim_throttle_reg[] = {
 
 /* Set/Clear catchup */
 
-t_stat sim_timer_set_catchup (int32 flag, CONST char *cptr)
+t_stat sim_timer_set_catchup (cmd_flag_t flag, CONST char *cptr)
 {
 if (flag) {
     if (!sim_catchup_ticks)
@@ -1440,7 +1440,7 @@ return SCPE_OK;
 
 /* Set idle calibration threshold */
 
-t_stat sim_timer_set_idle_pct (int32 flag, CONST char *cptr)
+t_stat sim_timer_set_idle_pct (cmd_flag_t flag, CONST char *cptr)
 {
 t_stat r = SCPE_OK;
 
@@ -1470,7 +1470,7 @@ return SCPE_OK;
 
 /* Set stop time */
 
-t_stat sim_timer_set_stop (int32 flag, CONST char *cptr)
+t_stat sim_timer_set_stop (cmd_flag_t flag, CONST char *cptr)
 {
 t_stat r;
 t_value stop_time;
@@ -1490,7 +1490,7 @@ return SCPE_OK;
 
 /* Set/Clear asynch */
 
-t_stat sim_timer_set_async (int32 flag, CONST char *cptr)
+t_stat sim_timer_set_async (cmd_flag_t flag, CONST char *cptr)
 {
 if (flag) {
     if (sim_asynch_enabled && (!sim_asynch_timer)) {
@@ -1575,7 +1575,7 @@ DEVICE sim_throttle_dev = {
 
 /* SET CLOCK command */
 
-t_stat sim_set_timers (int32 arg, CONST char *cptr)
+t_stat sim_set_timers (cmd_flag_t arg, CONST char *cptr)
 {
 char *cvptr, gbuf[CBUFSIZE];
 CTAB *ctptr;
@@ -1764,7 +1764,7 @@ return SCPE_OK;
 
 /* Throttling package */
 
-t_stat sim_set_throt (int32 arg, CONST char *cptr)
+t_stat sim_set_throt (cmd_flag_t arg, CONST char *cptr)
 {
 CONST char *tptr;
 char c;
@@ -1830,7 +1830,7 @@ else
 return SCPE_OK;
 }
 
-t_stat sim_show_throt (FILE *st, DEVICE *dnotused, UNIT *unotused, int32 flag, CONST char *cptr)
+t_stat sim_show_throt (FILE *st, DEVICE *dnotused, UNIT *unotused, cmd_flag_t flag, CONST char *cptr)
 {
 if (sim_idle_rate_ms == 0)
     fprintf (st, "Throttling:                    Not Available\n");
