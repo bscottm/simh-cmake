@@ -6699,7 +6699,7 @@ int retval;
 #if defined(_WIN32)
 retval = host_os_mkdir(path);
 #else
-retval = host_os_mkdir(path, 0777)
+retval = host_os_mkdir(path, 0777);
 #endif
 
 return retval;
