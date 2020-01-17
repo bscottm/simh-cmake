@@ -1,5 +1,5 @@
 cache:
-  - ./cmake-dependencies: appveyor.yml, cmake/build_dep_matrix.cmake, cmake/network-deps.cmake,
+  - ./cmake-dependencies -> appveyor.yml, cmake/build_dep_matrix.cmake, cmake/network-deps.cmake,
         cmake/pcre-dep.cmake, cmake/pthreads-dep.cmake, cmake/video-deps.cmake, cmake/zlib-dep.cmake
 
 environment:
