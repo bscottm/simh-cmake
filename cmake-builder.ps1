@@ -204,11 +204,15 @@ if ($tmp_path -ne ${env:PATH})
 ## because CMake's find_package does traverse PATH looking for potential candidates
 ## for dependency libraries.
 
-$bdirs = $(Get-ChildItem -Attribute Directory cmake-dependencies\*).ForEach({ $_.FullName + "\bin" })
 $origPath = $env:PATH
-$modPath  = (${env:Path}.Split(';') | Where-Object { $bdirs -notcontains $_ }) -join ';'
-if ($modPath -ne $origPath) {
-  "** ${scriptName}: Removed cmake-dependencies 'bin' directories from PATH."
+$modPath  = $origPath
+
+if (Test-Path -Path cmake-dependencies) {
+  $bdirs = $(Get-ChildItem -Attribute Directory cmake-dependencies\*).ForEach({ $_.FullName + "\bin" })
+  $modPath  = (${env:Path}.Split(';') | Where-Object { $bdirs -notcontains $_ }) -join ';'
+  if ($modPath -ne $origPath) {
+    "** ${scriptName}: Removed cmake-dependencies 'bin' directories from PATH."
+  }
 }
 
 ## Setup:

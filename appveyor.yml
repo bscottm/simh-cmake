@@ -61,6 +61,7 @@ before_build:
   - ps: |
       if ($isWindows) {
         if (${env:SIMH_BUILD_FLAVOR} -eq "ninja") { choco install ninja; }
+        if (!(Test-Path -Path cmake-dependencies)) { New-Item -ItemType Directory -Path cmake-dependencies }
       }
   - sh: |
       sudo apt-get update -y -qq && \
