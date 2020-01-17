@@ -36,16 +36,17 @@ else ()
 
     ExternalProject_Add(pcre-ext
         URL https://ftp.pcre.org/pub/pcre/pcre2-10.34.zip
-        CMAKE_ARGS 
-            ${DEP_CMAKE_ARGS}
-            -DBUILD_SHARED_LIBS=On
-            -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
-            -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
-            -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
-            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-            -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
         DEPENDS
             ${PCRE_DEPS}
+        CONFIGURE_COMMAND ""
+        BUILD_COMMAND ""
+        INSTALL_COMMAND ""
+    )
+
+    BuildDepMatrix(pcre-ext pcre
+        CMAKE_ARGS
+            -DBUILD_SHARED_LIBS:Bool=On
+            -DPCRE2_BUILD_PCRE2GREP:Bool=Off
     )
 
     list(APPEND SIMH_BUILD_DEPS pcre)
