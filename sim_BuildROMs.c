@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include "sim_printf_fmts.h"
 /*
 
    This program builds C include files which can be used to contain the contents
@@ -89,7 +90,7 @@ struct ROM_File_Descriptor {
 #endif
 
 int sim_read_ROM_include(const char *include_filename, 
-                         int *psize,
+                         size_t *psize,
                          unsigned char **pROMData,
                          unsigned int *pchecksum,
                          char **prom_array_name,
@@ -133,9 +134,16 @@ while (fgets (line, sizeof(line)-1, iFile)) {
             break;
         case 'u': /* unsigned char {array_name}[] */
             *prom_array_name = (char *)calloc(512, sizeof(char));
+            if (*prom_array_name == NULL) {
+                fputs("prom_array: calloc(512) failed, aborting.\n", stderr);
+                fputs("line: ", stderr);
+                fputs(line, stderr);
+                fputc('\n', stderr);
+                exit(1);
+            }
             if (1 == sscanf (line, "unsigned char %s[]", *prom_array_name)) {
                 c = strchr (*prom_array_name, '[');
-                if (c)
+                if (c != NULL)
                     *c = '\0';
                 }
             break;
@@ -143,8 +151,14 @@ while (fgets (line, sizeof(line)-1, iFile)) {
             c = line;
             while (1 == sscanf (c, "0x%2Xd,", &byte)) {
                 if (bytes_written >= allocated_size) {
+                    unsigned char* new_pROMData;
                     allocated_size += 2048;
-                    *pROMData = (unsigned char *)realloc(*pROMData, allocated_size);
+                    new_pROMData = (unsigned char*)realloc(*pROMData, allocated_size);
+                    if (new_pROMData == NULL) {
+                        fputs("new_pROMData: realloc() failed.\n", stderr);
+                        exit(1);
+                    }
+                    *pROMData = new_pROMData;
                     }
                 *(*pROMData + bytes_written++) = (unsigned char)byte;
                 c += 5;
@@ -208,6 +222,10 @@ if ((c = strchr (array_name, '.')))
 if ((c = strchr (array_name, '/')))
     *c = '_';
 include_filename = (char *)calloc (3 + strlen (cleaned_rom_filename), sizeof (*include_filename));
+if (include_filename == NULL) {
+    fprintf(stderr, "include_filename: could not allocate memory for \"%s\"\n", cleaned_rom_filename);
+    exit(1);
+}
 sprintf (include_filename, "%s.h", cleaned_rom_filename);
 if ((c = strrchr (include_filename, '/')))
     sprintf (c+1, "%s.h", array_name);
@@ -222,7 +240,7 @@ return 1;
 }
 
 int sim_make_ROM_include(const char *rom_filename,
-                         int expected_size,
+                         size_t expected_size,
                          unsigned int expected_checksum,
                          const char *include_filename, 
                          const char *rom_array_name,
@@ -232,7 +250,7 @@ FILE *rFile;
 FILE *iFile;
 time_t now;
 int bytes_written = 0;
-int include_bytes;
+size_t include_bytes;
 int c;
 struct stat statb;
 const char *load_filename;
@@ -270,7 +288,7 @@ if (stat (rom_filename, &statb)) {
     return -1;
     }
 if (statb.st_size != expected_size) {
-    printf ("Error: ROM file '%s' has an unexpected size: %d vs %d\n", rom_filename, (int)statb.st_size, expected_size);
+    printf ("Error: ROM file '%s' has an unexpected size: %d vs %" SIZE_T_FMT "u\n", rom_filename, (int)statb.st_size, expected_size);
     printf ("This can happen if the file was transferred or unpacked incorrectly\n");
     printf ("and in the process tried to convert line endings rather than passing\n");
     printf ("the file's contents unmodified\n");

@@ -124,7 +124,7 @@ extern int sim_vax_snprintf(char *buf, size_t buf_size, const char *fmt, ...);
 #include <errno.h>
 #include <limits.h>
 #include <ctype.h>
-#include "sim_iso_names.h"
+#include "sim_os_renames.h"
 #include "sim_printf_fmts.h"
 
 #ifndef EXIT_FAILURE

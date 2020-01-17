@@ -47,38 +47,38 @@ set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" PROPERTY VS_STARTUP_PROJECT
 
 add_simulator(microvax1
     SOURCES
-	vax_cpu.c
-	vax_cpu1.c
-	vax_fpa.c
-	vax_cis.c
-	vax_octa.c
-	vax_cmode.c
-	vax_mmu.c
-	vax_sys.c
-	vax_syscm.c
-	vax610_stddev.c
-	vax610_sysdev.c
-	vax610_io.c
-	vax610_syslist.c
-	vax610_mem.c
-	vax_vc.c
-	vax_lk.c
-	vax_vs.c
-	vax_2681.c
-	${PDP11D}/pdp11_rl.c
-	${PDP11D}/pdp11_rq.c
-	${PDP11D}/pdp11_ts.c
-	${PDP11D}/pdp11_dz.c
-	${PDP11D}/pdp11_lp.c
-	${PDP11D}/pdp11_tq.c
-	${PDP11D}/pdp11_xq.c
-	${PDP11D}/pdp11_vh.c
-	${PDP11D}/pdp11_cr.c
-	${PDP11D}/pdp11_td.c
-	${PDP11D}/pdp11_io_lib.c
+        vax_cpu.c
+        vax_cpu1.c
+        vax_fpa.c
+        vax_cis.c
+        vax_octa.c
+        vax_cmode.c
+        vax_mmu.c
+        vax_sys.c
+        vax_syscm.c
+        vax610_stddev.c
+        vax610_sysdev.c
+        vax610_io.c
+        vax610_syslist.c
+        vax610_mem.c
+        vax_vc.c
+        vax_lk.c
+        vax_vs.c
+        vax_2681.c
+        ${PDP11D}/pdp11_rl.c
+        ${PDP11D}/pdp11_rq.c
+        ${PDP11D}/pdp11_ts.c
+        ${PDP11D}/pdp11_dz.c
+        ${PDP11D}/pdp11_lp.c
+        ${PDP11D}/pdp11_tq.c
+        ${PDP11D}/pdp11_xq.c
+        ${PDP11D}/pdp11_vh.c
+        ${PDP11D}/pdp11_cr.c
+        ${PDP11D}/pdp11_td.c
+        ${PDP11D}/pdp11_io_lib.c
     DEFINES
-	VM_VAX
-	VAX_610
+        VM_VAX
+        VAX_610
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -122,10 +122,10 @@ set(VAX630_SOURCES
 
 add_simulator(rtvax1000
     SOURCES
-	${VAX630_SOURCES}
+        ${VAX630_SOURCES}
     DEFINES
-	VM_VAX
-	VAX_620
+        VM_VAX
+        VAX_620
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -135,10 +135,10 @@ add_simulator(rtvax1000
 
 add_simulator(microvax2
     SOURCES
-	${VAX630_SOURCES}
+        ${VAX630_SOURCES}
     DEFINES
-	VM_VAX
-	VAX_630
+        VM_VAX
+        VAX_630
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -150,41 +150,41 @@ add_simulator(microvax2
 
 add_simulator(vax730
     SOURCES
-	vax_cpu.c
-	vax_cpu1.c
-	vax_fpa.c
-	vax_cis.c
-	vax_octa.c
-	vax_cmode.c
-	vax_mmu.c
-	vax_sys.c
-	vax_syscm.c
-	vax730_stddev.c
-	vax730_sys.c
-	vax730_mem.c
-	vax730_uba.c
-	vax730_rb.c
-	vax730_syslist.c
-	${PDP11D}/pdp11_rl.c
-	${PDP11D}/pdp11_rq.c
-	${PDP11D}/pdp11_ts.c
-	${PDP11D}/pdp11_dz.c
-	${PDP11D}/pdp11_lp.c
-	${PDP11D}/pdp11_tq.c
-	${PDP11D}/pdp11_xu.c
-	${PDP11D}/pdp11_ry.c
-	${PDP11D}/pdp11_cr.c
-	${PDP11D}/pdp11_hk.c
-	${PDP11D}/pdp11_vh.c
-	${PDP11D}/pdp11_dmc.c
-	${PDP11D}/pdp11_td.c
-	${PDP11D}/pdp11_tc.c
-	${PDP11D}/pdp11_rk.c
-	${PDP11D}/pdp11_io_lib.c
-	${PDP11D}/pdp11_ch.c
+        vax_cpu.c
+        vax_cpu1.c
+        vax_fpa.c
+        vax_cis.c
+        vax_octa.c
+        vax_cmode.c
+        vax_mmu.c
+        vax_sys.c
+        vax_syscm.c
+        vax730_stddev.c
+        vax730_sys.c
+        vax730_mem.c
+        vax730_uba.c
+        vax730_rb.c
+        vax730_syslist.c
+        ${PDP11D}/pdp11_rl.c
+        ${PDP11D}/pdp11_rq.c
+        ${PDP11D}/pdp11_ts.c
+        ${PDP11D}/pdp11_dz.c
+        ${PDP11D}/pdp11_lp.c
+        ${PDP11D}/pdp11_tq.c
+        ${PDP11D}/pdp11_xu.c
+        ${PDP11D}/pdp11_ry.c
+        ${PDP11D}/pdp11_cr.c
+        ${PDP11D}/pdp11_hk.c
+        ${PDP11D}/pdp11_vh.c
+        ${PDP11D}/pdp11_dmc.c
+        ${PDP11D}/pdp11_td.c
+        ${PDP11D}/pdp11_tc.c
+        ${PDP11D}/pdp11_rk.c
+        ${PDP11D}/pdp11_io_lib.c
+        ${PDP11D}/pdp11_ch.c
     DEFINES
-	VM_VAX
-	VAX_730
+        VM_VAX
+        VAX_730
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -194,44 +194,44 @@ add_simulator(vax730
 
 add_simulator(vax750
     SOURCES
-	vax_cpu.c
-	vax_cpu1.c
-	vax_fpa.c
-	vax_cis.c
-	vax_octa.c
-	vax_cmode.c
-	vax_mmu.c
-	vax_sys.c
-	vax_syscm.c
-	vax750_stddev.c
-	vax750_cmi.c
-	vax750_mem.c
-	vax750_uba.c
-	vax7x0_mba.c
-	vax750_syslist.c
-	${PDP11D}/pdp11_rl.c
-	${PDP11D}/pdp11_rq.c
-	${PDP11D}/pdp11_ts.c
-	${PDP11D}/pdp11_dz.c
-	${PDP11D}/pdp11_lp.c
-	${PDP11D}/pdp11_tq.c
-	${PDP11D}/pdp11_xu.c
-	${PDP11D}/pdp11_ry.c
-	${PDP11D}/pdp11_cr.c
-	${PDP11D}/pdp11_hk.c
-	${PDP11D}/pdp11_rp.c
-	${PDP11D}/pdp11_tu.c
-	${PDP11D}/pdp11_vh.c
-	${PDP11D}/pdp11_dmc.c
-	${PDP11D}/pdp11_dup.c
-	${PDP11D}/pdp11_td.c
-	${PDP11D}/pdp11_tc.c
-	${PDP11D}/pdp11_rk.c
-	${PDP11D}/pdp11_io_lib.c
-	${PDP11D}/pdp11_ch.c
+        vax_cpu.c
+        vax_cpu1.c
+        vax_fpa.c
+        vax_cis.c
+        vax_octa.c
+        vax_cmode.c
+        vax_mmu.c
+        vax_sys.c
+        vax_syscm.c
+        vax750_stddev.c
+        vax750_cmi.c
+        vax750_mem.c
+        vax750_uba.c
+        vax7x0_mba.c
+        vax750_syslist.c
+        ${PDP11D}/pdp11_rl.c
+        ${PDP11D}/pdp11_rq.c
+        ${PDP11D}/pdp11_ts.c
+        ${PDP11D}/pdp11_dz.c
+        ${PDP11D}/pdp11_lp.c
+        ${PDP11D}/pdp11_tq.c
+        ${PDP11D}/pdp11_xu.c
+        ${PDP11D}/pdp11_ry.c
+        ${PDP11D}/pdp11_cr.c
+        ${PDP11D}/pdp11_hk.c
+        ${PDP11D}/pdp11_rp.c
+        ${PDP11D}/pdp11_tu.c
+        ${PDP11D}/pdp11_vh.c
+        ${PDP11D}/pdp11_dmc.c
+        ${PDP11D}/pdp11_dup.c
+        ${PDP11D}/pdp11_td.c
+        ${PDP11D}/pdp11_tc.c
+        ${PDP11D}/pdp11_rk.c
+        ${PDP11D}/pdp11_io_lib.c
+        ${PDP11D}/pdp11_ch.c
     DEFINES
-	VM_VAX
-	VAX_750
+        VM_VAX
+        VAX_750
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -241,45 +241,45 @@ add_simulator(vax750
 
 add_simulator(vax780
     SOURCES
-	vax_cpu.c
-	vax_cpu1.c
-	vax_fpa.c
-	vax_cis.c
-	vax_octa.c
-	vax_cmode.c
-	vax_mmu.c
-	vax_sys.c
-	vax_syscm.c
-	vax780_stddev.c
-	vax780_sbi.c
-	vax780_mem.c
-	vax780_uba.c
-	vax7x0_mba.c
-	vax780_fload.c
-	vax780_syslist.c
-	${PDP11D}/pdp11_rl.c
-	${PDP11D}/pdp11_rq.c
-	${PDP11D}/pdp11_ts.c
-	${PDP11D}/pdp11_dz.c
-	${PDP11D}/pdp11_lp.c
-	${PDP11D}/pdp11_tq.c
-	${PDP11D}/pdp11_xu.c
-	${PDP11D}/pdp11_ry.c
-	${PDP11D}/pdp11_cr.c
-	${PDP11D}/pdp11_rp.c
-	${PDP11D}/pdp11_tu.c
-	${PDP11D}/pdp11_hk.c
-	${PDP11D}/pdp11_vh.c
-	${PDP11D}/pdp11_dmc.c
-	${PDP11D}/pdp11_dup.c
-	${PDP11D}/pdp11_td.c
-	${PDP11D}/pdp11_tc.c
-	${PDP11D}/pdp11_rk.c
-	${PDP11D}/pdp11_io_lib.c
-	${PDP11D}/pdp11_ch.c
+        vax_cpu.c
+        vax_cpu1.c
+        vax_fpa.c
+        vax_cis.c
+        vax_octa.c
+        vax_cmode.c
+        vax_mmu.c
+        vax_sys.c
+        vax_syscm.c
+        vax780_stddev.c
+        vax780_sbi.c
+        vax780_mem.c
+        vax780_uba.c
+        vax7x0_mba.c
+        vax780_fload.c
+        vax780_syslist.c
+        ${PDP11D}/pdp11_rl.c
+        ${PDP11D}/pdp11_rq.c
+        ${PDP11D}/pdp11_ts.c
+        ${PDP11D}/pdp11_dz.c
+        ${PDP11D}/pdp11_lp.c
+        ${PDP11D}/pdp11_tq.c
+        ${PDP11D}/pdp11_xu.c
+        ${PDP11D}/pdp11_ry.c
+        ${PDP11D}/pdp11_cr.c
+        ${PDP11D}/pdp11_rp.c
+        ${PDP11D}/pdp11_tu.c
+        ${PDP11D}/pdp11_hk.c
+        ${PDP11D}/pdp11_vh.c
+        ${PDP11D}/pdp11_dmc.c
+        ${PDP11D}/pdp11_dup.c
+        ${PDP11D}/pdp11_td.c
+        ${PDP11D}/pdp11_tc.c
+        ${PDP11D}/pdp11_rk.c
+        ${PDP11D}/pdp11_io_lib.c
+        ${PDP11D}/pdp11_ch.c
     DEFINES
-	VM_VAX
-	VAX_780
+        VM_VAX
+        VAX_780
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -289,42 +289,42 @@ add_simulator(vax780
 
 add_simulator(vax8200
     SOURCES
-	vax_cpu.c
-	vax_cpu1.c
-	vax_fpa.c
-	vax_cis.c
-	vax_octa.c
-	vax_cmode.c
-	vax_mmu.c
-	vax_sys.c
-	vax_syscm.c
-	vax_watch.c
-	vax820_stddev.c
-	vax820_bi.c
-	vax820_mem.c
-	vax820_uba.c
-	vax820_ka.c
-	vax820_syslist.c
-	${PDP11D}/pdp11_rl.c
-	${PDP11D}/pdp11_rq.c
-	${PDP11D}/pdp11_ts.c
-	${PDP11D}/pdp11_dz.c
-	${PDP11D}/pdp11_lp.c
-	${PDP11D}/pdp11_tq.c
-	${PDP11D}/pdp11_xu.c
-	${PDP11D}/pdp11_ry.c
-	${PDP11D}/pdp11_cr.c
-	${PDP11D}/pdp11_hk.c
-	${PDP11D}/pdp11_vh.c
-	${PDP11D}/pdp11_dmc.c
-	${PDP11D}/pdp11_td.c
-	${PDP11D}/pdp11_tc.c
-	${PDP11D}/pdp11_rk.c
-	${PDP11D}/pdp11_io_lib.c
-	${PDP11D}/pdp11_ch.c
+        vax_cpu.c
+        vax_cpu1.c
+        vax_fpa.c
+        vax_cis.c
+        vax_octa.c
+        vax_cmode.c
+        vax_mmu.c
+        vax_sys.c
+        vax_syscm.c
+        vax_watch.c
+        vax820_stddev.c
+        vax820_bi.c
+        vax820_mem.c
+        vax820_uba.c
+        vax820_ka.c
+        vax820_syslist.c
+        ${PDP11D}/pdp11_rl.c
+        ${PDP11D}/pdp11_rq.c
+        ${PDP11D}/pdp11_ts.c
+        ${PDP11D}/pdp11_dz.c
+        ${PDP11D}/pdp11_lp.c
+        ${PDP11D}/pdp11_tq.c
+        ${PDP11D}/pdp11_xu.c
+        ${PDP11D}/pdp11_ry.c
+        ${PDP11D}/pdp11_cr.c
+        ${PDP11D}/pdp11_hk.c
+        ${PDP11D}/pdp11_vh.c
+        ${PDP11D}/pdp11_dmc.c
+        ${PDP11D}/pdp11_td.c
+        ${PDP11D}/pdp11_tc.c
+        ${PDP11D}/pdp11_rk.c
+        ${PDP11D}/pdp11_io_lib.c
+        ${PDP11D}/pdp11_ch.c
     DEFINES
-	VM_VAX
-	VAX_820
+        VM_VAX
+        VAX_820
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -334,44 +334,44 @@ add_simulator(vax8200
 
 add_simulator(vax8600
     SOURCES
-	vax_cpu.c
-	vax_cpu1.c
-	vax_fpa.c
-	vax_cis.c
-	vax_octa.c
-	vax_cmode.c
-	vax_mmu.c
-	vax_sys.c
-	vax_syscm.c
-	vax860_stddev.c
-	vax860_sbia.c
-	vax860_abus.c
-	vax780_uba.c
-	vax7x0_mba.c
-	vax860_syslist.c
-	${PDP11D}/pdp11_rl.c
-	${PDP11D}/pdp11_rq.c
-	${PDP11D}/pdp11_ts.c
-	${PDP11D}/pdp11_dz.c
-	${PDP11D}/pdp11_lp.c
-	${PDP11D}/pdp11_tq.c
-	${PDP11D}/pdp11_xu.c
-	${PDP11D}/pdp11_ry.c
-	${PDP11D}/pdp11_cr.c
-	${PDP11D}/pdp11_rp.c
-	${PDP11D}/pdp11_tu.c
-	${PDP11D}/pdp11_hk.c
-	${PDP11D}/pdp11_vh.c
-	${PDP11D}/pdp11_dmc.c
-	${PDP11D}/pdp11_dup.c
-	${PDP11D}/pdp11_td.c
-	${PDP11D}/pdp11_tc.c
-	${PDP11D}/pdp11_rk.c
-	${PDP11D}/pdp11_io_lib.c
-	${PDP11D}/pdp11_ch.c
+        vax_cpu.c
+        vax_cpu1.c
+        vax_fpa.c
+        vax_cis.c
+        vax_octa.c
+        vax_cmode.c
+        vax_mmu.c
+        vax_sys.c
+        vax_syscm.c
+        vax860_stddev.c
+        vax860_sbia.c
+        vax860_abus.c
+        vax780_uba.c
+        vax7x0_mba.c
+        vax860_syslist.c
+        ${PDP11D}/pdp11_rl.c
+        ${PDP11D}/pdp11_rq.c
+        ${PDP11D}/pdp11_ts.c
+        ${PDP11D}/pdp11_dz.c
+        ${PDP11D}/pdp11_lp.c
+        ${PDP11D}/pdp11_tq.c
+        ${PDP11D}/pdp11_xu.c
+        ${PDP11D}/pdp11_ry.c
+        ${PDP11D}/pdp11_cr.c
+        ${PDP11D}/pdp11_rp.c
+        ${PDP11D}/pdp11_tu.c
+        ${PDP11D}/pdp11_hk.c
+        ${PDP11D}/pdp11_vh.c
+        ${PDP11D}/pdp11_dmc.c
+        ${PDP11D}/pdp11_dup.c
+        ${PDP11D}/pdp11_td.c
+        ${PDP11D}/pdp11_tc.c
+        ${PDP11D}/pdp11_rk.c
+        ${PDP11D}/pdp11_io_lib.c
+        ${PDP11D}/pdp11_ch.c
     DEFINES
-	VM_VAX
-	VAX_860
+        VM_VAX
+        VAX_860
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -381,32 +381,32 @@ add_simulator(vax8600
 
 add_simulator(microvax2000
     SOURCES
-	vax_cpu.c
-	vax_cpu1.c
-	vax_fpa.c
-	vax_cis.c
-	vax_octa.c
-	vax_cmode.c
-	vax_mmu.c
-	vax_sys.c
-	vax_syscm.c
-	vax_watch.c
-	vax_nar.c
-	vax4xx_stddev.c
-	vax410_sysdev.c
-	vax410_syslist.c
-	vax4xx_dz.c
-	vax4xx_rd.c
-	vax4xx_rz80.c
-	vax_xs.c
-	vax4xx_va.c
-	vax4xx_vc.c
-	vax_lk.c
-	vax_vs.c
-	vax_gpx.c
+        vax_cpu.c
+        vax_cpu1.c
+        vax_fpa.c
+        vax_cis.c
+        vax_octa.c
+        vax_cmode.c
+        vax_mmu.c
+        vax_sys.c
+        vax_syscm.c
+        vax_watch.c
+        vax_nar.c
+        vax4xx_stddev.c
+        vax410_sysdev.c
+        vax410_syslist.c
+        vax4xx_dz.c
+        vax4xx_rd.c
+        vax4xx_rz80.c
+        vax_xs.c
+        vax4xx_va.c
+        vax4xx_vc.c
+        vax_lk.c
+        vax_vs.c
+        vax_gpx.c
     DEFINES
-	VM_VAX
-	VAX_410
+        VM_VAX
+        VAX_410
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -444,10 +444,10 @@ set(VAX420_DEFINES VM_VAX VAX_420)
 
 add_simulator(infoserver100
     SOURCES
-	${VAX420_SOURCES}
+        ${VAX420_SOURCES}
     DEFINES
-	${VAX420_DEFINES}
-	VAX_411
+        ${VAX420_DEFINES}
+        VAX_411
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -457,10 +457,10 @@ add_simulator(infoserver100
 
 add_simulator(infoserver150vxt
     SOURCES
-	${VAX420_SOURCES}
+        ${VAX420_SOURCES}
     DEFINES
-	${VAX420_DEFINES}
-	VAX_412
+        ${VAX420_DEFINES}
+        VAX_412
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -470,10 +470,10 @@ add_simulator(infoserver150vxt
 
 add_simulator(microvax3100
     SOURCES
-	${VAX420_SOURCES}
+        ${VAX420_SOURCES}
     DEFINES
-	${VAX420_DEFINES}
-	VAX_41A
+        ${VAX420_DEFINES}
+        VAX_41A
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -483,10 +483,10 @@ add_simulator(microvax3100
 
 add_simulator(microvax3100e
     SOURCES
-	${VAX420_SOURCES}
+        ${VAX420_SOURCES}
     DEFINES
-	${VAX420_DEFINES}
-	VAX_41D
+        ${VAX420_DEFINES}
+        VAX_41D
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -496,10 +496,10 @@ add_simulator(microvax3100e
 
 add_simulator(vaxstation3100m30
     SOURCES
-	${VAX420_SOURCES}
+        ${VAX420_SOURCES}
     DEFINES
-	${VAX420_DEFINES}
-	VAX_42A
+        ${VAX420_DEFINES}
+        VAX_42A
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -509,10 +509,10 @@ add_simulator(vaxstation3100m30
 
 add_simulator(vaxstation3100m38
     SOURCES
-	${VAX420_SOURCES}
+        ${VAX420_SOURCES}
     DEFINES
-	${VAX420_DEFINES}
-	VAX_42B
+        ${VAX420_DEFINES}
+        VAX_42B
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -523,30 +523,30 @@ add_simulator(vaxstation3100m38
 
 add_simulator(vaxstation3100m76
     SOURCES
-	vax_cpu.c
-	vax_cpu1.c
-	vax_fpa.c
-	vax_cis.c
-	vax_octa.c
-	vax_cmode.c
-	vax_mmu.c
-	vax_sys.c
-	vax_syscm.c
-	vax_watch.c
-	vax_nar.c
-	vax4xx_stddev.c
-	vax43_sysdev.c
-	vax43_syslist.c
-	vax4xx_dz.c
-	vax4xx_rz80.c
-	vax_xs.c
-	vax4xx_vc.c
-	vax4xx_ve.c
-	vax_lk.c
-	vax_vs.c
+        vax_cpu.c
+        vax_cpu1.c
+        vax_fpa.c
+        vax_cis.c
+        vax_octa.c
+        vax_cmode.c
+        vax_mmu.c
+        vax_sys.c
+        vax_syscm.c
+        vax_watch.c
+        vax_nar.c
+        vax4xx_stddev.c
+        vax43_sysdev.c
+        vax43_syslist.c
+        vax4xx_dz.c
+        vax4xx_rz80.c
+        vax_xs.c
+        vax4xx_vc.c
+        vax4xx_ve.c
+        vax_lk.c
+        vax_vs.c
     DEFINES
-	VM_VAX
-	VAX_43
+        VM_VAX
+        VAX_43
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -579,10 +579,10 @@ set(VAX440_DEFINES VM_VAX VAX_440)
 
 add_simulator(vaxstation4000m60
     SOURCES
-	${VAX440_SOURCES}
+        ${VAX440_SOURCES}
     DEFINES
-	${VAX440_DEFINES}
-	VAX_46
+        ${VAX440_DEFINES}
+        VAX_46
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -591,10 +591,10 @@ add_simulator(vaxstation4000m60
 
 add_simulator(microvax3100m80
     SOURCES
-    	${VAX440_SOURCES}
+        ${VAX440_SOURCES}
     DEFINES
-	${VAX440_DEFINES}
-	VAX_47
+        ${VAX440_DEFINES}
+        VAX_47
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -603,10 +603,10 @@ add_simulator(microvax3100m80
 
 add_simulator(vaxstation4100vlc
     SOURCES
-	${VAX440_SOURCES}
+        ${VAX440_SOURCES}
     DEFINES
-	${VAX440_DEFINES}
-	VAX_48
+        ${VAX440_DEFINES}
+        VAX_48
     INCLUDES
         ${VAXD}
         ${PDP11D}
@@ -616,25 +616,25 @@ add_simulator(vaxstation4100vlc
 
 add_simulator(infoserver1000
     SOURCES
-	vax_cpu.c
-	vax_cpu1.c
-	vax_fpa.c
-	vax_cis.c
-	vax_octa.c
-	vax_cmode.c
-	vax_mmu.c
-	vax_sys.c
-	vax_syscm.c
-	vax_watch.c
-	vax_nar.c
-	vax_xs.c
-	vax4xx_rz94.c
-	vax4nn_stddev.c
-	is1000_sysdev.c
-	is1000_syslist.c
+        vax_cpu.c
+        vax_cpu1.c
+        vax_fpa.c
+        vax_cis.c
+        vax_octa.c
+        vax_cmode.c
+        vax_mmu.c
+        vax_sys.c
+        vax_syscm.c
+        vax_watch.c
+        vax_nar.c
+        vax_xs.c
+        vax4xx_rz94.c
+        vax4nn_stddev.c
+        is1000_sysdev.c
+        is1000_syslist.c
     DEFINES
-	VM_VAX
-	IS_1000
+        VM_VAX
+        IS_1000
     INCLUDES
         ${VAXD}
         ${PDP11D}

@@ -26,25 +26,23 @@ if (WITH_NETWORK)
 
             execute_process(
                     COMMAND ${CMAKE_COMMAND} -E tar xzf ${NPCAP_ARCHIVE} Include/ Lib/
-                    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/build-stage/
+                    WORKING_DIRECTORY ${SIMH_DEP_TOPDIR}
             )
 
             ExternalProject_Add(pcap-dep
-                    # GIT_REPOSITORY https://github.com/the-tcpdump-group/libpcap.git
-                    # GIT_TAG libpcap-1.9.0
-                    GIT_REPOSITORY https://github.com/bscottm/libpcap.git
-                    GIT_TAG cmake_library_architecture
-                    CMAKE_ARGS 
-			${DEP_CMAKE_ARGS}
-                        -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
-                        -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
-                        -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
-                        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-                        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+                # GIT_REPOSITORY https://github.com/the-tcpdump-group/libpcap.git
+                # GIT_TAG libpcap-1.9.0
+                GIT_REPOSITORY https://github.com/bscottm/libpcap.git
+                GIT_TAG cmake_library_architecture
+                CONFIGURE_COMMAND ""
+                BUILD_COMMAND ""
+                INSTALL_COMMAND ""
             )
+            
+            BuildDepMatrix(pcap-dep libpcap)
 
             list(APPEND SIMH_BUILD_DEPS "pcap")
-	    list(APPEND SIMH_DEP_TARGETS "pcap-dep")
+            list(APPEND SIMH_DEP_TARGETS "pcap-dep")
             message(STATUS "Building PCAP from github repository")
             set(NETWORK_PKG_STATUS "PCAP source build")
         endif (PCAP_FOUND)
