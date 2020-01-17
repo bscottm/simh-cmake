@@ -1,3 +1,7 @@
+cache:
+  - ./cmake-dependencies: appveyor.yml, cmake/build_dep_matrix.cmake, cmake/network-deps.cmake,
+        cmake/pcre-dep.cmake, cmake/pthreads-dep.cmake, cmake/video-deps.cmake, cmake/zlib-dep.cmake
+
 environment:
   DIST_DIR: '%APPVEYOR_BUILD_FOLDER%\dist'
   CMAKE_DIST_DIR: C:/projects/simh/dist
