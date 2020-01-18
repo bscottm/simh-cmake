@@ -34,40 +34,26 @@ function(BuildDepMatrix dep pretty)
         set(_BDM_DEBUG_BUILD "Debug")
     endif (NOT _BDM_DEBUG_BUILD)
 
-    if (NOT CMAKE_CONFIGURATION_TYPES)
-        ExternalProject_Add_Step(${dep} build-Release
-            COMMENT "Building Release ${pretty}"
-            DEPENDEES configure
-            WORKING_DIRECTORY <BINARY_DIR>
-            COMMAND ${CMAKE_COMMAND} -E remove -f CMakeCache.txt
-            COMMAND ${CMAKE_COMMAND} -E remove_directory CMakeFiles
-            COMMAND ${CMAKE_COMMAND} ${cmake_cfg_args} -DCMAKE_BUILD_TYPE=${_BDM_RELEASE_BUILD} -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
-            COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config ${_BDM_RELEASE_BUILD} --clean-first
-            COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${_BDM_RELEASE_BUILD}
-        )
-        ExternalProject_Add_Step(${dep} build-Debug
-            COMMENT "Building Debug ${pretty}"
-            DEPENDEES configure
-            WORKING_DIRECTORY <BINARY_DIR>
-            COMMAND ${CMAKE_COMMAND} -E remove -f CMakeCache.txt
-            COMMAND ${CMAKE_COMMAND} -E remove_directory CMakeFiles
-            COMMAND ${CMAKE_COMMAND} ${cmake_cfg_args} -DCMAKE_BUILD_TYPE=${_BDM_DEBUG_BUILD} -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
-            COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config ${_BDM_DEBUG_BUILD} --clean-first
-            COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${_BDM_DEBUG_BUILD}
-        )
-    else (NOT CMAKE_CONFIGURATION_TYPES)
-        ## foreach (cfg IN LISTS CMAKE_CONFIGURATION_TYPES)
-        foreach (cfg IN ITEMS Release Debug)
-            ExternalProject_Add_Step(${dep} build-${cfg}
-                COMMENT "-- Building ${pretty} '${cfg}' configuration"
-                DEPENDEES configure
-                WORKING_DIRECTORY <BINARY_DIR>
-                COMMAND ${CMAKE_COMMAND} -E remove -f CMakeCache.txt
-                COMMAND ${CMAKE_COMMAND} -E remove_directory CMakeFiles
-                COMMAND ${CMAKE_COMMAND} ${cmake_cfg_args} -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
-                COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config "${cfg}" --clean-first
-                COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config "${cfg}"
-            )
-        endforeach ()
-    endif (NOT CMAKE_CONFIGURATION_TYPES)
+    set(dep_cmds)
+    ## foreach (cfg IN LISTS CMAKE_CONFIGURATION_TYPES)
+    foreach (cfg IN ITEMS ${_BDM_DEBUG_BUILD} ${_BDM_RELEASE_BUILD})
+        list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} -E echo "-- Building ${pretty} '${cfg}' configuration")
+        list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} -E remove -f CMakeCache.txt)
+        list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} -E remove_directory CMakeFiles)
+        if (NOT CMAKE_CONFIGURATION_TYPES)
+            list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} ${cmake_cfg_args} -DCMAKE_BUILD_TYPE=${cfg}
+                -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR})
+            list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config ${cfg} --clean-first)
+        else (NOT CMAKE_CONFIGURATION_TYPES)
+            list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} ${cmake_cfg_args} -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR})
+            list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config "${cfg}" --clean-first)
+        endif (NOT CMAKE_CONFIGURATION_TYPES)
+        list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${cfg})
+    endforeach ()
+
+    ExternalProject_Add_Step(${dep} build-dbg-release
+        DEPENDEES configure
+        WORKING_DIRECTORY <BINARY_DIR>
+        ${dep_cmds}
+    )
 endfunction ()

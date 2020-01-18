@@ -289,7 +289,8 @@ if (!$testonly)
     }
 
     ## Where we do the heaving lifting:
-    $generateArgs = @("-G", ${generator}, "-D", "CMAKE_BUILD_TYPE=${config}") + ${archFlag} + @("..")
+    $generateArgs = @("-G", ${generator}, "-D", "CMAKE_BUILD_TYPE=${config}", "-Wno-dev", "--no-warn-unused-cli-args")
+    $generateArgs = $generateArgs + ${archFlag} + @("..")
     if ($nonetwork)
     {
         $generateArgs += @("-DWITH_NETWORK:Bool=Off", "-DWITH_PCAP:Bool=Off", "-DWITH_SLIRP:Bool=Off")
@@ -321,10 +322,22 @@ if (!$testonly)
 
         if (!$testonly) {
             & ${cmakeCmd} ${generateArgs} 2>&1
+            $lec = $LastExitCode
+            if ($lec -gt 0) {
+                "==== Last exit code ${lec}"
+                "** ${scriptName}: Configuration errors. Exiting."
+                exit 1
+            }
             if (!$generate)
             {
                 "** ${scriptName}: Building simulators."
                 & ${cmakeCmd} ${buildArgs} -- ${buildSpecificArgs}
+                $lec = $LastExitCode
+                if ($lec -gt 0) {
+                    "==== Last exit code ${lec}"
+                    "** ${scriptName}: Build errors. Exiting."
+                    exit 1
+                }
             }
             else
             {
@@ -365,6 +378,10 @@ if (!$notest)
             $depTopDir = $depTopDir.Line.Split('=')[1]
             $env:PATH =  "${depTopdir}\bin;C:\Windows\System32\Npcap;${env:PATH}"
             & $ctestCmd @("-C", $config)
+            if ($LastExitCode -gt 0) {
+                "** ${scriptName}: Tests failed. Exiting."
+                exit 1
+            }
         }
         $env:PATH = $currentPath
     }
