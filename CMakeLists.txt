@@ -47,7 +47,6 @@ include(CheckCSourceCompiles)
 include(CheckCCompilerFlag)
 include(ExternalProject)
 include(build_dep_matrix)
-include(FeatureSummary)
 
 ## pkg-config is our fallback when find_package() can't find a package.
 find_package(PkgConfig)
@@ -231,8 +230,6 @@ if (cppcheck_cmd)
 else (cppcheck_cmd)
     set(CPPCHECK_STATUS "'cppcheck' not installed.")
 endif ()
-
-feature_summary(WHAT ALL)
 
 message(STATUS "")
 message(STATUS "Libraries and features:")
