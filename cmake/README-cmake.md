@@ -205,7 +205,6 @@ mirror those in the `makefile`:
 * `WITH_PCAP`: Enable (=1)/disable (=0) libpcap (packet capture) support. (def: enabled)
 * `WITH_SLIRP`: Enable (=1)/disable (=0) SLIRP network support. (def: enabled)
 * `WITH_VIDEO`: Enable (=1)/disable (=0) simulator display and graphics support (def: enabled)
-* `WITH_ASYNC`: Enable (=1)/disable (=0) simulator asynchronous I/O (def: enabled)
 * `PANDA_LIGHTS`: Enable (=1)/disable (=0) KA-10/KI-11 simulator's Panda display. (def: disabled)
 * `DONT_USE_ROMS`: Enable (=1)/disable (=0) building hardcoded support ROMs. (def: disabled)
 * `ENABLE_CPPCHECK`: Enable (=1)/disable (=0) [cppcheck][cppcheck] static code checking rules.

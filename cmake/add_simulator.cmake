@@ -45,6 +45,7 @@ function(build_simcore _targ)
 
     # Components that need to be turned on while building the library, but
     # don't export out to the dependencies (hence PRIVATE.)
+    set_target_properties(${_targ} PROPERTIES C_STANDARD 99)
     target_compile_definitions(${_targ} PRIVATE USE_SIM_CARD USE_SIM_IMD)
     target_compile_options(${_targ} PRIVATE ${EXTRA_CFLAGS})
 
@@ -56,31 +57,24 @@ function(build_simcore _targ)
         target_compile_definitions(${_targ} PUBLIC USE_ADDR64)
     endif (SIMH_ADDR64)
 
-    target_link_libraries(${_targ} PUBLIC regexp_lib thread_lib)
-
     if (WITH_NETWORK)
-        target_compile_definitions(${_targ} PUBLIC USE_NETWORK)
         if (WITH_SLIRP)
             target_link_libraries(${_targ} PUBLIC slirp)
         endif (WITH_SLIRP)
-        if (WITH_PCAP)
-            target_link_libraries(${_targ} PUBLIC pcap)
-        endif (WITH_PCAP)
+
+        target_link_libraries(${_targ} PUBLIC simh_network)
     endif (WITH_NETWORK)
 
     if (SIMH_VIDEO)
         target_link_libraries(${_targ} PUBLIC simh_video)
     endif (SIMH_VIDEO)
 
-    if (WIN32)
-        if (NOT MSVC)
-          # Need the math library...
-          target_link_libraries(${_targ} PUBLIC m)
-        endif (NOT MSVC)
+    target_link_libraries(${_targ} PUBLIC simh_ncurses regexp_lib zlib_lib)
 
+    if (WIN32)
         if (MINGW)
-          target_compile_options(${_targ} PUBLIC "-fms-extensions")
-          target_link_options(${_targ} PUBLIC "-mconsole")
+            ## target_compile_options(${_targ} PUBLIC "-fms-extensions")
+            target_link_options(${_targ} PUBLIC "-mconsole")
         endif (MINGW)
 
         target_link_libraries(${_targ} PUBLIC wsock32 winmm)
@@ -88,6 +82,8 @@ function(build_simcore _targ)
         target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
         target_link_libraries(${_targ} PUBLIC "m")
     endif ()
+
+    target_link_libraries(${_targ} PUBLIC os_features thread_lib)
 
     # Define SIM_BUILD_TOOL for the simulator'
     if (NOT (HAVE_GIT_COMMIT_HASH OR HAVE_GIT_COMMIT_TIME))
@@ -128,10 +124,11 @@ function (add_simulator _targ)
     endif (NOT DEFINED SIMH_SOURCES)
 
     add_executable("${_targ}" "${SIMH_SOURCES}")
+    set_target_properties(${_targ} PROPERTIES C_STANDARD 99)
     target_compile_options(${_targ} PRIVATE ${EXTRA_CFLAGS})
 
     if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-	    target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
+            target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
     elseif (MINGW)
           target_compile_options(${_targ} PRIVATE "-fms-extensions")
           target_link_options(${_targ}    PRIVATE "-mconsole")
@@ -161,12 +158,12 @@ function (add_simulator _targ)
     set(SIMH_VIDLIB "")
 
     if (SIMH_INT64)
-	    set(SIMH_SIMLIB simhi64)
+            set(SIMH_SIMLIB simhi64)
     elseif (SIMH_FULL64)
-	    set(SIMH_SIMLIB simhz64)
+            set(SIMH_SIMLIB simhz64)
     endif ()
     if (SIMH_VIDEO)
-	    set(SIMH_VIDLIB "_video")
+            set(SIMH_VIDLIB "_video")
     endif (SIMH_VIDEO)
 
     target_link_libraries("${_targ}" PRIVATE "${SIMH_SIMLIB}${SIMH_VIDLIB}")
@@ -177,11 +174,11 @@ function (add_simulator _targ)
 
     set(test_fname "${CMAKE_CURRENT_SOURCE_DIR}/tests/${SIMH_TEST}_test.ini")
     if (DEFINED SIMH_TEST AND EXISTS "${test_fname}")
-    	add_test(NAME "test-${_targ}" COMMAND "${_targ}" "${test_fname}")
+        add_test(NAME "test-${_targ}" COMMAND "${_targ}" "${test_fname}")
     endif (DEFINED SIMH_TEST AND EXISTS "${test_fname}")
 
     if (NOT DONT_USE_ROMS AND SIMH_BUILDROMS)
-	    add_dependencies(${_targ} BuildROMs)
+        add_dependencies(${_targ} BuildROMs)
     endif (NOT DONT_USE_ROMS AND SIMH_BUILDROMS)
 
     # Create target 'cppcheck' rule, if cppcheck detected:
@@ -207,7 +204,7 @@ add_custom_target(cppcheck)
 
 build_simcore(simhcore)
 build_simcore(simhi64        INT64)
-build_simcore(simhz64 	     INT64 ADDR64)
+build_simcore(simhz64        INT64 ADDR64)
 build_simcore(simhcore_video VIDEO)
 build_simcore(simhi64_video  VIDEO INT64)
 build_simcore(simhz64_video  VIDEO INT64 ADDR64)
@@ -270,8 +267,8 @@ if (WIN32)
     target_link_libraries(frontpaneltest PUBLIC wsock32)
 
     if (MSVC)
-	    target_link_options(frontpaneltest PUBLIC "/SUBSYSTEM:CONSOLE")
+            target_link_options(frontpaneltest PUBLIC "/SUBSYSTEM:CONSOLE")
     elseif (MINGW)
-	    target_link_options(frontpaneltest PUBLIC "-mconsole")
+            target_link_options(frontpaneltest PUBLIC "-mconsole")
     endif ()
 endif (WIN32)

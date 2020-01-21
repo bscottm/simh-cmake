@@ -44,10 +44,8 @@ ipch/
 3B2/tests/diags/tod.bin
 
 # CMake artifacts
-cmake-*
-!cmake-builder.ps1
-!cmake-builder.sh
-build
+cmake/build-*
+cmake/dependencies
 
 # VS Code stuff...
 simh.code-workspace

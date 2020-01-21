@@ -29,9 +29,14 @@ else ()
     message(STATUS "Available build configurations: ${CMAKE_CONFIGURATION_TYPES}")
 endif ()
 
-# SIMH_DEP_TOPDIR: This is the top-level directory where dependencies live:
-set(SIMH_DEP_TOPDIR ${CMAKE_SOURCE_DIR}/cmake-dependencies/${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}
-        CACHE STRING "Top-level directory for SIMH library dependencies")
+# SIMH_DEP_TOPDIR: This is the top-level directory where dependencies live. It's cached so that
+# scripts (e.g., cmake-builder.ps1) can update PATH to find shared objects and DLLs.
+set(SIMH_DEP_TOPDIR ${CMAKE_SOURCE_DIR}/cmake/dependencies/${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}
+        CACHE PATH "Top-level directory for SIMH library dependencies")
+# SIMH_DEP_PATCHES: This is where various external package patches live. Also cached just in case
+# it's needed by a script.
+set(SIMH_DEP_PATCHES ${CMAKE_SOURCE_DIR}/cmake/patches
+        CACHE PATH "Top-level directory for external dependency patches")
 
 # Places to look for CMake modules/includes
 set(SIMH_INCLUDE_PATH_LIST ${CMAKE_SOURCE_DIR}/cmake)
@@ -44,8 +49,9 @@ list(APPEND SIMH_PREFIX_PATH_LIST ${SIMH_DEP_TOPDIR})
 list(APPEND CMAKE_PREFIX_PATH ${SIMH_PREFIX_PATH_LIST})
 
 include(CheckCSourceCompiles)
-include(CheckCSourceRuns)
 include(CheckCCompilerFlag)
+include(CheckIncludeFile)
+include(CheckSymbolExists)
 include(ExternalProject)
 include(build_dep_matrix)
 
@@ -60,13 +66,16 @@ option(WITH_PCAP
        "Enable (=1)/disable (=0) libpcap (packet capture) support. (def: enabled)"
        TRUE)
 option(WITH_SLIRP
-       "Enable (=1)/disable (=0) SLIRP network support. (def: disabled)"
-       FALSE)
+       "Enable (=1)/disable (=0) SLIRP network support. (def: enabled)"
+       TRUE)
+option(WITH_VDE
+       "Enable (=1)/disable (=0) VDE2/VDE4 network support. (def: enabled)"
+       TRUE)
+option(WITH_TAP
+       "Enable (=1)/disable (=0) TAP/TUN device network support. (def: enabled)"
+       TRUE)
 option(WITH_VIDEO
        "Enable (=1)/disable (=0) simulator display and graphics support (def: enabled)"
-       TRUE)
-option(WITH_ASYNC
-       "Enable (=1)/disable (=0) simulator asynchronous I/O (def: enabled)"
        TRUE)
 option(PANDA_LIGHTS
        "Enable (=1)/disable (=0) KA-10/KI-11 simulator's Panda display. (def: disabled)"
@@ -179,13 +188,10 @@ set(ZLIB_PKG_STATUS "unknown")
 set(PCRE_PKG_STATUS "unknown")
 set(VIDEO_PKG_STATUS "unknown")
 set(NETWORK_PKG_STATUS "unknown")
+set(NCURSES_PKG_STATUS "unknown")
 
-if (WITH_ASYNC)
-    include(pthreads-dep)
-else (WITH_ASYNC)
-    set(THREADING_PKG_STATUS "skipped")
-endif (WITH_ASYNC)
-
+include(pthreads-dep)
+include(os-features)
 include(zlib-dep)
 include(pcre-dep)
 
@@ -204,6 +210,17 @@ else (WITH_NETWORK)
     set(NETWORK_PKG_STATUS "skipped")
     set(BUILD_WITH_NETWORK FALSE)
 endif (WITH_NETWORK)
+
+get_target_property(OS_FEATURE_DEFS os_features INTERFACE_COMPILE_DEFINITIONS)
+string(REPLACE ";" ", " OS_FEATURE_DEFS "${OS_FEATURE_DEFS}")
+if (NOT OS_FEATURE_DEFS)
+  set(OS_FEATURE_DEFS "no operating system-specific features")
+endif (NOT OS_FEATURE_DEFS)
+get_target_property(OS_FEATURE_LIBS os_features INTERFACE_LINK_LIBRARIES)
+string(REPLACE ";" ", " OS_FEATURE_LIBS "${OS_FEATURE_LIBS}")
+if (NOT OS_FEATURE_LIBS)
+  set(OS_FEATURE_LIBS "no operating system-specific libraries")
+endif (NOT OS_FEATURE_LIBS)
 
 set(CPPCHECK_STATUS "disabled.")
 
@@ -233,12 +250,16 @@ else (cppcheck_cmd)
 endif ()
 
 message(STATUS "")
+message(STATUS "")
 message(STATUS "Libraries and features:")
 message(STATUS "  Thread support .................. ${THREADING_PKG_STATUS}")
 message(STATUS "  zlib ............................ ${ZLIB_PKG_STATUS}")
 message(STATUS "  Perl-Compatible RegExps.......... ${PCRE_PKG_STATUS}")
 message(STATUS "  PNG, Freetype, SDL2, SDL2_ttf ... ${VIDEO_PKG_STATUS}")
 message(STATUS "  Packet Capture (PCAP) ........... ${NETWORK_PKG_STATUS}")
+message(STATUS "  ncurses ......................... ${NCURSES_PKG_STATUS}")
+message(STATUS "  OS Feature definitions .......... ${OS_FEATURE_DEFS}")
+message(STATUS "  OS Feature libraries ............ ${OS_FEATURE_LIBS}")
 message(STATUS "")
 message(STATUS "Build options:")
 message(STATUS "  Video/graphics support ....... ${BUILD_WITH_VIDEO}")

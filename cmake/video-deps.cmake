@@ -81,7 +81,7 @@ if (WITH_VIDEO)
                 BUILD_COMMAND ""
                 INSTALL_COMMAND ""
                 UPDATE_COMMAND
-                    ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/dep-patches/SDL2_ttf/SDL2_ttfConfig.cmake ${SDL2_ttf_depdir}
+                    ${CMAKE_COMMAND} -E copy ${SIMH_DEP_PATCHES}/SDL2_ttf/SDL2_ttfConfig.cmake ${SDL2_ttf_depdir}
                 DEPENDS
                     ${SDL2_ttf_DEPS}
             )
@@ -97,10 +97,13 @@ if (WITH_VIDEO)
         ENDIF (NOT SDL2_ttf_FOUND)
     ENDIF (SDL2_FOUND AND SDL2_ttf_FOUND)
 
-    find_package(Freetype)
-    if (NOT FREETYPE_FOUND AND PKG_CONFIG_FOUND)
-        pkg_check_modules(FREETYPE IMPORTED_TARGET freetype2)
-    endif (NOT FREETYPE_FOUND AND PKG_CONFIG_FOUND)
+    find_package(freetype CONFIG)
+    if (NOT FREETYPE_FOUND)
+        find_package(Freetype)
+        if (NOT FREETYPE_FOUND AND PKG_CONFIG_FOUND)
+            pkg_check_modules(FREETYPE IMPORTED_TARGET freetype2)
+        endif (NOT FREETYPE_FOUND AND PKG_CONFIG_FOUND)
+    endif (NOT FREETYPE_FOUND)
 
     if (FREETYPE_FOUND)
         if (TARGET Freetype::Freetype)

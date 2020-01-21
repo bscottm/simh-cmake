@@ -5,12 +5,12 @@
 # (b) If system zlib isn't available, build it as an external project.
 #~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
-include (FindZLIB)
+add_library(zlib_lib INTERFACE)
+
+find_package(ZLIB)
 if (NOT ZLIB_FOUND AND PKG_CONFIG_FOUND)
     pkg_check_modules(ZLIB IMPORTED_TARGET zlib)
 endif (NOT ZLIB_FOUND AND PKG_CONFIG_FOUND)
-
-add_library(zlib_lib INTERFACE)
 
 if (ZLIB_FOUND)
     if (TARGET ZLIB::ZLIB)
@@ -42,3 +42,16 @@ else (ZLIB_FOUND)
     message(STATUS "Building ZLIB from ${ZLIB_REPO_URL}.")
     set(ZLIB_PKG_STATUS "ZLIB source build")
 endif (ZLIB_FOUND)
+
+## Freetype will sometimes find BZip2 in AppVeyor's image, which means that we
+## need to bring it along as a dependency for AppVeyor builds. Ordinarily, though,
+## it's not a dependency for SIMH.
+find_package(BZip2)
+if (BZIP2_FOUND)
+    if (TARGET BZip2::BZip2)
+	target_link_libraries(zlib_lib INTERFACE BZip2::BZip2)
+    else (TARGET BZip2::BZip2)
+	target_compile_definitions(zlib_lib INTERFACE ${BZIP2_INCLUDE_DIR})
+	target_link_libraries(zlib_lib INTERFACE ${BZIP2_LIBRARIES})
+    endif (TARGET BZip2::BZip2)
+endif (BZIP2_FOUND)

@@ -1,5 +1,5 @@
 cache:
-  - ./cmake-dependencies -> appveyor.yml, CMakeLists.txt, cmake/build_dep_matrix.cmake, cmake/network-deps.cmake,
+  - ./cmake/dependencies -> appveyor.yml, CMakeLists.txt, cmake/build_dep_matrix.cmake, cmake/network-deps.cmake,
         cmake/pcre-dep.cmake, cmake/pthreads-dep.cmake, cmake/video-deps.cmake, cmake/zlib-dep.cmake
 
 ## shallow_clone: true
@@ -66,12 +66,13 @@ before_build:
   - ps: |
       if ($isWindows) {
         if (${env:SIMH_BUILD_FLAVOR} -eq "ninja") { choco install ninja; }
-        if (!(Test-Path -Path cmake-dependencies)) { New-Item -ItemType Directory -Path cmake-dependencies }
+        if (!(Test-Path -Path cmake/dependencies)) { New-Item -ItemType Directory -Path cmake/dependencies }
       }
   - sh: |
       sudo apt-get update -y -qq && \
-          sudo apt-get install -qq -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev \
-              libpcap-dev ninja-build
+          sudo apt-get install -qq -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev && \
+          sudo apt-get install -qq -y libpcap-dev libvdeplug-dev && \
+          sudo apt-get install -qq -y ninja-build
 
   ## Npcap install
   ## Answer: Don't. If we could disable the Npcap installer's GUI (silent mode),
@@ -89,19 +90,19 @@ build_script:
   - ps: |
       if ($isWindows) {
         if (!([string]::IsNullOrEmpty($env:MINGW))) { $env:PATH=$(@(${env:MINGW}, ${env:PATH}) -join ";"); };
-        .\cmake-builder.ps1 -clean -parallel -nonetwork -notest -config ${env:CONFIGURATION} `
+        cmake\cmake-builder.ps1 -clean -parallel -nonetwork -notest -config ${env:CONFIGURATION} `
             -flavor ${env:SIMH_BUILD_FLAVOR}
       }
   - sh: |
-      ./cmake-builder.sh --notest --parallel --flavor ${SIMH_BUILD_FLAVOR} --config ${CONFIGURATION} --clean
+      cmake/cmake-builder.sh --notest --parallel --flavor ${SIMH_BUILD_FLAVOR} --config ${CONFIGURATION} --clean
 
 test_script:
   - ps: |
       if ($isWindows) {
-        .\cmake-builder -testonly -config ${env:CONFIGURATION} -flavor ${env:SIMH_BUILD_FLAVOR}
+        cmake\cmake-builder -testonly -config ${env:CONFIGURATION} -flavor ${env:SIMH_BUILD_FLAVOR}
       }
   - sh: |
-      ./cmake-builder.sh --testonly --config ${CONFIGURATION} --flavor ${SIMH_BUILD_FLAVOR}
+      cmake/cmake-builder.sh --testonly --config ${CONFIGURATION} --flavor ${SIMH_BUILD_FLAVOR}
 
 # notifications:
 #   - provider: Email

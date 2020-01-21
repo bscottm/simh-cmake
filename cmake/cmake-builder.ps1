@@ -30,7 +30,7 @@ param (
     [switch] $testonly    = $false
 )
 
-$scriptName = $MyInvocation.InvocationName.replace('.\', '')
+$scriptName = $(Split-Path -Leaf $PSCommandPath)
 
 function Show-Help
 {
@@ -207,16 +207,31 @@ if ($tmp_path -ne ${env:PATH})
 $origPath = $env:PATH
 $modPath  = $origPath
 
-if (Test-Path -Path cmake-dependencies) {
-  $bdirs = $(Get-ChildItem -Attribute Directory cmake-dependencies\*).ForEach({ $_.FullName + "\bin" })
+if (Test-Path -Path cmake\dependencies) {
+  $bdirs = $(Get-ChildItem -Attribute Directory cmake\dependencies\*).ForEach({ $_.FullName + "\bin" })
   $modPath  = (${env:Path}.Split(';') | Where-Object { $bdirs -notcontains $_ }) -join ';'
   if ($modPath -ne $origPath) {
-    "** ${scriptName}: Removed cmake-dependencies 'bin' directories from PATH."
+    "** ${scriptName}: Removed cmake\dependencies 'bin' directories from PATH."
   }
 }
 
 ## Setup:
-$buildDir  = "cmake-vs"
+$simhTopDir = $(Split-Path -Parent $(Resolve-Path -Path $PSCommandPath).Path)
+While (!([String]::IsNullOrEmpty($simhTopDir) -or (Test-Path -Path ${simhTopDir}\CMakeLists.txt))) {
+    $simhTopDir = $(Split-Path -Parent $simhTopDir)
+}
+if ([String]::IsNullOrEmpty($simhTopDir)) {
+    @"
+!! ${scriptName}: Cannot locate SIMH top-level source directory from
+the script's path name. You should really not see this message.
+"@
+
+    exit 1
+} else {
+    "** ${scriptName}: SIMH top-level source directory is ${simhTopDir}"
+}
+
+$buildDir  = "cmake\build-vs"
 $generator = "!!invalid!!"
 $archFlag  = @()
 
@@ -244,11 +259,11 @@ switch ($flavor)
         $generator = "Visual Studio 11 2012"
     }
     "mingw" {
-        $buildDir = "cmake-mingw"
+        $buildDir = "cmake\build-mingw"
         $generator = "MinGW Makefiles"
     }
     "ninja" {
-        $buildDir = "cmake-ninja"
+        $buildDir = "cmake\build-ninja"
         $generator = "Ninja"
     }
     default {
@@ -271,7 +286,8 @@ if (!$testonly)
         Show-Help
     }
 
-    ## Clean out the 
+    ## Clean out the build subdirectory
+    $buildDir = "${simhTopDir}\${buildDir}"
     if ((Test-Path -Path ${buildDir}) -and $clean)
     {
         "** ${scriptName}: Removing ${buildDir}"
@@ -290,12 +306,12 @@ if (!$testonly)
 
     ## Where we do the heaving lifting:
     $generateArgs = @("-G", ${generator}, "-D", "CMAKE_BUILD_TYPE=${config}", "-Wno-dev", "--no-warn-unused-cli-args")
-    $generateArgs = $generateArgs + ${archFlag} + @("..")
+    $generateArgs = $generateArgs + ${archFlag}
     if ($nonetwork)
     {
         $generateArgs += @("-DWITH_NETWORK:Bool=Off", "-DWITH_PCAP:Bool=Off", "-DWITH_SLIRP:Bool=Off")
     }
-    $generateArgs += @("..")
+    $generateArgs += ${simhTopDir}
 
     $buildArgs     =  @("--build", ".", "--config", "${config}")
     if ($parallel)
@@ -376,8 +392,9 @@ if (!$notest)
         if ($depTopDir) {
             ## RHS of the cached variable's value.
             $depTopDir = $depTopDir.Line.Split('=')[1]
-            $env:PATH =  "${depTopdir}\bin;C:\Windows\System32\Npcap;${env:PATH}"
-            & $ctestCmd @("-C", $config)
+            $env:PATH =  "${depTopdir}\bin;${env:PATH}"
+            ## Hardcoded: 3 minute timeout for tests
+            & $ctestCmd @("-C", $config, "--timeout", "180")
             if ($LastExitCode -gt 0) {
                 "** ${scriptName}: Tests failed. Exiting."
                 exit 1

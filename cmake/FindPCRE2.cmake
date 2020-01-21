@@ -17,13 +17,13 @@
 
 find_path(PCRE2_INCLUDE_DIR pcre2.h
         HINTS
-	  ENV PCRE_DIR
-	# path suffixes to search inside ENV{PCRE_DIR}
-	PATHS ${PCRE_PATH}
-	PATH_SUFFIXES
-	    include/pcre
-	    include/PCRE
-	    include
+          ENV PCRE_DIR
+        # path suffixes to search inside ENV{PCRE_DIR}
+        PATHS ${PCRE_PATH}
+        PATH_SUFFIXES
+            include/pcre
+            include/PCRE
+            include
         )
 
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -35,26 +35,26 @@ endif ()
 find_library(PCRE2_LIBRARY_RELEASE
         NAMES pcre2-8
         HINTS
-	  ENV PCRE_DIR
-	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
+          ENV PCRE_DIR
+        PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
         PATHS ${PCRE_PATH}
         )
 
 find_library(PCRE2_LIBRARY_DEBUG
         NAMES pcre2-8d
         HINTS
-	  ENV PCRE_DIR
-	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
+          ENV PCRE_DIR
+        PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
         PATHS ${PCRE_PATH}
         )
 
 if (PCRE2_INCLUDE_DIR)
     if (EXISTS "${PCRE_INCLUDE_DIR}/pcre.h")
-	file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE2_VERSION_MAJOR_LINE REGEX "^#define[ \t]+PCRE_MAJOR[ \t]+[0-9]+$")
-	file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE2_VERSION_MINOR_LINE REGEX "^#define[ \t]+PCRE_MINOR[ \t]+[0-9]+$")
+        file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE2_VERSION_MAJOR_LINE REGEX "^#define[ \t]+PCRE_MAJOR[ \t]+[0-9]+$")
+        file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE2_VERSION_MINOR_LINE REGEX "^#define[ \t]+PCRE_MINOR[ \t]+[0-9]+$")
     elseif (EXISTS "${PCRE2_INCLUDE_DIR}/pcre2.h")
-	file(STRINGS "${PCRE2_INCLUDE_DIR}/pcre2.h" PCRE2_VERSION_MAJOR_LINE REGEX "^#define[ \t]+PCRE2_MAJOR[ \t]+[0-9]+$")
-	file(STRINGS "${PCRE2_INCLUDE_DIR}/pcre2.h" PCRE2_VERSION_MINOR_LINE REGEX "^#define[ \t]+PCRE2_MINOR[ \t]+[0-9]+$")
+        file(STRINGS "${PCRE2_INCLUDE_DIR}/pcre2.h" PCRE2_VERSION_MAJOR_LINE REGEX "^#define[ \t]+PCRE2_MAJOR[ \t]+[0-9]+$")
+        file(STRINGS "${PCRE2_INCLUDE_DIR}/pcre2.h" PCRE2_VERSION_MINOR_LINE REGEX "^#define[ \t]+PCRE2_MINOR[ \t]+[0-9]+$")
     endif ()
 
     string(REGEX REPLACE "^#define[ \t]+PCRE2?_MAJOR[ \t]+([0-9]+)$" "\\1" PCRE2_VERSION_MAJOR "${PCRE2_VERSION_MAJOR_LINE}")
@@ -63,8 +63,8 @@ if (PCRE2_INCLUDE_DIR)
     set(PCRE2_VERSION_STRING ${PCRE2_VERSION_MAJOR}.${PCRE2_VERSION_MINOR})
     set(PCRE2_VERSION_TWEAK "")
     if (PCRE2_VERSION_STRING MATCHES "[0-9]+\.[0-9]+")
-	set(PCRE2_VERSION_TWEAK "${CMAKE_MATCH_1}")
-	string(APPEND PCRE2_VERSION_STRING ".${PCRE2_VERSION_TWEAK}")
+        set(PCRE2_VERSION_TWEAK "${CMAKE_MATCH_1}")
+        string(APPEND PCRE2_VERSION_STRING ".${PCRE2_VERSION_TWEAK}")
     endif ()
     unset(PCRE2_VERSION_MAJOR_LINE)
     unset(PCRE2_VERSION_MINOR_LINE)

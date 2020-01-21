@@ -1,18 +1,26 @@
 image: gcc
 
 before_script:
-  - apt-get update -qq -y && apt-get install -qq -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev
-      libpcap-dev ninja-build
+    - |
+        ## Grab updates, then
+        ## (a) Basic SIMH runtime components
+        ## (b) Networking components for Linux
+        ## (c) Ninja builder
+        apt-get update -qq -y && \
+            apt-get install -qq -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev && \
+            apt-get install -qq -y libpcap-dev libvdeplug-dev && \
+            apt-get install -qq -y ninja-build
 
 stages:
   - build
 
 simh:
-  stage: build
+    stage: build
 
-  script: 
-    - ./cmake-builder.sh --config Debug   --flavor unix  --parallel --clean
-    - ./cmake-builder.sh --config Debug   --flavor ninja --parallel --clean
-    - ./cmake-builder.sh --config Release --flavor unix  --parallel --clean
-    - ./cmake-builder.sh --config Release --flavor ninja --parallel --clean
-    - make -f makefile
+    script: 
+        ## Choose a builder. I like Ninja because it's sensibly parallel.
+        ## - cmake/cmake-builder.sh --config Debug   --flavor unix  --parallel --clean
+        ## - cmake/cmake-builder.sh --config Release --flavor unix  --parallel --clean
+        - cmake/cmake-builder.sh --config Debug   --flavor ninja --parallel --clean
+        - cmake/cmake-builder.sh --config Release --flavor ninja --parallel --clean
+        - make -f makefile
