@@ -35,7 +35,7 @@ if (WIN32)
             BuildDepMatrix(pthreads4w-ext pthreads4w)
 
             list(APPEND SIMH_BUILD_DEPS pthreads4w)
-	    list(APPEND SIMH_DEP_TARGETS pthreads4w-ext)
+            list(APPEND SIMH_DEP_TARGETS pthreads4w-ext)
             message(STATUS "Building Pthreads4w from Git repository ${PTHREADS4W_URL}")
             set(THREADING_PKG_STATUS "pthreads4w source build")
         endif (PTW_FOUND)
@@ -49,11 +49,13 @@ if (WIN32)
 
         set(THREADING_PKG_STATUS "MinGW builtin pthreads")
     endif (NOT MINGW)
-elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-    # Linux uses gcc, which has pthreads:
-    target_compile_definitions(thread_lib INTERFACE USE_READER_THREAD SIM_ASYNCH_IO)
-    target_compile_options(thread_lib INTERFACE "-pthread")
-    target_link_libraries(thread_lib INTERFACE pthread)
+else ()
+    # Let CMake determine which threading library ought be used.
+    set(THREADS_PREFER_PTHREAD_FLAG On)
+    find_package(Threads)
+    if (THREADS_FOUND)
+        target_link_libraries(thread_lib INTERFACE Threads::Threads)
+    endif (THREADS_FOUND)
 
     set(THREADING_PKG_STATUS "Linux builtin pthreads")
 endif (WIN32)
