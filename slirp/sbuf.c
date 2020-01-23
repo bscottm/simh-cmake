@@ -7,6 +7,7 @@
 
 #include <slirp.h>
 #include <qemu/main-loop.h>
+#include "sim_printf_fmts.h"
 
 static void sbappendsb(struct sbuf *sb, struct mbuf *m);
 
@@ -72,8 +73,8 @@ sbappend(struct socket *so, struct mbuf *m)
         int ret = 0;
 
         DEBUG_CALL("sbappend");
-        DEBUG_ARG("so = %lx", (long)so);
-        DEBUG_ARG("m = %lx", (long)m);
+        DEBUG_ARG("so = %" POINTER_FMT "x", so);
+        DEBUG_ARG("m = %" POINTER_FMT "x", m);
         DEBUG_ARG("m->m_len = %d", m->m_len);
 
         /* Shouldn't happen, but...  e.g. foreign host closes connection */

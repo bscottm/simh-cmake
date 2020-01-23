@@ -7,6 +7,7 @@
 
 #include <slirp.h>
 #include "qemu/timer.h"
+#include "sim_printf_fmts.h"
 
 static void
 ifs_insque(struct mbuf *ifm, struct mbuf *ifmhead)
@@ -53,8 +54,8 @@ if_output(struct socket *so, struct mbuf *ifm)
         int on_fastq = 1;
 
         DEBUG_CALL("if_output");
-        DEBUG_ARG("so = %lx", (long)so);
-        DEBUG_ARG("ifm = %lx", (long)ifm);
+        DEBUG_ARG("so = %" POINTER_FMT "x", so);
+        DEBUG_ARG("ifm = %" POINTER_FMT "x", ifm);
 
         /*
          * First remove the mbuf from m_usedlist,

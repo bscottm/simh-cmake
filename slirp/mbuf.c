@@ -16,6 +16,7 @@
  */
 
 #include <slirp.h>
+#include "sim_printf_fmts.h"
 
 #define MBUF_THRESH 30
 
@@ -94,7 +95,7 @@ m_get(Slirp *slirp)
         m->arp_requested = false;
         m->expiration_date = (uint64_t)-1;
 end_error:
-        DEBUG_ARG("m = %lx", (long )m);
+        DEBUG_ARG("m = %" POINTER_FMT "x", m);
         return m;
 }
 
@@ -103,7 +104,7 @@ m_free(struct mbuf *m)
 {
 
   DEBUG_CALL("m_free");
-  DEBUG_ARG("m = %lx", (long )m);
+  DEBUG_ARG("m = %" POINTER_FMT "x", m);
 
   if(m) {
         /* Remove from m_usedlist */
@@ -221,7 +222,7 @@ dtom(Slirp *slirp, void *dat)
         struct mbuf *m;
 
         DEBUG_CALL("dtom");
-        DEBUG_ARG("dat = %lx", (long )dat);
+        DEBUG_ARG("dat = %" POINTER_FMT "x", dat);
 
         /* bug corrected for M_EXT buffers */
         for (m = slirp->m_usedlist.m_next; m != &slirp->m_usedlist;

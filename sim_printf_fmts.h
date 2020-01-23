@@ -44,34 +44,34 @@
 #if defined(_WIN32)
 #  if defined(_WIN64)
 #    define SIZE_T_FMT   "I64"
+#    define SOCKET_FMT   "I64"
 #  else
 #    define SIZE_T_FMT   ""
+#    define SOCKET_FMT   ""
 #  endif
-#  define T_UINT64_FMT "I64"
-#  define T_INT64_FMT  "I64"
-#  define NTOHL_FMT    "lu"
-#  define IP_SADDR_FMT "l"
-#  if defined(_WIN64)
-#    define SOCKET_FMT "I64"
-#  else
-#    define SOCKET_FMT ""
-#  endif
+#  define T_UINT64_FMT   "I64"
+#  define T_INT64_FMT    "I64"
+#  define NTOHL_FMT      "lu"
+#  define IP_SADDR_FMT   "l"
+#  define POINTER_FMT    "p"
 #elif defined(__GNU_LIBRARY__) || defined(__GLIBC__) || defined(__GLIBC_MINOR__)
 /* glibc (basically, most Linuxen) */
-#  define SIZE_T_FMT   "z"
-#  define T_UINT64_FMT "ll"
-#  define T_INT64_FMT  "ll"
-#  define NTOHL_FMT    ""
-#  define IP_SADDR_FMT ""
-#  define SOCKET_FMT ""
+#  define SIZE_T_FMT     "z"
+#  define T_UINT64_FMT   "ll"
+#  define T_INT64_FMT    "ll"
+#  define NTOHL_FMT      ""
+#  define IP_SADDR_FMT   ""
+#  define SOCKET_FMT     ""
+#  define POINTER_FMT    "p"
 #else
 /* punt. */
-#  define SIZE_T_FMT   LL_FMT
-#  define T_UINT64_FMT LL_FMT
-#  define T_INT64_FMT  LL_FMT
-#  define NTOHL_FMT    ""
-#  define IP_SADDR_FMT ""
-#  define SOCKET_FMT ""
+#  define SIZE_T_FMT     LL_FMT
+#  define T_UINT64_FMT   LL_FMT
+#  define T_INT64_FMT    LL_FMT
+#  define NTOHL_FMT      ""
+#  define IP_SADDR_FMT   ""
+#  define SOCKET_FMT     ""
+#  define POINTER_FMT    LL_FMT
 #endif
 
 #define SIM_PRINTF_H

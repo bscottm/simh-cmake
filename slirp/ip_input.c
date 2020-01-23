@@ -41,6 +41,7 @@
 #include <slirp.h>
 #include <qemu/osdep.h>
 #include "ip_icmp.h"
+#include "sim_printf_fmts.h"
 
 static struct ip *ip_reass(Slirp *slirp, struct ip *ip, struct ipq *fp);
 static void ip_freef(Slirp *slirp, struct ipq *fp);
@@ -80,7 +81,7 @@ ip_input(struct mbuf *m)
         int hlen;
 
         DEBUG_CALL("ip_input");
-        DEBUG_ARG("m = %lx", (long)m);
+        DEBUG_ARG("m = %" POINTER_FMT "x", m);
         DEBUG_ARG("m_len = %d", m->m_len);
 
         if (m->m_len < sizeof (struct ip)) {
@@ -232,9 +233,9 @@ ip_reass(Slirp *slirp, struct ip *ip, struct ipq *fp)
         int i, next;
 
         DEBUG_CALL("ip_reass");
-        DEBUG_ARG("ip = %lx", (long)ip);
-        DEBUG_ARG("fp = %lx", (long)fp);
-        DEBUG_ARG("m = %lx", (long)m);
+        DEBUG_ARG("ip = %" POINTER_FMT "x", ip);
+        DEBUG_ARG("fp = %" POINTER_FMT "x", fp);
+        DEBUG_ARG("m = %" POINTER_FMT "x", m);
 
         /*
          * Presence of header sizes in mbufs
@@ -400,7 +401,7 @@ static void
 ip_enq(register struct ipasfrag *p, register struct ipasfrag *prev)
 {
         DEBUG_CALL("ip_enq");
-        DEBUG_ARG("prev = %lx", (long)prev);
+        DEBUG_ARG("prev = %" POINTER_FMT "x", prev);
         p->ipf_prev =  prev;
         p->ipf_next = prev->ipf_next;
         ((struct ipasfrag *)(prev->ipf_next))->ipf_prev = p;

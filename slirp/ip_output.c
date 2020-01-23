@@ -39,6 +39,7 @@
  */
 
 #include <slirp.h>
+#include "sim_printf_fmts.h"
 
 /* Number of packets queued before we start sending
  * (to prevent allocing too many mbufs) */
@@ -60,8 +61,8 @@ ip_output(struct socket *so, struct mbuf *m0)
         int len, off, error = 0;
 
         DEBUG_CALL("ip_output");
-        DEBUG_ARG("so = %lx", (long)so);
-        DEBUG_ARG("m0 = %lx", (long)m0);
+        DEBUG_ARG("so = %" POINTER_FMT "x", so);
+        DEBUG_ARG("m0 = %" POINTER_FMT "x", m0);
 
         ip = mtod(m, struct ip *);
         /*

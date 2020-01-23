@@ -39,6 +39,7 @@
  */
 
 #include <slirp.h>
+#include "sim_printf_fmts.h"
 
 static const u_char  tcp_outflags[TCP_NSTATES] = {
         TH_RST|TH_ACK, 0,      TH_SYN,        TH_SYN|TH_ACK,
@@ -66,7 +67,7 @@ tcp_output(struct tcpcb *tp)
         int idle, sendalot;
 
         DEBUG_CALL("tcp_output");
-        DEBUG_ARG("tp = %lx", (long )tp);
+        DEBUG_ARG("tp = %" POINTER_FMT "x", tp);
 
         /*
          * Determine length of data that should be transmitted,
