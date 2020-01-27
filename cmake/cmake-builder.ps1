@@ -21,7 +21,7 @@
 param (
     [switch] $clean       = $false,
     [switch] $help        = $false,
-    [string] $flavor      = "2019",
+    [string] $flavor      = "vs2019",
     [string] $config      = "Release",
     [switch] $nonetwork   = $false,
     [switch] $notest      = $false,
@@ -42,30 +42,84 @@ cmake-vs* subdirectories: MSVC build products and artifacts
 cmake-mingw subdirectory: MinGW-W64 products and artifacts
 
 Arguments:
--clean           Remove and recreate the build subdirectory before configuring
-                 and building
--generate        Generate build environment, do not compile/build.
-                 (Useful for generating MSVC solutions, then compile/build within
-                  the Visual Studio IDE.)
--parallel        Enable build parallelism (parallel target builds)
--nonetwork       Build simulators without network support.
--notest          Do not run 'ctest' test cases.
+-clean                 Remove and recreate the build subdirectory before
+                       configuring and building
+-generate              Generate build environment, do not compile/build.
+                       (Useful for generating MSVC solutions, then compile/build within
+                       the Visual Studio IDE.)
+-parallel              Enable build parallelism (parallel target builds)
+-nonetwork             Build simulators without network support.
+-notest                Do not run 'ctest' test cases.
 
--flavor 2019     Generate build environment for Visual Studio 2019 (default)
--flavor 2017     Generate build environment for Visual Studio 2017
--flavor 2015     Generate build environment for Visual Studio 2015
--flavor 2013     Generate build environment for Visual Studio 2013
--flavor 2012     Generate build environment for Visual Studio 2012
--flavor mingw    Generate build environment for MinGW-W64
+-flavor (2019|vs2019)  Generate build environment for Visual Studio 2019 (default)
+-flavor (2017|vs2017)  Generate build environment for Visual Studio 2017
+-flavor (2015|vs2015)  Generate build environment for Visual Studio 2015
+-flavor (2013|vs2013)  Generate build environment for Visual Studio 2013
+-flavor (2012|vs2012)  Generate build environment for Visual Studio 2012
+-flavor mingw          Generate build environment for MinGW GCC/mingw32-make
+-flavor ninja          Generate build environment for MinGW GCC/ninja
 
--config Release  Build dependencies and simulators for Release (optimized) (default)
--config Debug    Build dependencies and simulators for Debug
+-config Release        Build dependencies and simulators for Release (optimized) (default)
+-config Debug          Build dependencies and simulators for Debug
 
--help            Output this help.
+-help                  Output this help.
 "@
 
     exit 0
 }
+
+
+## CMake generator info:
+class GeneratorInfo
+{
+    [string]  $Generator
+    [string[]]$ArchArgs
+
+    GeneratorInfo($gen, $arch)
+    {
+        $this.Generator = $gen
+        $this.ArchArgs  = $arch
+    }
+}
+
+## Yes, I made a mistake by using years for VS instead of something more
+## sensible.
+$cmakeCanonicalFlavors = @{
+    "2019" = "vs2019"
+    "2017" = "vs2017"
+    "2015" = "vs2015"
+    "2013" = "vs2013"
+    "2012" = "vs2012"
+}
+
+
+$cmakeGenMap = @{
+    "vs2019" = [GeneratorInfo]::new("Visual Studio 16 2019", @("-A", "Win32"))
+    "vs2017" = [GeneratorInfo]::new("Visual Studio 15 2017", @())
+    "vs2015" = [GeneratorInfo]::new("Visual Studio 14 2015", @())
+    "vs2013" = [GeneratorInfo]::new("Visual Studio 12 2013", @())
+    "vs2012" = [GeneratorInfo]::new("Visual Studio 11 2012", @())
+    "mingw"  = [GeneratorInfo]::new("MinGW Makefiles", @())
+    "ninja"  = [GeneratorInfo]::new("Ninja", @())
+}
+
+
+function Get-CanonicalFlavor([string]$flavor)
+{
+    $canonicalFlavor = $cmakeCanonicalFlavors[${flavor}]
+    if ($null -eq $canonicalFlavor) {
+        $canonicalFlavor = $flavor
+    }
+
+    return $canonicalFlavor
+}
+
+function Get-GeneratorInfo([string]$flavor)
+{
+    $canonicalFlavor = Get-CanonicalFlavor $flavor
+    return $cmakeGenMap[$canonicalFlavor]
+}
+
 
 ## Output help early and exit.
 if ($help)
@@ -231,51 +285,28 @@ the script's path name. You should really not see this message.
     "** ${scriptName}: SIMH top-level source directory is ${simhTopDir}"
 }
 
-$buildDir  = "cmake\build-vs"
-$generator = "!!invalid!!"
-$archFlag  = @()
-
-switch ($flavor)
+$flavor = $(Get-CanonicalFlavor $flavor)
+$buildDir  = "${simhTopDir}\cmake\build-${flavor}"
+$genInfo = $(Get-GeneratorInfo $flavor)
+if ($null -eq $genInfo)
 {
-    "2019" {
-        $buildDir += $flavor
-        $generator = "Visual Studio 16 2019"
-        $archFlag  = @("-A", "Win32")
-    }
-    "2017" {
-        $buildDir += $flavor
-        $generator = "Visual Studio 15 2017"
-    }
-    "2015" {
-        $buildDir += $flavor
-        $generator = "Visual Studio 14 2015"
-    }
-    "2013" {
-        $buildDir += $flavor
-        $generator = "Visual Studio 12 2013"
-    }
-    "2012" {
-        $buildDir += $flavor
-        $generator = "Visual Studio 11 2012"
-    }
-    "mingw" {
-        $buildDir = "cmake\build-mingw"
-        $generator = "MinGW Makefiles"
-    }
-    "ninja" {
-        $buildDir = "cmake\build-ninja"
-        $generator = "Ninja"
-    }
-    default {
-        Write-Output ""
-        Write-Output "!! ${scriptName}: Unrecognized build flavor '${flavor}'."
-        Write-Error  "!! ${scriptName}: Unrecognized build flavor '${flavor}'."
-        Write-Output ""
-        Show-Help
-    }
+    Write-Output ""
+    Write-Output "!! ${scriptName}: Unrecognized build flavor '${flavor}'."
+    Write-Output ""
+    Show-Help
 }
 
-if (!$testonly)
+$scriptPhases = @( "generate", "build", "test")
+if ($testOnly)
+{
+    $scriptPhases = @("test")
+}
+if ($generate)
+{
+    $scriptPhases = @("generate")
+}
+
+if (($scriptPhases -contains "generate") -or ($scriptPhases -contains "build"))
 {
     if (!@("Release", "Debug").Contains($config))
     {
@@ -287,7 +318,6 @@ if (!$testonly)
     }
 
     ## Clean out the build subdirectory
-    $buildDir = "${simhTopDir}\${buildDir}"
     if ((Test-Path -Path ${buildDir}) -and $clean)
     {
         "** ${scriptName}: Removing ${buildDir}"
@@ -305,11 +335,13 @@ if (!$testonly)
     }
 
     ## Where we do the heaving lifting:
-    $generateArgs = @("-G", ${generator}, "-D", "CMAKE_BUILD_TYPE=${config}", "-Wno-dev", "--no-warn-unused-cli-args")
-    $generateArgs = $generateArgs + ${archFlag}
+    $generateArgs = @("-G", $genInfo.Generator, "-D", "CMAKE_BUILD_TYPE=${config}", 
+        "-Wno-dev", "--no-warn-unused-cli-args"
+    )
+    $generateArgs = $generateArgs + $genInfo.ArchArgs
     if ($nonetwork)
     {
-        $generateArgs += @("-DWITH_NETWORK:Bool=Off", "-DWITH_PCAP:Bool=Off", "-DWITH_SLIRP:Bool=Off")
+        $generateArgs += @("-DWITH_NETWORK:Bool=Off")
     }
     $generateArgs += ${simhTopDir}
 
@@ -336,30 +368,28 @@ if (!$testonly)
     {
         "** ${scriptName}: Configuring and generating"
 
-        if (!$testonly) {
-            & ${cmakeCmd} ${generateArgs} 2>&1
+        & ${cmakeCmd} ${generateArgs} 2>&1
+        $lec = $LastExitCode
+        if ($lec -gt 0) {
+            "==== Last exit code ${lec}"
+            "** ${scriptName}: Configuration errors. Exiting."
+            exit 1
+        }
+        if ($scriptPhases -contains "build")
+        {
+            "** ${scriptName}: Building simulators."
+            & ${cmakeCmd} ${buildArgs} -- ${buildSpecificArgs}
             $lec = $LastExitCode
             if ($lec -gt 0) {
                 "==== Last exit code ${lec}"
-                "** ${scriptName}: Configuration errors. Exiting."
+                "** ${scriptName}: Build errors. Exiting."
                 exit 1
             }
-            if (!$generate)
-            {
-                "** ${scriptName}: Building simulators."
-                & ${cmakeCmd} ${buildArgs} -- ${buildSpecificArgs}
-                $lec = $LastExitCode
-                if ($lec -gt 0) {
-                    "==== Last exit code ${lec}"
-                    "** ${scriptName}: Build errors. Exiting."
-                    exit 1
-                }
-            }
-            else
-            {
-                "** ${scriptName}: Generated build environment in $(Get-Location)"
-                exit 0
-            }
+        }
+        else
+        {
+            "** ${scriptName}: Generated build environment in $(Get-Location)"
+            exit 0
         }
     }
     catch
@@ -375,7 +405,7 @@ if (!$testonly)
     }
 }
 
-if (!$notest)
+if ($scriptPhases -contains "test")
 {
     try {
         ## Let's test our results...
