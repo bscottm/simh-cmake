@@ -1,50 +1,72 @@
-## PDP-18B-based simulators
+## PDP18B simulators
+##
+## This is an automagically generated file. Do NOT EDIT.
+## Any changes you make will be overwritten!!
+##
+## Make changes to the SIMH top-level makefile and then run the
+## "cmake/generate.py" script to regenerate these files.
+##
+##     python -m cmake/generate --help
+##
+## ------------------------------------------------------------
 
-set(PDP18B_SOURCES
-    pdp18b_dt.c
-    pdp18b_drm.c
-    pdp18b_cpu.c
-    pdp18b_lp.c
-    pdp18b_mt.c
-    pdp18b_rf.c
-    pdp18b_rp.c
-    pdp18b_stddev.c
-    pdp18b_sys.c
-    pdp18b_rb.c
-    pdp18b_tt1.c
-    pdp18b_fpp.c
-    pdp18b_g2tty.c
-    pdp18b_dr15.c)
 
-add_simulator(pdp4
-    SOURCES
-	${PDP18B_SOURCES}
-    DEFINES
-	PDP4
-    INCLUDES
-	${PDP18BD})
+set(PDP18B
+    ${PDP18BD}/pdp18b_dt.c
+    ${PDP18BD}/pdp18b_drm.c
+    ${PDP18BD}/pdp18b_cpu.c
+    ${PDP18BD}/pdp18b_lp.c
+    ${PDP18BD}/pdp18b_mt.c
+    ${PDP18BD}/pdp18b_rf.c
+    ${PDP18BD}/pdp18b_rp.c
+    ${PDP18BD}/pdp18b_stddev.c
+    ${PDP18BD}/pdp18b_sys.c
+    ${PDP18BD}/pdp18b_rb.c
+    ${PDP18BD}/pdp18b_tt1.c
+    ${PDP18BD}/pdp18b_fpp.c
+    ${PDP18BD}/pdp18b_g2tty.c
+    ${PDP18BD}/pdp18b_dr15.c)
 
-add_simulator(pdp7
-    SOURCES
-	${PDP18B_SOURCES}
-    DEFINES
-	PDP7
-    INCLUDES
-	${PDP18BD}
-    TEST pdp7)
-
-add_simulator(pdp9
-    SOURCES
-	${PDP18B_SOURCES}
-    DEFINES
-	PDP9
-    INCLUDES
-	${PDP18BD})
 
 add_simulator(pdp15
     SOURCES
-    	${PDP18B_SOURCES}
-    DEFINES
-	PDP15
+        ${PDP18B}
     INCLUDES
-	${PDP18BD})
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    DEFINES
+        PDP15
+    TEST pdp15)
+
+add_simulator(pdp4
+    SOURCES
+        ${PDP18B}
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    DEFINES
+        PDP4
+    TEST pdp4)
+
+if (BUILD_WITH_VIDEO)
+    add_simulator(pdp7
+        SOURCES
+            ${PDP18B}
+            pdp18b_dpy.c
+            ${DISPLAY340}
+        INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}
+        DEFINES
+            PDP7
+            DISPLAY_TYPE=DIS_TYPE30
+            PIX_SCALE=RES_HALF
+        VIDEO
+        TEST pdp7)
+endif (BUILD_WITH_VIDEO)
+
+add_simulator(pdp9
+    SOURCES
+        ${PDP18B}
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    DEFINES
+        PDP9
+    TEST pdp9)

@@ -2,85 +2,245 @@
 
 <!-- TOC -->
 
-- [Build simh using CMake](#build-simh-using-cmake)
-  - [Intended Audience: Developers](#intended-audience-developers)
-  - [Why CMake?](#why-cmake)
-  - [Building simh With CMake](#building-simh-with-cmake)
-    - [Before You Begin: Prerequisites](#before-you-begin-prerequisites)
-      - [Supported C Compilers](#supported-c-compilers)
-      - [Tool and Library Dependencies](#tool-and-library-dependencies)
-    - [Building simh](#building-simh)
-      - [Linux/*nix platforms](#linuxnix-platforms)
-    - [Configuration Options](#configuration-options)
-    - [CMake quickstart](#cmake-quickstart)
-    - [Notes for Windows Visual Studio](#notes-for-windows-visual-studio)
-  - [CMake Generators](#cmake-generators)
-  - [Developer Notes](#developer-notes)
-    - [Build Directories](#build-directories)
-    - [add_simulator: Compiling simulators](#addsimulator-compiling-simulators)
-  - [Motivation](#motivation)
+- [Build `simh` using CMake](#build-simh-using-cmake)
+    - [Why CMake?](#why-cmake)
+    - [Quickstart For The Impatient](#quickstart-for-the-impatient)
+        - [Linux/WSL](#linuxwsl)
+        - [Windows](#windows)
+        - [Running Simulators](#running-simulators)
+    - [Details](#details)
+        - [Tools and Runtime Library Dependencies](#tools-and-runtime-library-dependencies)
+        - [CMake Configuration Options](#cmake-configuration-options)
+        - [Directory Structure/Layout](#directory-structurelayout)
+        - [Regenerating the simulator `CMakeLists.txt` Files](#regenerating-the-simulator-cmakeliststxt-files)
+        - [Step-by-Step](#step-by-step)
+            - [Linux/WSL/Ubuntu Step-by-Step](#linuxwslubuntu-step-by-step)
+            - [Visual Studio Step-by-Step](#visual-studio-step-by-step)
+            - [MinGW/GCC Step-by-Step](#mingwgcc-step-by-step)
+    - [Motivation](#motivation)
 
 <!-- /TOC -->
 
-## Intended Audience: Developers
-
-This document assumes that you, the reader, are a knowledgeable software developer:
-
-  - You have a C/C++ compiler installed on your host or virtual machine
-  - You know how to develop and build software artifacts (executables, shared
-    objects, dynamically linked libraries).
-  - You can install software development dependencies on your host or virtual machine.
-    - Linux and *nix platforms: You know how to use `rpm`, `apt`, `pacman` or the appropriate
-      package manager your Linux or *nix uses.
-    - Windows: You use a package manager such as [Scoop][scoop] or [Chocolatey][chocolatey],
-      or you are comfortable with installing software directly.
-  - You known what tools such as `make`, `bison` and `flex` do.
-  - You can diagnose your software development environment's issues/problems.
-  
-If you are not a reasonably knowledgeable software developer or are new to software
-development, _PLEASE USE THE PRE-COMPILED SIMULATORS_. 
-
-_Windows developers_: This document distinctly prefers the [Scoop][scoop]
-package manager. While this is the author's preference, it does not have to be
-yours. You always have the option to use another package manager, such as
-[Chocolatey][chocolatey], or direct software installation from the package's
-download site. If you use another package manager or directly install software,
-you're ultimately responsible for diagnosing issues with your software
-development environment.
 
 ## Why CMake?
 
-[CMake][cmake] is a cross-platform "meta" build system that provides similar
-functionality to GNU _autotools_ within a more integrated and platform-agnostic
-framework. A sample of the supported build environments include:
+[CMake][cmake] is a cross-platform "meta" build system that provides similar functionality to
+GNU _autotools_ within a more integrated and platform-agnostic framework. Two of the motivating
+factors for providing a [CMake][cmake]-based alternative build system were library dependency
+management (i.e., SDL2, SDL2_ttf, et. al.) and support for other build tools. A sample of
+[CMake][cmake]'s supported build tools/environments includes:
 
-  - Unix Makefiles
+  - Unix (GNU) Makefiles
   - [MinGW Makefiles][mingw64]
-  - [Ninja][ninja]
+  - [Ninja][ninja] build tool
   - MS Visual Studio solutions (2015, 2017, 2019)
-  - IDE build wrappers ([Sublime Text](https://www.sublimetext.com) and [CodeBlocks](http://www.codeblocks.org))
+  - IDE build wrappers, such as [Sublime Text](https://www.sublimetext.com)
+    and [CodeBlocks](http://www.codeblocks.org)
 
-[CMake][cmake] is not intended to supplant, supercede or replace the existing
-`simh` build infrastructure. If you like the existing `makefile` "poor man's
-configure" approach, there's nothing to stop you from using it. [CMake][cmake]
-is a parallel build system to the `simh` `makefile` and is just another way to
-build `simh`'s simulators.
+[CMake][cmake] (aka `simh-cmake`) is not intended to supplant, supercede or replace the
+existing `simh` build infrastructure. If you like the existing `makefile` "poor man's
+configure" approach, there's nothing to stop you from using it. [CMake][cmake] is a parallel
+build system to the `simh` `makefile` and is just another way to build `simh`'s simulators. If
+you look under the hood, you'll find a Python script that generates [CMake][cmake]'s
+`CMakeLists.txt` files automagically from the `simh` `makefile`.
 
-## Building `simh` With CMake
 
-### Before You Begin: Prerequisites
+## Quickstart For The Impatient
 
-#### Supported C Compilers
+The quickstart consists of:
 
-| Compiler                 | Notes                                                 |
-| ------------------------ | ----------------------------------------------------- |
-| _GNU C Compiler (gcc)_   | This is one of two compilers against which `simh` is routinely compiled. `gcc` is the default compiler for many Linux and *nix platforms; it can also be used for [Mingw-w64][mingw64]-based builds on Windows. |
-| _Microsoft Visual C/C++_ | This is the other compiler against which `simh` is routinely compiled. |
-| _CLang/LLVM_             | Building `simh` with `clang` and [CMake][cmake] is untested. It will probably work on Linux and *nix platforms without issues. This is completely untested on Windows. |
+  - Clone the `simh` repository, if you haven't done that already
+  - Install runtime dependency development libraries (Linux)
+  - Run the appropriate `cmake-builder` script for your platform
 
-Your mileage may vary on other platforms where [CMake][cmake] is supported.
+There are two scripts, `cmake/cmake-builder.ps1` (Windows PowerShell) and
+`cmake/cmake-builder.sh` (_bash_), that automate the entire `simh-cmake` build sequence. This
+sequence consists of four phases: _configure/generate_, _build_, _test_ and _install_. If the
+build succeeds (and you see a lot of `-- Installing ` lines at the end of the output), you
+should have a complete set of simulators under the top-level `simh/BIN` subdirectory.
 
-#### Tool and Library Dependencies
+On Windows (and potentially on Linux if you haven't installed the dependency development
+libraries), `simh-cmake` will download, compile and locally install the runtime dependencies.
+There is no support (yet) for Microsoft's [vcpkg][vcpkg]; it is planned at a future date. The
+runtime dependency library build, followed by the simulator build, is called a [CMake][cmake]
+"superbuild". The superbuild should only execute once; `simh-cmake` will regenerate the build
+tool's files once the runtime dependency libraries are successfully detected and found.
+
+### Linux/WSL
+
+The quickstart shell steps below were tested on Ubuntu 18, both natively and under Windows
+Services for Linux (WSL). Package names, such as `libsdl2-ttf`, may vary between Linux
+distributions. For other ideas or to see how SIMH is built on [Gitlab][gitlab], refer to the
+`.gitlab-ci.yml` configuration file.
+
+The default [CMake][cmake] generator is "Unix Makefiles", i.e., [CMake][cmake] generates
+everything for GNU `make`. [Ninja][ninja] is an alternate supported builder, which can be used
+by passing the `--flavor=ninja` option to the `cmake/cmake-builder.sh` script.
+
+```shell
+## clone the SIMH repository (skip if you did this already)
+$ git clone  https://github.com/simh/simh.git simh
+$ cd simh
+
+## Install development dependency libraries (skip if these are)
+## already installed. It doesn't hurt to make sure that they are
+## installed.)
+$ sudo apt-get update -qq -y && \
+  sudo apt-get install -qq -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev && \
+  sudo apt-get install -qq -y libpcap-dev libvdeplug-dev
+
+## Install the Ninja builder if desired, otherwise, skip this step.
+$ sudo apt-get install -qq -y ninja-build
+
+## Invoke the automation script for Unix Makefiles. Lots of output ensues.
+$ cmake/cmake-builder.sh
+
+## For Ninja (lighter weight and highly parallel compared to GNU make):
+$ cmake/cmake-builder.sh --flavor=ninja
+
+## Help from the script:
+$ cmake/cmake-builder.sh --help
+Configure and build simh simulators on Linux and *nix-like platforms.
+
+Subdirectories:
+cmake/build-unix:  Makefile-based build simulators
+cmake/build-ninja: Ninja build-based simulators
+
+Options:
+--------
+--clean (-x)      Remove the build subdirectory
+--generate (-g)   Generate the build environment, don't compile/build
+--parallel (-p)   Enable build parallelism (parallel builds)
+--nonetwork       Build simulators without network support
+--notest          Do not execute 'ctest' test cases
+--noinstall       Do not install SIMH simulators.
+--testonly        Do not build, execute the 'ctest' test cases
+--installonly     Do not build, install the SIMH simulators
+--allInOne        Use 'all-in-one' project structure (vs. individual)
+
+--flavor (-f)     Specifies the build flavor: 'unix' or 'ninja'
+--config (-c)     Specifies the build configuraiton: 'Release' or 'Debug'
+
+--help (-h)       Print this help.
+```
+
+
+### Windows
+
+These quickstart steps were tested using Visual Studio 2019 and using [MinGW][mingw64]/GCC. These
+have not been tested with the [CLang][clang] compiler.
+
+Building on Windows is slightly more complicated than building on Linux because development
+package management is not as well standardized as compared to Linux distributions. The
+following quickstart steps use the [Scoop][scoop] package manager to install required
+development tools.
+
+Runtime dependencies, such as `SDL2`, `PNG`, `zlib`, are automagically handled by the
+`simh-cmake` build process, also known as "the superbuild." The superbuild should only occur
+once to compile and locally install the runtime dependency libraries, header files and DLLs.
+Once the runtime dependency libraries are installed, the superbuild regenerates the build
+environment to use the locally installed dependencies.
+
+To make things even more complicated, there are a variety of [CMake][cmake] genenerators,
+depending on which compiler you have installed and whether you are using [MinGW][mingw64] or
+Visual Studio. If you are using [MinGW][mingw64], __do not use `pkg-config` to install `SDL2`
+and `SDL2-ttf`__ -- let `simh-cmake` compile and locally install those two dependencies. There
+is an active ticket with Kitware to resolve this issue.
+
+__Emulated Ethernet via Packet Capture (PCAP):__ If you want emulated Ethernet support in
+Windows-based simulators, you __have__ to install the [NPCAP][npcap] package.
+
+```shell
+# If you have Visual Studio installed, skip the following two development
+# tool installation steps.
+#
+# Install development tools using Scoop (Chocolatey is another option, package
+# names are different, YMMV).
+PS> scoop install 7zip cmake gcc winflexbison git msys2
+# If you want/need the Ninja build system (an alternative to mingw32-make):
+PS> scoop install ninja
+
+# Clone the SIMH repository, if needed.
+PS> git clone  https://github.com/simh/simh.git simh
+PS> cd simh
+
+# Choose one of the following build steps, depending on which development
+# environment you use/installed:
+
+# Visual Studio 2019 build, Release configuration. Simulators and runtime
+# dependencies will install into the simh/BIN/Win32/Release directory.
+PS> cmake\cmake-builder.ps1 -flavor vs2019
+
+# MinGW/GCC build, Release build type. Simulators and runtime
+# dependencies will install into the simh/BIN directory.
+PS> cmake\cmake-builder.ps1 -flavor mingw
+
+# Ninja/GCC build, Release build type. Simulators and runtime
+# dependencies will install into the simh/BIN directory.
+PS> cmake\cmake-builder.ps1 -flavor ninja
+
+## Help output from the script:
+PS> cmake\cmake-builder.ps1 -help
+Configure and build simh's dependencies and simulators using the Microsoft
+Visual Studio C compiler or MinGW-W64-based gcc compiler.
+
+cmake/build-vs* subdirectories: MSVC build products and artifacts
+cmake/build-mingw subdirectory: MinGW-W64 products and artifacts
+cmake/build-ninja subdirectory: Ninja builder products and artifacts
+
+Arguments:
+-clean                 Remove and recreate the build subdirectory before
+                       configuring and building
+-generate              Generate build environment, do not compile/build.
+                       (Useful for generating MSVC solutions, then compile/-
+                       build within the Visual Studio IDE.)
+-parallel              Enable build parallelism (parallel target builds)
+-nonetwork             Build simulators without network support.
+-notest                Do not run 'ctest' test cases.
+-noinstall             Do not install simulator executables
+-installOnly           Only execute the simulator executable installation
+                       phase.
+-allInOne              Use the simh_makefile.cmake "all-in-one" project
+                       configuration vs. individual CMakeList.txt projects.
+                       (default: off)
+
+-flavor (2019|vs2019)  Generate build environment for Visual Studio 2019 (default)
+-flavor (2017|vs2017)  Generate build environment for Visual Studio 2017
+-flavor (2015|vs2015)  Generate build environment for Visual Studio 2015
+-flavor (2013|vs2013)  Generate build environment for Visual Studio 2013
+-flavor (2012|vs2012)  Generate build environment for Visual Studio 2012
+-flavor mingw          Generate build environment for MinGW GCC/mingw32-make
+-flavor ninja          Generate build environment for MinGW GCC/ninja
+
+-config Release        Build dependencies and simulators for Release (optimized) (default)
+-config Debug          Build dependencies and simulators for Debug
+
+-help                  Output this help.
+```
+
+### Running Simulators
+
+Assuming that the `cmake-builder.ps1` or `cmake-builder.sh` script successfully completed and installed
+the simulators, running a simulator is very straightforward:
+
+```shell
+## Linux and MinGW/GCC (anyone except VS...)
+$ BIN/vax
+
+MicroVAX 3900 simulator V4.0-0 Current        git commit id: ad9fce56
+sim>
+
+## Visual Studio:
+PS> BIN\Win32\Release\vax
+
+MicroVAX 3900 simulator V4.0-0 Current        git commit id: ad9fce56
+sim>
+```
+
+
+## Details
+
+### Tools and Runtime Library Dependencies
 
 The table below lists the development tools and packages needed to build the
 `simh` simulators, with corresponding `apt`, `rpm` and `Scoop` package names,
@@ -91,8 +251,8 @@ respective package manager.
 | ------------------------ | ---------- | --------------- | -------------- | ---------------------- | :----: |
 | [CMake][cmake]           | Dev. tool  | cmake           | cmake          | cmake                  | (1)    |
 | [Git][gitscm]            | Dev. tool  | git             | git            | git                    | (1, 2) |
-| [bison][bison]           | Dev. tool  | bison           | bison          | winflexbison           | (3)    |
-| [flex][flex]             | Dev. tool  | flex            | flex           | winflexbison           |        |
+| [bison][bison]           | Dev. tool  | bison           | bison          | winflexbison           | (2, 3) |
+| [flex][flex]             | Dev. tool  | flex            | flex           | winflexbison           | (2, 3) |
 | [Npcap][npcap]           | Runtime    |                 |                |                        | (4)    |
 | [zlib][zlib]             | Dependency | zlib1g-dev      | zlib-devel     |                        | (5)    |
 | [pcre2][pcre2]           | Dependency | libpcre2-dev    | pcre2-devel    |                        | (5)    |
@@ -106,380 +266,382 @@ respective package manager.
 _Notes_:
 
 (1) Required development tool.
-
 (2) Tool might already be installed on your system.
-
-(3) Tool might already be installed in Linux and *nix systems; [winflexbison][winflexbison] is package that installs both the
-    [bison][bison] and [flex][flex] tools for Windows developers. [bison][bison] and [flex][flex] are _only_ required to compile
-    the [libpcap][libpcap] packet capture library. If you do not need emulated native Ethernet networking, [bison][bison] and
+(3) Tool might already be installed in Linux and Unix systems; [winflexbison][winflexbison] is
+    package that installs both the [bison][bison] and [flex][flex] tools for Windows developers.
+    [bison][bison] and [flex][flex] are _only_ required to compile the [libpcap][libpcap] packet
+    capture library. If you do not need emulated native Ethernet networking, [bison][bison] and
     [flex][flex] are optional.
+(4) [Npcap][npcap] is a Windows packet capture device driver. It is a runtime requirement used
+    by simulators that emulate native Ethernet networking on Windows.
+(5) If the package name is blank or you do not have the package installed, `simh-cmake` will
+    download and compile the library dependency from source. [Scoop][scoop] does not provide these
+    development library dependencies, so all dependencies will be built from source on Windows.
+    Similarly, `SDL_ttf` support may not be available for RPM package-based systems (RedHat,
+    CentOS, ArchLinux, ...), but will be compiled from source.
+(6) [pthreads4w][pthreads4w] provides the POSIX `pthreads` API using a native Windows
+    implementation. This dependency is built only when using the _Visual Studio_ compiler.
+    [Mingw-w64][mingw64] provides a `pthreads` library as a part of the `gcc` compiler toolchain.
 
-(4) [Npcap][npcap] is a Windows packet capture device driver. It is a runtime requirement used by simulators that emulate native Ethernet networking
-    on Windows.
 
-(5) If the package name is blank or you do not have the package installed, the `simh` [CMake][cmake] build process will download and compile the
-    library dependency from source. [Scoop][scoop] does not provide these development library dependencies, so all dependencies will be built from
-    source on Windows. Similarly, `SDL_ttf` support may not be available for RPM package-based systems (RedHat, CentOS, ArchLinux, ...), but will
-    be compiled from source.
+### CMake Configuration Options
 
-(6) [pthreads4w][pthreads4w] provides POSIX `pthreads` API using a native Windows implementation. This dependency is built only when using the
-    _Visual Studio_ compiler. [Mingw-w64][mingw64] provides a `pthreads` library as a part of the `gcc` compiler toolchain.
-
-### Building `simh`
-
-It is basically up to you to choose the build system with which you're most comfortable and probably already use. [CMake][cmake] generates the files and
-environment for your preferred build system from the `CMakeFiles.txt` configuration file. [CMake Generators](#cmake-generators) has more information
-about which build systems your [CMake][cmake] installation supports.
-
-The process to build `simh` with [CMake][cmake] follows the steps below:
-
-1. Clone the `simh` Git repository, if you haven't done so already.
-2. Create a subdirectory in which you will build the simulators.
- 
-    _Note_: This [CMake][cmake] configuration **will not allow you** to configure, build or compile `simh` in the source
-    tree. Building `simh` simulators with [CMake][cmake] ***must*** be done in a separate directory, which is usually a
-    subdirectory within the source tree. An informal convention for subdirectory names is `cmake-<something>`, e.g.,
-    `cmake-unix` for Unix Makefile builds and `cmake-ninja` for [Ninja][ninja]-based builds (`.gitignore` ignores all
-    subdirectories that start with `cmake-`.)
-
-3. Compile the dependencies
-  - Detect which dependencies need to be built
-  - Generate the build environment to build the dependencies (if any)
-  - Build dependencies (if any)
-4. Compile the simulators
-  - Configure and generate the build environment for the simulators
-  - Build the simulators
-
-#### Linux/*nix platforms
-
-The following shell 
-
-``` shell
-# Install Ubuntu/Linux dependencies
-$ sudo apt install cmake bison flex zlib1g-dev libpcre2-dev libpng-dev libpcap-dev libsdl2-dev libsdl2-ttf-dev
-
-# Clone the simh repository (if you haven't done so already)
-$ git clone  https://github.com/simh/simh.git simh
-$ cd simh
-
-# make a build directory and generate Unix Makefiles
-$ mkdir cmake-unix
-$ cd cmake-unix
-$ cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release ..
-
-# First time around, d/l and build dependency libraries, if they're
-# not found (usually the case on Windows, YMMV on *nix):
-$ cmake --build . --config Release
-
-# Second time around: Reconfigure using the newly built dependency libraries
-# and build simh's simulators
-$ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
-$ cmake --build . --config Release
-
-# Alternatively, you can go into your favorite IDE and build from within your
-# IDE. Or, with the Ninja build system, you could just type `ninja` instead of
-# `cmake --build . --configure Release`. Or if you used "Unix Makefiles", you
-# could just type `make`. (See the pattern yet?)
-
-# Oh, so you want to run stuff? From inside the build?
-# Need to add the build-stage/bin directory to your PATH:
-$ PATH=`pwd`/build-stage/bin:$PATH
-
-# For Windows Powershell:
-# $env:PATH="$(Get-Location)\build-stage\bin;C:\Windows\System32\Npcap;$env:PATH"
-
-# Run the vax simulator from inside the build:
-$ VAX/vax
-
-# Install will install to the `BIN` directory inside the source tree:
-$ cmake --install .
-```
-
-### Configuration Options
-
-The default `simh` [CMake][cmake] configuration is _"Batteries Included"_: all
-options are enabled. The configuration options for `simh-cmake` generally
-mirror those in the `makefile`:
+The default `simh-cmake` configuration is _"Batteries Included"_: all options are enabled as
+noted below. They generally mirror those in the `makefile`:
 
 * `WITH_NETWORK`: Enable (=1)/disable (=0) simulator networking support. (def: enabled)
 * `WITH_PCAP`: Enable (=1)/disable (=0) libpcap (packet capture) support. (def: enabled)
 * `WITH_SLIRP`: Enable (=1)/disable (=0) SLIRP network support. (def: enabled)
+* `WITH_VDE`: Enable (=1)/disable (=0) VDE2/VDE4 network support. (def: enabled, Linux only)
+* `WITH_TAP`: Enable (=1)/disable (=0) TAP/TUN device network support. (def: enabled, Linux only)
 * `WITH_VIDEO`: Enable (=1)/disable (=0) simulator display and graphics support (def: enabled)
 * `PANDA_LIGHTS`: Enable (=1)/disable (=0) KA-10/KI-11 simulator's Panda display. (def: disabled)
 * `DONT_USE_ROMS`: Enable (=1)/disable (=0) building hardcoded support ROMs. (def: disabled)
 * `ENABLE_CPPCHECK`: Enable (=1)/disable (=0) [cppcheck][cppcheck] static code checking rules.
+* `ALL_IN_ONE`: Use the 'all-in-one' project definitions (vs. individual CMakeLists.txt) (def: disabled)
 
-[CMake][cmake] enables (or disables) options at configuration time:
+Specify configuration options during the `simh-cmake` configuration/generation step (see the
+[step-by-step](#step-by-step) section). For example, if your build environment is on a
+Ubuntu/Linux/WSL system using the Ninja build system:
 
-```shell
-# Assuming that you are in the cmake-ninja build subdirectory already.
-# Remove the CMakeCache.txt file if you are reconfiguring your build system:
-$ rm -f CMakeCache.txt
+```` shell
+# Do configuration/generation in the cmake/build-ninja subdirectory
+$ cd cmake/build-ninja
+# Clean out prior CMake configuration
+$ rm -rf CMakeCache.txt CMakefiles
+# Don't want networking enabled:
+$ cmake -G Ninja -DWITH_NETWORK=Off -DCMAKE_BUILD_TYPE=Release ../..
+````
 
-# Then reconfigure:
-$ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DWITH_NETWORK=Off -DENABLE_CPPCHECK=Off
+A Windows Visual Studio 2019 environment would reconfigure by executing the following:
 
-# Alteratively ("0" and "Off" are equivalent)
-$ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DWITH_NETWORK=0 -DENABLE_CPPCHECK=0
+```` shell
+# Do configuration in the cmake\build-vs2019 subdirectory
+PS> cd cmake\build-vs2019
+# Clear out prior CMake configuration
+PS> remove-item -force CMakeCache.txt
+PS> remove-item -force -recurse CMakeFiles
+# Dont'want video enabled:
+PS> cmake -G "Visual Studio 16 2019" -A Win32 -DWITH_VIDEO=Off ..\..
+````
+
+__ENABLE_CPPCHECK__: This is a developer option that enables additional rules that runs the
+[cppcheck](cppcheck) static code analysis tool over individual simulator code. The
+[cppcheck](cppcheck) rules have to be executed manually and have the naming convention
+`<simulator>-cppcheck`:
+
+    ```` shell
+    # Run cppcheck on the PDP-8 simulator's source code:
+    $ ninja pdp8-cppcheck
+    ````
+
+__ALL_IN_ONE project definitions__: This option is discouraged, and should never be used by
+Visual Studio developers. The "all-in-one" project definitions are a variation on how
+`simh-cmake` configures the individual simulators. For Visual Studio developers and IDE
+enthusiasts for whom individual simulator projects are important, this option will make all
+simulator suprojects disappear and likely make your IDE unusable or unsuitable to compile SIMH.
+If your normal development environment is Emacs or Vi/ViM, IDE subprojects aren't important and
+this option is available to you. It doesn't improve compile or build times.
+
+
+### Directory Structure/Layout
+
+`simh-cmake` is relatively self-contained within the `cmake` subdirectory. The exceptions are
+the `simh` top-level directory `CMakeLists.txt` file and the individual simulator
+`CMakeLists.txt` files. The individual simulator `CMakeLists.txt` files are automagically
+generated from the `simh` `makefile` by the `cmake/generate.py` script -- see [this
+section](#regenerating-the-cmakeliststxt-files) for more information.
+
+The directory structure and layout is:
+
+```
+simh
+| - CMakeLists.txt         ## Top-level, "master" project defs for SIMH and
+|                          ## simulators
+|
++ 3b2                      ## 3b2 simulator
+| - CMakeLists.txt         ## Individual subproject CMake defs for 3b2
+| - ...                    ## 3b2 sources
++ ALTAIR                   ## Altair simulator
+| - CMakeLists.txt         ## Individual subproject CMake defs for Altair
+| - ...                    ## Altair sources
++ AltairZ80
+| - CMakeLists.txt         ## Individual subproject CMake defs for AltairZ80
+| - ...                    ## AltairZ80 sources
++ BIN                      ## SIMH's preferred installation location
+| + Win32/Release          ## Visual Studio Release configuration installation loc.
+| + Win32/Debug            ## Visual Studio Debug configuration installation loc.
+...
++ cmake
+| + build-vs2019           ## Subdirectory for VS 2019 build artifacts
+| + build-mingw            ## Subdirectory for MinGW build artifacts
+| + build-ninja            ## Subdirectory for Ninja build artifacts
+| + build-unix             ## Subdirectory for GNU make build artifacts
+| + dependencies           ## Local installation subdirectory hierarchy for
+|                          ## runtime dependencies
+| - *.cmake                ## CMake packages and modules
+| - generate.py            ## CMakeLists.txt generator script
 ```
 
-### CMake quickstart
+Git will ignore all of the `cmake/build-*` and `cmake/dependencies` subdirectories. These
+subdirectories encapsulate all of the build artifacts and products associated with a particular
+compiler/build environment. It is actually safe to delete these subdirectories if you want to
+start over from scratch. Moreover, you can also develop and target multiple compilers, since
+their [CMake][cmake] outputs are compartmentalized.
 
-`simh-cmake` is a `CMake` "_superbuild_": It first downloads and builds
-dependency libraries (SDL2, SDL2-ttf, pcre, zlib, freetype, ...), if they are
-missing. These dependency libraries are staged in the `CMake` build directory.
-Once all of the dependency libraries are satisfied, you reconfigure
-`simh-cmake` to build the simulators. Unless you nuke the build directory, you
-should only have to build the dependency libraries once.
+### Regenerating the simulator `CMakeLists.txt` Files
+
+`simh-cmake` is a parallel build system to the `makefile`. The `makefile` is the authoritative
+source for simulators that can be built (the `all :` rule) as well as how those simulators
+compile and options needed to compile them. Consequently, the individual simulator
+`CMakeLists.txt` project definitions are automagically generated from the `makefile` using the
+`cmake/generate.py` Python3 script.
+
+__Simulator developers:__ If you add a new simulator to SIMH or change a simulator's source
+file list, compile options, etc., you will have to regenerate the `CMakeLists.txt` files. It's
+relatively painless and Git will detect which have changed to minimize the amount of repository
+churn:
 
 ```shell
-# clone (if you haven't done so already)
-$ git clone  https://github.com/simh/simh.git simh
-$ cd simh
+$ cd cmake
+$ python3 -m generate
+```
 
-# make a build directory and generate a build environment (ex: Ninja on Windows 10)
-$ mkdir cmake-ninja
-$ cd cmake-ninja
+That's it. Basically, if you change `makefile`, regenerate.
+
+There is nothing that prevent you from manually editing a `CMakeLists.txt` file while doing
+development (see the individual `CMakeLists.txt` files and `cmake/add_simulator.cmake` for
+information on how to define your own simulator, as well as available options.) Just keep in
+mind that the `makefile` is authoritative and all of your changes will be wiped out by the next
+`CMakeList.txt` regeneration.
+
+### Step-by-Step
+
+This section steps you through how to work with `simh-cmake` without the `cmake-builder.ps1` or
+`cmake-builder.sh` scripts. It also covers some of the interesting and frequently used
+[CMake][cmake] configuration options.
+
+The `cmake-builder.ps1` and `cmake-builder.sh` scripts execute the following four steps:
+
+1. Create a subdirectory in which you will build the simulators.
+ 
+     `simh-cmake` **will not allow you** to configure, build or compile `simh` in the source tree.
+     An informal convention for build subdirectories is `cmake/build-<something>`, such as
+     `cmake-unix` for Unix Makefile builds and `cmake-ninja` for [Ninja][ninja]-based builds. Git
+     (`.gitignore`) ignores all subdirectories that start with `cmake/build-*`.)
+
+2. Configure and generate for your environment
+
+    You should only have to execute this step once. [CMake][cmake] will inject the necessary
+    dependencies into your build environment (`Makefile`, `build.ninja`, VS solution or project
+    file) to reconfigure if you change a `CMakeLists.txt` file. 
+    
+    If you change any of the `cmake/*.cmake` files that detect OS features and runtime
+    dependencies, or need to change configuration or options, **make sure to delete** the
+    `CMakeCache.txt` cache and the `CMakeFiles` subdirectory first:
+
+    ````shell
+    # Assuming that you are building using Ninja and need to reconfigure:
+    $ cd cmake/build-ninja
+    $ rm -rf CMakeCache.txt CMakeFiles
+    ````
+
+    Configuration settings worth tweaking include:
+
+    __CMAKE_BUILD_TYPE__: Commonly used values are `Release` and `Debug`. Some generators support
+    `MinSizeRel`, but don't count on it -- use `Release` or `Debug`. If not otherwise specified,
+    `simh-cmake` defaults to `Release`. This controls the compiler flags used in environments that
+    do not support multiple build configurations (everything that isn't Visual Studio.) This has
+    to be specified at configuration/generation.
+
+    __CMAKE_INSTALL_PREFIX__: Directory where simulators will be installed. Defaults to
+    `${CMAKE_SOURCE_DIR}/BIN`.
+
+3. Compile dependencies and simulators
+
+    Usually this is straightforward, i.e., `make`, `mingw32-make` or `ninja`. For Visual Studio,
+    you're better off with invoking `cmake` to run the build. Note that invoking `cmake` to run
+    the build works for all build environments and tools.
+
+4. Run tests
+
+    This is an optional, but highly recommended step. Runs all of the VAX tests, and the DEC PDP-8
+    and AT&T 3b2 simulator tests.
+
+5. Install
+
+    If the build and tests succeed, then install the simulators. For Windows developers, the
+    install step copies over runtime dependency library DLLs, which save you from editing/changing
+    your `PATH` environment variable.
+
+#### Linux/WSL/Ubuntu Step-by-Step
+
+Putting this all together for a Ubuntu/WSL development environment using the [Ninja][ninja]
+builder. __NOTE__: These steps assume that you have installed the prerequisite development
+libraries. See [the Linux/WSL quickstart](#linuxwsl) for the `apt-get` lines related to these
+prerequisites.
+
+``` shell
+# Configure/generate.
+#
+# Make a build directory and generate Ninja build rules. We are going to ask
+# Ninja to build a Release (optimized) set of simulators (CMAKE_BUIlD_TYPE=Release).
+$ mkdir -p cmake/build-ninja
+$ cd cmake/build-ninja
 $ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+-- The C compiler identification is GNU 9.2.0
+-- The CXX compiler identification is GNU 9.2.0
+-- Check for working C compiler: /usr/bin/cc
+-- Check for working C compiler: /usr/bin/cc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Check for working CXX compiler: /usr/local/bin/c++
+-- Check for working CXX compiler: /usr/local/bin/c++ -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- CMAKE_BUILD_TYPE is Release
+-- Found PkgConfig: /usr/bin/pkg-config (found version "0.29")
+... And a lots more output ...
 
-# First time around, d/l and build dependency libraries, if they're
-# not found (usually the case on Windows, YMMV on *nix):
-$ cmake --build . --config Release
+# Now build. You could also just execute "ninja" here too.
+$ cmake --build .
+... Lots of output building the simulators ...
 
-# Second time around: Reconfigure using the newly built dependency libraries
-# and build simh's simulators
-$ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
-$ cmake --build . --config Release
+# Run the tests
+$ ctest
+Test project /nowhere/special/simh/cmake/build-ninja
+      Start  1: test-3b2
+ 1/23 Test  #1: test-3b2 .........................   Passed   51.16 sec
+      Start  2: test-pdp8
+ 2/23 Test  #2: test-pdp8 ........................   Passed   16.24 sec
+      Start  3: test-infoserver100
+ 3/23 Test  #3: test-infoserver100 ...............   Passed    1.05 sec
+      Start  4: test-infoserver1000
+... Output from the remaining 20 tests ...
+100% tests passed, 0 tests failed out of 23
+Total Test time (real) = 248.27 sec
 
-# Alternatively, you can go into your favorite IDE and build from within your
-# IDE. Or, with the Ninja build system, you could just type `ninja` instead of
-# `cmake --build . --configure Release`. Or if you used "Unix Makefiles", you
-# could just type `make`. (See the pattern yet?)
-
-# Oh, so you want to run stuff? From inside the build?
-# Need to add the build-stage/bin directory to your PATH:
-$ PATH=`pwd`/build-stage/bin:$PATH
-
-# For Windows Powershell:
-# $env:PATH="$(Get-Location)\build-stage\bin;C:\Windows\System32\Npcap;$env:PATH"
-
-# Run the vax simulator from inside the build:
-$ VAX/vax
-
-# Install will install to the `BIN` directory inside the source tree:
+# And now install to simh/BIN.
 $ cmake --install .
 ```
 
-### Notes for Windows Visual Studio
+#### Visual Studio Step-by-Step
 
-The source tree versions of the Visual Studio project files/solutions build a
-32-bit executable. To do this with [CMake][cmake], you have to specify the target
-architecture at confiugration time as follows:
+First make sure that you have installed the development tools needed to build the runtime
+dependency libraries before executing the step-by-step instructions below. Refer to the `scoop`
+script lines in [the Windows quickstart](#windows) for more information.
 
-``` shell
-# Visual Studio 2019 has an argument for architecture, "-A", and defaults
-# to a 64-bit architecture:
-PS> cmake -G "Visual Studio 16 2019" -A Win32 ..
-
-# Prior Visual Studios don't and default to Win32
-PS> cmake -G "Visual Studio 15 2017" ..
-PS> cmake -G "Visual Studio 14 2015" ..
-PS> cmake -G "Visual Studio 12 2013" ..
-PS> cmake -G "Visual Studio 11 2012" ..
-PS> cmake -G "Visual Studio 10 2010" ..
-PS> cmake -G "Visual Studio 9 2008" ..
-```
-
-## `CMake` Generators
-
-[CMake][cmake] generates environments for a wide variety of build systems. The available list of build systems in your installed [CMake][cmake] is always available via:
+These step-by-step instructions assume that you are using Visual Studio 2019. If you use an
+earlier version of Visual Studio, choose a [CMake][cmake] generator as noted in the instructions.
 
 ``` shell
-$ cmake --help
-# (Some help text elided here for brevity...)
+# Make a VS 2019 build directory. The actual name of the directory is not important --
+# "cmake/build-vs2019" is merely a convention, vice "cmake/build-vs2015"
+# for VS 2015.
+PS> New-Item -Path cmake\build-vs2019 -ItemType Directory
+PS> cd cmake\build-vs2019
 
-Generators
+# Configure and generate the VS solution:
+# VS 2019 for 32-bit x86:
+PS> cmake -G "Visual Studio 16 2019" -A Win32 ..\..
+# VS 2017:
+# PS> cmake -G "Visual Studio 15 2017" ..\..
+# VS 2015:
+# PS> cmake -G "Visual Studio 14 2015" ..\..
 
-The following generators are available on this platform (* marks default):
-* Visual Studio 16 2019        = Generates Visual Studio 2019 project files.
-                                 Use -A option to specify architecture.
-  Visual Studio 15 2017 [arch] = Generates Visual Studio 2017 project files.
-                                 Optional [arch] can be "Win64" or "ARM".
-  Visual Studio 14 2015 [arch] = Generates Visual Studio 2015 project files.
-                                 Optional [arch] can be "Win64" or "ARM".
-  Visual Studio 12 2013 [arch] = Generates Visual Studio 2013 project files.
-                                 Optional [arch] can be "Win64" or "ARM".
-  Visual Studio 11 2012 [arch] = Generates Visual Studio 2012 project files.
-                                 Optional [arch] can be "Win64" or "ARM".
-  Visual Studio 10 2010 [arch] = Generates Visual Studio 2010 project files.
-                                 Optional [arch] can be "Win64" or "IA64".
-  Visual Studio 9 2008 [arch]  = Generates Visual Studio 2008 project files.
-                                 Optional [arch] can be "Win64" or "IA64".
-  Borland Makefiles            = Generates Borland makefiles.
-  NMake Makefiles              = Generates NMake makefiles.
-  NMake Makefiles JOM          = Generates JOM makefiles.
-  MSYS Makefiles               = Generates MSYS makefiles.
-  MinGW Makefiles              = Generates a make file for use with
-                                 mingw32-make.
-  Unix Makefiles               = Generates standard UNIX makefiles.
-  Green Hills MULTI            = Generates Green Hills MULTI files
-                                 (experimental, work-in-progress).
-  Ninja                        = Generates build.ninja files.
-  Watcom WMake                 = Generates Watcom WMake makefiles.
-  CodeBlocks - MinGW Makefiles = Generates CodeBlocks project files.
-  CodeBlocks - NMake Makefiles = Generates CodeBlocks project files.
-  CodeBlocks - NMake Makefiles JOM
-                               = Generates CodeBlocks project files.
-  CodeBlocks - Ninja           = Generates CodeBlocks project files.
-  CodeBlocks - Unix Makefiles  = Generates CodeBlocks project files.
-  CodeLite - MinGW Makefiles   = Generates CodeLite project files.
-  CodeLite - NMake Makefiles   = Generates CodeLite project files.
-  CodeLite - Ninja             = Generates CodeLite project files.
-  CodeLite - Unix Makefiles    = Generates CodeLite project files.
-  Sublime Text 2 - MinGW Makefiles
-                               = Generates Sublime Text 2 project files.
-  Sublime Text 2 - NMake Makefiles
-                               = Generates Sublime Text 2 project files.
-  Sublime Text 2 - Ninja       = Generates Sublime Text 2 project files.
-  Sublime Text 2 - Unix Makefiles
-                               = Generates Sublime Text 2 project files.
-  Kate - MinGW Makefiles       = Generates Kate project files.
-  Kate - NMake Makefiles       = Generates Kate project files.
-  Kate - Ninja                 = Generates Kate project files.
-  Kate - Unix Makefiles        = Generates Kate project files.
-  Eclipse CDT4 - NMake Makefiles
-                               = Generates Eclipse CDT 4.0 project files.
-  Eclipse CDT4 - MinGW Makefiles
-                               = Generates Eclipse CDT 4.0 project files.
-  Eclipse CDT4 - Ninja         = Generates Eclipse CDT 4.0 project files.
-  Eclipse CDT4 - Unix Makefiles= Generates Eclipse CDT 4.0 project files.
-```
-## Developer Notes
+# Once cmake finishes configurating and generating, there will be a "simh.sln" VS
+# solution file in the cmake\build-vs2019 directory:
+PS> dir simh.sln
 
-### Build Directories
 
-The `simh` [CMake][cmake]-based build infrastructure _does not support_ source tree
-builds. All builds have to occur outside of the source tree. The name of the
-build directory is not significant and does not have to be a subdirectory within
-the source tree.
+    Directory: ...\cmake\build-vs2019
 
-As a matter of convention, however, build subdirectories tend to have the form
-`cmake-<build system>`, e.g., `cmake-ninja` for a [Ninja][ninja] build or
-`cmake-vs2019` for a Visual Studio 2019 build. You can have as many of these
-build subdirectories as you deem necessary. _Note_: you need to be careful
-about your `PATH` environment variable when running simulators from within the
-build directory.
 
-The build directory has the following structure:
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----        2/13/2020  11:03 PM         107996 simh.sln
 
-```
-cmake-ninja
-|- CMakeCache.txt               # CMake cache: Remove to completely reconfigure
-|- build-stage                  # Staging area for dependencies
-|  |- bin                       # Dependency executables and DLLs
-|  |- include                   # Headers
-|  |- lib                       # Libraries
-|  |- man
-|  |- share
-|- 3B2                          # 3b2 simulator build
-|  |- 3b2{.exe}                 # 3b2 simulator executabe
-|  |- ...                       # 3b2 build products
-|- ALTAIR
-|- ...
-|- VAX                          # VAX simulators build
-|  |- ...
+
+# Now build... You could also open the solution file in VS and build from
+# there. Also, you can
+$ cmake --build . --config Release
+### Lots of output ###
+
+# Run the tests
+$ ctest -C Release
+Test project /nowhere/special/simh/cmake/build-ninja
+      Start  1: test-3b2
+ 1/23 Test  #1: test-3b2 .........................   Passed   51.16 sec
+      Start  2: test-pdp8
+ 2/23 Test  #2: test-pdp8 ........................   Passed   16.24 sec
+      Start  3: test-infoserver100
+ ... Output from the remaining 21 tests ...
+100% tests passed, 0 tests failed out of 23
+Total Test time (real) = 248.27 sec
+
+# And now install to simh/BIN.
+$ cmake --install . --config Release
 ```
 
-### `add_simulator`: Compiling simulators
+#### MinGW/GCC Step-by-Step
 
-If you hack the simulators and add (or remove) source files, you will have to
-update the affected simulator's `CMakeLists.txt`. 
+The MinGW/GCC steps are similar to the [Unix/WSL/Unix steps](#linuxwslubuntu-step-by-step), using
+PowerShell instead of the standard Unix _bash_ shell. You can follow the
+[Unix/WSL/Unix steps](#linuxwslubuntu-step-by-step) from inside the MinGW `mintty` console with
+_bash_ (assuming you have installed `cmake`, `bison`, `flex` and the other required development
+tools.)
 
-The `add_simulator` function sets up the individual simulator executable. For
-example, in the `3B2` `CMakeLists.txt`, the 3b2 simulator's executable
-`add_simulator` looks like:
+As previously noted in the [Windows quickstart](#windows), do not use `pacman` to install `SDL2`
+and `SDL2_ttf`. Let `simh-cmake` build them as runtime dependencies.
 
-``` cmake
-add_simulator(3b2
-    SOURCES
-        3b2_cpu.c 
-        3b2_mmu.c
-        3b2_iu.c 
-        3b2_if.c
-        3b2_id.c 
-        3b2_dmac.c
-        3b2_sys.c 
-        3b2_io.c
-        3b2_ports.c
-        3b2_ctc.c
-        3b2_ni.c 
-        3b2_mau.c
-        3b2_sysdev.c
-    INCLUDES
-	    3B2
-    FULL64
-    BUILDROMS)
+``` shell
+# Configure/generate.
+#
+# Make a build directory and generate a MinGW Makefile. We are going to ask
+# mingw32-make to build a Release (optimized) set of simulators (CMAKE_BUIlD_TYPE=Release).
+$ mkdir -p cmake/build-mingw
+$ cd cmake/build-mingw
+$ cmake -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release ..
+... Configuration output ...
+
+# Now build. You could also just execute "mingw32-make" here too.
+$ cmake --build .
+... Lots of output building the simulators ...
+
+# Run the tests
+$ ctest
+Test project /nowhere/special/simh/cmake/build-mingw
+      Start  1: test-3b2
+ 1/23 Test  #1: test-3b2 .........................   Passed   51.16 sec
+      Start  2: test-pdp8
+ 2/23 Test  #2: test-pdp8 ........................   Passed   16.24 sec
+      Start  3: test-infoserver100
+ 3/23 Test  #3: test-infoserver100 ...............   Passed    1.05 sec
+      Start  4: test-infoserver1000
+... Output from the remaining 20 tests ...
+100% tests passed, 0 tests failed out of 23
+Total Test time (real) = 248.27 sec
+
+# And now install to simh/BIN.
+$ cmake --install .
 ```
-
-- `add_simulator`'s first argument is the simulator's executable name: `3b2`.
-  This generates an executable named `3b2` on *nix platforms or `3b2.exe` on
-  Windows platforms.
-  
-- Argument list keywords: `SOURCES`, `INCLUDES`, `DEFINES`
-    - `SOURCES` enumerates the source files that comprise the simulator. The
-      file names are relative to the simulator's source directory. In the
-      `3b2`'s case, this is relative to the `3B2/` subdirectory where
-      `3B2/CMakeLists.txt` is located.
-    - `INCLUDES` enumerates the include directories where the header files
-      needed by the simulator are located, i.e., subdirectories that follow the
-      compiler's `-I` flag). These subdirectories are relative to the top level
-      `simh` directory.
-    - `DEFINES` enumerates command line manifest constants, i.e., values that
-      follow the compiler's `-D` flags.
-
-- Option keywords:
-  - `INT64`: 64-bit integers, 32-bit pointers
-  - `FULL64`: 64-bit integers, 64-bit pointers
-  - `BUILDROMS`: Simulator depends on the `BuildROMs` utility to build the
-    built-in boot ROMs.
-  - `VIDEO`: Simulator video support.
-
-Putting it all together:
-
-``` cmake
-add_simulator(my_simulator
-    SOURCES
-        my_sim.c
-        my_sim_devs.c
-        my_sim_support.c
-    INCLUDES
-        my_simulator                # Relative to the top-level source directory
-        ${CMAKE_SOURCE_DIR}/PDP8    # Add top-level PDP8 subdirectory, explicit path
-        VAX/                        # Add top-level VAX subdirectory
-    DEFINES
-        VM_SIMH_SIMULATOR
-        SPECIAL_VALUE=0xdeadbeef
-    INT64                           # 64-bit integer, 32-bit pointer option
-    FULL64                          # 64-bit integer, 64-bit pointer option
-    BUILDROMS                       # Boot ROM is built-in header file
-    VIDEO                           # Video support
-)
-```
-
 
 ## Motivation
 
 **Note**: This is personal opinion. There are many personal opinions like this,
-but this one is mine.
+but this one is mine. (With apologies to the USMC "Rifle Creed.")
 
-`simh` is a difficult package to build from scratch, especially if you're on a
-Windows platform. There's a separate directory tree you have to check out that
-has to sit parallel to the main `simh` codebase (aka `sim-master`.) It's an
-approach that I've used in the past and it's hard to maintain (viz. a recent
-commit log entry that says that `git` forks should _not_ fork the
-`windows-build` subdirectory.) In my That's not a particularly clean or intuitive way
-of building software. It's also prone to errors and doesn't lend itself to
-upgrading dependency libraries.
+`simh` is a difficult package to build from scratch, especially if you're on a Windows
+platform. There's a separate directory tree you have to check out that has to sit parallel to
+the main `simh` codebase (aka `sim-master`.) It's an approach that I've used in the past and
+it's hard to maintain (viz. a recent commit log entry that says that `git` forks should _not_
+fork the `windows-build` subdirectory.) That's not a particularly clean or intuitive way of
+building software. It's also prone to errors and doesn't lend itself to upgrading dependency
+libraries.
 
 [cmake]: https://cmake.org
 [cppcheck]: http://cppcheck.sourceforge.net/
@@ -500,3 +662,6 @@ upgrading dependency libraries.
 [winflexbison]: https://github.com/lexxmark/winflexbison
 [pthreads4w]: https://github.com/jwinarske/pthreads4w
 [chocolatey]: https://chocolatey.org/
+[vcpkg]: https://github.com/Microsoft/vcpkg
+[gitlab]: https://gitlab.com/scooter-phd/simh-cmake
+[clang]: https://clang.llvm.org/
