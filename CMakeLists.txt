@@ -190,6 +190,7 @@ set(VIDEO_PKG_STATUS "unknown")
 set(NETWORK_PKG_STATUS "unknown")
 set(NCURSES_PKG_STATUS "unknown")
 
+include(git-commit-id)
 include(pthreads-dep)
 include(os-features)
 include(zlib-dep)
