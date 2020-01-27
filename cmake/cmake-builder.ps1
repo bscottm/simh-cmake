@@ -127,6 +127,11 @@ if ($help)
     Show-Help
 }
 
+### CTest params:
+## timeout is 180 seconds
+$ctestParallel = "4"
+$ctestTimeout  = "180"
+
 ## Sanity checking: Check that utilities we expect exist...
 ## CMake: Save the location of the command because we'll invoke it later. Same
 ## with CTest
@@ -424,7 +429,12 @@ if ($scriptPhases -contains "test")
             $depTopDir = $depTopDir.Line.Split('=')[1]
             $env:PATH =  "${depTopdir}\bin;${env:PATH}"
             ## Hardcoded: 3 minute timeout for tests
-            & $ctestCmd @("-C", $config, "--timeout", "180")
+            & $ctestCmd @("-C", $config,
+                "--timeout", $ctestTimeout,
+                "-T", "test",
+                "--parallel", $ctestParallel,
+                "--output-on-failure"
+            )
             if ($LastExitCode -gt 0) {
                 "** ${scriptName}: Tests failed. Exiting."
                 exit 1
