@@ -119,6 +119,15 @@ if (WITH_NETWORK)
 
     ## Make the package status pretty.
     string(REPLACE ";" ", " NETWORK_PKG_STATUS "${NETWORK_PKG_STATUS}")
+    set(BUILD_WITH_NETWORK TRUE)
 else ()
     set(NETWORK_STATUS "networking disabled")
+    set(NETWORK_PKG_STATUS "skipped")
+    set(BUILD_WITH_NETWORK FALSE)
 endif ()
+
+## Add needed platform runtime/libraries, even with networking disabled,
+## Windows needs these:
+if (WIN32)
+    target_link_libraries(simh_network INTERFACE ws2_32 wsock32)
+endif (WIN32)

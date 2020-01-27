@@ -1,11 +1,20 @@
-## LGP simulator:
+## LGP simulator
+##
+## This is an automagically generated file. Do NOT EDIT.
+## Any changes you make will be overwritten!!
+##
+## Make changes to the SIMH top-level makefile and then run the
+## "cmake/generate.py" script to regenerate these files.
+##
+##     python -m cmake/generate --help
+##
+## ------------------------------------------------------------
 
-set(LGPD "${CMAKE_SOURCE_DIR}/LGP")
-
-add_simulator(lgp "${LGP_SOURCES}" "${LGP_DEFINES}" "${LGP_INCLUDES}"
+add_simulator(lgp
     SOURCES
-	lgp_cpu.c
-	lgp_stddev.c
-	lgp_sys.c
+        lgp_cpu.c
+        lgp_stddev.c
+        lgp_sys.c
     INCLUDES
-	LGP)
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    TEST lgp)

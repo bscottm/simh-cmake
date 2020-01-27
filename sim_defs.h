@@ -124,6 +124,8 @@ extern int sim_vax_snprintf(char *buf, size_t buf_size, const char *fmt, ...);
 #include <errno.h>
 #include <limits.h>
 #include <ctype.h>
+#include "sim_os_renames.h"
+#include "sim_printf_fmts.h"
 
 #ifndef EXIT_FAILURE
 #define EXIT_FAILURE 1
@@ -148,6 +150,10 @@ extern int sim_vax_snprintf(char *buf, size_t buf_size, const char *fmt, ...);
 #endif
 #if defined(HAVE_PCRE_H)
 #include <pcre.h>
+#define USE_REGEX 1
+#elif defined(HAVE_PCRE2_H)
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
 #define USE_REGEX 1
 #endif
 
@@ -804,6 +810,18 @@ struct BRKTYPTAB {
     };
 #define BRKTYPE(typ,descrip) {SWMASK(typ), descrip}
 
+/* sim_regex_t: Type alias for the appropriate PCRE package to reduce
+   conditional compiles in this header. Unfortunately, that's not the
+   case when the actual PCRE/PCRE2 functions are called in scp.c. */
+
+#if defined(HAVE_PCRE_H)
+typedef pcre sim_regex_t;
+typedef uint32 sim_regex_offs;
+#elif defined(HAVE_PCRE2_H)
+typedef pcre2_code sim_regex_t;
+typedef PCRE2_SIZE sim_regex_offs;
+#endif
+
 /* Expect rule */
 
 struct EXPTAB {
@@ -819,7 +837,7 @@ struct EXPTAB {
 #define EXP_TYP_REGEX_I         (SWMASK ('I'))      /* regular expression pattern matching should be case independent */
 #define EXP_TYP_TIME            (SWMASK ('T'))      /* halt delay is in microseconds instead of instructions */
 #if defined(USE_REGEX)
-    pcre                *regex;                         /* compiled regular expression */
+    sim_regex_t         *regex;                         /* compiled regular expression */
     int                 re_nsub;                        /* regular expression sub expression count */
 #endif
     char                *act;                           /* action string */
@@ -831,11 +849,11 @@ struct EXPECT {
     DEVICE              *dptr;                          /* Device (for Debug) */
     uint32              dbit;                           /* Debugging Bit */
     EXPTAB              *rules;                         /* match rules */
-    int32               size;                           /* count of match rules */
+    size_t              size;                           /* count of match rules */
     uint8               *buf;                           /* buffer of output data which has produced */
-    uint32              buf_ins;                        /* buffer insertion point for the next output data */
+    size_t              buf_ins;                        /* buffer insertion point for the next output data */
     uint32              buf_size;                       /* buffer size */
-    uint32              buf_data;                       /* count of data in buffer */
+    size_t              buf_data;                       /* count of data in buffer */
     };
 
 /* Send Context */
@@ -849,8 +867,8 @@ struct SEND {
     double              next_time;                      /* execution time when next data can be sent */
     uint8               *buffer;                        /* buffer */
     size_t              bufsize;                        /* buffer size */
-    int32               insoff;                         /* insert offset */
-    int32               extoff;                         /* extra offset */
+    size_t              insoff;                         /* insert offset */
+    size_t              extoff;                         /* extra offset */
     };
 
 /* Debug table */

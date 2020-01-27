@@ -25,9 +25,12 @@ param (
     [string] $config      = "Release",
     [switch] $nonetwork   = $false,
     [switch] $notest      = $false,
+    [switch] $noinstall   = $false,
     [switch] $parallel    = $false,
     [switch] $generate    = $false,
-    [switch] $testonly    = $false
+    [switch] $testonly    = $false,
+    [switch] $installOnly = $false,
+    [switch] $allInOne    = $false
 )
 
 $scriptName = $(Split-Path -Leaf $PSCommandPath)
@@ -45,11 +48,17 @@ Arguments:
 -clean                 Remove and recreate the build subdirectory before
                        configuring and building
 -generate              Generate build environment, do not compile/build.
-                       (Useful for generating MSVC solutions, then compile/build within
-                       the Visual Studio IDE.)
+                       (Useful for generating MSVC solutions, then compile/-
+                       build within the Visual Studio IDE.)
 -parallel              Enable build parallelism (parallel target builds)
 -nonetwork             Build simulators without network support.
 -notest                Do not run 'ctest' test cases.
+-noinstall             Do not install simulator executables
+-installOnly           Only execute the simulator executable installation
+                       phase.
+-allInOne              Use the simh_makefile.cmake "all-in-one" project
+                       configuration vs. individual CMakeList.txt projects.
+                       (default: off)
 
 -flavor (2019|vs2019)  Generate build environment for Visual Studio 2019 (default)
 -flavor (2017|vs2017)  Generate build environment for Visual Studio 2017
@@ -130,7 +139,7 @@ if ($help)
 ### CTest params:
 ## timeout is 180 seconds
 $ctestParallel = "4"
-$ctestTimeout  = "180"
+$ctestTimeout  = "300"
 
 ## Sanity checking: Check that utilities we expect exist...
 ## CMake: Save the location of the command because we'll invoke it later. Same
@@ -247,6 +256,16 @@ if (!$testOnly)
     }
 }
 
+## Validate the requested configuration.
+if (!@("Release", "Debug").Contains($config))
+{
+    @"
+${scriptName}: Invalid configuration: "${config}".
+
+"@
+    Show-Help
+}
+
 ## Look for Git's /usr/bin subdirectory: CMake (and other utilities) have issues
 ## with the /bin/sh installed there (Git's version of MinGW.)
 
@@ -301,27 +320,33 @@ if ($null -eq $genInfo)
     Show-Help
 }
 
-$scriptPhases = @( "generate", "build", "test")
 if ($testOnly)
 {
     $scriptPhases = @("test")
 }
-if ($generate)
+elseif ($generate)
 {
     $scriptPhases = @("generate")
+}
+elseif ($installOnly)
+{
+    $scriptPhases = @("install")
+}
+else
+{
+  $scriptPhases = @( "generate", "build", "test", "install")
+  if ($notest)
+  {
+      $scriptPhases = $scriptPhases | Where-Object { $_ -ne 'test' }
+  }
+  if ($noinstall)
+  {
+      $scriptPhases = $scriptPhases | Where-Object { $_ -ne 'install' }
+  }
 }
 
 if (($scriptPhases -contains "generate") -or ($scriptPhases -contains "build"))
 {
-    if (!@("Release", "Debug").Contains($config))
-    {
-        @"
-    ${scriptName}: Invalid configuration: "${config}".
-
-"@
-        Show-Help
-    }
-
     ## Clean out the build subdirectory
     if ((Test-Path -Path ${buildDir}) -and $clean)
     {
@@ -340,13 +365,17 @@ if (($scriptPhases -contains "generate") -or ($scriptPhases -contains "build"))
     }
 
     ## Where we do the heaving lifting:
-    $generateArgs = @("-G", $genInfo.Generator, "-D", "CMAKE_BUILD_TYPE=${config}", 
+    $generateArgs = @("-G", $genInfo.Generator, "-DCMAKE_BUILD_TYPE=${config}",
         "-Wno-dev", "--no-warn-unused-cli-args"
     )
     $generateArgs = $generateArgs + $genInfo.ArchArgs
     if ($nonetwork)
     {
         $generateArgs += @("-DWITH_NETWORK:Bool=Off")
+    }
+    if ($allInOne)
+    {
+        $generateArgs += @("-DALL_IN_ONE:Bool=TRUE")
     }
     $generateArgs += ${simhTopDir}
 
@@ -428,11 +457,14 @@ if ($scriptPhases -contains "test")
             ## RHS of the cached variable's value.
             $depTopDir = $depTopDir.Line.Split('=')[1]
             $env:PATH =  "${depTopdir}\bin;${env:PATH}"
-            ## Hardcoded: 3 minute timeout for tests
             & $ctestCmd @("-C", $config,
                 "--timeout", $ctestTimeout,
                 "-T", "test",
-                "--parallel", $ctestParallel,
+                ## Don't uncomment because (a) simh can leave the Powershell or cmd
+                ## terminal in an uncertain state, (b) puts a lot of strain on the
+                ## host system, which might lead to thread/timing calibration issues.
+                ##
+                ## "--parallel", $ctestParallel,
                 "--output-on-failure"
             )
             if ($LastExitCode -gt 0) {
@@ -447,6 +479,36 @@ if ($scriptPhases -contains "test")
         "** ${scriptName}: Caught error, exiting."
         Format-List * -force -InputObject $_
         $exitval = 1
+    }
+    finally
+    {
+        Pop-Location
+        $env:PATH = $origPath
+    }
+}
+
+if ($scriptPhases -contains "install")
+{
+    try
+    {
+        $installPrefix = $(& $cmakeCmd -L -N ${buildDir} | Select-String "CMAKE_INSTALL_PREFIX")
+        $installPrefix = $installPrefix.Line.Split('=')[1]
+        $installPath = $installPrefix
+
+        "** ${scriptName}: Install directory ${installPath}"
+        if (!(Test-Path -Path ${installPath}))
+        {
+            "** ${scriptName}: Creating ${installPath}"
+            New-Item -${installPath} -ItemType Directory -ErrorAction SilentlyContinue
+        }
+
+        "** ${scriptName}: Installing simulators."
+        & ${cmakeCmd} --install ${buildDir} --config ${config}
+        if ($LastExitCode -gt 0) {
+            "==== Last exit code ${lec}"
+            "** ${scriptName}: Install errors. Exiting."
+            exit 1
+        }
     }
     finally
     {

@@ -1,7 +1,17 @@
-# PDP8 simulators:
+## PDP8 simulator
+##
+## This is an automagically generated file. Do NOT EDIT.
+## Any changes you make will be overwritten!!
+##
+## Make changes to the SIMH top-level makefile and then run the
+## "cmake/generate.py" script to regenerate these files.
+##
+##     python -m cmake/generate --help
+##
+## ------------------------------------------------------------
 
 add_simulator(pdp8
-    SOURCES 
+    SOURCES
         pdp8_cpu.c
         pdp8_clk.c
         pdp8_df.c
@@ -21,5 +31,5 @@ add_simulator(pdp8
         pdp8_ct.c
         pdp8_fpp.c
     INCLUDES
-	PDP8
+        ${CMAKE_CURRENT_SOURCE_DIR}
     TEST pdp8)
