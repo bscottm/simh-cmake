@@ -171,6 +171,7 @@ extern int disassem(char *, uint16, t_bool, t_bool, t_bool);
 
 extern enum IOstatus doIO(t_bool, DEVICE **);
 extern void fw_init(void);
+extern void VMinit(void);
 extern void rebuildPending(void);
 
 extern void dev1Interrupts(char *);
@@ -400,6 +401,8 @@ t_stat cpu_reset(DEVICE *dptr)
    */
   for (i = 0; i < 16; i++)
     CharAddrMode[i] = 0;
+
+  VMinit();
 
   return SCPE_OK;
 }
@@ -949,7 +952,7 @@ t_stat executeAnInstruction(void)
                       INTprefix, buf);
             }
             fprintf(DBGOUT,
-                    "%s===> Interrupt %d entered at 0x%04X, from %04X, Inst: %" T_UINT64_FMT "u\r\n",
+                    "%s===> Interrupt %d entered at 0x%04X, from %04X, Inst: %llu\r\n",
                     INTprefix, i, Preg, from, Instructions);
           }
 
@@ -977,7 +980,7 @@ t_stat executeAnInstruction(void)
   if (((cpu_dev.dctrl & DBG_TRACE) != 0) ||
       (((cpu_dev.dctrl & DBG_ITRACE) != 0) && (INTlevel != 0))) {
     fprintf(DBGOUT, 
-            "%sA:%04X Q:%04X I:%04X M:%04X Ovf:%d Pfault: %d Inst:%" T_UINT64_FMT "u\r\n",
+            "%sA:%04X Q:%04X I:%04X M:%04X Ovf:%d Pfault: %d Inst:%llu\r\n",
             INTprefix, Areg, Qreg, LoadFromMem(0xFF),
             Mreg, Oflag, Pfault, Instructions);
   }
