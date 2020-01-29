@@ -764,6 +764,9 @@ store:
 t_stat
 cpu_reset(DEVICE * dptr)
 {
+    extern void sys_init(void);
+
+    sys_init();
     AC = 0;
     MQ = 0;
     dualcore = 0;
@@ -925,7 +928,7 @@ cpu_show_hist(FILE * st, UNIT * uptr, int32 val, CONST void *desc)
             if (
                 (fprint_sym
                  (st, h->ic & AMASK, &sim_eval, &cpu_unit,
-                  SWMASK('M'))) > 0) fprintf(st, "(undefined) %012" T_INT64_FMT "o",
+                  SWMASK('M'))) > 0) fprintf(st, "(undefined) %012llo",
                                              h->op);
             fputc('\n', st);    /* end line */
         }                       /* end else instruction */

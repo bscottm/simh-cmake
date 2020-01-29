@@ -256,8 +256,8 @@ CONST char *get_range (DEVICE *dptr, CONST char *cptr, t_addr *lo, t_addr *hi,
     uint32 rdx, t_addr max, char term);
 t_stat sim_set_environment (int32 flag, CONST char *cptr);
 t_stat sim_decode_quoted_string (const char *iptr, uint8 *optr, uint32 *osize);
-char *sim_encode_quoted_string (const uint8 *iptr, size_t size);
-void fprint_buffer_string (FILE *st, const uint8 *buf, size_t size);
+char *sim_encode_quoted_string (const uint8 *iptr, uint32 size);
+void fprint_buffer_string (FILE *st, const uint8 *buf, uint32 size);
 t_value strtotv (CONST char *cptr, CONST char **endptr, uint32 radix);
 t_svalue strtotsv (CONST char *inptr, CONST char **endptr, uint32 radix);
 int Fprintf (FILE *f, const char *fmt, ...) GCC_FMT_ATTR(2, 3);
@@ -417,7 +417,7 @@ extern t_stat parse_sym (CONST char *cptr, t_addr addr, UNIT *uptr, t_value *val
 /* The per-simulator init routine is a weak global that defaults to NULL
    The other per-simulator pointers can be overrriden by the init routine */
 
-WEAK extern void (*sim_vm_init) (void);
+extern void (*sim_vm_init) (void);
 extern char *(*sim_vm_read) (char *ptr, int32 size, FILE *stream);
 extern void (*sim_vm_post) (t_bool from_scp);
 extern CTAB *sim_vm_cmd;
