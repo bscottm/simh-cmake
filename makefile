@@ -32,6 +32,10 @@
 # installed, gmake should be invoked with LPATH=/usr/lib:/usr/local/lib 
 # defined (adjusted as needed depending on where they may be installed).
 #
+# In the unlikely event that someone wants to build network capable 
+# simulators without networking support, invoking GNU make with 
+# NONETWORK=1 will do the trick.
+#
 # The default build will build compiler optimized binaries.
 # If debugging is desired, then GNU make can be invoked with
 # DEBUG=1 on the command line.
@@ -65,12 +69,6 @@
 #
 # Internal ROM support can be disabled if GNU make is invoked with
 # DONT_USE_ROMS=1 on the command line.
-#
-# The use of pthreads for various things can be disabled if GNU make is 
-# invoked with NOPTHREADS=1 on the command line.
-#
-# Asynchronous I/O support can be disabled if GNU make is invoked with
-# NOASYNCH=1 on the command line.
 #
 # For linting (or other code analyzers) make may be invoked similar to:
 #
@@ -107,11 +105,12 @@ ifneq (,$(findstring besm6,${MAKECMDGOALS}))
   VIDEO_USEFUL = true
   BESM6_BUILD = true
 endif
-# building the KA10 needs video support
+# building the PDP6, KA10 or KI10 needs video support
 ifneq (,$(or $(findstring pdp6,${MAKECMDGOALS}),$(findstring pdp10-ka,${MAKECMDGOALS}),$(findstring pdp10-ki,${MAKECMDGOALS})))
   VIDEO_USEFUL = true
 endif
-ifneq (,$(or $(findstring pdp10-ka,${MAKECMDGOALS}),$(findstring pdp10-ki,${MAKECMDGOALS})))
+# building the KA10, KI10 or KL10 networking can be used.
+ifneq (,$(or $(findstring pdp10-ka,${MAKECMDGOALS}),$(findstring pdp10-ki,${MAKECMDGOALS},$(findstring pdp10-kl,${MAKECMDGOALS}))))
   NETWORK_USEFUL = true
 endif
 # building the PDP-7 needs video support
@@ -141,6 +140,10 @@ else
     BUILD_SINGLE := all $(BUILD_SINGLE)
     BESM6_BUILD = true
   endif
+endif
+# someone may want to explicitly build simulators without network support
+ifneq ($(NONETWORK),)
+  NETWORK_USEFUL =
 endif
 find_exe = $(abspath $(strip $(firstword $(foreach dir,$(strip $(subst :, ,${PATH})),$(wildcard $(dir)/$(1))))))
 find_lib = $(abspath $(strip $(firstword $(foreach dir,$(strip ${LIBPATH}),$(wildcard $(dir)/lib$(1).${LIBEXT})))))
@@ -252,10 +255,7 @@ ifeq (${WIN32},)  #*nix Environments (&& cygwin)
   LTO_EXCLUDE_VERSIONS = 
   PCAPLIB = pcap
   ifeq (agcc,$(findstring agcc,${GCC})) # Android target build?
-    OS_CCDEFS = -D_GNU_SOURCE
-    ifeq (,$(NOASYNCH))
-      OS_CCDEFS += -DSIM_ASYNCH_IO 
-    endif
+    OS_CCDEFS = -D_GNU_SOURCE -DSIM_ASYNCH_IO 
     OS_LDFLAGS = -lm
   else # Non-Android (or Native Android) Builds
     ifeq (,$(INCLUDES)$(LIBRARIES))
@@ -462,38 +462,25 @@ ifeq (${WIN32},)  #*nix Environments (&& cygwin)
     OS_LDFLAGS += -lrt
     $(info using librt: $(call find_lib,rt))
   endif
-  ifneq (,$(NOPTHREADS))
-    OS_CCDEFS += -DDONT_USE_READER_THREAD
-  else
-    ifneq (,$(call find_include,pthread))
+  ifneq (,$(call find_include,pthread))
+    ifneq (,$(call find_lib,pthread))
+      OS_CCDEFS += -DUSE_READER_THREAD -DSIM_ASYNCH_IO 
+      OS_LDFLAGS += -lpthread
+      $(info using libpthread: $(call find_lib,pthread) $(call find_include,pthread))
+    else
+      LIBEXTSAVE := ${LIBEXT}
+      LIBEXT = a
       ifneq (,$(call find_lib,pthread))
-        OS_CCDEFS += -DUSE_READER_THREAD
-        ifeq (,$(NOASYNCH))
-          OS_CCDEFS += -DSIM_ASYNCH_IO 
-        endif
+        OS_CCDEFS += -DUSE_READER_THREAD -DSIM_ASYNCH_IO 
         OS_LDFLAGS += -lpthread
         $(info using libpthread: $(call find_lib,pthread) $(call find_include,pthread))
       else
-        LIBEXTSAVE := ${LIBEXT}
-        LIBEXT = a
-        ifneq (,$(call find_lib,pthread))
-          OS_CCDEFS += -DUSE_READER_THREAD
-          ifeq (,$(NOASYNCH))
-            OS_CCDEFS += -DSIM_ASYNCH_IO 
-          endif
-          OS_LDFLAGS += -lpthread
-          $(info using libpthread: $(call find_lib,pthread) $(call find_include,pthread))
-        else
-          ifneq (,$(findstring Haiku,$(OSTYPE)))
-            OS_CCDEFS += -DUSE_READER_THREAD
-            ifeq (,$(NOASYNCH))
-              OS_CCDEFS += -DSIM_ASYNCH_IO 
-            endif
-            $(info using libpthread: $(call find_include,pthread))
-          endif
+        ifneq (,$(findstring Haiku,$(OSTYPE)))
+          OS_CCDEFS += -DUSE_READER_THREAD -DSIM_ASYNCH_IO 
+          $(info using libpthread: $(call find_include,pthread))
         endif
-        LIBEXT = $(LIBEXTSAVE)
       endif
+      LIBEXT = $(LIBEXTSAVE)
     endif
   endif
   # Find PCRE RegEx library.
@@ -655,14 +642,12 @@ ifeq (${WIN32},)  #*nix Environments (&& cygwin)
         endif
       else
         ifneq (,$(and $(findstring Linux,$(OSTYPE)),$(call find_exe,apt-get)))
-          $(info *** Info *** Install the development components of libSDL or libSDL2)
-          $(info *** Info *** packaged for your operating system distribution for)
-          $(info *** Info *** your Linux system:)
+          $(info *** Info *** Install the development components of libSDL2 packaged for)
+          $(info *** Info *** your operating system distribution for your Linux)
+          $(info *** Info *** system:)
           $(info *** Info ***        $$ sudo apt-get install libsdl2-dev libpng-dev)
-          $(info *** Info ***    or)
-          $(info *** Info ***        $$ sudo apt-get install libsdl-dev)
         else
-          $(info *** Info *** Install the development components of libSDL packaged by your)
+          $(info *** Info *** Install the development components of libSDL2 packaged by your)
           $(info *** Info *** operating system distribution and rebuild your simulator to)
           $(info *** Info *** enable this extra functionality.)
         endif
@@ -956,17 +941,11 @@ else
   $(info include paths are: ${INCPATH})
   # Give preference to any MinGW provided threading (if available)
   ifneq (,$(call find_include,pthread))
-    PTHREADS_CCDEFS = -DUSE_READER_THREAD
-    ifeq (,$(NOASYNCH))
-      PTHREADS_CCDEFS += -DSIM_ASYNCH_IO 
-    endif
+    PTHREADS_CCDEFS = -DUSE_READER_THREAD -DSIM_ASYNCH_IO
     PTHREADS_LDFLAGS = -lpthread
   else
     ifeq (pthreads,$(shell if exist ..\windows-build\pthreads\Pre-built.2\include\pthread.h echo pthreads))
-      PTHREADS_CCDEFS = -DUSE_READER_THREAD -DPTW32_STATIC_LIB -D_POSIX_C_SOURCE -I../windows-build/pthreads/Pre-built.2/include
-      ifeq (,$(NOASYNCH))
-        PTHREADS_CCDEFS += -DSIM_ASYNCH_IO 
-      endif
+      PTHREADS_CCDEFS = -DUSE_READER_THREAD -DPTW32_STATIC_LIB -D_POSIX_C_SOURCE -I../windows-build/pthreads/Pre-built.2/include -DSIM_ASYNCH_IO
       PTHREADS_LDFLAGS = -lpthreadGC2 -L..\windows-build\pthreads\Pre-built.2\lib
     endif
   endif
@@ -1157,10 +1136,14 @@ else
   ifneq (3,$(GCC_MAJOR_VERSION))
     ifeq (,$(GCC_OPTIMIZERS_CMD))
       GCC_OPTIMIZERS_CMD = ${GCC} --help=optimizers
+      GCC_COMMON_CMD = ${GCC} --help=common
     endif
   endif
   ifneq (,$(GCC_OPTIMIZERS_CMD))
     GCC_OPTIMIZERS = $(shell $(GCC_OPTIMIZERS_CMD))
+  endif
+  ifneq (,$(GCC_COMMON_CMD))
+    GCC_OPTIMIZERS += $(shell $(GCC_COMMON_CMD))
   endif
   ifneq (,$(findstring $(GCC_VERSION),$(LTO_EXCLUDE_VERSIONS)))
     NO_LTO = 1
@@ -1905,10 +1888,36 @@ BESM6 = ${BESM6D}/besm6_cpu.c ${BESM6D}/besm6_sys.c ${BESM6D}/besm6_mmu.c \
         ${BESM6D}/besm6_punch.c ${BESM6D}/besm6_punchcard.c
 
 ifneq (,$(BESM6_BUILD))
+    BESM6_OPT = -I ${BESM6D} -DUSE_INT64 $(BESM6_PANEL_OPT)
     ifneq (,$(and ${SDLX_CONFIG},${VIDEO_LDFLAGS}, $(or $(and $(call find_include,SDL2/SDL_ttf),$(call find_lib,SDL2_ttf)), $(and $(call find_include,SDL/SDL_ttf),$(call find_lib,SDL_ttf)))))
         FONTPATH += /usr/share/fonts /Library/Fonts /usr/lib/jvm /System/Library/Frameworks/JavaVM.framework/Versions C:/Windows/Fonts
         FONTPATH := $(dir $(foreach dir,$(strip $(FONTPATH)),$(wildcard $(dir)/.)))
         FONTNAME += DejaVuSans.ttf LucidaSansRegular.ttf FreeSans.ttf AppleGothic.ttf tahoma.ttf
+#cmake-insert:set(BESM6_FONT)
+#cmake-insert:foreach (fdir IN ITEMS
+#cmake-insert:            "/usr/share/fonts" "/Library/Fonts" "/usr/lib/jvm"
+#cmake-insert:            "/System/Library/Frameworks/JavaVM.framework/Versions"
+#cmake-insert:            "$ENV{WINDIR}/Fonts")
+#cmake-insert:    foreach (font IN ITEMS
+#cmake-insert:                "DejaVuSans.ttf" "LucidaSansRegular.ttf" "FreeSans.ttf" "AppleGothic.ttf" "tahoma.ttf")
+#cmake-insert:        if (EXISTS ${fdir})
+#cmake-insert:            file(GLOB_RECURSE found_font ${fdir}/${font})
+#cmake-insert:            if (found_font)
+#cmake-insert:                get_filename_component(fontfile ${found_font} ABSOLUTE)
+#cmake-insert:                list(APPEND BESM6_FONT ${fontfile})
+#cmake-insert:            endif ()
+#cmake-insert:        endif ()
+#cmake-insert:    endforeach()
+#cmake-insert:endforeach()
+#cmake-insert:
+#cmake-insert:if (NOT BESM6_FONT)
+#cmake-insert:    message("No font file available, BESM-6 video panel disabled")
+#cmake-insert:    set(BESM6_PANEL_OPT)
+#cmake-insert:endif ()
+#cmake-insert:
+#cmake-insert:if (BESM6_FONT AND WITH_VIDEO)
+#cmake-insert:    list(GET BESM6_FONT 0 BESM6_FONT)
+#cmake-insert:endif ()
         $(info font paths are: $(FONTPATH))
         $(info font names are: $(FONTNAME))
         find_fontfile = $(strip $(firstword $(foreach dir,$(strip $(FONTPATH)),$(wildcard $(dir)/$(1))$(wildcard $(dir)/*/$(1))$(wildcard $(dir)/*/*/$(1))$(wildcard $(dir)/*/*/*/$(1)))))
@@ -1958,13 +1967,11 @@ ifneq (,$(BESM6_BUILD))
     else ifneq (,$(and $(findstring sdl2,${VIDEO_LDFLAGS}),$(call find_include,SDL2/SDL_ttf),$(call find_lib,SDL2_ttf)))
         $(info using libSDL2_ttf: $(call find_lib,SDL2_ttf) $(call find_include,SDL2/SDL_ttf))
         $(info ***)
-        BESM6_OPT = -I ${BESM6D} -DFONTFILE=${FONTFILE} -DUSE_INT64 ${VIDEO_CCDEFS} ${VIDEO_LDFLAGS} -lSDL2_ttf
+        BESM6_PANEL_OPT = -DFONTFILE=${FONTFILE} ${VIDEO_CCDEFS} ${VIDEO_LDFLAGS} -lSDL2_ttf
     else ifneq (,$(and $(call find_include,SDL/SDL_ttf),$(call find_lib,SDL_ttf)))
         $(info using libSDL_ttf: $(call find_lib,SDL_ttf) $(call find_include,SDL/SDL_ttf))
         $(info ***)
-        BESM6_OPT = -I ${BESM6D} -DFONTFILE=${FONTFILE} -DUSE_INT64 ${VIDEO_CCDEFS} ${VIDEO_LDFLAGS} -lSDL_ttf
-    else
-        BESM6_OPT = -I ${BESM6D} -DUSE_INT64 
+        BESM6_PANEL_OPT = -DFONTFILE=${FONTFILE} ${VIDEO_CCDEFS} ${VIDEO_LDFLAGS} -lSDL_ttf
     endif
 endif
 
@@ -2022,6 +2029,14 @@ KI10_OPT += -DPANDA_LIGHTS
 KI10 += ${KA10D}/ka10_lights.c
 KI10_LDFLAGS = -lusb-1.0
 endif
+
+KL10D = PDP10
+KL10 = ${KL10D}/kx10_cpu.c ${KL10D}/kx10_sys.c ${KL10D}/kx10_df.c \
+	${KL10D}/kx10_mt.c ${KL10D}/kx10_dc.c ${KL10D}/kx10_rh.c \
+	${KL10D}/kx10_rp.c ${KL10D}/kx10_tu.c ${KL10D}/kx10_rs.c \
+	${KL10D}/kx10_imp.c ${KL10D}/kl10_fe.c ${KL10D}/ka10_pd.c \
+	${KL10D}/ka10_ch10.c ${KL10D}/kx10_lp.c 
+KL10_OPT = -DKL=1 -DUSE_INT64 -I $(KL10D) -DUSE_SIM_CARD ${NETWORK_OPT} 
 
 ATT3B2D = ${SIMHD}/3B2
 ATT3B2 = ${ATT3B2D}/3b2_cpu.c ${ATT3B2D}/3b2_mmu.c \
@@ -2739,7 +2754,7 @@ besm6 : ${BIN}besm6${EXE}
 ${BIN}besm6${EXE} : ${BESM6} ${SIM}
 ifneq (1,${CPP_BUILD}${CPP_FORCE})
 	${MKDIRBIN}
-	${CC} ${BESM6} ${SIM} ${BESM6_OPT} ${CC_OUTSPEC} ${LDFLAGS}
+	${CC} ${BESM6} ${SIM} ${BESM6_OPT} ${BESM6_PANEL_OPT} ${CC_OUTSPEC} ${LDFLAGS}
 ifneq (,$(call find_test,${BESM6D},besm6))
 	$@ $(call find_test,${BESM6D},besm6) ${TEST_ARG}
 endif
@@ -2892,6 +2907,15 @@ ifneq (,$(call find_test,${PDP10D},ki10))
 	$@ $(call find_test,${PDP10D},ki10) ${TEST_ARG}
 endif
 
+pdp10-kl : ${BIN}pdp10-kl${EXE}
+
+${BIN}pdp10-kl${EXE} : ${KL10} ${SIM}
+	#cmake:ignore-target
+	${MKDIRBIN}
+	${CC} ${KL10} ${SIM} ${KL10_OPT} ${CC_OUTSPEC} ${LDFLAGS}
+ifneq (,$(call find_test,${PDP10D},kl10))
+	$@ $(call find_test,${PDP10D},kl10) ${TEST_ARG}
+endif
 
 # Front Panel API Demo/Test program
 
