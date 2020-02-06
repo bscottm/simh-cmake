@@ -1996,7 +1996,7 @@ if (!dev)
   return SCPE_IERR;
 dev->throttle_time = time;
 dev->throttle_burst = burst;
-dev->throttle_delay = delay;
+dev->throttle_delay = (sim_mstimer_t) delay;
 dev->throttle_mask = (1 << dev->throttle_burst) - 1;
 return SCPE_OK;
 }

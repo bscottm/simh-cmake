@@ -614,7 +614,7 @@ static uint32 sim_rtime;
 static int32 noqueue_time;
 volatile t_bool stop_cpu = FALSE;
 volatile t_bool sigterm_received = FALSE;
-static unsigned int sim_stop_sleep_ms = 250;
+static sim_mstimer_t sim_stop_sleep_ms = 250;
 static char **sim_argv;
 static int sim_exit_status = EXIT_SUCCESS;              /* optionally set by EXIT command */
 t_value *sim_eval = NULL;
@@ -4930,6 +4930,7 @@ t_stat sleep_cmd (int32 flag, CONST char *cptr)
 {
 char *tptr;
 double wait;
+sim_mstimer_t iwait;
 
 while (*cptr) {
     wait = strtod (cptr, &tptr);
@@ -4962,10 +4963,12 @@ while (*cptr) {
         }
     wait *= 1000.0;                             /* Convert to Milliseconds */
     cptr = tptr;
-    while ((wait > 1000.0) && (!stop_cpu))
-        wait -= sim_os_ms_sleep (1000);
-    if ((wait > 0.0) && (!stop_cpu))
-        sim_os_ms_sleep ((unsigned)wait);
+    iwait = (sim_mstimer_t) floor(wait);
+
+    while ((iwait > 1000) && (!stop_cpu))
+        iwait -= sim_os_ms_sleep (1000);
+    if ((iwait > 0) && (!stop_cpu))
+        sim_os_ms_sleep (iwait);
     }
 stop_cpu = FALSE;                   /* Clear in case sleep was interrupted */
 return SCPE_OK;
@@ -5881,7 +5884,7 @@ setenv ("SIM_VERSION_MODE", SIM_VERSION_MODE, 1);
 #endif
 if (flag) {
     t_bool idle_capable;
-    uint32 os_ms_sleep_1, os_tick_size;
+    sim_mstimer_t os_ms_sleep_1, os_tick_size;
     char os_type[128] = "Unknown";
 
     fprintf (st, "\n    Simulator Framework Capabilities:");
@@ -5981,11 +5984,10 @@ if (flag) {
 #else
     fprintf (st, "\n        No RegEx support for EXPECT commands");
 #endif
-    fprintf (st, "\n        OS clock resolution: %dms", os_tick_size);
-    fprintf (st, "\n        Time taken by msleep(1): %dms", os_ms_sleep_1);
+    fprintf (st, "\n        OS clock resolution: %" MSTIMER_T_FMT "u ms", os_tick_size);
+    fprintf (st, "\n        Time taken by msleep(1): %" MSTIMER_T_FMT "u ms", os_ms_sleep_1);
     if (eth_version ())
         fprintf (st, "\n        Ethernet packet info: %s", eth_version());
-    fprintf (st, "\n        Time taken by msleep(1): %dms", os_ms_sleep_1);
 #if defined(__VMS)
     if (1) {
         char *arch = 

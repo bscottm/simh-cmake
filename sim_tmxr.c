@@ -4040,7 +4040,8 @@ if (mp->lines == 1) {
     }
 fprintf(st, "\n");
 if (mp->ring_start_time) {
-    fprintf (st, "    incoming Connection from: %s ringing for %d milliseconds\n", mp->ring_ipad, sim_os_msec () - mp->ring_start_time);
+    fprintf (st, "    incoming Connection from: %s ringing for %" MSTIMER_T_FMT "u milliseconds\n",
+             mp->ring_ipad, sim_os_msec () - mp->ring_start_time);
     }
 for (j = 0; j < mp->lines; j++) {
     lp = mp->ldsc + j;

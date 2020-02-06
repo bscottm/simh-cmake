@@ -54,6 +54,7 @@
 #  define NTOHL_FMT      "lu"
 #  define IP_SADDR_FMT   "l"
 #  define POINTER_FMT    "p"
+#  define MSTIMER_T_FMT   "l"
 #elif defined(__GNU_LIBRARY__) || defined(__GLIBC__) || defined(__GLIBC_MINOR__)
 /* glibc (basically, most Linuxen) */
 #  define SIZE_T_FMT     "z"
@@ -63,6 +64,7 @@
 #  define IP_SADDR_FMT   ""
 #  define SOCKET_FMT     ""
 #  define POINTER_FMT    "p"
+#  define MSTIMER_T_FMT  ""
 #else
 /* punt. */
 #  define SIZE_T_FMT     LL_FMT
@@ -72,6 +74,7 @@
 #  define IP_SADDR_FMT   ""
 #  define SOCKET_FMT     ""
 #  define POINTER_FMT    LL_FMT
+#  define MSTIMER_T_FMT  ""
 #endif
 
 #define SIM_PRINTF_H

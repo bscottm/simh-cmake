@@ -103,6 +103,14 @@ int clock_gettime(int clock_id, struct timespec *tp);
 #define TIMER_DBG_QUEUE 0x002                       /* Debug Flag for Asynch Queue Debugging */
 #define TIMER_DBG_MUX   0x004                       /* Debug Flag for Asynch Queue Debugging */
 
+/* Millisecond timer type varies by platform, at least between Windows and the
+   Unix worlds. */
+#if !defined(_WIN32)
+typedef uint32 sim_mstimer_t;
+#else
+typedef DWORD sim_mstimer_t;
+#endif
+
 t_bool sim_timer_init (void);
 void sim_timespec_diff (struct timespec *diff, struct timespec *min, struct timespec *sub);
 double sim_timenow_double (void);
@@ -127,10 +135,10 @@ t_stat sim_clr_idle (UNIT *uptr, int32 val, CONST char *cptr, void *desc);
 t_stat sim_show_idle (FILE *st, UNIT *uptr, int32 val, CONST void *desc);
 void sim_throt_sched (void);
 void sim_throt_cancel (void);
-uint32 sim_os_msec (void);
+sim_mstimer_t sim_os_msec (void);
 void sim_os_sleep (unsigned int sec);
-uint32 sim_os_ms_sleep (unsigned int msec);
-uint32 sim_os_ms_sleep_init (void);
+sim_mstimer_t sim_os_ms_sleep (sim_mstimer_t msec);
+sim_mstimer_t sim_os_ms_sleep_init (void);
 void sim_start_timer_services (void);
 void sim_stop_timer_services (void);
 t_stat sim_timer_change_asynch (void);
@@ -150,7 +158,7 @@ double sim_timer_inst_per_sec (void);
 void sim_timer_precalibrate_execution_rate (void);
 int32 sim_rtcn_tick_size (int32 tmr);
 int32 sim_rtcn_calibrated_tmr (void);
-t_bool sim_timer_idle_capable (uint32 *host_ms_sleep_1, uint32 *host_tick_ms);
+t_bool sim_timer_idle_capable (sim_mstimer_t *host_ms_sleep_1, sim_mstimer_t *host_tick_ms);
 #define PRIORITY_BELOW_NORMAL  -1
 #define PRIORITY_NORMAL         0
 #define PRIORITY_ABOVE_NORMAL   1

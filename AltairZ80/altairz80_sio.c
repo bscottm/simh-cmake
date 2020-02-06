@@ -191,24 +191,24 @@ static int32 getClockCPM3Pos        = 0;        /* determines state for sending 
 static int32 daysCPM3SinceOrg       = 0;        /* days since 1 Jan 1978                                        */
 
 /* timer interrupt related                                                                                      */
-static uint32 timeOfNextInterrupt;              /* time when next interrupt is scheduled                        */
+static sim_mstimer_t timeOfNextInterrupt;       /* time when next interrupt is scheduled                        */
        int32 timerInterrupt         = FALSE;    /* timer interrupt pending                                      */
        int32 timerInterruptHandler  = 0x0fc00;  /* default address of interrupt handling routine                */
 static int32 setTimerInterruptAdrPos= 0;        /* determines state for receiving timerInterruptHandler         */
-static int32 timerDelta             = DEFAULT_TIMER_DELTA;  /* interrupt every 100 ms                           */
+static sim_mstimer_t timerDelta     = DEFAULT_TIMER_DELTA;  /* interrupt every 100 ms                           */
 static int32 setTimerDeltaPos       = 0;        /* determines state for receiving timerDelta                    */
 
 /* stop watch and timer related                                                                                 */
-static uint32 stopWatchDelta        = 0;        /* stores elapsed time of stop watch                            */
+static sim_mstimer_t stopWatchDelta = 0;        /* stores elapsed time of stop watch                            */
 static int32 getStopWatchDeltaPos   = 0;        /* determines the state for receiving stopWatchDelta            */
-static uint32 stopWatchNow          = 0;        /* stores starting time of stop watch                           */
-static int32 markTimeSP             = 0;        /* stack pointer for timer stack                                */
+static sim_mstimer_t stopWatchNow   = 0;        /* stores starting time of stop watch                           */
+static size_t markTimeSP            = 0;        /* stack pointer for timer stack                                */
 
                                                 /* default time in milliseconds to sleep for SIMHSleepCmd       */
 #if defined (__MWERKS__) && defined (macintosh)
-static uint32 SIMHSleep             = 0;        /* no sleep on Macintosh OS9                                    */
+static sim_mstimer_t SIMHSleep      = 0;        /* no sleep on Macintosh OS9                                    */
 #else
-static uint32 SIMHSleep             = 1;        /* default value is one millisecond                             */
+static sim_mstimer_t SIMHSleep      = 1;        /* default value is one millisecond                             */
 #endif
 static uint32 sleepAllowedCounter   = 0;        /* only sleep on no character available when == 0               */
 static uint32 sleepAllowedStart     = SLEEP_ALLOWED_START_DEFAULT;  /* default start for above counter          */
@@ -469,18 +469,18 @@ static REG simh_reg[] = {
                "Time in milliseconds between timer interrupts")                                     },
     { DRDATAD (STDP,     setTimerDeltaPos,       8,
                "Status register for receiving the timer delta"), REG_RO                             },
-    { DRDATAD (SLEEP,    SIMHSleep,              32,
+    { DRDATAD (SLEEP,    SIMHSleep,              sizeof(sim_mstimer_t) * 8,
                "Sleep time in milliseconds after SIO status check (when enabled)")                  },
     { DRDATAD (VOSLP,    sleepAllowedStart,      32,
                "Only sleep when this many unsuccessful SIO status checks have been made")           },
 
-    { DRDATAD (STPDT,    stopWatchDelta,         32,
+    { DRDATAD (STPDT,    stopWatchDelta,         sizeof(sim_mstimer_t) * 8,
                "Elapsed time of stop watch"), REG_RO                                                },
     { DRDATAD (STPOS,    getStopWatchDeltaPos,   8,
                "Status register for receiving stop watch delta"), REG_RO                            },
-    { DRDATAD (STPNW,    stopWatchNow,           32,
+    { DRDATAD (STPNW,    stopWatchNow,           sizeof(sim_mstimer_t) * 8,
                "Starting time of stop watch"), REG_RO                                               },
-    { DRDATAD (MTSP,     markTimeSP,             8,
+    { DRDATAD (MTSP,     markTimeSP,             sizeof(size_t) * 8,
                "Stack pointer of timer stack"), REG_RO                                              },
 
     { DRDATAD (VPOS,     versionPos,             8,
@@ -1250,8 +1250,8 @@ static const char *cmdNames[kSimhPseudoDeviceCommands] = {
     "setCPUClockFrequency",
 };
 
-#define TIMER_STACK_LIMIT          10       /* stack depth of timer stack   */
-static uint32 markTime[TIMER_STACK_LIMIT];  /* timer stack                  */
+#define TIMER_STACK_LIMIT          10              /* stack depth of timer stack   */
+static sim_mstimer_t markTime[TIMER_STACK_LIMIT];  /* timer stack                  */
 static struct tm currentTime;
 static int32 currentTimeValid = FALSE;
 static char version[] = "SIMH004";
@@ -1311,16 +1311,20 @@ static t_stat simh_dev_set_timeroff(UNIT *uptr, int32 value, CONST char *cptr, v
 
 static t_stat simh_svc(UNIT *uptr) {
     if (simh_unit.flags & UNIT_SIMH_TIMERON) {
-        uint32 now = sim_os_msec();
+        sim_mstimer_t now = sim_os_msec();
         if (now >= timeOfNextInterrupt) {
             timerInterrupt = TRUE;
             if (timerDelta == 0)
                 timeOfNextInterrupt = now + DEFAULT_TIMER_DELTA;
             else {
-                uint32 newTimeOfNextInterrupt = now + timerDelta - (now - timeOfNextInterrupt) % timerDelta;
+                sim_mstimer_t newTimeOfNextInterrupt = now + timerDelta - (now - timeOfNextInterrupt) % timerDelta;
                 if (newTimeOfNextInterrupt != timeOfNextInterrupt + timerDelta) {
-                    sim_debug(VERBOSE_MSG, &simh_device, "SIMH: " ADDRESS_FORMAT
-                              " Timer interrupts skipped %i. Delta %i. Expect %i. Got %i.\n",
+                    sim_debug(VERBOSE_MSG, &simh_device,
+                              "SIMH: " ADDRESS_FORMAT
+                              " Timer interrupts skipped %" MSTIMER_T_FMT "u." 
+                              " Delta %" MSTIMER_T_FMT "u."
+                              " Expect %" MSTIMER_T_FMT "u."
+                              " Got %" MSTIMER_T_FMT "u.\n",
                               PCX, (newTimeOfNextInterrupt - timeOfNextInterrupt) / timerDelta - 1,
                               timerDelta, timeOfNextInterrupt + timerDelta - now,
                               newTimeOfNextInterrupt - now);
@@ -1747,7 +1751,7 @@ static int32 simh_out(const int32 port, const int32 data) {
 
                 case printTimeCmd:  /* print time */
                     if (rtc_avail)
-                        sim_printf("SIMH: " ADDRESS_FORMAT " Current time in milliseconds = %d." NLP, PCX, sim_os_msec());
+                        sim_printf("SIMH: " ADDRESS_FORMAT " Current time in milliseconds = %" MSTIMER_T_FMT "u." NLP, PCX, sim_os_msec());
                     else
                         warnNoRealTimeClock();
                     break;
@@ -1765,8 +1769,8 @@ static int32 simh_out(const int32 port, const int32 data) {
                 case stopTimerCmd:  /* stop timer on top of stack and show time difference */
                     if (rtc_avail)
                         if (markTimeSP > 0) {
-                            uint32 delta = sim_os_msec() - markTime[--markTimeSP];
-                            sim_printf("SIMH: " ADDRESS_FORMAT " Timer stopped. Elapsed time in milliseconds = %d." NLP, PCX, delta);
+                            sim_mstimer_t delta = sim_os_msec() - markTime[--markTimeSP];
+                            sim_printf("SIMH: " ADDRESS_FORMAT " Timer stopped. Elapsed time in milliseconds = %" MSTIMER_T_FMT "u." NLP, PCX, delta);
                         }
                         else
                             sim_printf("SIMH: " ADDRESS_FORMAT " No timer active." NLP, PCX);
@@ -1842,8 +1846,8 @@ static int32 simh_out(const int32 port, const int32 data) {
                 case showTimerCmd:  /* show time difference to timer on top of stack */
                     if (rtc_avail)
                         if (markTimeSP > 0) {
-                            uint32 delta = sim_os_msec() - markTime[markTimeSP - 1];
-                            sim_printf("SIMH: " ADDRESS_FORMAT " Timer running. Elapsed in milliseconds = %d." NLP, PCX, delta);
+                            sim_mstimer_t delta = sim_os_msec() - markTime[markTimeSP - 1];
+                            sim_printf("SIMH: " ADDRESS_FORMAT " Timer running. Elapsed in milliseconds = %" MSTIMER_T_FMT "u." NLP, PCX, delta);
                         }
                         else
                             sim_printf("SIMH: " ADDRESS_FORMAT " No timer active." NLP, PCX);

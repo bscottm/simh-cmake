@@ -301,7 +301,7 @@ struct eth_device {
 #define ETH_THROT_DEFAULT_TIME 5                        /* 5ms Default burst time window */
   uint32        throttle_burst;                         /* packets passed with throttle_time which trigger throttling */
 #define ETH_THROT_DEFAULT_BURST 4                       /* 4 Packet burst in time window */
-  uint32        throttle_delay;                         /* ms to delay when throttling.  0 disables throttling */
+  sim_mstimer_t throttle_delay;                         /* ms to delay when throttling.  0 disables throttling */
 #define ETH_THROT_DISABLED_DELAY 0                      /* 0 Delay disables throttling */
 #define ETH_THROT_DEFAULT_DELAY 10                      /* 10ms Delay during burst */
   /* Throttling state variables: */

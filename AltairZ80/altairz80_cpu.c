@@ -2066,7 +2066,7 @@ static t_stat sim_instr_mmu (void) {
         in one microsecond on a 1MHz CPU. tStates is used for real-time simulations.    */
     register uint32 tStates;
     uint32 tStatesInSlice; /* number of t-states in 10 mSec time-slice */
-    uint32 startTime, now;
+    sim_mstimer_t startTime, now;
     int32 tStateModifier = FALSE;
 
     switch_cpu_now = TRUE; /* hharte */
@@ -2085,8 +2085,10 @@ static t_stat sim_instr_mmu (void) {
         startTime = sim_os_msec();
         tStatesInSlice = sliceLength * clockFrequency;
     }
-    else /* make sure that sim_os_msec() is not called later */
+    else { /* make sure that sim_os_msec() is not called later */
         clockFrequency = startTime = tStatesInSlice = 0;
+        startTime = 0;
+        }
 
     /* main instruction fetch/decode loop */
     while (switch_cpu_now == TRUE) {        /* loop until halted    */
@@ -2104,8 +2106,10 @@ static t_stat sim_instr_mmu (void) {
                     startTime = sim_os_msec();
                     tStatesInSlice = sliceLength * clockFrequency;
                 }
-                else /* make sure that sim_os_msec() is not called later */
-                    clockFrequency = startTime = tStatesInSlice = 0;
+                else { /* make sure that sim_os_msec() is not called later */
+                    clockFrequency = tStatesInSlice = 0;
+                    startTime = 0;
+                }
             }
             specialProcessing = clockFrequency | timerInterrupt | keyboardInterrupt | sim_brk_summ;
         }
