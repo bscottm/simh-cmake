@@ -343,12 +343,16 @@ typedef uint32          t_addr;
 #define WEAK __attribute__((weak))
 #elif defined(_MSC_VER)
 #define WEAK __declspec(selectany) 
-#else
-#define WEAK extern 
-#endif
-#else
+#else   /* !defined(__GNUC__) && !defined(_MSC_VER)  */
 #define WEAK 
-#endif
+#endif  /* __GNUC__ */
+#else   /* !defined(__cplusplus) */
+#if defined(__GNUC__)
+#define WEAK __attribute__((common))
+#else   /* !defined(__GNUC__) */
+#define WEAK
+#endif  /* defined(__GNUC__) */
+#endif  /* defined(__cplusplus) */
 
 /* sim_regex_t: Type alias for the appropriate PCRE package to reduce
    conditional compiles in this header. Unfortunately, that's not the
