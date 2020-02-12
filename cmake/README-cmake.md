@@ -2,69 +2,168 @@
 
 <!-- TOC -->
 
-- [Build simh using CMake](#build-simh-using-cmake)
-  - [Intended Audience: Developers](#intended-audience-developers)
-  - [Why CMake?](#why-cmake)
-  - [Building simh With CMake](#building-simh-with-cmake)
-    - [Before You Begin: Prerequisites](#before-you-begin-prerequisites)
-      - [Supported C Compilers](#supported-c-compilers)
-      - [Tool and Library Dependencies](#tool-and-library-dependencies)
-    - [Building simh](#building-simh)
-      - [Linux/*nix platforms](#linuxnix-platforms)
-    - [Configuration Options](#configuration-options)
-    - [CMake quickstart](#cmake-quickstart)
-    - [Notes for Windows Visual Studio](#notes-for-windows-visual-studio)
-  - [CMake Generators](#cmake-generators)
-  - [Developer Notes](#developer-notes)
-    - [Build Directories](#build-directories)
-    - [add_simulator: Compiling simulators](#addsimulator-compiling-simulators)
-  - [Motivation](#motivation)
+- [Why CMake?](#why-cmake)
+- [Quickstart For The Impatient](#quickstart-for-the-impatient)
+  - [Linux/WSL/*nix](#linuxwslnix)
+  - [Notes for Windows Visual Studio](#notes-for-windows-visual-studio)
+- [Building `simh` With CMake](#building-simh-with-cmake)
+  - [Before You Begin: Prerequisites](#before-you-begin-prerequisites)
+    - [Supported C Compilers](#supported-c-compilers)
+    - [Tool and Library Dependencies](#tool-and-library-dependencies)
+  - [Building `simh`](#building-simh)
+    - [Linux/*nix platforms](#linuxnix-platforms)
+  - [Configuration Options](#configuration-options)
+- [`CMake` Generators](#cmake-generators)
+- [Developer Notes](#developer-notes)
+  - [Build Directories](#build-directories)
+  - [`add_simulator`: Compiling simulators](#addsimulator-compiling-simulators)
+- [Motivation](#motivation)
 
 <!-- /TOC -->
 
-## Intended Audience: Developers
-
-This document assumes that you, the reader, are a knowledgeable software developer:
-
-  - You have a C/C++ compiler installed on your host or virtual machine
-  - You know how to develop and build software artifacts (executables, shared
-    objects, dynamically linked libraries).
-  - You can install software development dependencies on your host or virtual machine.
-    - Linux and *nix platforms: You know how to use `rpm`, `apt`, `pacman` or the appropriate
-      package manager your Linux or *nix uses.
-    - Windows: You use a package manager such as [Scoop][scoop] or [Chocolatey][chocolatey],
-      or you are comfortable with installing software directly.
-  - You known what tools such as `make`, `bison` and `flex` do.
-  - You can diagnose your software development environment's issues/problems.
-  
-If you are not a reasonably knowledgeable software developer or are new to software
-development, _PLEASE USE THE PRE-COMPILED SIMULATORS_. 
-
-_Windows developers_: This document distinctly prefers the [Scoop][scoop]
-package manager. While this is the author's preference, it does not have to be
-yours. You always have the option to use another package manager, such as
-[Chocolatey][chocolatey], or direct software installation from the package's
-download site. If you use another package manager or directly install software,
-you're ultimately responsible for diagnosing issues with your software
-development environment.
 
 ## Why CMake?
 
-[CMake][cmake] is a cross-platform "meta" build system that provides similar
-functionality to GNU _autotools_ within a more integrated and platform-agnostic
-framework. A sample of the supported build environments include:
+[CMake][cmake] is a cross-platform "meta" build system that provides similar functionality to
+GNU _autotools_ within a more integrated and platform-agnostic framework. Two of the motivating
+factors for providing a [CMake][cmake]-based alternative build system were library dependency
+management (i.e., SDL2, SDL2_ttf, et. al.) and support for other build tools. A sample of
+[CMake][cmake]'s supported build tools/environments includes:
 
-  - Unix Makefiles
+  - Unix (GNU) Makefiles
   - [MinGW Makefiles][mingw64]
-  - [Ninja][ninja]
+  - [Ninja][ninja] build tool
   - MS Visual Studio solutions (2015, 2017, 2019)
-  - IDE build wrappers ([Sublime Text](https://www.sublimetext.com) and [CodeBlocks](http://www.codeblocks.org))
+  - IDE build wrappers, such as [Sublime Text](https://www.sublimetext.com)
+    and [CodeBlocks](http://www.codeblocks.org)
 
-[CMake][cmake] is not intended to supplant, supercede or replace the existing
-`simh` build infrastructure. If you like the existing `makefile` "poor man's
-configure" approach, there's nothing to stop you from using it. [CMake][cmake]
-is a parallel build system to the `simh` `makefile` and is just another way to
-build `simh`'s simulators.
+[CMake][cmake] (aka `simh-cmake`) is not intended to supplant, supercede or replace the
+existing `simh` build infrastructure. If you like the existing `makefile` "poor man's
+configure" approach, there's nothing to stop you from using it. [CMake][cmake] is a parallel
+build system to the `simh` `makefile` and is just another way to build `simh`'s simulators. If
+you look under the hood, you'll find a Python script that generates [CMake][cmake]'s
+`CMakeLists.txt` files automagically from the `simh` `makefile`.
+
+
+## Quickstart For The Impatient
+
+`simh-cmake` has four phases: _configure/generate_, _build_, _test_ and _install_. There are
+two scripts, `cmake/cmake-builder.ps1` (Windows PowerShell) and `cmake/cmake-builder.sh`
+(_bash_), that automate the entire four phase process. In a nutshell, the quickstart consists
+of:
+
+  - Clone the `simh` repository, if you haven't done that already
+  - Install runtime dependency development libraries (Linux)
+  - Run the appropriate `cmake-builder` script for your platform
+
+On Windows (and potentially on Linux if you haven't installed the dependency development
+libraries), `simh-cmake` will download, compile and locally install the runtime dependencies.
+There is no support (yet) for Microsoft's [vcpkg][vcpkg]; it is planned at a future date. The
+runtime dependency library build, followed by the simulator build, is called a [CMake][cmake]
+"superbuild". The superbuild should only execute once; `simh-cmake` will regenerate the build
+tool's files once the runtime dependency libraries are successfully detected and found.
+
+### Linux/WSL/*nix
+
+```shell
+# clone (if you haven't done so already)
+$ git clone  https://github.com/simh/simh.git simh
+$ cd simh
+
+# make a build directory and generate a build environment (ex: Ninja on Windows 10)
+$ mkdir cmake-ninja
+$ cd cmake-ninja
+$ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+
+# First time around, d/l and build dependency libraries, if they're
+# not found (usually the case on Windows, YMMV on *nix):
+$ cmake --build . --config Release
+
+# Second time around: Reconfigure using the newly built dependency libraries
+# and build simh's simulators
+$ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+$ cmake --build . --config Release
+
+# Alternatively, you can go into your favorite IDE and build from within your
+# IDE. Or, with the Ninja build system, you could just type `ninja` instead of
+# `cmake --build . --configure Release`. Or if you used "Unix Makefiles", you
+# could just type `make`. (See the pattern yet?)
+
+# Oh, so you want to run stuff? From inside the build?
+# Need to add the build-stage/bin directory to your PATH:
+$ PATH=`pwd`/build-stage/bin:$PATH
+
+# For Windows Powershell:
+# $env:PATH="$(Get-Location)\build-stage\bin;C:\Windows\System32\Npcap;$env:PATH"
+
+# Run the vax simulator from inside the build:
+$ VAX/vax
+
+# Install will install to the `BIN` directory inside the source tree:
+$ cmake --install .
+```
+
+
+### Windows
+
+
+```shell
+# clone (if you haven't done so already)
+$ git clone  https://github.com/simh/simh.git simh
+$ cd simh
+
+# make a build directory and generate a build environment (ex: Ninja on Windows 10)
+$ mkdir cmake-ninja
+$ cd cmake-ninja
+$ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+
+# First time around, d/l and build dependency libraries, if they're
+# not found (usually the case on Windows, YMMV on *nix):
+$ cmake --build . --config Release
+
+# Second time around: Reconfigure using the newly built dependency libraries
+# and build simh's simulators
+$ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+$ cmake --build . --config Release
+
+# Alternatively, you can go into your favorite IDE and build from within your
+# IDE. Or, with the Ninja build system, you could just type `ninja` instead of
+# `cmake --build . --configure Release`. Or if you used "Unix Makefiles", you
+# could just type `make`. (See the pattern yet?)
+
+# Oh, so you want to run stuff? From inside the build?
+# Need to add the build-stage/bin directory to your PATH:
+$ PATH=`pwd`/build-stage/bin:$PATH
+
+# For Windows Powershell:
+# $env:PATH="$(Get-Location)\build-stage\bin;C:\Windows\System32\Npcap;$env:PATH"
+
+# Run the vax simulator from inside the build:
+$ VAX/vax
+
+# Install will install to the `BIN` directory inside the source tree:
+$ cmake --install .
+```
+
+### Notes for Windows Visual Studio
+
+The source tree versions of the Visual Studio project files/solutions build a
+32-bit executable. To do this with [CMake][cmake], you have to specify the target
+architecture at confiugration time as follows:
+
+``` shell
+# Visual Studio 2019 has an argument for architecture, "-A", and defaults
+# to a 64-bit architecture:
+PS> cmake -G "Visual Studio 16 2019" -A Win32 ..
+
+# Prior Visual Studios don't and default to Win32
+PS> cmake -G "Visual Studio 15 2017" ..
+PS> cmake -G "Visual Studio 14 2015" ..
+PS> cmake -G "Visual Studio 12 2013" ..
+PS> cmake -G "Visual Studio 11 2012" ..
+PS> cmake -G "Visual Studio 10 2010" ..
+PS> cmake -G "Visual Studio 9 2008" ..
+```
 
 ## Building `simh` With CMake
 
@@ -221,73 +320,6 @@ $ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DWITH_NETWORK=Off -DENABLE_CPPCHECK
 
 # Alteratively ("0" and "Off" are equivalent)
 $ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DWITH_NETWORK=0 -DENABLE_CPPCHECK=0
-```
-
-### CMake quickstart
-
-`simh-cmake` is a `CMake` "_superbuild_": It first downloads and builds
-dependency libraries (SDL2, SDL2-ttf, pcre, zlib, freetype, ...), if they are
-missing. These dependency libraries are staged in the `CMake` build directory.
-Once all of the dependency libraries are satisfied, you reconfigure
-`simh-cmake` to build the simulators. Unless you nuke the build directory, you
-should only have to build the dependency libraries once.
-
-```shell
-# clone (if you haven't done so already)
-$ git clone  https://github.com/simh/simh.git simh
-$ cd simh
-
-# make a build directory and generate a build environment (ex: Ninja on Windows 10)
-$ mkdir cmake-ninja
-$ cd cmake-ninja
-$ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
-
-# First time around, d/l and build dependency libraries, if they're
-# not found (usually the case on Windows, YMMV on *nix):
-$ cmake --build . --config Release
-
-# Second time around: Reconfigure using the newly built dependency libraries
-# and build simh's simulators
-$ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
-$ cmake --build . --config Release
-
-# Alternatively, you can go into your favorite IDE and build from within your
-# IDE. Or, with the Ninja build system, you could just type `ninja` instead of
-# `cmake --build . --configure Release`. Or if you used "Unix Makefiles", you
-# could just type `make`. (See the pattern yet?)
-
-# Oh, so you want to run stuff? From inside the build?
-# Need to add the build-stage/bin directory to your PATH:
-$ PATH=`pwd`/build-stage/bin:$PATH
-
-# For Windows Powershell:
-# $env:PATH="$(Get-Location)\build-stage\bin;C:\Windows\System32\Npcap;$env:PATH"
-
-# Run the vax simulator from inside the build:
-$ VAX/vax
-
-# Install will install to the `BIN` directory inside the source tree:
-$ cmake --install .
-```
-
-### Notes for Windows Visual Studio
-
-The source tree versions of the Visual Studio project files/solutions build a
-32-bit executable. To do this with [CMake][cmake], you have to specify the target
-architecture at confiugration time as follows:
-
-``` shell
-# Visual Studio 2019 has an argument for architecture, "-A", and defaults
-# to a 64-bit architecture:
-PS> cmake -G "Visual Studio 16 2019" -A Win32 ..
-
-# Prior Visual Studios don't and default to Win32
-PS> cmake -G "Visual Studio 15 2017" ..
-PS> cmake -G "Visual Studio 14 2015" ..
-PS> cmake -G "Visual Studio 12 2013" ..
-PS> cmake -G "Visual Studio 11 2012" ..
-PS> cmake -G "Visual Studio 10 2010" ..
-PS> cmake -G "Visual Studio 9 2008" ..
 ```
 
 ## `CMake` Generators
@@ -500,3 +532,4 @@ upgrading dependency libraries.
 [winflexbison]: https://github.com/lexxmark/winflexbison
 [pthreads4w]: https://github.com/jwinarske/pthreads4w
 [chocolatey]: https://chocolatey.org/
+[vcpkg]: https://github.com/Microsoft/vcpkg
