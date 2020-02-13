@@ -4,7 +4,8 @@
 
 - [Why CMake?](#why-cmake)
 - [Quickstart For The Impatient](#quickstart-for-the-impatient)
-  - [Linux/WSL/*nix](#linuxwslnix)
+  - [Linux/WSL](#linuxwsl)
+  - [Windows](#windows)
   - [Notes for Windows Visual Studio](#notes-for-windows-visual-studio)
 - [Building `simh` With CMake](#building-simh-with-cmake)
   - [Before You Begin: Prerequisites](#before-you-begin-prerequisites)
@@ -47,14 +48,17 @@ you look under the hood, you'll find a Python script that generates [CMake][cmak
 
 ## Quickstart For The Impatient
 
-`simh-cmake` has four phases: _configure/generate_, _build_, _test_ and _install_. There are
-two scripts, `cmake/cmake-builder.ps1` (Windows PowerShell) and `cmake/cmake-builder.sh`
-(_bash_), that automate the entire four phase process. In a nutshell, the quickstart consists
-of:
+The quickstart consists of:
 
   - Clone the `simh` repository, if you haven't done that already
   - Install runtime dependency development libraries (Linux)
   - Run the appropriate `cmake-builder` script for your platform
+
+There are two scripts, `cmake/cmake-builder.ps1` (Windows PowerShell) and
+`cmake/cmake-builder.sh` (_bash_), that automate the entire `simh-cmake` build sequence. This
+sequence consists of four phases: _configure/generate_, _build_, _test_ and _install_. If the
+build succeeds (and you see a lot of `-- Installing ` lines at the end of the output), you
+should have a complete set of simulators under the top-level `simh/BIN` subdirectory.
 
 On Windows (and potentially on Linux if you haven't installed the dependency development
 libraries), `simh-cmake` will download, compile and locally install the runtime dependencies.
@@ -63,44 +67,62 @@ runtime dependency library build, followed by the simulator build, is called a [
 "superbuild". The superbuild should only execute once; `simh-cmake` will regenerate the build
 tool's files once the runtime dependency libraries are successfully detected and found.
 
-### Linux/WSL/*nix
+### Linux/WSL
+
+The quickstart shell steps below were tested on Ubuntu 18, both natively and under Windows
+Services for Linux (WSL). Package names, such as `libsdl2-ttf`, may vary between Linux
+distributions. For other ideas or to see how SIMH is built on [Gitlab][gitlab], refer to the
+`.gitlab-ci.yml` configuration file.
+
+The default [CMake][cmake] generator is "Unix Makefiles", i.e., [CMake][cmake] generates
+everything for GNU `make`. [Ninja][ninja] is an alternate supported builder, which can be used
+by passing the `--flavor=ninja` option to the `cmake/cmake-builder.sh` script.
 
 ```shell
-# clone (if you haven't done so already)
+## clone the SIMH repository (skip if you did this already)
 $ git clone  https://github.com/simh/simh.git simh
 $ cd simh
 
-# make a build directory and generate a build environment (ex: Ninja on Windows 10)
-$ mkdir cmake-ninja
-$ cd cmake-ninja
-$ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
+## Install development dependency libraries (skip if these are)
+## already installed. It doesn't hurt to make sure that they are
+## installed.)
+$ apt-get update -qq -y && \
+  apt-get install -qq -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev && \
+  apt-get install -qq -y libpcap-dev libvdeplug-dev
 
-# First time around, d/l and build dependency libraries, if they're
-# not found (usually the case on Windows, YMMV on *nix):
-$ cmake --build . --config Release
+## Install the Ninja builder if desired, otherwise, skip this step.
+$ apt-get install -qq -y ninja-build
 
-# Second time around: Reconfigure using the newly built dependency libraries
-# and build simh's simulators
-$ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
-$ cmake --build . --config Release
+## Invoke the automation script for Unix Makefiles. Lots of output ensues.
+$ cmake/cmake-builder.sh
 
-# Alternatively, you can go into your favorite IDE and build from within your
-# IDE. Or, with the Ninja build system, you could just type `ninja` instead of
-# `cmake --build . --configure Release`. Or if you used "Unix Makefiles", you
-# could just type `make`. (See the pattern yet?)
+## For Ninja:
+$ cmake/cmake-builder.sh --flavor=ninja
 
-# Oh, so you want to run stuff? From inside the build?
-# Need to add the build-stage/bin directory to your PATH:
-$ PATH=`pwd`/build-stage/bin:$PATH
+## Help from the script:
+$ cmake/cmake-builder.sh --help
+Configure and build simh simulators on Linux and *nix-like platforms.
 
-# For Windows Powershell:
-# $env:PATH="$(Get-Location)\build-stage\bin;C:\Windows\System32\Npcap;$env:PATH"
+Subdirectories:
+cmake/build-unix:  Makefile-based build simulators
+cmake/build-ninja: Ninja build-based simulators
 
-# Run the vax simulator from inside the build:
-$ VAX/vax
+Options:
+--------
+--clean (-x)      Remove the build subdirectory
+--generate (-g)   Generate the build environment, don't compile/build
+--parallel (-p)   Enable build parallelism (parallel builds)
+--nonetwork       Build simulators without network support
+--notest          Do not execute 'ctest' test cases
+--noinstall       Do not install SIMH simulators.
+--testonly        Do not build, execute the 'ctest' test cases
+--installonly     Do not build, install the SIMH simulators
+--allInOne        Use 'all-in-one' project structure (vs. individual)
 
-# Install will install to the `BIN` directory inside the source tree:
-$ cmake --install .
+--flavor (-f)     Specifies the build flavor: 'unix' or 'ninja'
+--config (-c)     Specifies the build configuraiton: 'Release' or 'Debug'
+
+--help (-h)       Print this help.
 ```
 
 
@@ -108,7 +130,7 @@ $ cmake --install .
 
 
 ```shell
-# clone (if you haven't done so already)
+# clone the SIMH repository
 $ git clone  https://github.com/simh/simh.git simh
 $ cd simh
 
@@ -533,3 +555,4 @@ upgrading dependency libraries.
 [pthreads4w]: https://github.com/jwinarske/pthreads4w
 [chocolatey]: https://chocolatey.org/
 [vcpkg]: https://github.com/Microsoft/vcpkg
+[gitlab]: https://gitlab.com/scooter-phd/simh-cmake
