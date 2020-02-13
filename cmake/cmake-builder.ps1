@@ -41,8 +41,9 @@ function Show-Help
 Configure and build simh's dependencies and simulators using the Microsoft
 Visual Studio C compiler or MinGW-W64-based gcc compiler.
 
-cmake-vs* subdirectories: MSVC build products and artifacts
-cmake-mingw subdirectory: MinGW-W64 products and artifacts
+cmake/build--vs* subdirectories: MSVC build products and artifacts
+cmake/build-mingw subdirectory:  MinGW-W64 products and artifacts
+cmake/build-ninja subdirectory:  Ninja builder products and artifacts
 
 Arguments:
 -clean                 Remove and recreate the build subdirectory before
