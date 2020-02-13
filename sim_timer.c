@@ -181,7 +181,7 @@ static double sim_throt_cps;
 static double sim_throt_peak_cps;
 static double sim_throt_inst_start;
 static sim_mstimer_t sim_throt_sleep_time = 0;
-static int32 sim_throt_wait = 0;
+static uint32 sim_throt_wait = 0;
 static uint32 sim_throt_delay = 3;
 #define CLK_TPS 100
 #define CLK_INIT (sim_precalibrate_ips/CLK_TPS)
@@ -995,7 +995,7 @@ if (rtc->hz != ticksper) {                          /* changing tick rate? */
     if ((rtc->last_hz != 0) && 
         (rtc->last_hz != ticksper) && 
         (ticksper != 0))
-        rtc->currd = (int32)(sim_timer_inst_per_sec () / ticksper);
+        rtc->currd = (int32) floor(sim_timer_inst_per_sec () / (double) ticksper);
     rtc->last_hz = rtc->hz;
     rtc->hz = ticksper;
     _rtcn_configure_calibrated_clock (tmr);
@@ -1876,23 +1876,24 @@ else {
     sim_throt_val = (uint32) val;
     if (sim_throt_type == SIM_THROT_SPC) {
         if (val2 >= sim_idle_rate_ms)
-            sim_throt_sleep_time = (uint32) val2;
+            sim_throt_sleep_time = (sim_mstimer_t) val2;
         else {
             if ((sim_idle_rate_ms % val2) == 0) {
                 sim_throt_sleep_time = sim_idle_rate_ms;
-                sim_throt_val = (uint32) (val * (sim_idle_rate_ms / val2));
+                sim_throt_val = (uint32) ceil((double) val * ((double) sim_idle_rate_ms / (double) val2));
                 }
             else {
                 sim_throt_sleep_time = sim_idle_rate_ms;
-                sim_throt_val = (uint32) (val * (1 + (sim_idle_rate_ms / val2)));
+                sim_throt_val = (uint32) ceil((double) val * (1.0 + ((double) sim_idle_rate_ms / (double) val2)));
                 }
             }
         sim_throt_state = SIM_THROT_STATE_THROTTLE;         /* force state */
         sim_throt_wait = sim_throt_val;
         }
     }
-if (sim_throt_type == SIM_THROT_SPC)    /* Set initial value while correct one is determined */
-    sim_throt_cps = (int32)((1000.0 * sim_throt_val) / (double)sim_throt_sleep_time);
+if (sim_throt_type == SIM_THROT_SPC) {  /* Set initial value while correct one is determined */
+    sim_throt_cps = (int32) floor((1000.0 * (double) sim_throt_val) / (double) sim_throt_sleep_time);
+    }
 else
     sim_throt_cps = sim_precalibrate_ips;
 return SCPE_OK;
@@ -2530,8 +2531,8 @@ sim_int_clk_tps = MIN(CLK_TPS, sim_os_tick_hz);
 for (tmr=0; tmr<SIM_NTIMERS; tmr++) {
     rtc = &rtcs[tmr];
     if ((rtc->hz) &&
-        (rtc->hz <= (uint32)sim_os_tick_hz) &&
-        (rtc->clock_unit))
+        (rtc->hz <= sim_os_tick_hz) &&
+        (rtc->clock_unit != NULL))
         break;
     }
 if (tmr == SIM_NTIMERS) {                   /* None found? */
@@ -2549,7 +2550,7 @@ if (tmr == SIM_NTIMERS) {                   /* None found? */
                 crtc->hz = crtc->last_hz;
                 while (crtc->clock_cosched_queue != QUEUE_LIST_END) {
                     UNIT *uptr = crtc->clock_cosched_queue;
-                    double usecs_remaining = sim_timer_activate_time_usecs (uptr) - 1;
+                    double usecs_remaining = sim_timer_activate_time_usecs (uptr) - 1.0;
 
                     _sim_coschedule_cancel (uptr);
                     _sim_activate (uptr, 1);
