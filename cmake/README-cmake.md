@@ -123,7 +123,7 @@ Options:
 
 ### Windows
 
-These quickstart steps were tested using Visual Studio 2019 and using [MinGW][mingw]/GCC. These
+These quickstart steps were tested using Visual Studio 2019 and using [MinGW][mingw64]/GCC. These
 have not been tested with the [CLang][clang] compiler.
 
 Building on Windows is slightly more complicated than building on Linux because development
@@ -165,15 +165,15 @@ PS> cd simh
 
 # Visual Studio 2019 build, Release configuration. Simulators and runtime
 # dependencies will install into the simh/BIN/Win32/Release directory.
-PS> cmake\cmake-builder.ps1 -flavor=vs2019
+PS> cmake\cmake-builder.ps1 -flavor vs2019
 
 # MinGW/GCC build, Release build type. Simulators and runtime
 # dependencies will install into the simh/BIN directory.
-PS> cmake\cmake-builder.ps1 -flavor=mingw
+PS> cmake\cmake-builder.ps1 -flavor mingw
 
 # Ninja/GCC build, Release build type. Simulators and runtime
 # dependencies will install into the simh/BIN directory.
-PS> cmake\cmake-builder.ps1 -flavor=ninja
+PS> cmake\cmake-builder.ps1 -flavor ninja
 
 ## Help output from the script:
 PS> cmake\cmake-builder.ps1 -help
@@ -213,6 +213,26 @@ Arguments:
 
 -help                  Output this help.
 ```
+
+### Running Simulators
+
+Assuming that the `cmake-builder.ps1` or `cmake-builder.sh` script successfully completed and installed
+the simulators, running a simulator is very straightforward:
+
+```shell
+## Linux and MinGW/GCC (anyone except VS...)
+$ BIN/vax
+
+MicroVAX 3900 simulator V4.0-0 Current        git commit id: ad9fce56
+sim>
+
+## Visual Studio:
+PS> BIN\Win32\Release\vax
+
+MicroVAX 3900 simulator V4.0-0 Current        git commit id: ad9fce56
+sim>
+```
+
 
 ## Details
 
@@ -447,7 +467,7 @@ $ cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DWITH_NETWORK=0 -DENABLE_CPPCHECK=0
 ## Motivation
 
 **Note**: This is personal opinion. There are many personal opinions like this,
-but this one is mine.
+but this one is mine. (With apologies to the USMC "Rifle Creed.")
 
 `simh` is a difficult package to build from scratch, especially if you're on a Windows
 platform. There's a separate directory tree you have to check out that has to sit parallel to
