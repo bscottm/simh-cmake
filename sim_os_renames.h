@@ -24,6 +24,7 @@
 #define host_os_mkdir _mkdir
 #define host_os_mktemp _mktemp
 #define host_os_rmdir _rmdir
+#define host_os_strcasecmp _stricmp
 #define host_os_strcmpi _stricmp
 #define host_os_strdup _strdup
 #define host_os_strnicmp _strnicmp
@@ -35,6 +36,7 @@
 #define host_os_mkdir mkdir
 #define host_os_mktemp mktemp
 #define host_os_rmdir rmdir
+#define host_os_strcasecmp strcasecmp
 #define host_os_strcmpi strcmpi
 #define host_os_strdup strdup
 #define host_os_strnicmp strnicmp

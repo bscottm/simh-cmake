@@ -12084,7 +12084,7 @@ return sim_exp_clr (exp, gbuf);                     /* clear one rule */
 
 /* Search for an expect rule in an expect context */
 
-CONST EXPTAB *sim_exp_fnd (CONST EXPECT *exp, const char *match, int32 start_rule)
+CONST EXPTAB *sim_exp_fnd (CONST EXPECT *exp, const char *match, size_t start_rule)
 {
 size_t i;
 

@@ -1826,7 +1826,8 @@ IMDS800 = ${IMDS800C}/i8080.c ${IMDS800D}/imds-800_sys.c \
 	${IMDS800C}/multibus.c ${IMDS800C}/isbc064.c \
 	${IMDS800C}/isbc202.c ${IMDS800C}/isbc201.c \
 	${IMDS800C}/zx200a.c ${IMDS800C}/isbc464.c \
-	${IMDS800C}/isbc206.c ${IMDS800C}/i3214.c
+	${IMDS800C}/isbc206.c ${IMDS800C}/i3214.c \
+	${IMDS800C}/isbc208.c
 IMDS800_OPT = -I ${IMDS800D}
 
 
@@ -1839,7 +1840,8 @@ IMDS810 = ${IMDS800C}/i8080.c ${IMDS810D}/imds-810_sys.c \
 	${IMDS810C}/multibus.c ${IMDS810C}/isbc064.c \
 	${IMDS810C}/isbc202.c ${IMDS810C}/isbc201.c \
 	${IMDS810C}/zx200a.c ${IMDS810C}/isbc464.c \
-	${IMDS810C}/isbc206.c ${IMDS800C}/i3214.c
+	${IMDS810C}/isbc206.c ${IMDS800C}/i3214.c \
+        ${IMDS225C}/isbc208.c
 IMDS810_OPT = -I ${IMDS810D}
 
 
@@ -2817,7 +2819,7 @@ ${BIN}3b2${EXE} : ${ATT3B2} ${SIM} ${BUILD_ROMS}
 	${MKDIRBIN}
 	${CC} ${ATT3B2} ${SIM} ${ATT3B2_OPT} ${CC_OUTSPEC} ${LDFLAGS}
 ifneq (,$(call find_test,${ATT3B2D},3b2))
-	$@ $(call find_test,${ATT3B2D},3b2) ${TEST_ARG}
+	$@ $(call find_test,${ATT3B2D},3b2-diag) ${TEST_ARG}
 endif
 
 i7090 : ${BIN}i7090${EXE}

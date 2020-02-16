@@ -14,7 +14,11 @@
 function(BuildDepMatrix dep pretty)
     cmake_parse_arguments(_BDM "" "RELEASE_BUILD;DEBUG_BUILD" "CMAKE_ARGS" ${ARGN})
 
-    set(cmake_cfg_args "-G${CMAKE_GENERATOR}")
+    set(cmake_cfg_args
+            "-G${CMAKE_GENERATOR}"
+            "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+            "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
+
     if (CMAKE_GENERATOR_PLATFORM)
         list(APPEND cmake_cfg_args "-A${CMAKE_GENERATOR_PLATFORM}")
     endif ()
@@ -57,3 +61,4 @@ function(BuildDepMatrix dep pretty)
         ${dep_cmds}
     )
 endfunction ()
+

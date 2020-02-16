@@ -24,6 +24,7 @@
 
 #include <slirp.h>
 #include "qemu-common.h"
+#include "sim_os_renames.h"
 
 static inline int tftp_session_in_use(struct tftp_session *spt)
 {
@@ -315,7 +316,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
     return;
   }
 
-  if (strcasecmp(&tp->x.tp_buf[k], "octet") != 0) {
+  if (host_os_strcasecmp(&tp->x.tp_buf[k], "octet") != 0) {
       tftp_send_error(spt, 4, "Unsupported transfer mode", tp);
       return;
   }
@@ -355,7 +356,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
       value = &tp->x.tp_buf[k];
       k += strlen(value) + 1;
 
-      if (strcasecmp(key, "tsize") == 0) {
+      if (host_os_strcasecmp(key, "tsize") == 0) {
           int tsize = atoi(value);
           struct stat stat_p;
 
@@ -371,7 +372,7 @@ static void tftp_handle_rrq(Slirp *slirp, struct tftp_t *tp, int pktlen)
           option_name[nb_options] = "tsize";
           option_value[nb_options] = tsize;
           nb_options++;
-      } else if (strcasecmp(key, "blksize") == 0) {
+      } else if (host_os_strcasecmp(key, "blksize") == 0) {
           int blksize = atoi(value);
 
           /* If blksize option is bigger than what we will

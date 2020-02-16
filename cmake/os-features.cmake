@@ -148,3 +148,12 @@ if (NOT MSVC)
     target_link_libraries(os_features INTERFACE m)
 endif (NOT MSVC)
 
+## Other "cats and dogs":
+## - Windows: winmm (for ms timer functions)
+## - Linux: large file support
+
+if (WIN32)
+    target_link_libraries(os_features INTERFACE "winmm")
+elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    target_compile_definitions(os_features INTERFACE _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
+endif ()

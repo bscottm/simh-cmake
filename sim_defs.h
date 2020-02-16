@@ -148,11 +148,6 @@ extern int sim_vax_snprintf(char *buf, size_t buf_size, const char *fmt, ...);
 #ifdef USE_REGEX
 #undef USE_REGEX
 #endif
-
-/* sim_regex_t: Type alias for the appropriate PCRE package to reduce
-   conditional compiles in this header. Unfortunately, that's not the
-   case when the actual PCRE/PCRE2 functions are called in scp.c. */
-
 #if defined(HAVE_PCRE_H)
 #include <pcre.h>
 #define USE_REGEX 1
@@ -228,20 +223,6 @@ typedef uint32_t        uint32;
 typedef int             t_stat;                         /* status */
 typedef int             t_bool;                         /* boolean */
 
-/* size_t format specifier */
-
-#if defined(_WIN64)
-#  define FMT_SIZE_T "I64"
-#elif defined(_WIN32)
-#  define FMT_SIZE_T "I32"
-#elif defined(__GNU_LIBRARY__) || defined(__GLIBC__) || defined(__GLIBC_MINOR__)
-/* glibc (basically, most Linuxes */
-#  define FMT_SIZE_T "z"
-#else
-/* punt. */
-#define FMT_SIZE_T LL_FMT
-#endif
-
 /* 64b integers */
 
 #if defined (__GNUC__)                                  /* GCC */
@@ -279,9 +260,11 @@ typedef uint32          t_value;
 #if defined (USE_INT64) && defined (USE_ADDR64)         /* 64b address */
 typedef t_uint64        t_addr;
 #define T_ADDR_W        64
+#define T_ADDR_FMT      LL_FMT
 #else                                                   /* 32b address */
 typedef uint32          t_addr;
 #define T_ADDR_W        32
+#define T_ADDR_FMT      ""
 #endif                                                  /* end 64b address */
 
 #if defined (_WIN32)
@@ -297,15 +280,17 @@ typedef uint32          t_addr;
 #endif
 
 #if defined (_WIN32) /* Actually, a GCC issue */
+#define LL_FMT "I64"
 #define LL_TYPE long long
 #else
 #if defined (__VAX) /* No 64 bit ints on VAX */
+#define LL_FMT "l"
 #define LL_TYPE long
 #else
+#define LL_FMT "ll"
 #define LL_TYPE long long
 #endif
 #endif
-
 
 #if defined (VMS) && (defined (__ia64) || defined (__ALPHA))
 #define HAVE_GLOB
@@ -837,6 +822,18 @@ struct BRKTYPTAB {
     };
 #define BRKTYPE(typ,descrip) {SWMASK(typ), descrip}
 
+/* sim_regex_t: Type alias for the appropriate PCRE package to reduce
+   conditional compiles in this header. Unfortunately, that's not the
+   case when the actual PCRE/PCRE2 functions are called in scp.c. */
+
+#if defined(HAVE_PCRE_H)
+typedef pcre sim_regex_t;
+typedef uint32 sim_regex_offs;
+#elif defined(HAVE_PCRE2_H)
+typedef pcre2_code sim_regex_t;
+typedef PCRE2_SIZE sim_regex_offs;
+#endif
+
 /* Expect rule */
 
 struct EXPTAB {
@@ -853,8 +850,8 @@ struct EXPTAB {
 #define EXP_TYP_TIME            (SWMASK ('T'))      /* halt delay is in microseconds instead of instructions */
 #if defined(USE_REGEX)
     sim_regex_t         *regex;                         /* compiled regular expression */
-#endif
     int                 re_nsub;                        /* regular expression sub expression count */
+#endif
     char                *act;                           /* action string */
     };
 

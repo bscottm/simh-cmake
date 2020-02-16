@@ -6,96 +6,69 @@
 #~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
 add_library(simh_video INTERFACE)
+set(BUILD_WITH_VIDEO FALSE)
 
 if (WITH_VIDEO)
     set(VIDEO_PKG_STATUS)
 
     find_package(SDL2 CONFIG)
-    if (NOT SDL2_FOUND AND PKG_CONFIG_FOUND)
-        pkg_check_modules(SDL2 IMPORTED_TARGET SDL2)
-    endif (NOT SDL2_FOUND AND PKG_CONFIG_FOUND)
+    if (NOT SDL2_FOUND)
+        find_package(SDL2)
+        if (NOT SDL2_FOUND AND PKG_CONFIG_FOUND)
+            pkg_check_modules(SDL2 IMPORTED_TARGET SDL2)
+        endif (NOT SDL2_FOUND AND PKG_CONFIG_FOUND)
+    endif (NOT SDL2_FOUND)
 
-    find_package(SDL2_ttf CONFIG)
-    IF (NOT SDL2_ttf_FOUND AND PKG_CONFIG_FOUND)
-        pkg_check_modules(SDL2_ttf IMPORTED_TARGET SDL2_ttf)
-    ENDIF (NOT SDL2_ttf_FOUND AND PKG_CONFIG_FOUND)
+    IF (NOT SDL2_FOUND)
+        ExternalProject_Add(sdl2-dep
+            URL https://www.libsdl.org/release/SDL2-2.0.10.zip
+            CONFIGURE_COMMAND ""
+            BUILD_COMMAND ""
+            INSTALL_COMMAND ""
+        )
+
+        BuildDepMatrix(sdl2-dep SDL2)
+
+        list(APPEND SIMH_BUILD_DEPS "SDL2")
+        list(APPEND SIMH_DEP_TARGETS "sdl2-dep")
+        message(STATUS "Building SDL2 from https://www.libsdl.org/release/SDL2-2.0.10.zip.")
+        list(APPEND VIDEO_PKG_STATUS "SDL2 source build")
+    ENDIF (NOT SDL2_FOUND)
+
+    find_package(SDL2_ttf CONFIG NAMES SDL2_ttf SDL_ttf)
+    IF (NOT SDL2_ttf_FOUND)
+        find_package(SDL_ttf)
+        if (NOT SDL2_ttf_FOUND AND PKG_CONFIG_FOUND)
+            pkg_check_modules(SDL2_ttf IMPORTED_TARGET SDL2_ttf)
+        endif (NOT SDL2_ttf_FOUND AND PKG_CONFIG_FOUND)
+    ENDIF (NOT SDL2_ttf_FOUND)
     
-    IF (SDL2_FOUND AND SDL2_ttf_FOUND)
-        target_compile_definitions(simh_video INTERFACE USE_SIM_VIDEO HAVE_LIBSDL)
+    IF (NOT SDL2_ttf_FOUND)
+        set(SDL2_ttf_depdir ${CMAKE_BINARY_DIR}/sdl2-ttf-dep-prefix/src/sdl2-ttf-dep/)
+        set(SDL2_ttf_DEPS)
 
-        IF (TARGET SDL2_ttf::SDL2_ttf)
-            target_link_libraries(simh_video INTERFACE SDL2_ttf::SDL2_ttf)
-        ELSEIF (TARGET PkgConfig::SDL2_ttf)
-            target_link_libraries(simh_video INTERFACE PkgConfig::SDL2_ttf)
-        ELSEIF (DEFINED SDL2_ttf_LIBRARIES AND DEFINED SDL2_ttf_INCLUDE_DIRS)
-            ## target_link_directories(simh_video INTERFACE ${SDL2_ttf_LIBDIR})
-            target_link_libraries(simh_video INTERFACE ${SDL2_ttf_LIBRARIES})
-            target_include_directories(simh_video INTERFACE ${SDL2_ttf_INCLUDE_DIRS})
-        ELSE ()
-            message(FATAL_ERROR "SDL2_ttf_FOUND set but no SDL2_ttf::SDL2_ttf import library or SDL2_ttf_LIBRARIES/SDL2_ttf_INCLUDE_DIRS? ")
-        ENDIF ()
+        if (NOT SDL2_FOUND)
+            list(APPEND SDL2_ttf_DEPS sdl2-dep)
+        endif (NOT SDL2_FOUND)
 
-        IF (TARGET SDL2::SDL2)
-            target_link_libraries(simh_video INTERFACE SDL2::SDL2)
-        ELSEIF (TARGET PkgConfig::SDL2)
-            target_link_libraries(simh_video INTERFACE PkgConfig::SDL2)
-        ELSEIF (DEFINED SDL2_LIBRARIES AND DEFINED SDL2_INCLUDE_DIRS)
-            ## target_link_directories(simh_video INTERFACE ${SDL2_LIBDIR})
-            target_link_libraries(simh_video INTERFACE ${SDL2_LIBRARIES})
-            target_include_directories(simh_video INTERFACE ${SDL2_INCLUDE_DIRS})
-        ELSE ()
-            message(FATAL_ERROR "SDL2_FOUND set but no SDL2::SDL2 import library or SDL2_LIBRARIES/SDL2_INCLUDE_DIRS? ")
-        ENDIF ()
+        ExternalProject_Add(sdl2-ttf-dep
+            URL https://www.libsdl.org/projects/SDL_ttf/release/SDL2_ttf-2.0.15.zip
+            CONFIGURE_COMMAND ""
+            BUILD_COMMAND ""
+            INSTALL_COMMAND ""
+            UPDATE_COMMAND
+                ${CMAKE_COMMAND} -E copy ${SIMH_DEP_PATCHES}/SDL2_ttf/SDL2_ttfConfig.cmake ${SDL2_ttf_depdir}
+            DEPENDS
+                ${SDL2_ttf_DEPS}
+        )
 
-        list(APPEND VIDEO_PKG_STATUS "installed SDL2 and SDL2_ttf")
-    ELSE (SDL2_FOUND AND SDL2_ttf_FOUND)
-        IF (NOT SDL2_FOUND)
-            ExternalProject_Add(sdl2-dep
-                URL https://www.libsdl.org/release/SDL2-2.0.10.zip
-                CONFIGURE_COMMAND ""
-                BUILD_COMMAND ""
-                INSTALL_COMMAND ""
-            )
+        BuildDepMatrix(sdl2-ttf-dep SDL2_ttf)
 
-            BuildDepMatrix(sdl2-dep SDL2)
-
-            list(APPEND SIMH_BUILD_DEPS "SDL2")
-            list(APPEND SIMH_DEP_TARGETS "sdl2-dep")
-            message(STATUS "Building SDL2 from https://www.libsdl.org/release/SDL2-2.0.10.zip.")
-            list(APPEND VIDEO_PKG_STATUS "SDL2 source build")
-        ELSE (NOT SDL2_FOUND)
-            list(APPEND VIDEO_PKG_STATUS "installed SDL2")
-        ENDIF (NOT SDL2_FOUND)
-
-        IF (NOT SDL2_ttf_FOUND)
-            set(SDL2_ttf_depdir ${CMAKE_BINARY_DIR}/sdl2-ttf-dep-prefix/src/sdl2-ttf-dep/)
-            set(SDL2_ttf_DEPS)
-
-            if (NOT SDL2_FOUND)
-                list(APPEND SDL2_ttf_DEPS sdl2-dep)
-            endif (NOT SDL2_FOUND)
-
-            ExternalProject_Add(sdl2-ttf-dep
-                URL https://www.libsdl.org/projects/SDL_ttf/release/SDL2_ttf-2.0.15.zip
-                CONFIGURE_COMMAND ""
-                BUILD_COMMAND ""
-                INSTALL_COMMAND ""
-                UPDATE_COMMAND
-                    ${CMAKE_COMMAND} -E copy ${SIMH_DEP_PATCHES}/SDL2_ttf/SDL2_ttfConfig.cmake ${SDL2_ttf_depdir}
-                DEPENDS
-                    ${SDL2_ttf_DEPS}
-            )
-
-            BuildDepMatrix(sdl2-ttf-dep SDL2_ttf)
-
-            list(APPEND SIMH_BUILD_DEPS "SDL2_ttf")
-            list(APPEND SIMH_DEP_TARGETS "sdl2-ttf-dep")
-            message(STATUS "Building SDL2_ttf from https://www.libsdl.org/release/SDL2_ttf-2.0.15.zip.")
-            list(APPEND VIDEO_PKG_STATUS "SDL2_ttf source build")
-        ELSE (NOT SDL2_ttf_FOUND)
-            list(APPEND VIDEO_PKG_STATUS "installed SDL2_ttf")
-        ENDIF (NOT SDL2_ttf_FOUND)
-    ENDIF (SDL2_FOUND AND SDL2_ttf_FOUND)
+        list(APPEND SIMH_BUILD_DEPS "SDL2_ttf")
+        list(APPEND SIMH_DEP_TARGETS "sdl2-ttf-dep")
+        message(STATUS "Building SDL2_ttf from https://www.libsdl.org/release/SDL2_ttf-2.0.15.zip.")
+        list(APPEND VIDEO_PKG_STATUS "SDL2_ttf source build")
+    ENDIF (NOT SDL2_ttf_FOUND)
 
     find_package(freetype CONFIG)
     if (NOT FREETYPE_FOUND)
@@ -105,15 +78,7 @@ if (WITH_VIDEO)
         endif (NOT FREETYPE_FOUND AND PKG_CONFIG_FOUND)
     endif (NOT FREETYPE_FOUND)
 
-    if (FREETYPE_FOUND)
-        if (TARGET Freetype::Freetype)
-            target_link_libraries(simh_video INTERFACE Freetype::Freetype)
-        elseif (TARGET PkgConfig::FREETYPE)
-            target_link_libraries(simh_video INTERFACE PkgConfig::FREETYPE)
-        endif (TARGET Freetype::Freetype)
-
-        list(APPEND VIDEO_PKG_STATUS "installed Freetype")
-    else (FREETYPE_FOUND)
+    IF (NOT FREETYPE_FOUND)
         ExternalProject_Add(freetype-dep
             GIT_REPOSITORY https://git.sv.nongnu.org/r/freetype/freetype2.git
             GIT_TAG VER-2-10-1
@@ -132,30 +97,22 @@ if (WITH_VIDEO)
         list(APPEND SIMH_DEP_TARGETS "freetype-dep")
         message(STATUS "Building Freetype from github repository.")
         list(APPEND VIDEO_PKG_STATUS "Freetype source build")
-    endif (FREETYPE_FOUND)
+    endif (NOT FREETYPE_FOUND)
 
     find_package(libpng CONFIG NAMES libpng libpng16)
     if (TARGET png)
         message(STATUS "libpng16 configuration found")
     endif()
 
-    find_package (PNG)
-    if (NOT PNG_FOUND AND PKG_CONFIG_FOUND)
-        pkg_check_modules(PNG IMPORTED_TARGET libpng)
-    endif (NOT PNG_FOUND AND PKG_CONFIG_FOUND)
+    find_package (PNG CONFIG)
+    if (NOT PNG_FOUND)
+        find_package (PNG)
+        if (NOT PNG_FOUND AND PKG_CONFIG_FOUND)
+            pkg_check_modules(PNG IMPORTED_TARGET libpng)
+        endif (NOT PNG_FOUND AND PKG_CONFIG_FOUND)
+    endif (NOT PNG_FOUND)
 
-    if (PNG_FOUND)
-        if (TARGET PkgConfig::PNG)
-            target_link_libraries(simh_video INTERFACE PkgConfig::PNG)
-        else (TARGET PkgConfig::PNG)
-            target_include_directories(simh_video INTERFACE ${PNG_INCLUDE_DIRS})
-            target_link_libraries(simh_video INTERFACE ${PNG_LIBRARIES})
-        endif (TARGET PkgConfig::PNG)
-
-        target_compile_definitions(simh_video INTERFACE ${PNG_DEFINITIONS} HAVE_LIBPNG)
-
-        list(APPEND VIDEO_PKG_STATUS "installed PNG")
-    else ()
+    IF (NOT PNG_FOUND)
         set(PNG_DEPS)
         if (NOT ZLIB_FOUND)
             list(APPEND PNG_DEPS zlib-dep)
@@ -191,7 +148,68 @@ if (WITH_VIDEO)
         list(APPEND SIMH_DEP_TARGETS "png-dep")
         message(STATUS "Building PNG from ${PNG_SOURCE_URL}")
         list(APPEND VIDEO_PKG_STATUS "PNG source build")
-    endif ()
+    ENDIF (NOT PNG_FOUND)
+
+    IF (SDL2_ttf_FOUND)
+        IF (TARGET SDL2_ttf::SDL2_ttf)
+            target_link_libraries(simh_video INTERFACE SDL2_ttf::SDL2_ttf)
+        ELSEIF (TARGET PkgConfig::SDL2_ttf)
+            target_link_libraries(simh_video INTERFACE PkgConfig::SDL2_ttf)
+        ELSEIF (DEFINED SDL_ttf_LIBRARIES AND DEFINED SDL_ttf_INCLUDE_DIRS)
+            ## target_link_directories(simh_video INTERFACE ${SDL2_ttf_LIBDIR})
+            target_link_libraries(simh_video INTERFACE ${SDL_ttf_LIBRARIES})
+            target_include_directories(simh_video INTERFACE ${SDL_ttf_INCLUDE_DIRS})
+        ELSE ()
+            message(FATAL_ERROR "SDL2_ttf_FOUND set but no SDL2_ttf::SDL2_ttf import library or SDL_ttf_LIBRARIES/SDL_ttf_INCLUDE_DIRS? ")
+        ENDIF ()
+
+        list(APPEND VIDEO_PKG_STATUS "installed SDL2_ttf")
+    ENDIF (SDL2_ttf_FOUND)
+
+    IF (SDL2_FOUND)
+        target_compile_definitions(simh_video INTERFACE USE_SIM_VIDEO HAVE_LIBSDL)
+
+        IF (TARGET SDL2::SDL2)
+            target_link_libraries(simh_video INTERFACE SDL2::SDL2)
+        ELSEIF (TARGET PkgConfig::SDL2)
+            target_link_libraries(simh_video INTERFACE PkgConfig::SDL2)
+        ELSEIF (DEFINED SDL2_LIBRARIES AND DEFINED SDL2_INCLUDE_DIRS)
+            ## target_link_directories(simh_video INTERFACE ${SDL2_LIBDIR})
+            target_link_libraries(simh_video INTERFACE ${SDL2_LIBRARIES})
+            target_include_directories(simh_video INTERFACE ${SDL2_INCLUDE_DIRS})
+        ELSE ()
+            message(FATAL_ERROR "SDL2_FOUND set but no SDL2::SDL2 import library or SDL2_LIBRARIES/SDL2_INCLUDE_DIRS?")
+        ENDIF ()
+
+        list(APPEND VIDEO_PKG_STATUS "installed SDL2")
+    ENDIF (SDL2_FOUND)
+
+    IF (FREETYPE_FOUND)
+        if (TARGET Freetype::Freetype)
+            target_link_libraries(simh_video INTERFACE Freetype::Freetype)
+        elseif (TARGET PkgConfig::FREETYPE)
+            target_link_libraries(simh_video INTERFACE PkgConfig::FREETYPE)
+        endif (TARGET Freetype::Freetype)
+
+        list(APPEND VIDEO_PKG_STATUS "installed Freetype")
+    ENDIF (FREETYPE_FOUND)
+
+    IF (PNG_FOUND)
+        if (TARGET PkgConfig::PNG)
+            target_link_libraries(simh_video INTERFACE PkgConfig::PNG)
+        else (TARGET PkgConfig::PNG)
+            target_include_directories(simh_video INTERFACE ${PNG_INCLUDE_DIRS})
+            target_link_libraries(simh_video INTERFACE ${PNG_LIBRARIES})
+        endif (TARGET PkgConfig::PNG)
+
+        target_compile_definitions(simh_video INTERFACE ${PNG_DEFINITIONS} HAVE_LIBPNG)
+
+        list(APPEND VIDEO_PKG_STATUS "installed PNG")
+    ENDIF (PNG_FOUND)
+
+    set(BUILD_WITH_VIDEO TRUE)
+else ()
+    set(VIDEO_PKG_STATUS "skipped")
 endif ()
 
 string(REPLACE ";" ", " VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}")

@@ -4635,7 +4635,7 @@ _rand_uuid_gen (uuidaddr);
 #endif
 
 static VHDHANDLE
-ConstructVHD(const char *szVHDPath,
+CreateVHD(const char *szVHDPath,
              uint32 SizeInSectors,
              uint32 BlockSize,
              t_bool bFixedVHD)
@@ -4904,7 +4904,7 @@ return szHostPath;
 }
 
 static VHDHANDLE
-ConstructDifferencingVHD(const char *szVHDPath,
+CreateDifferencingVHD(const char *szVHDPath,
                          const char *szParentVHDPath)
 {
 uint32 BytesPerSector = 512;
@@ -4930,7 +4930,7 @@ if ((Status = GetVHDFooter (szParentVHDPath,
                             NULL,
                             0)))
     goto Cleanup_Return;
-hVHD = ConstructVHD (szVHDPath,
+hVHD = CreateVHD (szVHDPath,
                      (uint32)(NtoHll(ParentFooter.CurrentSize)/BytesPerSector),
                      NtoHl(ParentDynamic.BlockSize),
                      FALSE);
@@ -5074,12 +5074,12 @@ return hVHD;
 
 static FILE *sim_vhd_disk_create (const char *szVHDPath, t_offset desiredsize)
 {
-return (FILE *)ConstructVHD (szVHDPath, (uint32)(desiredsize/512), 0, (sim_switches & SWMASK ('X')));
+return (FILE *)CreateVHD (szVHDPath, (uint32)(desiredsize/512), 0, (sim_switches & SWMASK ('X')));
 }
 
 static FILE *sim_vhd_disk_create_diff (const char *szVHDPath, const char *szParentVHDPath)
 {
-return (FILE *)ConstructDifferencingVHD (szVHDPath, szParentVHDPath);
+return (FILE *)CreateDifferencingVHD (szVHDPath, szParentVHDPath);
 }
 
 static t_stat
