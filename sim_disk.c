@@ -2593,7 +2593,6 @@ fprintf (st, "was created.  This metadata is therefore available whenever that V
 fprintf (st, "attached to an emulated disk device in the future so the device type and\n");
 fprintf (st, "size can be automatically be configured.\n\n");
 
-if (0 == (uptr-dptr->units)) {
     if (dptr->numunits > 1) {
         uint32 i, attachable_count = 0, out_count = 0, skip_count;
 
@@ -2624,9 +2623,6 @@ if (0 == (uptr-dptr->units)) {
         }
     else
         fprintf (st, "  sim> ATTACH {switches} %s diskfile\n", dptr->name);
-    }
-else
-    fprintf (st, "  sim> ATTACH {switches} %s diskfile\n\n", dptr->name);
 fprintf (st, "\n%s attach command switches\n", dptr->name);
 fprintf (st, "    -R          Attach Read Only.\n");
 fprintf (st, "    -E          Must Exist (if not specified an attempt to create the indicated\n");
