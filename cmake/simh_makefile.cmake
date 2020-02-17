@@ -296,20 +296,10 @@ add_simulator(h316
 
 add_simulator(hp2100
     SOURCES
-        ${HP2100D}/hp2100_stddev.c
-        ${HP2100D}/hp2100_dp.c
-        ${HP2100D}/hp2100_dq.c
-        ${HP2100D}/hp2100_dr.c
-        ${HP2100D}/hp2100_lps.c
-        ${HP2100D}/hp2100_ms.c
-        ${HP2100D}/hp2100_mt.c
-        ${HP2100D}/hp2100_mux.c
+        ${HP2100D}/hp2100_baci.c
         ${HP2100D}/hp2100_cpu.c
-        ${HP2100D}/hp2100_fp.c
-        ${HP2100D}/hp2100_sys.c
-        ${HP2100D}/hp2100_lpt.c
-        ${HP2100D}/hp2100_ipl.c
-        ${HP2100D}/hp2100_ds.c
+        ${HP2100D}/hp2100_cpu_fp.c
+        ${HP2100D}/hp2100_cpu_fpp.c
         ${HP2100D}/hp2100_cpu0.c
         ${HP2100D}/hp2100_cpu1.c
         ${HP2100D}/hp2100_cpu2.c
@@ -318,13 +308,28 @@ add_simulator(hp2100
         ${HP2100D}/hp2100_cpu5.c
         ${HP2100D}/hp2100_cpu6.c
         ${HP2100D}/hp2100_cpu7.c
-        ${HP2100D}/hp2100_fp1.c
-        ${HP2100D}/hp2100_baci.c
-        ${HP2100D}/hp2100_mpx.c
-        ${HP2100D}/hp2100_pif.c
         ${HP2100D}/hp2100_di.c
         ${HP2100D}/hp2100_di_da.c
         ${HP2100D}/hp2100_disclib.c
+        ${HP2100D}/hp2100_dma.c
+        ${HP2100D}/hp2100_dp.c
+        ${HP2100D}/hp2100_dq.c
+        ${HP2100D}/hp2100_dr.c
+        ${HP2100D}/hp2100_ds.c
+        ${HP2100D}/hp2100_ipl.c
+        ${HP2100D}/hp2100_lps.c
+        ${HP2100D}/hp2100_lpt.c
+        ${HP2100D}/hp2100_mc.c
+        ${HP2100D}/hp2100_mem.c
+        ${HP2100D}/hp2100_mpx.c
+        ${HP2100D}/hp2100_ms.c
+        ${HP2100D}/hp2100_mt.c
+        ${HP2100D}/hp2100_mux.c
+        ${HP2100D}/hp2100_pif.c
+        ${HP2100D}/hp2100_pt.c
+        ${HP2100D}/hp2100_sys.c
+        ${HP2100D}/hp2100_tbg.c
+        ${HP2100D}/hp2100_tty.c
     INCLUDES
         ${HP2100D}
     DEFINES
