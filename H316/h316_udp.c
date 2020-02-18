@@ -234,7 +234,8 @@ t_stat udp_parse_remote (int32 link, const char *premote)
 
   if ((strcmp (udp_links[link].lport, port) == 0) && 
       (strcmp ("localhost", host) == 0))
-    return sim_messagef (SCPE_ARG, "WARNING - use different transmit and receive ports!\n");
+    return sim_messagef (SCPE_ARG, "WARNING - use different transmit and receive ports!\n");
+
 
   return SCPE_OK;
 }
@@ -320,7 +321,7 @@ t_stat udp_send (DEVICE *dptr, int32 link, uint16 *pdata, uint16 count)
   // Send it and we're outta here ...
   iret = tmxr_put_packet_ln (&udp_lines[link], (const uint8 *)&pkt, (size_t)pktlen);
   if (iret != SCPE_OK) return sim_messagef(iret, "UDP%d - tmxr_put_packet_ln() failed with error %s\n", link, sim_error_text(iret));
-  sim_debug(IMP_DBG_UDP, dptr, "link %d - packet sent (sequence=%d, length=%d)\n", link, ntohl(pkt.sequence), ntohs(pkt.count));
+  sim_debug(IMP_DBG_UDP, dptr, "link %d - packet sent (sequence=%" NTOHL_FMT ", length=%d)\n", link, ntohl(pkt.sequence), ntohs(pkt.count));
   return SCPE_OK;
 }
 
@@ -353,7 +354,8 @@ int32 udp_receive_packet (int32 link, UDP_PACKET *ppkt)
   ret = tmxr_get_packet_ln (&udp_lines[link], &pbuf, &pktsiz);
   udp_lines[link].rcve = FALSE;          // Disable receiver
   if (ret != SCPE_OK) {
-    sim_messagef (ret, "UDP%d - tmxr_get_packet_ln() failed with error %s\n", link, sim_error_text(ret));
+    sim_messagef (ret, "UDP%d - tmxr_get_packet_ln() failed with error %s\n", link, sim_error_text(ret));
+
     return NOLINK;
   }
   if (pbuf == NULL) return 0;
