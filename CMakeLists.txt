@@ -323,7 +323,7 @@ if (NOT DO_DEPENDENCY_BUILD)
         if (NOT PYTHONINTERP_FOUND OR PYTHON_VERSION_MAJOR LESS 3)
             if (NOT PYTHONINTERP_FOUND)
                 message("!! Python not found")
-            elseif (PYTHON_VERSION_MAJOR LESS_THAN 3)
+            elseif (PYTHON_VERSION_MAJOR LESS 3)
                 message("!! Python is not python3")
             endif (NOT PYTHONINTERP_FOUND)
 
