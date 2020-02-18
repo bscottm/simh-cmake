@@ -332,12 +332,13 @@ if (NOT DO_DEPENDENCY_BUILD)
             message("!! Proceed with caution: This build might not succeed.")
             message("!!")
             message(STATUS "Updating cmake/simh-simulators.cmake and cmake/simh_makefile.cmake")
-        else (NOT PYTHONINTERP_FOUND OR PYTHON_VERSION_MAJOR LESS_THAN 3)
+        else (NOT PYTHONINTERP_FOUND OR PYTHON_VERSION_MAJOR LESS 3)
             message(STATUS "Updating cmake/simh-simulators.cmake and cmake/simh_makefile.cmake")
             execute_process(COMMAND ${PYTHON_EXECUTABLE} "-m" generate
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/cmake)
-        endif (NOT PYTHONINTERP_FOUND OR PYTHON_VERSION_MAJOR LESS_THAN 3)
-    endif (${CMAKE_SOURCE_DIR}/makefile IS_NEWER_THAN ${CMAKE_SOURCE_DIR}/cmake/simh-simulators.cmake)
+        endif (NOT PYTHONINTERP_FOUND OR PYTHON_VERSION_MAJOR LESS 3)
+    endif (${CMAKE_SOURCE_DIR}/makefile IS_NEWER_THAN ${CMAKE_SOURCE_DIR}/cmake/simh-simulators.cmake OR
+           ${CMAKE_SOURCE_DIR}/makefile IS_NEWER_THAN ${CMAKE_SOURCE_DIR}/cmake/simh_makefile.cmake)
 
     message(STATUS "Adding simulators")
 
