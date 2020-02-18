@@ -13,12 +13,15 @@ cmake/build-ninja: Ninja build-based simulators
 
 Options:
 --------
---clean (-x)      Remove the build subdirectory 
+--clean (-x)      Remove the build subdirectory
 --generate (-g)   Generate the build environment, don't compile/build
 --parallel (-p)   Enable build parallelism (parallel builds)
 --nonetwork       Build simulators without network support
 --notest          Do not execute 'ctest' test cases
+--noinstall       Do not install SIMH simulators.
 --testonly        Do not build, execute the 'ctest' test cases
+--installonly     Do not build, install the SIMH simulators
+--allInOne        Use 'all-in-one' project structure (vs. individual)
 
 --flavor (-f)     Specifies the build flavor: 'unix' or 'ninja'
 --config (-c)     Specifies the build configuraiton: 'Release' or 'Debug'
@@ -40,6 +43,9 @@ notest=
 buildParallel=yes
 generateOnly=
 testOnly=
+noinstall=
+installOnly=
+allInOne=
 
 ## This script really needs GNU getopt. Really.
 getopt -T > /dev/null
@@ -48,9 +54,31 @@ if [ $? -ne 4 ] ; then
     exit 1
 fi
 
-ARGS=$(getopt \
-         --longoptions clean,help,flavor:,config:,nonetwork,notest,parallel,generate,testonly \
-         --options xhf:cpg -- "$@")
+## Check if CMake supports parallel
+cmake=$(which cmake) || {
+    echo "${scriptName}: Could not find 'cmake'. Please install and re-execute this script."
+    exit 1
+}
+
+ctest=$(which ctest) || {
+    echo "${scriptName}: Could not find 'ctest'. Please check your 'cmake' installation."
+    exit 1
+}
+
+canParallel=no
+(${cmake} --build /tmp --help 2>&1 | grep parallel > /dev/null) && {
+    canParallel=yes
+}
+
+canTestParallel=no
+(${ctest} --help 2>&1 | grep parallel > /dev/null) && {
+    canTestParallel=yes
+}
+
+longopts=clean,help,flavor:,config:,nonetwork,notest,parallel,generate,testonly
+longopts=${longopts},noinstall,installonly,allInOne
+
+ARGS=$(getopt --longoptions $longopts --options xhf:cpg -- "$@")
 if [ $? -ne 0 ] ; then
     showHelp "${scriptName}: Usage error (use -h for help.)"
 fi
@@ -100,6 +128,10 @@ while true; do
             notest=yes
             shift
             ;;
+        --noinstall)
+            noinstall=yes
+            shift
+            ;;
         -p | --parallel)
             buildParallel=yes
             shift
@@ -112,6 +144,15 @@ while true; do
             testOnly=yes
             shift
             ;;
+        --installonly)
+            installOnly=yes
+            shift
+            ;;
+        --allInOne)
+            allInOne=yes
+            buildClean=yes
+            shift
+            ;;
         --)
             ## End of options. we'll ignore.
             shift
@@ -122,8 +163,14 @@ done
 
 ## Parallel only applies to the unix flavor. GNU make will overwhelm your
 ## machine if the number of jobs isn't capped.
-if [ x"$buildParallel" = xyes -a "$buildFlavor" != Ninja ] ; then
-    buildPostArgs="${buildPostArgs} -j 8"
+if [[ x"$canParallel" = xyes ]] ; then
+    if [ x"$buildParallel" = xyes -a "$buildFlavor" != Ninja ] ; then
+        buildPostArgs="${buildPostArgs} -j 8"
+        (cmake --build . --help 2>&1 | grep parallel 2>&1 > /dev/null) && \
+          buildArgs="${buildArgs} --parallel"
+    fi
+else
+    buildParallel=
 fi
 
 ## Determine the SIMH top-level source directory:
@@ -132,30 +179,58 @@ while [ "x${simhTopDir}" != x -a ! -f "${simhTopDir}/CMakeLists.txt" ]; do
   simhTopDir=$(dirname "${simhTopDir}")
 done
 
-if [ "x${simhTopDir}" == x ]; then
+if [[ "x${simhTopDir}" = x ]]; then
   echo "${scriptName}: Can't determine SIMH top-level source directory."
   echo "Did this really happen?"
   exit 1
 else
   buildSubdir=$(realpath "${simhTopDir}/cmake/${buildSubdir}")
-  echo "${scriptName}: SIMH top-evel directory ${simhTopDir}"
-  echo "${scriptName}: Build directory is      ${buildSubdir}"
+  echo "${scriptName}: SIMH top-evel directory: ${simhTopDir}"
+  echo "${scriptName}: Build directory:         ${buildSubdir}"
 fi
 
-if [ x"$testOnly" = x ]; then
-    if [ x"$buildClean" != x ]; then
-        rm -rf ${buildSubdir}
-    fi
-    if [ ! -d ${buildSubdir} ]; then
-        mkdir ${buildSubdir}
-    fi
-
-    ( cd "${buildSubdir}" \
-        && cmake -G "${buildFlavor}" -DCMAKE_BUILD_TYPE="${buildConfig}" "${simhTopDir}" \
-        && { [ x$generateOnly = x ] && cmake --build . --config "${buildConfig}" ${buildArgs} -- ${buildPostArgs}; } \
-    )
+if [[ x"$buildClean" != x ]]; then
+    echo "${scriptName}: Cleaning ${buildSubdir}"
+    rm -rf ${buildSubdir}
+fi
+if [[ ! -d ${buildSubdir} ]]; then
+    mkdir ${buildSubdir}
 fi
 
-if [ x"$notest" = x ]; then
-    (cd ${buildSubdir} && ctest -C ${buildConfig} --timeout 180 --output-on-failure)
+
+if [[ x$generateOnly = xyes ]]; then
+    phases=generate
+elif [[ x$testOnly = xyes ]]; then
+    phases=test
+elif [[ x$installOnly = xyes ]]; then
+    phases=install
+else
+    phases="generate build test install"
 fi
+
+for ph in ${phases}; do
+    case $ph in
+    generate)
+        ( cd "${buildSubdir}" \
+          && ${cmake} -G "${buildFlavor}" -DCMAKE_BUILD_TYPE="${buildConfig}" "${simhTopDir}" ) || {
+          echo "*** ${scriptName}: Errors detected during environment generation. Exiting."
+          exit 1
+        }
+        ;;
+    build)
+        ${cmake} --build "${buildSubdir}" ${buildArgs} -- ${buildPostArgs} || {
+            echo "*** ${scriptName}: Build errors detected. Exiting."
+            exit 1
+        }
+        ;;
+    test)
+        (cd "${buildSubdir}" && ${ctest} -C ${buildConfig} --timeout 180 --output-on-failure) || {
+            echo "*** ${scriptName}: Errors detected during testing. Exiting."
+            exit 1
+        }
+        ;;
+    install)
+        ${cmake} --build "${buildSubdir}" --target install
+        ;;
+    esac
+done

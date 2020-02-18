@@ -20,7 +20,6 @@ endif ()
 ##    get picked up in the dependent.
 ##
 
-
 ## Simulator sources and library:
 set(SIM_SOURCES
     ${CMAKE_SOURCE_DIR}/scp.c
@@ -57,33 +56,30 @@ function(build_simcore _targ)
         target_compile_definitions(${_targ} PUBLIC USE_ADDR64)
     endif (SIMH_ADDR64)
 
-    if (WITH_NETWORK)
-        if (WITH_SLIRP)
-            target_link_libraries(${_targ} PUBLIC slirp)
-        endif (WITH_SLIRP)
-
-        target_link_libraries(${_targ} PUBLIC simh_network)
-    endif (WITH_NETWORK)
-
     if (SIMH_VIDEO)
+        target_sources(${_targ} PRIVATE
+            ${CMAKE_SOURCE_DIR}/display/display.c
+            ${CMAKE_SOURCE_DIR}/display/sim_ws.c)
+        target_compile_definitions(${_targ} PUBLIC USE_DISPLAY)
         target_link_libraries(${_targ} PUBLIC simh_video)
     endif (SIMH_VIDEO)
 
-    target_link_libraries(${_targ} PUBLIC simh_ncurses regexp_lib zlib_lib)
+    if (WITH_SLIRP)
+        target_link_libraries(${_targ} PUBLIC slirp)
+    endif (WITH_SLIRP)
+
+    target_link_libraries(${_targ} PUBLIC
+        simh_network
+        simh_ncurses
+        regexp_lib
+        zlib_lib
+        os_features
+        thread_lib
+    )
 
     if (WIN32)
-        if (MINGW)
-            ## target_compile_options(${_targ} PUBLIC "-fms-extensions")
-            target_link_options(${_targ} PUBLIC "-mconsole")
-        endif (MINGW)
-
-        target_link_libraries(${_targ} PUBLIC wsock32 winmm)
-    elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-        target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
-        target_link_libraries(${_targ} PUBLIC "m")
-    endif ()
-
-    target_link_libraries(${_targ} PUBLIC os_features thread_lib)
+	target_link_libraries(simh_network INTERFACE ws2_32 wsock32)
+    endif (WIN32)
 
     # Define SIM_BUILD_TOOL for the simulator'
     if (NOT (HAVE_GIT_COMMIT_HASH OR HAVE_GIT_COMMIT_TIME))
@@ -117,7 +113,7 @@ endfunction(build_simcore _targ)
 ## VIDEO: Add video support
 
 function (add_simulator _targ)
-    cmake_parse_arguments(SIMH "INT64;FULL64;BUILDROMS;VIDEO" "TEST" "DEFINES;INCLUDES;SOURCES" ${ARGN})
+    cmake_parse_arguments(SIMH "INT64;FULL64;BUILDROMS;VIDEO" "TEST;SOURCE_DIR" "DEFINES;INCLUDES;SOURCES" ${ARGN})
 
     if (NOT DEFINED SIMH_SOURCES)
         message(FATAL_ERROR "${_targ}: No source files?")
@@ -130,8 +126,8 @@ function (add_simulator _targ)
     if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
             target_compile_definitions(${_targ} PUBLIC _LARGEFILE64_SOURCE _FILE_OFFSET_BITS=64)
     elseif (MINGW)
-          target_compile_options(${_targ} PRIVATE "-fms-extensions")
-          target_link_options(${_targ}    PRIVATE "-mconsole")
+        ## target_compile_options(${_targ} PRIVATE "-fms-extensions")
+        target_link_options(${_targ}    PRIVATE "-mconsole")
     elseif (MSVC)
         target_link_options(${_targ} PRIVATE "/SUBSYSTEM:CONSOLE")
     endif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -172,10 +168,18 @@ function (add_simulator _targ)
     # Installs the executables.
     install(TARGETS "${_targ}" RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-    set(test_fname "${CMAKE_CURRENT_SOURCE_DIR}/tests/${SIMH_TEST}_test.ini")
-    if (DEFINED SIMH_TEST AND EXISTS "${test_fname}")
-        add_test(NAME "test-${_targ}" COMMAND "${_targ}" "${test_fname}")
-    endif (DEFINED SIMH_TEST AND EXISTS "${test_fname}")
+    if (DEFINED SIMH_TEST)
+        set(test_fname ${CMAKE_CURRENT_SOURCE_DIR})
+        if (DEFINED SIMH_SOURCE_DIR)
+            ## Must be the "all-in-one" fragment... :-)
+            set(test_fname ${SIMH_SOURCE_DIR})
+        endif (DEFINED SIMH_SOURCE_DIR)
+        string(APPEND test_fname "/tests/${SIMH_TEST}_test.ini")
+
+        IF (EXISTS "${test_fname}")
+            add_test(NAME "test-${_targ}" COMMAND "${_targ}" "${test_fname}")
+        ENDIF (EXISTS "${test_fname}")
+    endif (DEFINED SIMH_TEST)
 
     if (NOT DONT_USE_ROMS AND SIMH_BUILDROMS)
         add_dependencies(${_targ} BuildROMs)

@@ -1513,16 +1513,23 @@ H316_OPT = -I ${H316D} -D VM_IMPTIP
 
 
 HP2100D = ${SIMHD}/HP2100
-HP2100 = ${HP2100D}/hp2100_stddev.c ${HP2100D}/hp2100_dp.c ${HP2100D}/hp2100_dq.c \
-	${HP2100D}/hp2100_dr.c ${HP2100D}/hp2100_lps.c ${HP2100D}/hp2100_ms.c \
-	${HP2100D}/hp2100_mt.c ${HP2100D}/hp2100_mux.c ${HP2100D}/hp2100_cpu.c \
-	${HP2100D}/hp2100_fp.c ${HP2100D}/hp2100_sys.c ${HP2100D}/hp2100_lpt.c \
-	${HP2100D}/hp2100_ipl.c ${HP2100D}/hp2100_ds.c ${HP2100D}/hp2100_cpu0.c \
-	${HP2100D}/hp2100_cpu1.c ${HP2100D}/hp2100_cpu2.c ${HP2100D}/hp2100_cpu3.c \
-	${HP2100D}/hp2100_cpu4.c ${HP2100D}/hp2100_cpu5.c ${HP2100D}/hp2100_cpu6.c \
-	${HP2100D}/hp2100_cpu7.c ${HP2100D}/hp2100_fp1.c ${HP2100D}/hp2100_baci.c \
-	${HP2100D}/hp2100_mpx.c ${HP2100D}/hp2100_pif.c ${HP2100D}/hp2100_di.c \
-	${HP2100D}/hp2100_di_da.c ${HP2100D}/hp2100_disclib.c
+HP2100 = ${HP2100D}/hp2100_baci.c ${HP2100D}/hp2100_cpu.c \
+        ${HP2100D}/hp2100_cpu_fp.c ${HP2100D}/hp2100_cpu_fpp.c \
+        ${HP2100D}/hp2100_cpu0.c ${HP2100D}/hp2100_cpu1.c \
+        ${HP2100D}/hp2100_cpu2.c ${HP2100D}/hp2100_cpu3.c \
+        ${HP2100D}/hp2100_cpu4.c ${HP2100D}/hp2100_cpu5.c \
+        ${HP2100D}/hp2100_cpu6.c ${HP2100D}/hp2100_cpu7.c \
+        ${HP2100D}/hp2100_di.c ${HP2100D}/hp2100_di_da.c \
+        ${HP2100D}/hp2100_disclib.c ${HP2100D}/hp2100_dma.c \
+        ${HP2100D}/hp2100_dp.c ${HP2100D}/hp2100_dq.c \
+        ${HP2100D}/hp2100_dr.c ${HP2100D}/hp2100_ds.c \
+        ${HP2100D}/hp2100_ipl.c ${HP2100D}/hp2100_lps.c \
+        ${HP2100D}/hp2100_lpt.c ${HP2100D}/hp2100_mc.c \
+        ${HP2100D}/hp2100_mem.c ${HP2100D}/hp2100_mpx.c \
+        ${HP2100D}/hp2100_ms.c ${HP2100D}/hp2100_mt.c \
+        ${HP2100D}/hp2100_mux.c ${HP2100D}/hp2100_pif.c \
+        ${HP2100D}/hp2100_pt.c ${HP2100D}/hp2100_sys.c \
+        ${HP2100D}/hp2100_tbg.c ${HP2100D}/hp2100_tty.c
 HP2100_OPT = -DHAVE_INT64 -I ${HP2100D}
 
 HP3000D = ${SIMHD}/HP3000
@@ -1826,7 +1833,8 @@ IMDS800 = ${IMDS800C}/i8080.c ${IMDS800D}/imds-800_sys.c \
 	${IMDS800C}/multibus.c ${IMDS800C}/isbc064.c \
 	${IMDS800C}/isbc202.c ${IMDS800C}/isbc201.c \
 	${IMDS800C}/zx200a.c ${IMDS800C}/isbc464.c \
-	${IMDS800C}/isbc206.c ${IMDS800C}/i3214.c
+	${IMDS800C}/isbc206.c ${IMDS800C}/i3214.c \
+	${IMDS800C}/isbc208.c
 IMDS800_OPT = -I ${IMDS800D}
 
 
@@ -1839,7 +1847,8 @@ IMDS810 = ${IMDS800C}/i8080.c ${IMDS810D}/imds-810_sys.c \
 	${IMDS810C}/multibus.c ${IMDS810C}/isbc064.c \
 	${IMDS810C}/isbc202.c ${IMDS810C}/isbc201.c \
 	${IMDS810C}/zx200a.c ${IMDS810C}/isbc464.c \
-	${IMDS810C}/isbc206.c ${IMDS800C}/i3214.c
+	${IMDS810C}/isbc206.c ${IMDS800C}/i3214.c \
+        ${IMDS225C}/isbc208.c
 IMDS810_OPT = -I ${IMDS810D}
 
 
@@ -2817,7 +2826,7 @@ ${BIN}3b2${EXE} : ${ATT3B2} ${SIM} ${BUILD_ROMS}
 	${MKDIRBIN}
 	${CC} ${ATT3B2} ${SIM} ${ATT3B2_OPT} ${CC_OUTSPEC} ${LDFLAGS}
 ifneq (,$(call find_test,${ATT3B2D},3b2))
-	$@ $(call find_test,${ATT3B2D},3b2) ${TEST_ARG}
+	$@ $(call find_test,${ATT3B2D},3b2-diag) ${TEST_ARG}
 endif
 
 i7090 : ${BIN}i7090${EXE}

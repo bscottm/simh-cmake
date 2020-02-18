@@ -47,6 +47,9 @@ ipch/
 cmake/build-*
 cmake/dependencies
 
+# Python generate/simgen stuff:
+**/__pycache__/
+
 # VS Code stuff...
 simh.code-workspace
 .vscode

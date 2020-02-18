@@ -1,49 +1,178 @@
-## VAX simulators:
+## VAX simulators
+##
+## This is an automagically generated file. Do NOT EDIT.
+## Any changes you make will be overwritten!!
+##
+## Make changes to the SIMH top-level makefile and then run the
+## "cmake/generate.py" script to regenerate these files.
+##
+##     python -m cmake/generate --help
+##
+## ------------------------------------------------------------
 
-## Default VAX simulator (aka MicroVAX 3900):
-add_simulator(vax
+
+set(VAX
+    ${VAXD}/vax_cpu.c
+    ${VAXD}/vax_cpu1.c
+    ${VAXD}/vax_fpa.c
+    ${VAXD}/vax_io.c
+    ${VAXD}/vax_cis.c
+    ${VAXD}/vax_octa.c
+    ${VAXD}/vax_cmode.c
+    ${VAXD}/vax_mmu.c
+    ${VAXD}/vax_stddev.c
+    ${VAXD}/vax_sysdev.c
+    ${VAXD}/vax_sys.c
+    ${VAXD}/vax_syscm.c
+    ${VAXD}/vax_syslist.c
+    ${VAXD}/vax_vc.c
+    ${VAXD}/vax_lk.c
+    ${VAXD}/vax_vs.c
+    ${VAXD}/vax_2681.c
+    ${PDP11D}/pdp11_rl.c
+    ${PDP11D}/pdp11_rq.c
+    ${PDP11D}/pdp11_ts.c
+    ${PDP11D}/pdp11_dz.c
+    ${PDP11D}/pdp11_lp.c
+    ${PDP11D}/pdp11_tq.c
+    ${PDP11D}/pdp11_xq.c
+    ${PDP11D}/pdp11_vh.c
+    ${PDP11D}/pdp11_cr.c
+    ${PDP11D}/pdp11_td.c
+    ${PDP11D}/pdp11_io_lib.c)
+
+set(VAX420
+    ${VAXD}/vax_cpu.c
+    ${VAXD}/vax_cpu1.c
+    ${VAXD}/vax_fpa.c
+    ${VAXD}/vax_cis.c
+    ${VAXD}/vax_octa.c
+    ${VAXD}/vax_cmode.c
+    ${VAXD}/vax_mmu.c
+    ${VAXD}/vax_sys.c
+    ${VAXD}/vax_syscm.c
+    ${VAXD}/vax_watch.c
+    ${VAXD}/vax_nar.c
+    ${VAXD}/vax4xx_stddev.c
+    ${VAXD}/vax420_sysdev.c
+    ${VAXD}/vax420_syslist.c
+    ${VAXD}/vax4xx_dz.c
+    ${VAXD}/vax4xx_rd.c
+    ${VAXD}/vax4xx_rz80.c
+    ${VAXD}/vax_xs.c
+    ${VAXD}/vax4xx_va.c
+    ${VAXD}/vax4xx_vc.c
+    ${VAXD}/vax4xx_ve.c
+    ${VAXD}/vax_lk.c
+    ${VAXD}/vax_vs.c
+    ${VAXD}/vax_gpx.c)
+
+set(VAX440
+    ${VAXD}/vax_cpu.c
+    ${VAXD}/vax_cpu1.c
+    ${VAXD}/vax_fpa.c
+    ${VAXD}/vax_cis.c
+    ${VAXD}/vax_octa.c
+    ${VAXD}/vax_cmode.c
+    ${VAXD}/vax_mmu.c
+    ${VAXD}/vax_sys.c
+    ${VAXD}/vax_syscm.c
+    ${VAXD}/vax_watch.c
+    ${VAXD}/vax_nar.c
+    ${VAXD}/vax4xx_stddev.c
+    ${VAXD}/vax440_sysdev.c
+    ${VAXD}/vax440_syslist.c
+    ${VAXD}/vax4xx_dz.c
+    ${VAXD}/vax_xs.c
+    ${VAXD}/vax_lk.c
+    ${VAXD}/vax_vs.c
+    ${VAXD}/vax4xx_rz94.c)
+
+set(VAX630
+    ${VAXD}/vax_cpu.c
+    ${VAXD}/vax_cpu1.c
+    ${VAXD}/vax_fpa.c
+    ${VAXD}/vax_cis.c
+    ${VAXD}/vax_octa.c
+    ${VAXD}/vax_cmode.c
+    ${VAXD}/vax_mmu.c
+    ${VAXD}/vax_sys.c
+    ${VAXD}/vax_syscm.c
+    ${VAXD}/vax_watch.c
+    ${VAXD}/vax630_stddev.c
+    ${VAXD}/vax630_sysdev.c
+    ${VAXD}/vax630_io.c
+    ${VAXD}/vax630_syslist.c
+    ${VAXD}/vax_va.c
+    ${VAXD}/vax_vc.c
+    ${VAXD}/vax_lk.c
+    ${VAXD}/vax_vs.c
+    ${VAXD}/vax_2681.c
+    ${VAXD}/vax_gpx.c
+    ${PDP11D}/pdp11_rl.c
+    ${PDP11D}/pdp11_rq.c
+    ${PDP11D}/pdp11_ts.c
+    ${PDP11D}/pdp11_dz.c
+    ${PDP11D}/pdp11_lp.c
+    ${PDP11D}/pdp11_tq.c
+    ${PDP11D}/pdp11_xq.c
+    ${PDP11D}/pdp11_vh.c
+    ${PDP11D}/pdp11_cr.c
+    ${PDP11D}/pdp11_td.c
+    ${PDP11D}/pdp11_io_lib.c)
+
+
+add_simulator(infoserver100
     SOURCES
-      vax_cpu.c
-      vax_cpu1.c
-      vax_fpa.c
-      vax_io.c
-      vax_cis.c
-      vax_octa.c
-      vax_cmode.c
-      vax_mmu.c
-      vax_stddev.c
-      vax_sysdev.c
-      vax_sys.c
-      vax_syscm.c
-      vax_syslist.c
-      vax_vc.c
-      vax_lk.c
-      vax_vs.c
-      vax_2681.c
-      ${PDP11D}/pdp11_rl.c
-      ${PDP11D}/pdp11_rq.c
-      ${PDP11D}/pdp11_ts.c
-      ${PDP11D}/pdp11_dz.c
-      ${PDP11D}/pdp11_lp.c
-      ${PDP11D}/pdp11_tq.c
-      ${PDP11D}/pdp11_xq.c
-      ${PDP11D}/pdp11_vh.c
-      ${PDP11D}/pdp11_cr.c
-      ${PDP11D}/pdp11_td.c
-      ${PDP11D}/pdp11_io_lib.c
+        ${VAX420}
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PDP11D}
     DEFINES
         VM_VAX
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
+        VAX_420
+        VAX_411
     FULL64
-    BUILDROMS
-    VIDEO
     TEST vax-diag)
 
-# For the MSVC crowd, set the default startup project...
-set_property(DIRECTORY "${CMAKE_SOURCE_DIR}" PROPERTY VS_STARTUP_PROJECT vax)
-set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" PROPERTY VS_STARTUP_PROJECT vax)
+add_simulator(infoserver1000
+    SOURCES
+        vax_cpu.c
+        vax_cpu1.c
+        vax_fpa.c
+        vax_cis.c
+        vax_octa.c
+        vax_cmode.c
+        vax_mmu.c
+        vax_sys.c
+        vax_syscm.c
+        vax_watch.c
+        vax_nar.c
+        vax_xs.c
+        vax4xx_rz94.c
+        vax4nn_stddev.c
+        is1000_sysdev.c
+        is1000_syslist.c
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    DEFINES
+        VM_VAX
+        IS_1000
+    FULL64
+    TEST vax-diag)
+
+add_simulator(infoserver150vxt
+    SOURCES
+        ${VAX420}
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PDP11D}
+    DEFINES
+        VM_VAX
+        VAX_420
+        VAX_412
+    FULL64
+    TEST vax-diag)
 
 add_simulator(microvax1
     SOURCES
@@ -76,77 +205,128 @@ add_simulator(microvax1
         ${PDP11D}/pdp11_cr.c
         ${PDP11D}/pdp11_td.c
         ${PDP11D}/pdp11_io_lib.c
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PDP11D}
     DEFINES
         VM_VAX
         VAX_610
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
     FULL64
-    BUILDROMS
-    VIDEO
-    TEST vax-diag)
-
-set(VAX630_SOURCES
-    vax_cpu.c
-    vax_cpu1.c
-    vax_fpa.c
-    vax_cis.c
-    vax_octa.c
-    vax_cmode.c
-    vax_mmu.c
-    vax_sys.c
-    vax_syscm.c
-    vax_watch.c
-    vax630_stddev.c
-    vax630_sysdev.c
-    vax630_io.c
-    vax630_syslist.c
-    vax_va.c
-    vax_vc.c
-    vax_lk.c
-    vax_vs.c
-    vax_2681.c
-    vax_gpx.c
-    ${PDP11D}/pdp11_rl.c
-    ${PDP11D}/pdp11_rq.c
-    ${PDP11D}/pdp11_ts.c
-    ${PDP11D}/pdp11_dz.c
-    ${PDP11D}/pdp11_lp.c
-    ${PDP11D}/pdp11_tq.c
-    ${PDP11D}/pdp11_xq.c
-    ${PDP11D}/pdp11_vh.c
-    ${PDP11D}/pdp11_cr.c
-    ${PDP11D}/pdp11_td.c
-    ${PDP11D}/pdp11_io_lib.c)
-
-add_simulator(rtvax1000
-    SOURCES
-        ${VAX630_SOURCES}
-    DEFINES
-        VM_VAX
-        VAX_620
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
-    FULL64
-    BUILDROMS
     TEST vax-diag)
 
 add_simulator(microvax2
     SOURCES
-        ${VAX630_SOURCES}
+        ${VAX630}
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PDP11D}
     DEFINES
         VM_VAX
         VAX_630
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
     FULL64
-    BUILDROMS
-    VIDEO
     TEST vax-diag)
 
+add_simulator(microvax2000
+    SOURCES
+        vax_cpu.c
+        vax_cpu1.c
+        vax_fpa.c
+        vax_cis.c
+        vax_octa.c
+        vax_cmode.c
+        vax_mmu.c
+        vax_sys.c
+        vax_syscm.c
+        vax_watch.c
+        vax_nar.c
+        vax4xx_stddev.c
+        vax410_sysdev.c
+        vax410_syslist.c
+        vax4xx_dz.c
+        vax4xx_rd.c
+        vax4xx_rz80.c
+        vax_xs.c
+        vax4xx_va.c
+        vax4xx_vc.c
+        vax_lk.c
+        vax_vs.c
+        vax_gpx.c
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    DEFINES
+        VM_VAX
+        VAX_410
+    FULL64
+    TEST vax-diag)
+
+add_simulator(microvax3100
+    SOURCES
+        ${VAX420}
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PDP11D}
+    DEFINES
+        VM_VAX
+        VAX_420
+        VAX_41A
+    FULL64
+    TEST vax-diag)
+
+add_simulator(microvax3100e
+    SOURCES
+        ${VAX420}
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PDP11D}
+    DEFINES
+        VM_VAX
+        VAX_420
+        VAX_41D
+    FULL64
+    TEST vax-diag)
+
+add_simulator(microvax3100m80
+    SOURCES
+        ${VAX440}
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    DEFINES
+        VM_VAX
+        VAX_440
+        VAX_47
+    FULL64
+    TEST vax-diag)
+
+add_simulator(rtvax1000
+    SOURCES
+        ${VAX630}
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PDP11D}
+    DEFINES
+        VM_VAX
+        VAX_620
+    FULL64
+    TEST vax-diag)
+
+add_simulator(vax
+    SOURCES
+        ${VAX}
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${PDP11D}
+    DEFINES
+        VM_VAX
+    FULL64
+    TEST vax-diag)
+
+set(vax_symlink_dir_src ${CMAKE_CURRENT_BINARY_DIR})
+if (CMAKE_CONFIGURATION_TYPES)
+    string(APPEND vax_symlink_dir_src "/$<CONFIG>")
+endif (CMAKE_CONFIGURATION_TYPES)
+add_custom_command(TARGET vax POST_BUILD COMMAND "${CMAKE_COMMAND}" -E copy_if_different vax${CMAKE_EXECUTABLE_SUFFIX} microvax3900${CMAKE_EXECUTABLE_SUFFIX} COMMENT "Copy vax${CMAKE_EXECUTABLE_SUFFIX} to microvax3900${CMAKE_EXECUTABLE_SUFFIX}" WORKING_DIRECTORY ${vax_symlink_dir_src})
+install(FILES ${vax_symlink_dir_src}/microvax3900${CMAKE_EXECUTABLE_SUFFIX}
+        DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 add_simulator(vax730
     SOURCES
@@ -182,14 +362,13 @@ add_simulator(vax730
         ${PDP11D}/pdp11_rk.c
         ${PDP11D}/pdp11_io_lib.c
         ${PDP11D}/pdp11_ch.c
+    INCLUDES
+        VAX
+        ${PDP11D}
     DEFINES
         VM_VAX
         VAX_730
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
     FULL64
-    BUILDROMS
     TEST vax-diag)
 
 add_simulator(vax750
@@ -229,14 +408,13 @@ add_simulator(vax750
         ${PDP11D}/pdp11_rk.c
         ${PDP11D}/pdp11_io_lib.c
         ${PDP11D}/pdp11_ch.c
+    INCLUDES
+        VAX
+        ${PDP11D}
     DEFINES
         VM_VAX
         VAX_750
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
     FULL64
-    BUILDROMS
     TEST vax-diag)
 
 add_simulator(vax780
@@ -277,14 +455,13 @@ add_simulator(vax780
         ${PDP11D}/pdp11_rk.c
         ${PDP11D}/pdp11_io_lib.c
         ${PDP11D}/pdp11_ch.c
+    INCLUDES
+        VAX
+        ${PDP11D}
     DEFINES
         VM_VAX
         VAX_780
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
     FULL64
-    BUILDROMS
     TEST vax-diag)
 
 add_simulator(vax8200
@@ -322,14 +499,13 @@ add_simulator(vax8200
         ${PDP11D}/pdp11_rk.c
         ${PDP11D}/pdp11_io_lib.c
         ${PDP11D}/pdp11_ch.c
+    INCLUDES
+        VAX
+        ${PDP11D}
     DEFINES
         VM_VAX
         VAX_820
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
     FULL64
-    BUILDROMS
     TEST vax-diag)
 
 add_simulator(vax8600
@@ -369,157 +545,40 @@ add_simulator(vax8600
         ${PDP11D}/pdp11_rk.c
         ${PDP11D}/pdp11_io_lib.c
         ${PDP11D}/pdp11_ch.c
+    INCLUDES
+        VAX
+        ${PDP11D}
     DEFINES
         VM_VAX
         VAX_860
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
     FULL64
-    BUILDROMS
     TEST vax-diag)
-
-add_simulator(microvax2000
-    SOURCES
-        vax_cpu.c
-        vax_cpu1.c
-        vax_fpa.c
-        vax_cis.c
-        vax_octa.c
-        vax_cmode.c
-        vax_mmu.c
-        vax_sys.c
-        vax_syscm.c
-        vax_watch.c
-        vax_nar.c
-        vax4xx_stddev.c
-        vax410_sysdev.c
-        vax410_syslist.c
-        vax4xx_dz.c
-        vax4xx_rd.c
-        vax4xx_rz80.c
-        vax_xs.c
-        vax4xx_va.c
-        vax4xx_vc.c
-        vax_lk.c
-        vax_vs.c
-        vax_gpx.c
-    DEFINES
-        VM_VAX
-        VAX_410
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
-    FULL64
-    BUILDROMS
-    VIDEO)
-
-set(VAX420_SOURCES
-    vax_cpu.c
-    vax_cpu1.c
-    vax_fpa.c
-    vax_cis.c
-    vax_octa.c
-    vax_cmode.c
-    vax_mmu.c
-    vax_sys.c
-    vax_syscm.c
-    vax_watch.c
-    vax_nar.c
-    vax4xx_stddev.c
-    vax420_sysdev.c
-    vax420_syslist.c
-    vax4xx_dz.c
-    vax4xx_rd.c
-    vax4xx_rz80.c
-    vax_xs.c
-    vax4xx_va.c
-    vax4xx_vc.c
-    vax4xx_ve.c
-    vax_lk.c
-    vax_vs.c
-    vax_gpx.c)
-
-set(VAX420_DEFINES VM_VAX VAX_420)
-
-add_simulator(infoserver100
-    SOURCES
-        ${VAX420_SOURCES}
-    DEFINES
-        ${VAX420_DEFINES}
-        VAX_411
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
-    FULL64
-    BUILDROMS
-    VIDEO)
-
-add_simulator(infoserver150vxt
-    SOURCES
-        ${VAX420_SOURCES}
-    DEFINES
-        ${VAX420_DEFINES}
-        VAX_412
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
-    FULL64
-    BUILDROMS
-    VIDEO)
-
-add_simulator(microvax3100
-    SOURCES
-        ${VAX420_SOURCES}
-    DEFINES
-        ${VAX420_DEFINES}
-        VAX_41A
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
-    FULL64
-    BUILDROMS
-    VIDEO)
-
-add_simulator(microvax3100e
-    SOURCES
-        ${VAX420_SOURCES}
-    DEFINES
-        ${VAX420_DEFINES}
-        VAX_41D
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
-    FULL64
-    BUILDROMS
-    VIDEO)
 
 add_simulator(vaxstation3100m30
     SOURCES
-        ${VAX420_SOURCES}
-    DEFINES
-        ${VAX420_DEFINES}
-        VAX_42A
+        ${VAX420}
     INCLUDES
-        ${VAXD}
+        ${CMAKE_CURRENT_SOURCE_DIR}
         ${PDP11D}
+    DEFINES
+        VM_VAX
+        VAX_420
+        VAX_42A
     FULL64
-    BUILDROMS
-    VIDEO)
+    TEST vax-diag)
 
 add_simulator(vaxstation3100m38
     SOURCES
-        ${VAX420_SOURCES}
-    DEFINES
-        ${VAX420_DEFINES}
-        VAX_42B
+        ${VAX420}
     INCLUDES
-        ${VAXD}
+        ${CMAKE_CURRENT_SOURCE_DIR}
         ${PDP11D}
+    DEFINES
+        VM_VAX
+        VAX_420
+        VAX_42B
     FULL64
-    BUILDROMS
-    VIDEO)
-
+    TEST vax-diag)
 
 add_simulator(vaxstation3100m76
     SOURCES
@@ -544,99 +603,34 @@ add_simulator(vaxstation3100m76
         vax4xx_ve.c
         vax_lk.c
         vax_vs.c
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
     DEFINES
         VM_VAX
         VAX_43
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
     FULL64
-    BUILDROMS
-    VIDEO)
-
-set(VAX440_SOURCES
-    vax_cpu.c
-    vax_cpu1.c
-    vax_fpa.c
-    vax_cis.c
-    vax_octa.c
-    vax_cmode.c
-    vax_mmu.c
-    vax_sys.c
-    vax_syscm.c
-    vax_watch.c
-    vax_nar.c
-    vax4xx_stddev.c
-    vax440_sysdev.c
-    vax440_syslist.c
-    vax4xx_dz.c
-    vax_xs.c
-    vax_lk.c
-    vax_vs.c
-    vax4xx_rz94.c)
-
-set(VAX440_DEFINES VM_VAX VAX_440)
+    TEST vax-diag)
 
 add_simulator(vaxstation4000m60
     SOURCES
-        ${VAX440_SOURCES}
-    DEFINES
-        ${VAX440_DEFINES}
-        VAX_46
+        ${VAX440}
     INCLUDES
-        ${VAXD}
-        ${PDP11D}
-    FULL64
-    BUILDROMS)
-
-add_simulator(microvax3100m80
-    SOURCES
-        ${VAX440_SOURCES}
-    DEFINES
-        ${VAX440_DEFINES}
-        VAX_47
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
-    FULL64
-    BUILDROMS)
-
-add_simulator(vaxstation4100vlc
-    SOURCES
-        ${VAX440_SOURCES}
-    DEFINES
-        ${VAX440_DEFINES}
-        VAX_48
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
-    FULL64
-    BUILDROMS)
-
-
-add_simulator(infoserver1000
-    SOURCES
-        vax_cpu.c
-        vax_cpu1.c
-        vax_fpa.c
-        vax_cis.c
-        vax_octa.c
-        vax_cmode.c
-        vax_mmu.c
-        vax_sys.c
-        vax_syscm.c
-        vax_watch.c
-        vax_nar.c
-        vax_xs.c
-        vax4xx_rz94.c
-        vax4nn_stddev.c
-        is1000_sysdev.c
-        is1000_syslist.c
+        ${CMAKE_CURRENT_SOURCE_DIR}
     DEFINES
         VM_VAX
-        IS_1000
-    INCLUDES
-        ${VAXD}
-        ${PDP11D}
+        VAX_440
+        VAX_46
     FULL64
-    BUILDROMS)
+    TEST vax-diag)
+
+add_simulator(vaxstation4000vlc
+    SOURCES
+        ${VAX440}
+    INCLUDES
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    DEFINES
+        VM_VAX
+        VAX_440
+        VAX_48
+    FULL64
+    TEST vax-diag)

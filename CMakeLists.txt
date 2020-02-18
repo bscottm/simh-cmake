@@ -15,7 +15,14 @@ endif ()
 cmake_minimum_required(VERSION 3.10)
 
 set(SIMH_VERSION "4.0.0")
-project(simh VERSION "${SIMH_VERSION}" LANGUAGES C)
+project(simh VERSION "${SIMH_VERSION}" LANGUAGES C CXX)
+
+include(GNUInstallDirs)
+include(CheckCSourceCompiles)
+include(CheckCCompilerFlag)
+include(CheckIncludeFile)
+include(CheckSymbolExists)
+include(ExternalProject)
 
 ## Provide a default CMAKE_BUILD_TYPE if CMAKE_CONFIGURATION_TYPES is empty or not defined.
 if (NOT CMAKE_CONFIGURATION_TYPES)
@@ -25,14 +32,54 @@ if (NOT CMAKE_CONFIGURATION_TYPES)
     else (NOT CMAKE_BUILD_TYPE)
         message(STATUS "CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
     endif (NOT CMAKE_BUILD_TYPE)
-else ()
-    message(STATUS "Available build configurations: ${CMAKE_CONFIGURATION_TYPES}")
 endif ()
+
+# For 64-bit builds (and this is especially true for MSVC), set the library
+# architecture.
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    # For the WinPcap and Npcap SDKs, the Lib subdirectory of the top-level
+    # directory contains 32-bit libraries; the 64-bit libraries are in the
+    # Lib/x64 directory.
+    #
+    # The only way to *FORCE* CMake to look in the Lib/x64 directory
+    # without searching in the Lib directory first appears to be to set
+    # CMAKE_LIBRARY_ARCHITECTURE to "x64".
+    #
+    if (MSVC OR MINGW)
+        set(CMAKE_C_LIBRARY_ARCHITECTURE "x64")
+        set(CMAKE_LIBRARY_ARCHITECTURE "x64")
+    else (EXISTS /usr/lib/x86_64-linux-gnu)
+        # Linux-ism
+        set(CMAKE_C_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
+        set(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
+    endif ()
+endif()
+
+# SIMH_SYSTEM_ID: Roughly analogous to the autoconf system triple. Used (almost exclusively)
+# as part of the depedencies' top-level directory name. 
+set(SIMH_SYSTEM_ID ${CMAKE_SYSTEM_NAME})
+string(REPLACE "." ";" version_list ${CMAKE_SYSTEM_VERSION})
+list(GET version_list 0 version_major)
+string(APPEND SIMH_SYSTEM_ID "-" ${version_major})
+
+if (CMAKE_C_LIBRARY_ARCHITECTURE)
+    string(APPEND SIMH_SYSTEM_ID -${CMAKE_C_LIBRARY_ARCHITECTURE})
+endif (CMAKE_C_LIBRARY_ARCHITECTURE)
+string(APPEND SIMH_SYSTEM_ID -${CMAKE_C_COMPILER_ID})
+string(REPLACE "." ";" version_list ${CMAKE_C_COMPILER_VERSION})
+list(GET version_list 0 version_major)
+list(GET version_list 1 version_minor)
+if (NOT version_minor)
+  set(version_minor 0)
+endif (NOT version_minor)
+string(APPEND SIMH_SYSTEM_ID "-${version_major}.${version_minor}")
 
 # SIMH_DEP_TOPDIR: This is the top-level directory where dependencies live. It's cached so that
 # scripts (e.g., cmake-builder.ps1) can update PATH to find shared objects and DLLs.
-set(SIMH_DEP_TOPDIR ${CMAKE_SOURCE_DIR}/cmake/dependencies/${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}
-        CACHE PATH "Top-level directory for SIMH library dependencies")
+set(SIMH_DEP_TOPDIR
+    ${CMAKE_SOURCE_DIR}/cmake/dependencies/${SIMH_SYSTEM_ID}
+    CACHE PATH "Top-level directory for SIMH library dependencies")
+
 # SIMH_DEP_PATCHES: This is where various external package patches live. Also cached just in case
 # it's needed by a script.
 set(SIMH_DEP_PATCHES ${CMAKE_SOURCE_DIR}/cmake/patches
@@ -48,17 +95,13 @@ set(SIMH_PREFIX_PATH_LIST)
 list(APPEND SIMH_PREFIX_PATH_LIST ${SIMH_DEP_TOPDIR})
 list(APPEND CMAKE_PREFIX_PATH ${SIMH_PREFIX_PATH_LIST})
 
-include(CheckCSourceCompiles)
-include(CheckCCompilerFlag)
-include(CheckIncludeFile)
-include(CheckSymbolExists)
-include(ExternalProject)
-include(build_dep_matrix)
-
 ## pkg-config is our fallback when find_package() can't find a package.
 find_package(PkgConfig)
 
 ##-- Options --##
+option(ALL_IN_ONE
+       "Use the 'all-in-one' project definitions (vs. individual CMakeLists.txt) (def: disabled)"
+       FALSE)
 option(WITH_NETWORK
        "Enable (=1)/disable (=0) simulator networking support. (def: enabled)"
        TRUE)
@@ -86,27 +129,6 @@ option(DONT_USE_ROMS
 option(ENABLE_CPPCHECK
        "Enable (=1)/disable (=0) 'cppcheck' static code analysis. (def: disabled.)"
        FALSE)
-
-# For 64-bit builds (and this is especially true for MSVC), set the library
-# architecture.
-if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-    # For the WinPcap and Npcap SDKs, the Lib subdirectory of the top-level
-    # directory contains 32-bit libraries; the 64-bit libraries are in the
-    # Lib/x64 directory.
-    #
-    # The only way to *FORCE* CMake to look in the Lib/x64 directory
-    # without searching in the Lib directory first appears to be to set
-    # CMAKE_LIBRARY_ARCHITECTURE to "x64".
-    #
-    if (MSVC OR MINGW)
-        set(CMAKE_C_LIBRARY_ARCHITECTURE "x64")
-        set(CMAKE_LIBRARY_ARCHITECTURE "x64")
-    else (EXISTS /usr/lib/x86_64-linux-gnu)
-        # Linux-ism
-        set(CMAKE_C_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
-        set(CMAKE_LIBRARY_ARCHITECTURE "x86_64-linux-gnu")
-    endif ()
-endif()
 
 ## Additional command line arguments for dependencies. Need this because Powershell will report
 ## an error if anything is sent to stderr and $ErrorDefaultAction is set to "Stop".
@@ -191,26 +213,13 @@ set(NETWORK_PKG_STATUS "unknown")
 set(NCURSES_PKG_STATUS "unknown")
 
 include(git-commit-id)
+include(build_dep_matrix)
 include(pthreads-dep)
 include(os-features)
 include(zlib-dep)
 include(pcre-dep)
-
-if (WITH_VIDEO)
-    include(video-deps)
-    set(BUILD_WITH_VIDEO TRUE)
-else (WITH_VIDEO)
-    set(VIDEO_PKG_STATUS "skipped")
-    set(BUILD_WITH_VIDEO FALSE)
-endif (WITH_VIDEO)
-
-if (WITH_NETWORK)
-    include(network-deps)
-    set(BUILD_WITH_NETWORK TRUE)
-else (WITH_NETWORK)
-    set(NETWORK_PKG_STATUS "skipped")
-    set(BUILD_WITH_NETWORK FALSE)
-endif (WITH_NETWORK)
+include(video-deps)
+include(network-deps)
 
 get_target_property(OS_FEATURE_DEFS os_features INTERFACE_COMPILE_DEFINITIONS)
 string(REPLACE ";" ", " OS_FEATURE_DEFS "${OS_FEATURE_DEFS}")
@@ -253,25 +262,25 @@ endif ()
 message(STATUS "")
 message(STATUS "")
 message(STATUS "Libraries and features:")
-message(STATUS "  Thread support .................. ${THREADING_PKG_STATUS}")
-message(STATUS "  zlib ............................ ${ZLIB_PKG_STATUS}")
-message(STATUS "  Perl-Compatible RegExps.......... ${PCRE_PKG_STATUS}")
-message(STATUS "  PNG, Freetype, SDL2, SDL2_ttf ... ${VIDEO_PKG_STATUS}")
-message(STATUS "  Packet Capture (PCAP) ........... ${NETWORK_PKG_STATUS}")
-message(STATUS "  ncurses ......................... ${NCURSES_PKG_STATUS}")
-message(STATUS "  OS Feature definitions .......... ${OS_FEATURE_DEFS}")
-message(STATUS "  OS Feature libraries ............ ${OS_FEATURE_LIBS}")
+message(STATUS "  Thread support ................... ${THREADING_PKG_STATUS}")
+message(STATUS "  zlib ............................. ${ZLIB_PKG_STATUS}")
+message(STATUS "  Perl-Compatible RegExps........... ${PCRE_PKG_STATUS}")
+message(STATUS "  PNG, Freetype, SDL2, SDL2_ttf .... ${VIDEO_PKG_STATUS}")
+message(STATUS "  Packet Capture (PCAP) ............ ${NETWORK_PKG_STATUS}")
+message(STATUS "  ncurses .......................... ${NCURSES_PKG_STATUS}")
+message(STATUS "  OS Feature definitions ........... ${OS_FEATURE_DEFS}")
+message(STATUS "  OS Feature libraries ............. ${OS_FEATURE_LIBS}")
 message(STATUS "")
 message(STATUS "Build options:")
-message(STATUS "  Video/graphics support ....... ${BUILD_WITH_VIDEO}")
-message(STATUS "  Networking ................... ${BUILD_WITH_NETWORK}")
+message(STATUS "  Build with video/graphics support. ${BUILD_WITH_VIDEO}")
+message(STATUS "  Build with networking support .... ${BUILD_WITH_NETWORK}")
 if (DONT_SET_ROMS)
     set(ROM_STATUS "No")
 else ()
     set(ROM_STATUS "Yes")
 endif ()
-message(STATUS "  Build internal ROMS .......... ${ROM_STATUS}")
-message(STATUS "  'cppcheck' ................... ${CPPCHECK_STATUS}")
+message(STATUS "  Build internal ROMS .............. ${ROM_STATUS}")
+message(STATUS "  'cppcheck' ....................... ${CPPCHECK_STATUS}")
 message(STATUS "")
 
 unset(ROM_STATUS)
@@ -292,80 +301,58 @@ else ()
 endif ()
 
 if (NOT DO_DEPENDENCY_BUILD)
-    message(STATUS "Adding simulators")
     include (add_simulator)
-
-    ## The actual simulators:
-    ## The various video outputs for simulators:
-    set(DISPLAYL   "${CMAKE_SOURCE_DIR}/display/display.c" "${CMAKE_SOURCE_DIR}/display/sim_ws.c")
-    set(DISPLAYVT  "${CMAKE_SOURCE_DIR}/display/vt11.c")
-    set(DISPLAY340 "${CMAKE_SOURCE_DIR}/display/type340.c")
-    set(DISPLAYNG  "${CMAKE_SOURCE_DIR}/display/ng.c")
-
-    ## Source/include directories:
-    set(ALTAIRD    "${CMAKE_SOURCE_DIR}/ALTAIR")
-    set(ALTAIRZ80D "${CMAKE_SOURCE_DIR}/AltairZ80")
-    set(HP2100D    "${CMAKE_SOURCE_DIR}/HP2100")
-    set(HP3000D    "${CMAKE_SOURCE_DIR}/HP3000")
-    set(I1401D     "${CMAKE_SOURCE_DIR}/I1401")
-    set(I1620D     "${CMAKE_SOURCE_DIR}/I1620")
-    set(I7094D     "${CMAKE_SOURCE_DIR}/I7094")
-    set(ID16D      "${CMAKE_SOURCE_DIR}/Interdata")
-    set(ID32D      "${CMAKE_SOURCE_DIR}/Interdata")
-    set(NOVAD      "${CMAKE_SOURCE_DIR}/NOVA")
-    set(PDP1D      "${CMAKE_SOURCE_DIR}/PDP1")
-    set(PDP10D     "${CMAKE_SOURCE_DIR}/PDP10")
-    set(PDP11D     "${CMAKE_SOURCE_DIR}/PDP11")
-    set(PDP18BD    "${CMAKE_SOURCE_DIR}/PDP18B")
-    set(VAXD       "${CMAKE_SOURCE_DIR}/VAX")
-
-    ## And here's where the actual work gets done:
     if (WITH_SLIRP)
       add_subdirectory(slirp)
     endif (WITH_SLIRP)
-    add_subdirectory(3B2)
-    add_subdirectory(ALTAIR)
-    add_subdirectory(AltairZ80)
-    add_subdirectory(B5500)
-    add_subdirectory(BESM6)
-    add_subdirectory(GRI)
-    add_subdirectory(H316)
-    add_subdirectory(HP2100)
-    add_subdirectory(HP3000)
-    add_subdirectory(I1401)
-    add_subdirectory(I1620)
-    add_subdirectory(I7000)
-    add_subdirectory(I7094)
-    add_subdirectory(Ibm1130)
-    add_subdirectory(Intel-Systems)
-    add_subdirectory(Interdata)
-    add_subdirectory(LGP)
-    add_subdirectory(NOVA)
-    add_subdirectory(PDP1)
-    add_subdirectory(PDP10)
-    add_subdirectory(PDP11)
-    add_subdirectory(PDP18B)
-    add_subdirectory(PDP8)
-    add_subdirectory(S3)
-    add_subdirectory(SDS)
-    add_subdirectory(SSEM)
-    add_subdirectory(TX-0)
-    add_subdirectory(VAX)
-    add_subdirectory(sigma)
-    add_subdirectory(swtp6800)
 
-    # Experimental simulators:
-    add_subdirectory(CDC1700)
-    ## Nope. Doesn't compile cleanly.
-    ## add_subdirectory(SAGE)
+    include(FindPythonInterp)
+    if (PYTHONINTERP_FOUND AND PYTHON_VERSION_MAJOR GREATER_EQUAL 3)
+        add_custom_command(OUTPUT ${CMAKE_SOURCE_DIR}/cmake/simh-simulators.cmake
+                                  ${CMAKE_SOURCE_DIR}/cmake/simh_makefile.cmake
+            COMMAND ${PYTHON_EXECUTABLE} "-m" generate
+            MAIN_DEPENDENCY ${CMAKE_SOURCE_DIR}/makefile
+            COMMENT "Updating cmake/simh-simulators.cmake and cmake/simh_makefile.cmake"
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/cmake
+            COMMAND_EXPAND_LISTS)
+        message(STATUS "Added makefile update rule.")
+    endif (PYTHONINTERP_FOUND AND PYTHON_VERSION_MAJOR GREATER_EQUAL 3)
+
+    if (${CMAKE_SOURCE_DIR}/makefile IS_NEWER_THAN ${CMAKE_SOURCE_DIR}/cmake/simh-simulators.cmake OR
+        ${CMAKE_SOURCE_DIR}/makefile IS_NEWER_THAN ${CMAKE_SOURCE_DIR}/cmake/simh_makefile.cmake)
+        if (NOT PYTHONINTERP_FOUND OR PYTHON_VERSION_MAJOR LESS 3)
+            if (NOT PYTHONINTERP_FOUND)
+                message("!! Python not found")
+            elseif (PYTHON_VERSION_MAJOR LESS_THAN 3)
+                message("!! Python is not python3")
+            endif (NOT PYTHONINTERP_FOUND)
+
+            message("!!")
+            message("!! Cannot update cmake/simh-simulators.cmake, using older version.")
+            message("!! Proceed with caution: This build might not succeed.")
+            message("!!")
+            message(STATUS "Updating cmake/simh-simulators.cmake and cmake/simh_makefile.cmake")
+        else (NOT PYTHONINTERP_FOUND OR PYTHON_VERSION_MAJOR LESS_THAN 3)
+            message(STATUS "Updating cmake/simh-simulators.cmake and cmake/simh_makefile.cmake")
+            execute_process(COMMAND ${PYTHON_EXECUTABLE} "-m" generate
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/cmake)
+        endif (NOT PYTHONINTERP_FOUND OR PYTHON_VERSION_MAJOR LESS_THAN 3)
+    endif (${CMAKE_SOURCE_DIR}/makefile IS_NEWER_THAN ${CMAKE_SOURCE_DIR}/cmake/simh-simulators.cmake)
+
+    message(STATUS "Adding simulators")
+
+    if (NOT ALL_IN_ONE)
+        include(simh-simulators)
+    else (NOT ALL_IN_ONE)
+        include(simh_makefile)
+    endif (NOT ALL_IN_ONE)
 
     # Install the DLLs... including Packet.DLL
     if (WIN32 AND EXISTS ${SIMH_DEP_TOPDIR}/bin)
         file(GLOB SIMH_DLLS ${SIMH_DEP_TOPDIR}/bin/*.dll)
-
-        install(
-            FILES ${SIMH_DLLS}
+        install(FILES ${SIMH_DLLS}
             DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
+            COMPONENT RUNTIME
         )
     endif (WIN32 AND EXISTS ${SIMH_DEP_TOPDIR}/bin)
 else (NOT DO_DEPENDENCY_BUILD)
