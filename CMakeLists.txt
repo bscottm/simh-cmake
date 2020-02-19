@@ -306,6 +306,7 @@ if (NOT DO_DEPENDENCY_BUILD)
       add_subdirectory(slirp)
     endif (WITH_SLIRP)
 
+    set(Python_ADDITIONAL_VERSIONS 3)
     include(FindPythonInterp)
     if (PYTHONINTERP_FOUND AND PYTHON_VERSION_MAJOR GREATER_EQUAL 3)
         add_custom_command(OUTPUT ${CMAKE_SOURCE_DIR}/cmake/simh-simulators.cmake
