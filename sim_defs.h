@@ -329,7 +329,7 @@ typedef uint32          t_addr;
 #elif defined(_MSC_VER)
 #define WEAK __declspec(selectany) 
 #else   /* !defined(__GNUC__) && !defined(_MSC_VER)  */
-#define WEAK
+#define WEAK 
 #endif  /* __GNUC__ */
 #else   /* !defined(__cplusplus) */
 #if defined(__GNUC__)
@@ -338,6 +338,18 @@ typedef uint32          t_addr;
 #define WEAK
 #endif  /* defined(__GNUC__) */
 #endif  /* defined(__cplusplus) */
+
+/* sim_regex_t: Type alias for the appropriate PCRE package to reduce
+   conditional compiles in this header. Unfortunately, that's not the
+   case when the actual PCRE/PCRE2 functions are called in scp.c. */
+
+#if defined(HAVE_PCRE_H)
+typedef pcre sim_regex_t;
+typedef uint32 sim_regex_offs;
+#elif defined(HAVE_PCRE2_H)
+typedef pcre2_code sim_regex_t;
+typedef PCRE2_SIZE sim_regex_offs;
+#endif
 
 /* System independent definitions */
 
@@ -1108,7 +1120,11 @@ extern int32 sim_asynch_latency;
 extern int32 sim_asynch_inst_latency;
 
 /* Thread local storage */
-#if defined(__GNUC__) && !defined(__APPLE__) && !defined(__hpux) && !defined(__OpenBSD__) && !defined(_AIX)
+#if defined(thread_local)
+#define AIO_TLS thread_local
+#elif (__STDC_VERSION__ >= 201112) && !(defined(__STDC_NO_THREADS__))
+#define AIO_TLS _Thread_local
+#elif defined(__GNUC__) && !defined(__APPLE__) && !defined(__hpux) && !defined(__OpenBSD__) && !defined(_AIX)
 #define AIO_TLS __thread
 #elif defined(_MSC_VER)
 #define AIO_TLS __declspec(thread)
@@ -1273,7 +1289,11 @@ extern int32 sim_asynch_inst_latency;
         sim_asynch_queue = uptr;                                       \
       }                                                                \
       if (sim_idle_wait) {                                             \
+        if (sim_deb) {  /* only while debug do lock/unlock overhead */ \
+          AIO_UNLOCK;                                                  \
         sim_debug (TIMER_DBG_IDLE, &sim_timer_dev, "waking due to event on %s after %d instructions\n", sim_uname(uptr), event_time);\
+          AIO_LOCK;                                                    \
+          }                                                            \
         pthread_cond_signal (&sim_asynch_wake);                        \
         }                                                              \
       AIO_UNLOCK;                                                      \

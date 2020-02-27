@@ -451,7 +451,8 @@ t_addr (*sim_vm_parse_addr) (DEVICE *dptr, CONST char *cptr, CONST char **tptr) 
 t_value (*sim_vm_pc_value) (void) = NULL;
 t_bool (*sim_vm_is_subroutine_call) (t_addr **ret_addrs) = NULL;
 t_bool (*sim_vm_fprint_stopped) (FILE *st, t_stat reason) = NULL;
-const char *sim_vm_release = NULL;
+const char *sim_vm_release;
+const char *sim_vm_release_message;
 const char **sim_clock_precalibrate_commands = NULL;
 
 
@@ -3608,7 +3609,7 @@ return do_cmd_label (flag, fcptr, NULL);
 
 static char *do_position(void)
 {
-static char cbuf[5120];
+static char cbuf[4*CBUFSIZE];
 
 snprintf (cbuf, sizeof (cbuf), "%s%s%s-%d", sim_do_filename[sim_do_depth], sim_do_label[sim_do_depth] ? "::" : "", sim_do_label[sim_do_depth] ? sim_do_label[sim_do_depth] : "", sim_goto_line[sim_do_depth]);
 return cbuf;
@@ -5049,7 +5050,7 @@ return SCPE_UNK;                                        /* only valid inside of 
 
 t_stat call_cmd (int32 flag, CONST char *fcptr)
 {
-char cbuf[CBUFSIZE*2+2], gbuf[CBUFSIZE];
+char cbuf[2*CBUFSIZE], gbuf[CBUFSIZE];
 const char *cptr;
 
 if (NULL == sim_gotofile) return SCPE_UNK;              /* only valid inside of do_cmd */
@@ -6078,6 +6079,8 @@ fprintf (st, "%sBuild: %s", flag ? "\n        " : "        ", S_xstr(SIM_BUILD))
 #undef S_xstr
 #endif
 fprintf (st, "\n");
+if (sim_vm_release_message != NULL)                    /* if a release message string is defined */
+    fprintf (st, "\n%s", sim_vm_release_message);      /*   then display it */
 return SCPE_OK;
 }
 

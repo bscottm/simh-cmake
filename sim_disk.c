@@ -1489,6 +1489,22 @@ buf[1] = rad50[val % 050];
 buf[0] = rad50[val / 050];
 }
 
+static t_stat rstsValidateClusterSize(uint16 size, uint16 minSize)
+{
+int i;
+
+/*
+ * Check that the cluster size is a power of 2 and greater than or equal
+ * to some location dependent value.
+ */
+if (size >= minSize)
+    for (i = 0; i < 16; i++)
+        if (size == (1 << i))
+            return SCPE_OK;
+
+return SCPE_IOERR;
+}
+
 static t_stat rstsReadBlock(rstsContext *context, uint16 cluster, uint16 block, void *buf)
 {
 t_lba blk = (cluster << context->dcshift) + block;
@@ -1529,7 +1545,8 @@ if (rstsReadBlock(context, 1, 0, &root) == SCPE_OK) {
      * First validate fields which are common to both the MFD label and
      * Pack label - we'll use Pack label offsets here.
      */
-    if ((root.rt_pack.pk_mbm1 == 0177777) && (root.rt_pack.pk_ppcs >= dcs)) {
+    if ((root.rt_pack.pk_mbm1 == 0177777) &&
+        (rstsValidateClusterSize(root.rt_pack.pk_ppcs, dcs) == SCPE_OK)) {
         char ch, *tmp = &context->packid[1];
         uint16 mfd, gfd;
 
@@ -1644,6 +1661,10 @@ if (uar != 0) {
         uint16 blocks = acnt.ac_usiz;
         uint16 offset = 0;
 
+        if ((rstsValidateClusterSize(acnt.ac_uclus, context->pcs) != SCPE_OK) ||
+            (blocks > 16))
+            return SCPE_IOERR;
+
         memset(bitmap, 0xFF, sizeof(bitmap));
 
         if (blocks != 0) {
@@ -1682,7 +1703,7 @@ if (uar != 0) {
                             }
                     }
         scanDone:
-            *result = (blocks + 1) * context->pcs;
+            *result = (t_offset)(blocks + 1) * context->pcs;
             return SCPE_OK;
             }
         }
@@ -1949,25 +1970,25 @@ Next_Partition:
 
 Return_Cleanup:
 if (partitions) {
-    const char *parttype;
+        const char *parttype;
 
-    switch (version) {
-        case HB_C_SYSVER_V3A:
-            parttype = "V3A";
-            break;
+        switch (version) {
+            case HB_C_SYSVER_V3A:
+                parttype = "V3A";
+                break;
 
-        case HB_C_SYSVER_V04:
-            parttype = "V04";
-            break;
+            case HB_C_SYSVER_V04:
+                parttype = "V04";
+                break;
 
-        case HB_C_SYSVER_V05:
-            parttype = "V05";
-            break;
+            case HB_C_SYSVER_V05:
+                parttype = "V05";
+                break;
 
-        default:
-            parttype = "???";
-            break;
-        }
+            default:
+                parttype = "???";
+                break;
+            }
     sim_messagef (SCPE_OK, "%s%d: '%s' Contains RT11 partitions\n", sim_dname (dptr), (int)(uptr-dptr->units), uptr->filename);
     sim_messagef (SCPE_OK, "%d valid partition%s, Type: %s, Sectors On Disk: %u\n", partitions, partitions == 1 ? "" : "s", parttype, (uint32)(ret_val / 512));
     }
@@ -2593,7 +2614,6 @@ fprintf (st, "was created.  This metadata is therefore available whenever that V
 fprintf (st, "attached to an emulated disk device in the future so the device type and\n");
 fprintf (st, "size can be automatically be configured.\n\n");
 
-if (0 == (uptr-dptr->units)) {
     if (dptr->numunits > 1) {
         uint32 i, attachable_count = 0, out_count = 0, skip_count;
 
@@ -2617,16 +2637,13 @@ if (0 == (uptr-dptr->units)) {
             if ((dptr->units[i].flags & UNIT_ATTABLE) &&
                 !(dptr->units[i].flags & UNIT_DIS)) {
                 if (skip_count == 0)
-                    fprintf (st, "  sim> ATTACH {switches} %s%d diskfile\n", dptr->name, i);
+                fprintf (st, "  sim> ATTACH {switches} %s%d diskfile\n", dptr->name, i);
                 else
                     --skip_count;
                 }
         }
     else
         fprintf (st, "  sim> ATTACH {switches} %s diskfile\n", dptr->name);
-    }
-else
-    fprintf (st, "  sim> ATTACH {switches} %s diskfile\n\n", dptr->name);
 fprintf (st, "\n%s attach command switches\n", dptr->name);
 fprintf (st, "    -R          Attach Read Only.\n");
 fprintf (st, "    -E          Must Exist (if not specified an attempt to create the indicated\n");
@@ -4636,9 +4653,9 @@ _rand_uuid_gen (uuidaddr);
 
 static VHDHANDLE
 CreateVHD(const char *szVHDPath,
-          uint32 SizeInSectors,
-          uint32 BlockSize,
-          t_bool bFixedVHD)
+             uint32 SizeInSectors,
+             uint32 BlockSize,
+             t_bool bFixedVHD)
 {
 VHD_Footer Footer;
 VHD_DynamicDiskHeader Dynamic;
@@ -4905,7 +4922,7 @@ return szHostPath;
 
 static VHDHANDLE
 CreateDifferencingVHD(const char *szVHDPath,
-                      const char *szParentVHDPath)
+                         const char *szParentVHDPath)
 {
 uint32 BytesPerSector = 512;
 VHDHANDLE hVHD = NULL;
@@ -4931,9 +4948,9 @@ if ((Status = GetVHDFooter (szParentVHDPath,
                             0)))
     goto Cleanup_Return;
 hVHD = CreateVHD (szVHDPath,
-                  (uint32)(NtoHll(ParentFooter.CurrentSize)/BytesPerSector),
-                  NtoHl(ParentDynamic.BlockSize),
-                  FALSE);
+                     (uint32)(NtoHll(ParentFooter.CurrentSize)/BytesPerSector),
+                     NtoHl(ParentDynamic.BlockSize),
+                     FALSE);
 if (!hVHD) {
     Status = errno;
     goto Cleanup_Return;

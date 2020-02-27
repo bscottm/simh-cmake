@@ -1077,7 +1077,7 @@ static const char* lib_name =
 
 static char no_pcap[PCAP_ERRBUF_SIZE] =
 #if defined(_WIN32) || defined(__CYGWIN__)
-    "wpcap.dll failed to load, install Npcap or WinPcap 4.x to use pcap networking";
+    "wpcap.dll failed to load, install Npcap or WinPcap 4.1.3 to use pcap networking";
 #elif defined(__APPLE__)
     "/usr/lib/libpcap.A.dylib failed to load, install libpcap to use pcap networking";
 #else
@@ -1389,7 +1389,7 @@ struct _PACKET_OID_DATA {
 }; 
 typedef struct _PACKET_OID_DATA PACKET_OID_DATA, *PPACKET_OID_DATA;
 typedef void **LPADAPTER;
-#define OID_802_3_CURRENT_ADDRESS               0x01010102 /* Extracted from ntddmdis.h */
+#define OID_802_3_CURRENT_ADDRESS               0x01010102 /* Extracted from ntddndis.h */
 
 static int pcap_mac_if_win32(const char *AdapterName, unsigned char MACAddress[6])
 {
@@ -1676,14 +1676,14 @@ if ((f = fopen ("/etc/machine-id", "r"))) {
   if (fread (buf, 1, buf_size - 1, f))
     fclose (f);
   else
-    fclose (f);
+  fclose (f);
   }
 else {
   if ((f = popen ("hostname", "r"))) {
     if (fread (buf, 1, buf_size - 1, f))
       pclose (f);
     else
-      pclose (f);
+    pclose (f);
     }
   }
 while ((strlen (buf) > 0) && sim_isspace(buf[strlen (buf) - 1]))
@@ -2100,7 +2100,7 @@ if (0 == strncmp("tap:", savname, 4)) {
       close(tun);
       tun = -1;
       }
-    }
+  }
 #else
   strlcpy(errbuf, "No support for tap: devices", PCAP_ERRBUF_SIZE);
 #endif /* !defined(__linux) && !defined(HAVE_BSDTUNTAP) */
@@ -2474,7 +2474,15 @@ return SCPE_OK;
 const char *eth_version (void)
 {
 #if defined(HAVE_PCAP_NETWORK)
-return pcap_lib_version();
+static char version[256];
+
+if (!version[0]) {
+  if (memcmp(pcap_lib_version(), "Npcap", 5))
+    strlcpy(version, pcap_lib_version(), sizeof(version));
+  else
+    snprintf(version, sizeof(version), "Unsupported - %s", pcap_lib_version());
+  }
+return version;
 #else
 return NULL;
 #endif

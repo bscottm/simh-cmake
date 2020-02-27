@@ -85,7 +85,7 @@ class GeneratorInfo
     [string]  $Generator
     [string[]]$ArchArgs
 
-    GeneratorInfo($gen, $arch)
+    GeneratorInfo([string]$gen, [string[]]$arch)
     {
         $this.Generator = $gen
         $this.ArchArgs  = $arch
@@ -95,21 +95,21 @@ class GeneratorInfo
 ## Yes, I made a mistake by using years for VS instead of something more
 ## sensible.
 $cmakeCanonicalFlavors = @{
-    "2019" = "vs2019"
-    "2017" = "vs2017"
-    "2015" = "vs2015"
-    "2013" = "vs2013"
+    "2019" = "vs2019";
+    "2017" = "vs2017";
+    "2015" = "vs2015";
+    "2013" = "vs2013";
     "2012" = "vs2012"
 }
 
 
 $cmakeGenMap = @{
-    "vs2019" = [GeneratorInfo]::new("Visual Studio 16 2019", @("-A", "Win32"))
-    "vs2017" = [GeneratorInfo]::new("Visual Studio 15 2017", @())
-    "vs2015" = [GeneratorInfo]::new("Visual Studio 14 2015", @())
-    "vs2013" = [GeneratorInfo]::new("Visual Studio 12 2013", @())
-    "vs2012" = [GeneratorInfo]::new("Visual Studio 11 2012", @())
-    "mingw"  = [GeneratorInfo]::new("MinGW Makefiles", @())
+    "vs2019" = [GeneratorInfo]::new("Visual Studio 16 2019", @("-A", "Win32"));
+    "vs2017" = [GeneratorInfo]::new("Visual Studio 15 2017", @());
+    "vs2015" = [GeneratorInfo]::new("Visual Studio 14 2015", @());
+    "vs2013" = [GeneratorInfo]::new("Visual Studio 12 2013", @());
+    "vs2012" = [GeneratorInfo]::new("Visual Studio 11 2012", @());
+    "mingw"  = [GeneratorInfo]::new("MinGW Makefiles", @());
     "ninja"  = [GeneratorInfo]::new("Ninja", @())
 }
 

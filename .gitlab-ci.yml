@@ -8,6 +8,8 @@ before_script:
         ## (c) Ninja builder
         apt-get update -qq -y && \
             apt-get install -qq -y cmake libpcre2-8-0 libpcre2-dev libsdl2-ttf-dev zlib1g-dev && \
+            apt-get install -qq -y libpcre3-dev && \
+            apt-get install -qq -y python3 && \
             apt-get install -qq -y libpcap-dev libvdeplug-dev && \
             apt-get install -qq -y ninja-build
 
