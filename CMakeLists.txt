@@ -17,9 +17,21 @@ cmake_minimum_required(VERSION 3.10)
 set(SIMH_VERSION "4.0.0")
 project(simh VERSION "${SIMH_VERSION}" LANGUAGES C)
 
+## Provide a default CMAKE_BUILD_TYPE if CMAKE_CONFIGURATION_TYPES is empty or not defined.
+if (NOT CMAKE_CONFIGURATION_TYPES)
+    if (NOT CMAKE_BUILD_TYPE)
+        set(CMAKE_BUILD_TYPE "Release")
+        message(STATUS "CMAKE_BUILD_TYPE defaulted to ${CMAKE_BUILD_TYPE}")
+    else (NOT CMAKE_BUILD_TYPE)
+        message(STATUS "CMAKE_BUILD_TYPE is ${CMAKE_BUILD_TYPE}")
+    endif (NOT CMAKE_BUILD_TYPE)
+else ()
+    message(STATUS "Available build configurations: ${CMAKE_CONFIGURATION_TYPES}")
+endif ()
+
 # SIMH_DEP_TOPDIR: This is the top-level directory where dependencies live:
-set(SIMH_DEP_TOPDIR ${CMAKE_BINARY_DIR}/build-stage)
-message(STATUS "SIMH_DEP_TOPDIR is ${SIMH_DEP_TOPDIR}")
+set(SIMH_DEP_TOPDIR ${CMAKE_SOURCE_DIR}/cmake-dependencies/${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}
+        CACHE STRING "Top-level directory for SIMH library dependencies")
 
 ## Provide a default CMAKE_BUILD_TYPE if CMAKE_CONFIGURATION_TYPES is empty or not defined.
 if (NOT CMAKE_CONFIGURATION_TYPES)
@@ -34,18 +46,19 @@ else ()
 endif ()
 
 # Places to look for CMake modules/includes
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+set(SIMH_INCLUDE_PATH_LIST ${CMAKE_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_INCLUDE_PATH ${SIMH_INCLUDE_PATH_LIST})
+list(APPEND CMAKE_MODULE_PATH ${SIMH_INCLUDE_PATH_LIST})
 
 # Places where CMake should look for dependent package configuration fragments and artifacts:
-set(SIMH_PREFIX_PATH_LIST ${SIMH_DEP_TOPDIR})
+set(SIMH_PREFIX_PATH_LIST)
+list(APPEND SIMH_PREFIX_PATH_LIST ${SIMH_DEP_TOPDIR})
 list(APPEND CMAKE_PREFIX_PATH ${SIMH_PREFIX_PATH_LIST})
-
-set(SIMH_INCLUDE_PATH_LIST ${SIMH_DEP_TOPDIR})
-list(APPEND CMAKE_INCLUDE_PATH ${SIMH_INCLUDE_PATH_LIST})
 
 include(CheckCSourceCompiles)
 include(CheckCCompilerFlag)
-include (ExternalProject)
+include(ExternalProject)
+include(build_dep_matrix)
 
 ## pkg-config is our fallback when find_package() can't find a package.
 find_package(PkgConfig)
@@ -102,18 +115,21 @@ endif()
 set(DEP_CMAKE_ARGS "-Wno-dev" "--no-warn-unused-cli")
 
 ## build-stage directory hierarchy for dependency installs:
-message(STATUS "Creating build-stage directory hierarchy (include, lib, bin)")
-execute_process(
-    COMMAND ${CMAKE_COMMAND} -E make_directory build-stage build-stage/include build-stage/lib build-stage/bin
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
+if (NOT EXISTS ${SIMH_DEP_TOPDIR})
+    message(STATUS "Creating dependency library directory hierarchy")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${SIMH_DEP_TOPDIR} ${SIMH_DEP_TOPDIR}/include ${SIMH_DEP_TOPDIR}/lib 
+                    ${SIMH_DEP_TOPDIR}/bin
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+endif ()
 
 ## Default install location is ${CMAKE_SOURCE_DIR}/BIN if not otherwise set
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/" CACHE PATH "${CMAKE_SOURCE_DIR} default install prefix" FORCE)
   set(CMAKE_INSTALL_BINDIR BIN CACHE PATH "BIN default binary install directory" FORCE)
 
-  if (WIN32 AND MSVC)
+  if (CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_INSTALL_BINDIR "BIN/Win32/$<CONFIG>" CACHE PATH "BIN/Win32/<config> default binary install directory" FORCE)
   endif ()
 endif()
@@ -333,14 +349,14 @@ if (NOT DO_DEPENDENCY_BUILD)
     ## add_subdirectory(SAGE)
 
     # Install the DLLs... including Packet.DLL
-    if (WIN32 AND EXISTS ${CMAKE_BINARY_DIR}/build-stage/bin)
-        file(GLOB SIMH_DLLS ${CMAKE_BINARY_DIR}/build-stage/bin/*.dll)
+    if (WIN32 AND EXISTS ${SIMH_DEP_TOPDIR}/bin)
+        file(GLOB SIMH_DLLS ${SIMH_DEP_TOPDIR}/bin/*.dll)
 
         install(
             FILES ${SIMH_DLLS}
             DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}
         )
-    endif (WIN32 AND EXISTS ${CMAKE_BINARY_DIR}/build-stage/bin)
+    endif (WIN32 AND EXISTS ${SIMH_DEP_TOPDIR}/bin)
 else (NOT DO_DEPENDENCY_BUILD)
     message(STATUS "")
     message(STATUS "The following dependencies need to be built:")

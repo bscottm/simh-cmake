@@ -1,3 +1,10 @@
+cache:
+  - ./cmake-dependencies -> appveyor.yml, CMakeLists.txt, cmake/build_dep_matrix.cmake, cmake/network-deps.cmake,
+        cmake/pcre-dep.cmake, cmake/pthreads-dep.cmake, cmake/video-deps.cmake, cmake/zlib-dep.cmake
+
+## shallow_clone: true
+## clone_depth: 50
+
 environment:
   DIST_DIR: '%APPVEYOR_BUILD_FOLDER%\dist'
   CMAKE_DIST_DIR: C:/projects/simh/dist
@@ -14,9 +21,11 @@ environment:
     - APPVEYOR_BUILD_WORKER_IMAGE: Ubuntu
       SIMH_BUILD_FLAVOR: unix
 
-    - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
-      SIMH_BUILD_FLAVOR: ninja
-      MINGW: C:\\msys64\\mingw32\\bin
+    ## Here's how you would build with Ninja. It's going to build the same executables
+    ## as the MinGW flavor, which is why it's skipped here.
+    # - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+    #   SIMH_BUILD_FLAVOR: ninja
+    #   MINGW: C:\\msys64\\mingw32\\bin
 
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
       SIMH_BUILD_FLAVOR: 2017
@@ -44,7 +53,7 @@ configuration:
   - Release
 
 build:
-  parallel: true                  # enable MSBuild parallel builds
+  ## parallel: true                  # enable MSBuild parallel builds
   verbosity: minimal
 
 before_build:
@@ -57,6 +66,7 @@ before_build:
   - ps: |
       if ($isWindows) {
         if (${env:SIMH_BUILD_FLAVOR} -eq "ninja") { choco install ninja; }
+        if (!(Test-Path -Path cmake-dependencies)) { New-Item -ItemType Directory -Path cmake-dependencies }
       }
   - sh: |
       sudo apt-get update -y -qq && \
@@ -79,11 +89,11 @@ build_script:
   - ps: |
       if ($isWindows) {
         if (!([string]::IsNullOrEmpty($env:MINGW))) { $env:PATH=$(@(${env:MINGW}, ${env:PATH}) -join ";"); };
-        .\cmake-builder.ps1 -parallel -clean -nonetwork -notest -config ${env:CONFIGURATION} `
+        .\cmake-builder.ps1 -clean -parallel -nonetwork -notest -config ${env:CONFIGURATION} `
             -flavor ${env:SIMH_BUILD_FLAVOR}
       }
   - sh: |
-      ./cmake-builder.sh --notest --flavor ${SIMH_BUILD_FLAVOR} --config ${CONFIGURATION} --clean --parallel
+      ./cmake-builder.sh --notest --parallel --flavor ${SIMH_BUILD_FLAVOR} --config ${CONFIGURATION} --clean
 
 test_script:
   - ps: |

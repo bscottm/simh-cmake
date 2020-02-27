@@ -16,7 +16,7 @@ if (ZLIB_FOUND)
     if (TARGET ZLIB::ZLIB)
         target_link_libraries(zlib_lib INTERFACE ZLIB::ZLIB)
     elseif (TARGET PkgConfig::ZLIB)
-	target_link_libraries(zlib_lib INTERFACE PkgConfig::ZLIB)
+        target_link_libraries(zlib_lib INTERFACE PkgConfig::ZLIB)
     else (TARGET ZLIB::ZLIB)
         target_compile_definitions(zlib_lib INTERFACE ${ZLIB_INCLUDE_DIRS})
         target_link_libraries(zlib_lib INTERFACE ${ZLIB_LIBRARIES})
@@ -25,21 +25,20 @@ if (ZLIB_FOUND)
     set(ZLIB_PKG_STATUS "installed ZLIB")
 else (ZLIB_FOUND)
     include (ExternalProject)
+    set(ZLIB_REPO_URL https://github.com/madler/zlib.git)
 
     ExternalProject_Add(zlib-dep
-        GIT_REPOSITORY https://github.com/madler/zlib.git
+        GIT_REPOSITORY ${ZLIB_REPO_URL}
         GIT_TAG v1.2.11
-        CMAKE_ARGS 
-	    ${DEP_CMAKE_ARGS}
-            -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR}
-            -DCMAKE_PREFIX_PATH=${SIMH_PREFIX_PATH_LIST}
-            -DCMAKE_INCLUDE_PATH=${SIMH_INCLUDE_PATH_LIST}
-            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-            -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+        CONFIGURE_COMMAND ""
+        BUILD_COMMAND ""
+        INSTALL_COMMAND ""
     )
+
+    BuildDepMatrix(zlib-dep zlib)
 
     list(APPEND SIMH_BUILD_DEPS zlib)
     list(APPEND SIMH_DEP_TARGETS zlib-dep)
-    message(STATUS "Building ZLIB from github repository.")
+    message(STATUS "Building ZLIB from ${ZLIB_REPO_URL}.")
     set(ZLIB_PKG_STATUS "ZLIB source build")
 endif (ZLIB_FOUND)
