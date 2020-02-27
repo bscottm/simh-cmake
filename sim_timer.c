@@ -27,23 +27,23 @@
                          - Sleep for the observed clock tick size while throttling
                          - Recompute the throttling wait once every 10 seconds
                            to account for varying instruction mixes during
-                           different phases of a simulator execution or to 
-                           accommodate the presence of other load on the host 
+                           different phases of a simulator execution or to
+                           accommodate the presence of other load on the host
                            system.
-                         - Each of the pre-existing throttling modes (Kcps, 
-                           Mcps, and %) all compute the appropriate throttling 
+                         - Each of the pre-existing throttling modes (Kcps,
+                           Mcps, and %) all compute the appropriate throttling
                            interval dynamically.  These dynamic computations
-                           assume that 100% of the host CPU is dedicated to 
+                           assume that 100% of the host CPU is dedicated to
                            the current simulator during this computation.
-                           This assumption may not always be true and under 
-                           certain conditions may never provide a way to 
-                           correctly determine the appropriate throttling 
+                           This assumption may not always be true and under
+                           certain conditions may never provide a way to
+                           correctly determine the appropriate throttling
                            wait.  An additional throttling mode has been added
                            which allows the simulator operator to explicitly
                            state the desired throttling wait parameters.
-                           These are specified by: 
+                           These are specified by:
                                   SET THROT insts/delay
-                           where 'insts' is the number of instructions to 
+                           where 'insts' is the number of instructions to
                            execute before sleeping for 'delay' milliseconds.
    22-Apr-11    MP      Fixed Asynch I/O support to reasonably account cycles
                         when an idle wait is terminated by an external event
@@ -98,6 +98,28 @@
 #define MAX(a,b)  (((a) > (b)) ? (a) : (b))
 #endif
 
+#define SIM_INVALID_TMR ((size_t) ~0)
+
+#define sleep1Samples       100
+
+/* EXPONENTIAL_WEIGHTED_MOVING_AVG: Use EWMA to compute min and sleep
+   increment instead of using a "truncated" average.
+
+   The truncated average has a non-zero probability of being zero due the
+   accumulated total being less than the denominator; observed several times
+   during testing and principally on virtual machines. The EWMA acts as a low
+   pass filter, which accommodates large and small swings without
+   substantially moving the average in one direction or the other. It is still
+   possible for the EWMA's mantissa to be zero, indicating that the OS returns
+   prematurely from the 1ms sleep. */
+#define EXPONENTIAL_WEIGHTED_MOVING_AVG
+
+#if defined(EXPONENTIAL_WEIGHTED_MOVING_AVG)
+/* EWMA alpha for 100 samples (~0.02 or 2 percent of each sample, 98% of existing avg.) */
+const double ewma_alpha_100 = 2.0 / (sleep1Samples + 1.0);
+#endif
+
+
 uint32 sim_idle_ms_sleep (unsigned int msec);
 
 /* MS_MIN_GRANULARITY exists here so that timing behavior for hosts systems  */
@@ -151,8 +173,8 @@ t_bool sim_idle_enab = FALSE;                       /* global flag */
 volatile t_bool sim_idle_wait = FALSE;              /* global flag */
 
 static int32 sim_precalibrate_ips = SIM_INITIAL_IPS;
-static int32 sim_calb_tmr = -1;                     /* the system calibrated timer */
-static int32 sim_calb_tmr_last = -1;                /* shadow value when at sim> prompt */
+static size_t sim_calb_tmr = SIM_INVALID_TMR;       /* the system calibrated timer */
+static size_t sim_calb_tmr_last = SIM_INVALID_TMR;  /* shadow value when at sim> prompt */
 static double sim_inst_per_sec_last = 0;            /* shadow value when at sim> prompt */
 static uint32 sim_stop_time = 0;                    /* time when sim_stop_timer_services was called */
 double sim_time_at_sim_prompt =  0;                 /* time spent processing commands from sim> prompt */
@@ -221,6 +243,10 @@ typedef struct RTC {
     uint32 clock_calib_skip_idle;   /* Calibrations skipped due to idling */
     uint32 clock_calib_gap2big;     /* Calibrations skipped Gap Too Big */
     uint32 clock_calib_backwards;   /* Calibrations skipped Clock Running Backwards */
+#if defined(EXPONENTIAL_WEIGHTED_MOVING_AVG)
+    double ewma_cps;                /* Expontial average for cycles/sec */
+    t_bool ewma_cps_init;           /* Initialization flag. */
+#endif
     } RTC;
 
 RTC rtcs[SIM_NTIMERS+1];
@@ -241,43 +267,110 @@ UNIT * volatile sim_wallclock_queue = QUEUE_LIST_END;
 UNIT * volatile sim_wallclock_entry = NULL;
 #endif
 
-#define sleep1Samples       100
+/* Throttle function dispatching: */
+static t_stat sim_throt_init(UNIT *uptr, RTC *rtc);
+static t_stat sim_throt_finish_init(UNIT *uptr, RTC *rtc);
+static t_stat sim_throt_do_throttle(UNIT *uptr, RTC *rtc);
+
+static t_stat (*throttle_dispatch[])(UNIT *, RTC *) = {
+    sim_throt_init,
+    sim_throt_finish_init,
+    sim_throt_do_throttle
+};
+
+
+static uint32 _average_ms_sleep(uint32 (*timer_func)(unsigned int), unsigned int delay, const int attempt, const int tries)
+{
+uint32 retval;
+
+if (attempt <= tries) {
+    const int tolerated_badsamples = (sleep1Samples / 4);
+    int badsamples = 0;
+    size_t i;
+    uint32 sample;
+    t_bool valid_avg = TRUE;
+
+#if !defined(EXPONENTIAL_WEIGHTED_MOVING_AVG)
+    uint32 tot = 0;
+#else
+    double ewma;
+#endif
+
+    i = 0;
+    while (i < sleep1Samples && badsamples < tolerated_badsamples) {
+        sample = (*timer_func)(delay);
+        if (sample > 0) {
+#if !defined(EXPONENTIAL_WEIGHTED_MOVING_AVG)
+            tot += sample;
+#else
+            if (i > 0)
+                ewma = (1.0 - ewma_alpha_100) * ewma + (ewma_alpha_100 * (double) sample);
+            else
+                ewma = (double) sample;
+#endif
+            ++i;
+            }
+        else {
+            badsamples++;
+            }
+        }
+
+#if !defined(EXPONENTIAL_WEIGHTED_MOVING_AVG)
+    retval = tot / sleep1Samples;
+    if (retval == 0 || badsamples >= tolerated_badsamples)
+        valid_avg = FALSE;
+#else
+    if (ewma >= 1.0 && badsamples < tolerated_badsamples)
+        retval = (uint32) floor(ewma);
+    else
+        valid_avg = FALSE;
+#endif
+
+    if (!valid_avg) {
+        fprintf(stderr, "_average_ms_sleep: average OS clock sleep time < 1ms, OS clock sleep possibly\n");
+        fprintf(stderr, "returns prematurely. Recursing to re-evaluate (Attempt %d of %d)\n", attempt, tries);
+        return _average_ms_sleep(timer_func, delay, attempt + 1, tries);
+        }
+    }
+else {
+    fprintf(stderr, "_average_ms_sleep: Number of attempts to compute average OS clock sleep\n");
+    fprintf(stderr, "exceeded. Assuming 1 ms.\n");
+    retval = 1;
+    }
+
+return retval;
+}
 
 static uint32 _compute_minimum_sleep (void)
 {
-uint32 i, tot, tim;
+size_t i;
+const int n_tries = 5;
 
 sim_os_set_thread_priority (PRIORITY_ABOVE_NORMAL);
+
 #if defined(MS_MIN_GRANULARITY) && (MS_MIN_GRANULARITY != 1)
 real_sim_idle_ms_sleep (2);         /* Start sampling on a tick boundary */
-for (i = 0, tot = 0; i < sleep1Samples; i++)
-    tot += real_sim_idle_ms_sleep (1);
-tim = tot / sleep1Samples;          /* Truncated average */
-real_sim_os_sleep_min_ms = tim;
+real_sim_os_sleep_min_ms = _average_ms_sleep(real_sim_idle_ms_sleep, 1, 1, n_tries);
+
 real_sim_idle_ms_sleep (2);         /* Start sampling on a tick boundary */
-for (i = 0, tot = 0; i < sleep1Samples; i++)
-    tot += real_sim_idle_ms_sleep (real_sim_os_sleep_min_ms + 1);
-tim = tot / sleep1Samples;          /* Truncated average */
-real_sim_os_sleep_inc_ms = tim - real_sim_os_sleep_min_ms;
+real_sim_os_sleep_inc_ms = _average_ms_sleep(real_sim_idle_ms_sleep, real_sim_os_sleep_min_ms + 1, 1, n_tries) - real_sim_os_sleep_min_ms;
 #endif /* defined(MS_MIN_GRANULARITY) && (MS_MIN_GRANULARITY != 1) */
+
 sim_idle_ms_sleep (2);              /* Start sampling on a tick boundary */
-for (i = 0, tot = 0; i < sleep1Samples; i++)
-    tot += sim_idle_ms_sleep (1);
-tim = tot / sleep1Samples;          /* Truncated average */
-sim_os_sleep_min_ms = tim;
+sim_os_sleep_min_ms = _average_ms_sleep(sim_idle_ms_sleep, 1, 1, n_tries);
+
 sim_idle_ms_sleep (2);              /* Start sampling on a tick boundary */
-for (i = 0, tot = 0; i < sleep1Samples; i++)
-    tot += sim_idle_ms_sleep (sim_os_sleep_min_ms + 1);
-tim = tot / sleep1Samples;          /* Truncated average */
-sim_os_sleep_inc_ms = tim - sim_os_sleep_min_ms;
+sim_os_sleep_inc_ms = _average_ms_sleep(sim_idle_ms_sleep, sim_os_sleep_min_ms + 1, 1, n_tries) - sim_os_sleep_min_ms;
+
 sim_os_set_thread_priority (PRIORITY_NORMAL);
+
 return sim_os_sleep_min_ms;
 }
 
 #if defined(MS_MIN_GRANULARITY) && (MS_MIN_GRANULARITY != 1)
 
-#define sim_idle_ms_sleep   real_sim_idle_ms_sleep 
-#define sim_os_msec         real_sim_os_msec 
+#define sim_idle_ms_sleep   real_sim_idle_ms_sleep
+#define sim_os_msec         real_sim_os_msec
 #define sim_os_ms_sleep     real_sim_os_ms_sleep
 
 #endif /* defined(MS_MIN_GRANULARITY) && (MS_MIN_GRANULARITY != 1) */
@@ -752,7 +845,7 @@ while (diff->tv_nsec >= 1000000000) {
 static double _timespec_to_double (struct timespec *time);
 static void _double_to_timespec (struct timespec *time, double dtime);
 static t_bool _rtcn_tick_catchup_check (RTC *rtc, int32 time);
-static void _rtcn_configure_calibrated_clock (int32 newtmr);
+static void _rtcn_configure_calibrated_clock (size_t newtmr);
 static t_bool _sim_coschedule_cancel (UNIT *uptr);
 static t_bool _sim_wallclock_cancel (UNIT *uptr);
 static t_bool _sim_wallclock_is_active (UNIT *uptr);
@@ -762,12 +855,12 @@ t_stat sim_timer_show_idle_mode (FILE* st, UNIT* uptr, int32 val, CONST void *  
 #if defined(SIM_ASYNCH_CLOCKS)
 static int sim_timespec_compare (struct timespec *a, struct timespec *b)
 {
-while (a->tv_nsec >= 1000000000) {
-    a->tv_nsec -= 1000000000;
+while (a->tv_nsec >= 1000000000l) {
+    a->tv_nsec -= 1000000000l;
     ++a->tv_sec;
     }
-while (b->tv_nsec >= 1000000000) {
-    b->tv_nsec -= 1000000000;
+while (b->tv_nsec >= 1000000000l) {
+    b->tv_nsec -= 1000000000l;
     ++b->tv_sec;
     }
 if (a->tv_sec < b->tv_sec)
@@ -835,7 +928,7 @@ extern DEVICE sim_stop_dev;
 
 void sim_rtcn_init_all (void)
 {
-int32 tmr;
+size_t tmr;
 RTC *rtc;
 
 for (tmr = 0; tmr <= SIM_NTIMERS; tmr++) {
@@ -845,20 +938,20 @@ for (tmr = 0; tmr <= SIM_NTIMERS; tmr++) {
     }
 }
 
-int32 sim_rtcn_init (int32 time, int32 tmr)
+int32 sim_rtcn_init (int32 time, size_t tmr)
 {
 return sim_rtcn_init_unit (NULL, time, tmr);
 }
 
-int32 sim_rtcn_init_unit (UNIT *uptr, int32 time, int32 tmr)
+int32 sim_rtcn_init_unit (UNIT *uptr, int32 time, size_t tmr)
 {
 return sim_rtcn_init_unit_ticks (uptr, time, tmr, 0);
 }
 
-int32 sim_rtcn_init_unit_ticks (UNIT *uptr, int32 time, int32 tmr, int32 ticksper)
+int32 sim_rtcn_init_unit_ticks (UNIT *uptr, int32 time, size_t tmr, int32 ticksper)
 {
 RTC *rtc;
-        
+
 if (time == 0)
     time = 1;
 if (tmr == SIM_INTERNAL_CLK)
@@ -877,7 +970,7 @@ if (rtc->currd)
     time = rtc->currd;
 if (!uptr)
     uptr = rtc->clock_unit;
-sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_init_unit(unit=%s, time=%d, tmr=%d)\n", uptr ? sim_uname(uptr) : "", time, tmr);
+sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_init_unit(unit=%s, time=%d, tmr=%" SIZE_T_FMT "u)\n", uptr ? sim_uname(uptr) : "", time, tmr);
 if (uptr) {
     if (!rtc->clock_unit)
         sim_register_clock_unit_tmr (uptr, tmr);
@@ -907,18 +1000,22 @@ rtc->calib_ticks_acked_tot += rtc->calib_ticks_acked;
 rtc->calib_ticks_acked = 0;
 ++rtc->calib_initializations;
 rtc->clock_init_base_time = sim_timenow_double ();
+#if defined(EXPONENTIAL_WEIGHTED_MOVING_AVG)
+rtc->ewma_cps = 0.0;
+rtc->ewma_cps_init = FALSE;
+#endif
 _rtcn_configure_calibrated_clock (tmr);
 return time;
 }
 
-int32 sim_rtcn_calb_tick (int32 tmr)
+int32 sim_rtcn_calb_tick (size_t tmr)
 {
 RTC *rtc = &rtcs[tmr];
 
 return sim_rtcn_calb (rtc->hz, tmr);
 }
 
-int32 sim_rtcn_calb (uint32 ticksper, int32 tmr)
+int32 sim_rtcn_calb (uint32 ticksper, size_t tmr)
 {
 uint32 new_rtime, delta_rtime, last_idle_pct, catchup_ticks_curr;
 int32 delta_vtime;
@@ -939,8 +1036,8 @@ if (rtc->hz != ticksper) {                          /* changing tick rate? */
 
     if (rtc->hz == 0)
         rtc->clock_tick_start_time = sim_timenow_double ();
-    if ((rtc->last_hz != 0) && 
-        (rtc->last_hz != ticksper) && 
+    if ((rtc->last_hz != 0) &&
+        (rtc->last_hz != ticksper) &&
         (ticksper != 0))
         rtc->currd = (int32)(sim_timer_inst_per_sec () / ticksper);
     _rtcn_configure_calibrated_clock (tmr);
@@ -950,16 +1047,16 @@ if (rtc->hz != ticksper) {                          /* changing tick rate? */
         RTC *crtc = &rtcs[sim_calb_tmr];
 
         rtc->clock_tick_size = 1.0 / ticksper;
-        sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(ticksper=%d,tmr=%d) currd=%d, prior_hz=%d\n", ticksper, tmr, rtc->currd, (int)prior_hz);
+        sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(ticksper=%d,tmr=%" SIZE_T_FMT "u) currd=%d, prior_hz=%d\n", ticksper, tmr, rtc->currd, (int)prior_hz);
 
         if ((tmr != sim_calb_tmr) && rtc->clock_unit && (ticksper > crtc->hz)) {
             sim_catchup_ticks = TRUE;
-            sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(%d) - forcing catchup ticks for %s ticking at %d, host tick rate %ds\n", tmr, sim_uname (rtc->clock_unit), ticksper, sim_os_tick_hz);
+            sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(%" SIZE_T_FMT "u) - forcing catchup ticks for %s ticking at %d, host tick rate %ds\n", tmr, sim_uname (rtc->clock_unit), ticksper, sim_os_tick_hz);
             _rtcn_tick_catchup_check (rtc, 0);
             }
         }
     else
-        sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(ticksper=%d,tmr=%d) timer stopped currd was %d, prior_hz=%d\n", ticksper, tmr, rtc->currd, (int)prior_hz);
+        sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(ticksper=%d,tmr=%" SIZE_T_FMT "u) timer stopped currd was %d, prior_hz=%d\n", ticksper, tmr, rtc->currd, (int)prior_hz);
     }
 if (ticksper == 0)                                      /* running? */
     return 10000;
@@ -983,17 +1080,17 @@ if (!rtc_avail)                                     /* no timer? */
     return rtc->currd;
 if (sim_calb_tmr != tmr) {
     rtc->currd = (int32)(sim_timer_inst_per_sec()/ticksper);
-    sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(tmr=%d) calibrated against internal system tmr=%d, tickper=%d (result: %d)\n", tmr, sim_calb_tmr, ticksper, rtc->currd);
+    sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(tmr=%" SIZE_T_FMT "u) calibrated against internal system tmr=%" SIZE_T_FMT "u, tickper=%d (result: %d)\n", tmr, sim_calb_tmr, ticksper, rtc->currd);
     return rtc->currd;
     }
 new_rtime = sim_os_msec ();                         /* wall time */
-if (!sim_signaled_int_char && 
+if (!sim_signaled_int_char &&
     ((new_rtime - sim_last_poll_kbd_time) > 500)) {
-    sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(tmr=%d) gratuitious keyboard poll after %d msecs\n", tmr, (int)(new_rtime - sim_last_poll_kbd_time));
+    sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(tmr=%" SIZE_T_FMT "u) gratuitious keyboard poll after %d msecs\n", tmr, (int)(new_rtime - sim_last_poll_kbd_time));
     (void)sim_poll_kbd ();
     }
 ++rtc->calibrations;                                /* count calibrations */
-sim_debug (DBG_TRC, &sim_timer_dev, "sim_rtcn_calb(ticksper=%d, tmr=%d)\n", ticksper, tmr);
+sim_debug (DBG_TRC, &sim_timer_dev, "sim_rtcn_calb(ticksper=%d, tmr=%" SIZE_T_FMT "u)\n", ticksper, tmr);
 if (new_rtime < rtc->rtime) {                       /* time running backwards? */
     /* This happens when the value returned by sim_os_msec wraps (as an uint32) */
     /* Wrapping will happen initially sometime before a simulator has been running */
@@ -1064,7 +1161,7 @@ if (sim_asynch_timer || (catchup_ticks_curr > 0)) {
         }
     rtc->based = rtc->currd = new_currd;
     rtc->gtime = new_gtime;                     /* save instruction time */
-    sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(%s tmr=%d, tickper=%d) catchups=%u, idle=%d%% result: %d\n", 
+    sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(%s tmr=%" SIZE_T_FMT "u, tickper=%d) catchups=%u, idle=%d%% result: %d\n",
                     sim_asynch_timer ? "asynch" : "catchup", tmr, ticksper, catchup_ticks_curr, last_idle_pct, rtc->currd);
     return rtc->currd;                          /* calibrated result */
     }
@@ -1091,7 +1188,7 @@ if (rtc->based <= 0)                                /* never negative or zero! *
     rtc->based = 1;
 if (rtc->currd <= 0)                                /* never negative or zero! */
     rtc->currd = 1;
-sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(tmr=%d, tickper=%d) (delta_rtime=%d, delta_vtime=%d, base=%d, nxintv=%u, catchups=%u, idle=%d%%, result: %d)\n", 
+sim_debug (DBG_CAL, &sim_timer_dev, "sim_rtcn_calb(tmr=%" SIZE_T_FMT "u, tickper=%d) (delta_rtime=%d, delta_vtime=%d, base=%d, nxintv=%u, catchups=%u, idle=%d%%, result: %d)\n",
                                     tmr, ticksper, (int)delta_rtime, (int)delta_vtime, rtc->based, rtc->nxintv, catchup_ticks_curr, last_idle_pct, rtc->currd);
 /* Adjust calibration for other timers which depend on this timer's calibration */
 for (itmr=0; itmr<=SIM_NTIMERS; itmr++) {
@@ -1120,8 +1217,18 @@ return sim_rtcn_calb (ticksper, 0);
 
 t_bool sim_timer_init (void)
 {
-int tmr;
+size_t tmr;
 uint32 clock_start, clock_last, clock_now;
+const uint32 clock_delta_ms = 100;
+const size_t total_samples = 100;
+size_t legit_samples;
+
+#if defined(EXPONENTIAL_WEIGHTED_MOVING_AVG)
+/* Compute the EWMA over a 29 sample window. */
+const double ewma_alpha = 2.0 / (29.0 + 1.0);
+double ewma;
+t_bool ewma_valid = FALSE;
+#endif
 
 sim_debug (DBG_TRC, &sim_timer_dev, "sim_timer_init()\n");
 for (tmr=0; tmr<=SIM_NTIMERS; tmr++) {
@@ -1144,16 +1251,37 @@ sim_set_rom_delay_factor (sim_get_rom_delay_factor ()); /* initialize ROM delay 
 
 sim_stop_time = clock_last = clock_start = sim_os_msec ();
 sim_os_clock_resoluton_ms = 1000;
+legit_samples = 0;
 do {
     uint32 clock_diff;
-    
+
     clock_now = sim_os_msec ();
     clock_diff = clock_now - clock_last;
-    if ((clock_diff > 0) && (clock_diff < sim_os_clock_resoluton_ms))
-        sim_os_clock_resoluton_ms = clock_diff;
-    clock_last = clock_now;
-    } while (clock_now < clock_start + 100);
-if ((sim_idle_rate_ms != 0) && (sim_os_clock_resoluton_ms != 0))
+    if (clock_diff > 0) {
+#if !defined(EXPONENTIAL_WEIGHTED_MOVING_AVG)
+        if (clock_diff < sim_os_clock_resoluton_ms)
+            sim_os_clock_resoluton_ms = clock_diff;
+#else
+        if (ewma_valid)
+            ewma = (1.0 - ewma_alpha) * ewma + (ewma_alpha * (double) clock_diff);
+        else {
+            ewma = (double) clock_diff;
+            ewma_valid = TRUE;
+        }
+#endif
+        clock_last = clock_now;
+        ++legit_samples;
+        }
+    } while (legit_samples < total_samples /*clock_now < clock_start + clock_delta_ms*/);
+
+#if defined(EXPONENTIAL_WEIGHTED_MOVING_AVG)
+    /* Pessimize: If there's a fraction, then decrease the resolution to the nearest
+        greater integer (vice truncating, i.e., floor, which could increase timer
+        resolution too optimistically). */
+    sim_os_clock_resoluton_ms = (uint32) ceil(ewma);
+#endif
+
+if ((sim_idle_rate_ms > 0) && (sim_os_clock_resoluton_ms > 0))
     sim_os_tick_hz = 1000/(sim_os_clock_resoluton_ms * (sim_idle_rate_ms/sim_os_clock_resoluton_ms));
 else {
     fprintf (stderr, "Can't properly determine host system clock capabilities.\n");
@@ -1178,10 +1306,11 @@ return (sim_idle_rate_ms != 0);
 /* sim_show_timers - show running timer information */
 t_stat sim_show_timers (FILE* st, DEVICE *dptr, UNIT* uptr, int32 val, CONST char* desc)
 {
-int tmr, clocks;
+size_t tmr;
+int clocks;
 struct timespec now;
 time_t time_t_now;
-int32 calb_tmr = (sim_calb_tmr == -1) ? sim_calb_tmr_last : sim_calb_tmr;
+size_t calb_tmr = (sim_calb_tmr == SIM_INVALID_TMR) ? sim_calb_tmr_last : sim_calb_tmr;
 double inst_per_sec = sim_timer_inst_per_sec ();
 
 fprintf (st, "Minimum Host Sleep Time:        %d ms (%dHz)\n", sim_os_sleep_min_ms, sim_os_tick_hz);
@@ -1196,8 +1325,8 @@ if (sim_idle_enab) {
 if (sim_throt_type != SIM_THROT_NONE) {
     sim_show_throt (st, NULL, uptr, val, desc);
     }
-fprintf (st, "Calibrated Timer:               %s\n", (calb_tmr == -1) ? "Undetermined" : 
-                                                     ((calb_tmr == SIM_NTIMERS) ? "Internal Timer" : 
+fprintf (st, "Calibrated Timer:               %s\n", (calb_tmr == SIM_INVALID_TMR) ? "Undetermined" :
+                                                     ((calb_tmr == SIM_NTIMERS) ? "Internal Timer" :
                                                      (rtcs[calb_tmr].clock_unit ? sim_uname(rtcs[calb_tmr].clock_unit) : "")));
 if (calb_tmr == SIM_NTIMERS)
     fprintf (st, "Catchup Ticks:                  %s\n", sim_catchup_ticks ? "Enabled" : "Disabled");
@@ -1217,21 +1346,21 @@ if (sim_time_at_sim_prompt != 0.0) {
     }
 
 fprintf (st, "\n");
-for (tmr=clocks=0; tmr<=SIM_NTIMERS; ++tmr) {
+for (tmr=0, clocks=0; tmr<=SIM_NTIMERS; ++tmr) {
     RTC *rtc = &rtcs[tmr];
 
     if (0 == rtc->initd)
         continue;
-    
+
     if (rtc->clock_unit) {
         ++clocks;
-        fprintf (st, "%s clock device is %s%s%s\n", sim_name, 
-                                                    (tmr == SIM_NTIMERS) ? "Internal Calibrated Timer(" : "", 
-                                                    sim_uname(rtc->clock_unit), 
+        fprintf (st, "%s clock device is %s%s%s\n", sim_name,
+                                                    (tmr == SIM_NTIMERS) ? "Internal Calibrated Timer(" : "",
+                                                    sim_uname(rtc->clock_unit),
                                                     (tmr == SIM_NTIMERS) ? ")" : "");
         }
 
-    fprintf (st, "%s%sTimer %d:\n", sim_asynch_timer ? "Asynchronous " : "", rtc->hz ? "Calibrated " : "Uncalibrated ", tmr);
+    fprintf (st, "%s%sTimer %" SIZE_T_FMT "u:\n", sim_asynch_timer ? "Asynchronous " : "", rtc->hz ? "Calibrated " : "Uncalibrated ", tmr);
     if (rtc->hz) {
         fprintf (st, "  Running at:                %d Hz\n", rtc->hz);
         fprintf (st, "  Tick Size:                 %s\n", sim_fmt_secs (rtc->clock_tick_size));
@@ -1547,30 +1676,30 @@ return "Throttle facility";
 
 
 DEVICE sim_timer_dev = {
-    "INT-CLOCK", sim_timer_units, sim_timer_reg, sim_timer_mod, 
-    SIM_NTIMERS+1, 0, 0, 0, 0, 0, 
-    NULL, NULL, &sim_timer_clock_reset, NULL, NULL, NULL, 
-    NULL, DEV_DEBUG | DEV_NOSAVE, 0, 
+    "INT-CLOCK", sim_timer_units, sim_timer_reg, sim_timer_mod,
+    SIM_NTIMERS+1, 0, 0, 0, 0, 0,
+    NULL, NULL, &sim_timer_clock_reset, NULL, NULL, NULL,
+    NULL, DEV_DEBUG | DEV_NOSAVE, 0,
     sim_timer_debug};
 
 DEVICE sim_int_timer_dev = {
-    "INT-TIMER", &sim_internal_timer_unit, NULL, NULL, 
-    1, 0, 0, 0, 0, 0, 
-    NULL, NULL, NULL, NULL, NULL, NULL, 
+    "INT-TIMER", &sim_internal_timer_unit, NULL, NULL,
+    1, 0, 0, 0, 0, 0,
+    NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, DEV_NOSAVE};
 
 DEVICE sim_stop_dev = {
-    "INT-STOP", &sim_stop_unit, NULL, NULL, 
-    1, 0, 0, 0, 0, 0, 
-    NULL, NULL, NULL, NULL, NULL, NULL, 
-    NULL, DEV_NOSAVE, 0, 
+    "INT-STOP", &sim_stop_unit, NULL, NULL,
+    1, 0, 0, 0, 0, 0,
+    NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, DEV_NOSAVE, 0,
     NULL, NULL, NULL, NULL, NULL, NULL,
     sim_int_stop_description};
 
 DEVICE sim_throttle_dev = {
     "INT-THROTTLE", &sim_throttle_unit, sim_throttle_reg, NULL,
-    1, 0, 0, 0, 0, 0, 
-    NULL, NULL, NULL, NULL, NULL, NULL, 
+    1, 0, 0, 0, 0, 0,
+    NULL, NULL, NULL, NULL, NULL, NULL,
     NULL, DEV_NOSAVE};
 
 /* SET CLOCK command */
@@ -1611,7 +1740,7 @@ return SCPE_OK;
         w = ms_to_wait / ms_per_wait
 */
 
-t_bool sim_idle (uint32 tmr, int sin_cyc)
+t_bool sim_idle (size_t tmr, int sin_cyc)
 {
 uint32 w_ms, w_idle, act_ms;
 int32 act_cyc;
@@ -1623,7 +1752,7 @@ if (rtc->hz == 0)                                       /* specified timer is no
     tmr = sim_calb_tmr;                                 /* use calibrated timer instead */
 rtc = &rtcs[tmr];
 if (rtc->clock_catchup_pending) {                       /* Catchup clock tick pending due to ack? */
-    sim_debug (DBG_TIK, &sim_timer_dev, "sim_idle(tmr=%d, sin_cyc=%d) - accelerating pending catch-up tick before idling %s\n", tmr, sin_cyc, sim_uname (rtc->clock_unit));
+    sim_debug (DBG_TIK, &sim_timer_dev, "sim_idle(tmr=%" SIZE_T_FMT "u, sin_cyc=%d) - accelerating pending catch-up tick before idling %s\n", tmr, sin_cyc, sim_uname (rtc->clock_unit));
     sim_activate_abs (&sim_timer_units[tmr], 0);
     sim_interval -= sin_cyc;
     return FALSE;
@@ -1638,37 +1767,37 @@ if ((!sim_idle_enab)                             ||     /* idling disabled */
     ((sim_clock_queue != QUEUE_LIST_END) &&             /* or clock queue not empty */
      ((sim_clock_queue->flags & UNIT_IDLE) == 0))||     /*   and event not idle-able? */
     (rtc->elapsed < sim_idle_stable)) {             /* or calibrated timer not stable? */
-    sim_debug (DBG_IDL, &sim_timer_dev, "Can't idle: %s - elapsed: %d.%03d\n", !sim_idle_enab ? "idle disabled" : 
-                                                                             ((rtc->elapsed < sim_idle_stable) ? "not stable" : 
-                                                                                                                     ((sim_clock_queue != QUEUE_LIST_END) ? sim_uname (sim_clock_queue) : 
+    sim_debug (DBG_IDL, &sim_timer_dev, "Can't idle: %s - elapsed: %d.%03d\n", !sim_idle_enab ? "idle disabled" :
+                                                                             ((rtc->elapsed < sim_idle_stable) ? "not stable" :
+                                                                                                                     ((sim_clock_queue != QUEUE_LIST_END) ? sim_uname (sim_clock_queue) :
                                                                                                                                                             "")), rtc->elapsed, rtc->ticks);
     sim_interval -= sin_cyc;
     return FALSE;
     }
 /*
-   When a simulator is in an instruction path (or under other conditions 
-   which would indicate idling), the countdown of sim_interval may not 
-   be happening at a pace which is consistent with the rate it happens 
-   when not in the 'idle capable' state.  The consequence of this is that 
-   the clock calibration may produce calibrated results which vary much 
-   more than they do when not in the idle able state.  Sim_idle also uses 
+   When a simulator is in an instruction path (or under other conditions
+   which would indicate idling), the countdown of sim_interval may not
+   be happening at a pace which is consistent with the rate it happens
+   when not in the 'idle capable' state.  The consequence of this is that
+   the clock calibration may produce calibrated results which vary much
+   more than they do when not in the idle able state.  Sim_idle also uses
    the calibrated tick size to approximate an adjustment to sim_interval
-   to reflect the number of instructions which would have executed during 
-   the actual idle time, so consistent calibrated numbers produce better 
-   adjustments. 
-   
+   to reflect the number of instructions which would have executed during
+   the actual idle time, so consistent calibrated numbers produce better
+   adjustments.
+
    To negate this effect, we accumulate the time actually idled here.
-   sim_rtcn_calb compares the accumulated idle time during the most recent 
+   sim_rtcn_calb compares the accumulated idle time during the most recent
    second and if it exceeds the percentage defined by sim_idle_calib_pct
-   calibration is suppressed. Thus recalibration only happens if things 
+   calibration is suppressed. Thus recalibration only happens if things
    didn't idle too much.
 
    we also check check sim_idle_enab above so that all simulators can avoid
-   directly checking sim_idle_enab before calling sim_idle so that all of 
-   the bookkeeping on sim_idle_idled is done here in sim_timer where it 
-   means something, while not idling when it isn't enabled.  
+   directly checking sim_idle_enab before calling sim_idle so that all of
+   the bookkeeping on sim_idle_idled is done here in sim_timer where it
+   means something, while not idling when it isn't enabled.
    */
-sim_debug (DBG_TRC, &sim_timer_dev, "sim_idle(tmr=%d, sin_cyc=%d)\n", tmr, sin_cyc);
+sim_debug (DBG_TRC, &sim_timer_dev, "sim_idle(tmr=%" SIZE_T_FMT "u, sin_cyc=%d)\n", tmr, sin_cyc);
 if (sim_idle_cyc_ms == 0) {
     sim_idle_cyc_ms = (rtc->currd * rtc->hz) / 1000;/* cycles per msec */
     if (sim_idle_rate_ms != 0)
@@ -1792,7 +1921,7 @@ else {
         if ((*tptr != '\0') || (val == 0))
             return sim_messagef (SCPE_ARG, "Invalid throttle delay specifier: %s\n", cptr);
         }
-    if (c == 'M') 
+    if (c == 'M')
         sim_throt_type = SIM_THROT_MCYC;
     else if (c == 'K')
         sim_throt_type = SIM_THROT_KCYC;
@@ -1833,34 +1962,34 @@ return SCPE_OK;
 t_stat sim_show_throt (FILE *st, DEVICE *dnotused, UNIT *unotused, int32 flag, CONST char *cptr)
 {
 if (sim_idle_rate_ms == 0)
-    fprintf (st, "Throttling:                    Not Available\n");
+    fprintf (st, "Throttling:                     Not Available\n");
 else {
     switch (sim_throt_type) {
 
     case SIM_THROT_MCYC:
-        fprintf (st, "Throttle:                      %d megacycles\n", sim_throt_val);
+        fprintf (st, "Throttle:                       %d megacycles\n", sim_throt_val);
         if (sim_throt_wait)
-            fprintf (st, "Throttling by sleeping for:    %d ms every %d cycles\n", sim_throt_sleep_time, sim_throt_wait);
+            fprintf (st, "Throttling by sleeping for:     %d ms every %d cycles\n", sim_throt_sleep_time, sim_throt_wait);
         break;
 
     case SIM_THROT_KCYC:
-        fprintf (st, "Throttle:                      %d kilocycles\n", sim_throt_val);
+        fprintf (st, "Throttle:                       %d kilocycles\n", sim_throt_val);
         if (sim_throt_wait)
-            fprintf (st, "Throttling by sleeping for:    %d ms every %d cycles\n", sim_throt_sleep_time, sim_throt_wait);
+            fprintf (st, "Throttling by sleeping for:     %d ms every %d cycles\n", sim_throt_sleep_time, sim_throt_wait);
         break;
 
     case SIM_THROT_PCT:
         if (sim_throt_wait) {
-            fprintf (st, "Throttle:                      %d%% of %s cycles per second\n", sim_throt_val, sim_fmt_numeric (sim_throt_peak_cps));
-            fprintf (st, "Throttling by sleeping for:    %d ms every %d cycles\n", sim_throt_sleep_time, sim_throt_wait);
+            fprintf (st, "Throttle:                       %d%% of %s cycles per second\n", sim_throt_val, sim_fmt_numeric (sim_throt_peak_cps));
+            fprintf (st, "Throttling by sleeping for:     %d ms every %d cycles\n", sim_throt_sleep_time, sim_throt_wait);
             }
         else
-            fprintf (st, "Throttle:                      %d%%\n", sim_throt_val);
+            fprintf (st, "Throttle:                       %d%%\n", sim_throt_val);
         break;
 
     case SIM_THROT_SPC:
-        fprintf (st, "Throttle:                      %d/%d\n", sim_throt_val, sim_throt_sleep_time);
-        fprintf (st, "Throttling by sleeping for:    %d ms every %d cycles\n", sim_throt_sleep_time, sim_throt_val);
+        fprintf (st, "Throttle:                       %d/%d\n", sim_throt_val, sim_throt_sleep_time);
+        fprintf (st, "Throttling by sleeping for:     %d ms every %d cycles\n", sim_throt_sleep_time, sim_throt_val);
         break;
 
     default:
@@ -1909,187 +2038,232 @@ sim_cancel (&sim_throttle_unit);
 */
 t_stat sim_throt_svc (UNIT *uptr)
 {
-int32 tmr;
-uint32 delta_ms;
-double a_cps, d_cps, delta_inst;
 RTC *rtc = NULL;
 
-if (sim_calb_tmr != -1)
+if (sim_calb_tmr != SIM_INVALID_TMR)
     rtc = &rtcs[sim_calb_tmr];
-switch (sim_throt_state) {
 
-    case SIM_THROT_STATE_INIT:                          /* take initial reading */
-        if ((sim_calb_tmr != -1) && (rtc->hz != 0)) {
-            if (rtc->calibrations < sim_throt_delay) {
-                sim_throt_ms_start = sim_os_msec ();
-                sim_throt_inst_start = sim_gtime ();
-                sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc(INIT) Deferring until stable (%d more seconds)\n", (int)(sim_throt_delay - rtc->calibrations));
-                return sim_activate (uptr, rtc->hz * rtc->currd);
+if (sim_throt_state >= SIM_THROT_STATE_INIT && sim_throt_state <= SIM_THROT_STATE_THROTTLE)
+    return (*throttle_dispatch[sim_throt_state - SIM_THROT_STATE_INIT])(uptr, rtc);
+
+return SCPE_IERR;
+}
+
+
+/* Calculate the scaled (mega-, kilo-, percentage) throttled instruction/sec rate. */
+static SIM_INLINE double scaled_throttle_rate()
+{
+    if (sim_throt_type == SIM_THROT_MCYC)
+        return (double) sim_throt_val * 1000000.0;
+    if (sim_throt_type == SIM_THROT_KCYC)
+        return (double) sim_throt_val * 1000.0;
+
+    return (sim_throt_peak_cps * sim_throt_val) / 100.0;
+}
+
+/* Takes an initial measurement of the number of simulator cycles per second.
+ */
+static t_stat sim_throt_init(UNIT *uptr, RTC *rtc)
+{
+if (rtc != NULL && rtc->hz > 0) {
+    int32 n_insts = rtc->hz * rtc->currd;
+
+    if (rtc->calibrations < sim_throt_delay) {
+#if defined(EXPONENTIAL_WEIGHTED_MOVING_AVG)
+        if (sim_throt_ms_start > 0) {
+            /* Average over initial estimates */
+            double a_cps, d_cps, delta_ms, delta_inst, currd_new;
+
+            delta_ms = (double) (sim_os_msec () - sim_throt_ms_start);
+            delta_inst = sim_gtime () - sim_throt_inst_start;
+            a_cps = delta_inst / delta_ms;
+            d_cps = scaled_throttle_rate();
+            currd_new = ((double) rtc->currd * d_cps) / a_cps;
+            sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc(INIT) currd = %d est currd = %.04f\n", rtc->currd, currd_new);
+
+            if (rtc->ewma_cps_init) {
                 }
-            sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc(INIT) Computing Throttling values based on the last second's execution rate\n");
-            sim_throt_state = SIM_THROT_STATE_TIME;
-            if (sim_throt_peak_cps < (double)(rtc->hz * rtc->currd)) 
-                sim_throt_peak_cps = (double)rtc->hz * rtc->currd;
-            return sim_throt_svc (uptr);
+            else {
+                rtc->ewma_cps = 0.0;
+                rtc->ewma_cps_init = TRUE;
+                }
             }
-        else
-            sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc(INIT) Calibrated timer not available. Falling back to legacy method\n");
-        sim_idle_ms_sleep (sim_idle_rate_ms);           /* start on a tick boundary to calibrate */
+#endif
         sim_throt_ms_start = sim_os_msec ();
         sim_throt_inst_start = sim_gtime ();
-        if (sim_throt_type != SIM_THROT_SPC) {          /* dynamic? */
-            switch (sim_throt_type) {
-                case SIM_THROT_PCT:
-                    sim_throt_wait = (int32)((sim_throt_peak_cps * sim_throt_val) / 100.0);
-                    break;
-                case SIM_THROT_KCYC:
-                    sim_throt_wait = sim_throt_val * 1000;
-                    break;
-                case SIM_THROT_MCYC:
-                    sim_throt_wait = sim_throt_val * 1000000;
-                    break;
-                }
-            sim_throt_state = SIM_THROT_STATE_TIME;     /* next state */
-            }
-        else {                                          /* Non dynamic? */
-            sim_throt_wait = sim_throt_val;
-            sim_throt_state = SIM_THROT_STATE_THROTTLE; /* force state */
-            sim_throt_cps = (int32)((1000.0 * sim_throt_val) / (double)sim_throt_sleep_time);
-            }
-        sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc(INIT) Starting.  Values wait = %d\n", sim_throt_wait);
-        break;                                          /* reschedule */
-
-    case SIM_THROT_STATE_TIME:                          /* take final reading */
-        sim_throt_ms_stop = sim_os_msec ();
-        delta_ms = sim_throt_ms_stop - sim_throt_ms_start;
-        delta_inst = sim_gtime () - sim_throt_inst_start;
-        if (delta_ms < SIM_THROT_MSMIN) {               /* not enough time? */
-            if (delta_inst >= 100000000.0) {            /* too many inst? */
-                sim_throt_state = SIM_THROT_STATE_INIT; /* fails in 32b! */
-                sim_printf ("Can't throttle.  Host CPU is too fast with a minimum sleep time of %d ms\n", sim_idle_rate_ms);
-                sim_set_throt (0, NULL);                /* disable throttling */
-                return SCPE_OK;
-                }
-            sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Not enough time.  %d ms executing %.f instructions.\n", 
-                                (int)delta_ms, delta_inst);
-            sim_throt_wait = (int32)(delta_inst * SIM_THROT_WMUL);
-            sim_throt_inst_start = sim_gtime();
-            sim_idle_ms_sleep (sim_idle_rate_ms);       /* start on a tick boundart to calibrate */
-            sim_throt_ms_start = sim_os_msec ();
-            }
-        else {                                          /* long enough */
-            a_cps = (((double) delta_inst) * 1000.0) / (double) delta_ms;
-            if (sim_throt_type == SIM_THROT_MCYC)       /* calc desired cps */
-                d_cps = (double) sim_throt_val * 1000000.0;
-            else
-                if (sim_throt_type == SIM_THROT_KCYC)
-                    d_cps = (double) sim_throt_val * 1000.0;
-                else
-                    d_cps = (sim_throt_peak_cps * sim_throt_val) / 100.0;
-            if (d_cps > a_cps) {
-                sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() CPU too slow.  Values a_cps = %f, d_cps = %f\n", 
-                                                    a_cps, d_cps);
-                sim_throt_state = SIM_THROT_STATE_INIT;
-                sim_printf ("*********** WARNING ***********\n");
-                sim_printf ("Host CPU is too slow to simulate %s instructions per second\n", sim_fmt_numeric(d_cps));
-                sim_printf ("Host CPU can only simulate %s instructions per second\n", sim_fmt_numeric(sim_throt_peak_cps));
-                sim_printf ("Throttling disabled.\n");
-                sim_set_throt (0, NULL);
-                return SCPE_OK;
-                }
-            while (1) {
-                sim_throt_wait = (int32)                /* cycles between sleeps */
-                    ((a_cps * d_cps * ((double) sim_throt_sleep_time)) /
-                     (1000.0 * (a_cps - d_cps)));
-                if (sim_throt_wait >= SIM_THROT_WMIN)   /* long enough? */
-                    break;
-                sim_throt_sleep_time += sim_os_sleep_inc_ms;
-                sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Wait too small, increasing sleep time to %d ms.  Values a_cps = %f, d_cps = %f, wait = %d\n", 
-                                                    sim_throt_sleep_time, a_cps, d_cps, sim_throt_wait);
-                }
-            sim_throt_ms_start = sim_throt_ms_stop;
-            sim_throt_inst_start = sim_gtime();
-            sim_throt_state = SIM_THROT_STATE_THROTTLE;
-            sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Throttle values a_cps = %f, d_cps = %f, wait = %d, sleep = %d ms\n", 
-                                                a_cps, d_cps, sim_throt_wait, sim_throt_sleep_time);
-            sim_throt_cps = d_cps;                  /* save the desired rate */
-            /* Run through all timers and adjust the calibration for each */
-            /* one that is running to reflect the throttle rate */
-            for (tmr=0; tmr<=SIM_NTIMERS; tmr++) {
-                rtc = &rtcs[tmr];
-                if (rtc->hz) {                                      /* running? */
-                    rtc->currd = (int32)(sim_throt_cps / rtc->hz);/* use throttle calibration */
-                    rtc->ticks = rtc->hz - 1;                     /* force clock calibration on next tick */
-                    rtc->rtime = sim_throt_ms_start - 1000 + 1000/rtc->hz;/* adjust calibration parameters to reflect throttled rate */
-                    rtc->gtime = sim_throt_inst_start - sim_throt_cps + sim_throt_cps/rtc->hz;
-                    rtc->nxintv = 1000;
-                    rtc->based = rtc->currd;
-                    if (rtc->clock_unit)
-                        sim_activate_abs (rtc->clock_unit, rtc->currd);/* reschedule next tick */
-                    }
-                }
-            }
-        break;
-
-    case SIM_THROT_STATE_THROTTLE:                      /* throttling */
-        sim_idle_ms_sleep (sim_throt_sleep_time);
-        delta_ms = sim_os_msec () - sim_throt_ms_start;
-        if (delta_ms >= 10000) {                        /* recompute every 10 sec */
-            double delta_insts = sim_gtime() - sim_throt_inst_start;
-
-            a_cps = (delta_insts * 1000.0) / (double) delta_ms;
-            if (sim_throt_type != SIM_THROT_SPC) {      /* when not dynamic throttling */
-                if (sim_throt_type == SIM_THROT_MCYC)   /* calc desired cps */
-                    d_cps = (double) sim_throt_val * 1000000.0;
-                else
-                    if (sim_throt_type == SIM_THROT_KCYC)
-                        d_cps = (double) sim_throt_val * 1000.0;
-                    else
-                        d_cps = (sim_throt_peak_cps * sim_throt_val) / 100.0;
-                if (fabs(100.0 * (d_cps - a_cps) / d_cps) > (double)sim_throt_drift_pct) {
-                    sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Recalibrating throttle based on values a_cps = %f, d_cps = %f deviating by %.2f%% from the desired value\n", 
-                                                        a_cps, d_cps, fabs(100.0 * (d_cps - a_cps) / d_cps));
-                    if ((a_cps > d_cps) &&                      /* too fast? */
-                        ((100.0 * (a_cps - d_cps) / d_cps) > (100 - sim_throt_drift_pct))) {
-                        sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Restarting calibrating throttle going too fast: a_cps = %f, d_cps = %f deviating by %.2f%% from the desired value\n", 
-                                                            a_cps, d_cps, fabs(100.0 * (d_cps - a_cps) / d_cps));
-                        while (1) {
-                            sim_throt_wait = (int32)            /* cycles between sleeps */
-                                ((sim_throt_peak_cps * d_cps * ((double) sim_throt_sleep_time)) /
-                                 (1000.0 * (sim_throt_peak_cps - d_cps)));
-                            if (sim_throt_wait >= SIM_THROT_WMIN)/* long enough? */
-                                break;
-                            sim_throt_sleep_time += sim_os_sleep_inc_ms;
-                            sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Wait too small, increasing sleep time to %d ms.  Values a_cps = %f, d_cps = %f, wait = %d\n", 
-                                                                sim_throt_sleep_time, sim_throt_peak_cps, d_cps, sim_throt_wait);
-                            }
-                        }
-                    else {                                      /* slow or within reasonable range */
-                        sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Adjusting wait before sleep interval by %d\n", 
-                                                            (int32)(((d_cps - a_cps) * (double)sim_throt_wait) / d_cps));
-                        sim_throt_wait += (int32)(((d_cps - a_cps) * (double)sim_throt_wait) / d_cps);
-                        }
-                    sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Throttle values a_cps = %f, d_cps = %f, wait = %d, sleep = %d ms\n", 
-                                                        a_cps, d_cps, sim_throt_wait, sim_throt_sleep_time);
-                    sim_throt_cps = d_cps;                      /* save the desired rate */
-                    sim_throt_ms_start = sim_os_msec ();
-                    sim_throt_inst_start = sim_gtime();
-                    }
-                }
-            else {                                      /* record instruction rate */
-                sim_throt_cps = (int32)a_cps;
-                sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Recalibrating Special %d/%u Cycles Per Second of %f\n", 
-                                                    sim_throt_wait, sim_throt_sleep_time, sim_throt_cps);
-                sim_throt_inst_start = sim_gtime();
-                sim_throt_ms_start = sim_os_msec ();
-                }
-            }
-        break;
+        sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc(INIT) Deferring until stable (%d more seconds)\n", (int)(sim_throt_delay - rtc->calibrations));
+        sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc(INIT) Number of instructions executing = %d\n", n_insts);
+        return sim_activate (uptr, n_insts);
         }
+    
+    sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc(INIT) Computing Throttling values based on the last second's execution rate\n");
+    if (sim_throt_peak_cps < (double) n_insts)
+        sim_throt_peak_cps = (double) n_insts;
 
+    sim_throt_state = SIM_THROT_STATE_TIME;
+    return sim_throt_finish_init (uptr, rtc);
+    }
+else
+    sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc(INIT) Calibrated timer not available. Falling back to legacy method\n");
+
+sim_idle_ms_sleep (sim_idle_rate_ms);           /* start on a tick boundary to calibrate */
+sim_throt_ms_start = sim_os_msec ();
+sim_throt_inst_start = sim_gtime ();
+if (sim_throt_type != SIM_THROT_SPC) {          /* dynamic? */
+    switch (sim_throt_type) {
+        case SIM_THROT_PCT:
+            sim_throt_wait = (int32)((sim_throt_peak_cps * sim_throt_val) / 100.0);
+            break;
+        case SIM_THROT_KCYC:
+            sim_throt_wait = sim_throt_val * 1000;
+            break;
+        case SIM_THROT_MCYC:
+            sim_throt_wait = sim_throt_val * 1000000;
+            break;
+        }
+    sim_throt_state = SIM_THROT_STATE_TIME;     /* next state */
+    }
+else {                                          /* Non dynamic? */
+    sim_throt_wait = sim_throt_val;
+    sim_throt_state = SIM_THROT_STATE_THROTTLE; /* force state */
+    sim_throt_cps = (int32)((1000.0 * sim_throt_val) / (double)sim_throt_sleep_time);
+    }
+sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc(INIT) Starting.  Values wait = %d\n", sim_throt_wait);
 sim_activate (uptr, sim_throt_wait);                    /* reschedule */
 return SCPE_OK;
 }
+
+
+static t_stat sim_throt_finish_init(UNIT *uptr, RTC *rtc)
+{
+size_t tmr;
+uint32 delta_ms;
+double a_cps, d_cps, delta_inst;
+
+sim_throt_ms_stop = sim_os_msec ();
+delta_ms = sim_throt_ms_stop - sim_throt_ms_start;
+delta_inst = sim_gtime () - sim_throt_inst_start;
+if (delta_ms < SIM_THROT_MSMIN) {               /* not enough time? */
+    if (delta_inst >= 100000000.0) {            /* too many inst? */
+        sim_throt_state = SIM_THROT_STATE_INIT; /* fails in 32b! */
+        sim_printf ("Can't throttle.  Host CPU is too fast with a minimum sleep time of %d ms\n", sim_idle_rate_ms);
+        sim_set_throt (0, NULL);                /* disable throttling */
+        return SCPE_OK;
+        }
+    sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Not enough time.  %d ms executing %.f instructions.\n",
+                        (int)delta_ms, delta_inst);
+    sim_throt_wait = (int32)(delta_inst * SIM_THROT_WMUL);
+    sim_throt_inst_start = sim_gtime();
+    sim_idle_ms_sleep (sim_idle_rate_ms);       /* start on a tick boundart to calibrate */
+    sim_throt_ms_start = sim_os_msec ();
+    }
+else {                                          /* long enough */
+    a_cps = (((double) delta_inst) * 1000.0) / (double) delta_ms;
+    d_cps = scaled_throttle_rate();
+    if (d_cps > a_cps) {
+        sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() CPU too slow.  Values a_cps = %f, d_cps = %f\n",
+                                            a_cps, d_cps);
+        sim_throt_state = SIM_THROT_STATE_INIT;
+        sim_printf ("*********** WARNING ***********\n");
+        sim_printf ("Host CPU is too slow to simulate %s instructions per second\n", sim_fmt_numeric(d_cps));
+        sim_printf ("Host CPU can only simulate %s instructions per second\n", sim_fmt_numeric(sim_throt_peak_cps));
+        sim_printf ("Throttling disabled.\n");
+        sim_set_throt (0, NULL);
+        return SCPE_OK;
+        }
+    while (1) {
+        sim_throt_wait = (int32)                /* cycles between sleeps */
+            ((a_cps * d_cps * ((double) sim_throt_sleep_time)) /
+                (1000.0 * (a_cps - d_cps)));
+        if (sim_throt_wait >= SIM_THROT_WMIN)   /* long enough? */
+            break;
+        sim_throt_sleep_time += sim_os_sleep_inc_ms;
+        sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Wait too small, increasing sleep time to %d ms.  Values a_cps = %f, d_cps = %f, wait = %d\n",
+                                            sim_throt_sleep_time, a_cps, d_cps, sim_throt_wait);
+        }
+    sim_throt_ms_start = sim_throt_ms_stop;
+    sim_throt_inst_start = sim_gtime();
+    sim_throt_state = SIM_THROT_STATE_THROTTLE;
+    sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Throttle values a_cps = %f, d_cps = %f, wait = %d, sleep = %d ms\n",
+                                        a_cps, d_cps, sim_throt_wait, sim_throt_sleep_time);
+    sim_throt_cps = d_cps;                  /* save the desired rate */
+    /* Run through all timers and adjust the calibration for each */
+    /* one that is running to reflect the throttle rate */
+    for (tmr=0; tmr<=SIM_NTIMERS; tmr++) {
+        RTC *upd_rtc = &rtcs[tmr];
+        if (upd_rtc->hz) {                                                  /* running? */
+            upd_rtc->currd = (int32)(sim_throt_cps / upd_rtc->hz);          /* use throttle calibration */
+            upd_rtc->ticks = upd_rtc->hz - 1;                               /* force clock calibration on next tick */
+            upd_rtc->rtime = sim_throt_ms_start - 1000 + 1000/upd_rtc->hz;  /* adjust calibration parameters to reflect throttled rate */
+            upd_rtc->gtime = sim_throt_inst_start - sim_throt_cps + sim_throt_cps/upd_rtc->hz;
+            upd_rtc->nxintv = 1000;
+            upd_rtc->based = upd_rtc->currd;
+            if (upd_rtc->clock_unit != NULL)
+                sim_activate_abs (upd_rtc->clock_unit, upd_rtc->currd);     /* reschedule next tick */
+            }
+        }
+    }
+sim_activate (uptr, sim_throt_wait);                    /* reschedule */
+return SCPE_OK;
+}
+
+
+static t_stat sim_throt_do_throttle(UNIT *uptr, RTC *rtc)
+{
+size_t tmr;
+uint32 delta_ms;
+double a_cps, d_cps, delta_inst;
+
+sim_idle_ms_sleep (sim_throt_sleep_time);
+delta_ms = sim_os_msec () - sim_throt_ms_start;
+if (delta_ms >= 10000) {                        /* recompute every 10 sec */
+    double delta_insts = sim_gtime() - sim_throt_inst_start;
+
+    a_cps = (delta_insts * 1000.0) / (double) delta_ms;
+    if (sim_throt_type != SIM_THROT_SPC) {      /* when not dynamic throttling */
+        d_cps = scaled_throttle_rate();
+        if (fabs(100.0 * (d_cps - a_cps) / d_cps) > (double)sim_throt_drift_pct) {
+            sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Recalibrating throttle based on values a_cps = %f, d_cps = %f deviating by %.2f%% from the desired value\n",
+                                                a_cps, d_cps, fabs(100.0 * (d_cps - a_cps) / d_cps));
+            if ((a_cps > d_cps) &&                      /* too fast? */
+                ((100.0 * (a_cps - d_cps) / d_cps) > (100 - sim_throt_drift_pct))) {
+                sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Restarting calibrating throttle going too fast: a_cps = %f, d_cps = %f deviating by %.2f%% from the desired value\n",
+                                                    a_cps, d_cps, fabs(100.0 * (d_cps - a_cps) / d_cps));
+                while (1) {
+                    sim_throt_wait = (int32)            /* cycles between sleeps */
+                        ((sim_throt_peak_cps * d_cps * ((double) sim_throt_sleep_time)) /
+                            (1000.0 * (sim_throt_peak_cps - d_cps)));
+                    if (sim_throt_wait >= SIM_THROT_WMIN)/* long enough? */
+                        break;
+                    sim_throt_sleep_time += sim_os_sleep_inc_ms;
+                    sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Wait too small, increasing sleep time to %d ms.  Values a_cps = %f, d_cps = %f, wait = %d\n",
+                                                        sim_throt_sleep_time, sim_throt_peak_cps, d_cps, sim_throt_wait);
+                    }
+                }
+            else {                                      /* slow or within reasonable range */
+                sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Adjusting wait before sleep interval by %d\n",
+                                                    (int32)(((d_cps - a_cps) * (double)sim_throt_wait) / d_cps));
+                sim_throt_wait += (int32)(((d_cps - a_cps) * (double)sim_throt_wait) / d_cps);
+                }
+            sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Throttle values a_cps = %f, d_cps = %f, wait = %d, sleep = %d ms\n",
+                                                a_cps, d_cps, sim_throt_wait, sim_throt_sleep_time);
+            sim_throt_cps = d_cps;                      /* save the desired rate */
+            sim_throt_ms_start = sim_os_msec ();
+            sim_throt_inst_start = sim_gtime();
+            }
+        }
+    else {                                      /* record instruction rate */
+        sim_throt_cps = (int32)a_cps;
+        sim_debug (DBG_THR, &sim_timer_dev, "sim_throt_svc() Recalibrating Special %d/%u Cycles Per Second of %f\n",
+                                            sim_throt_wait, sim_throt_sleep_time, sim_throt_cps);
+        sim_throt_inst_start = sim_gtime();
+        sim_throt_ms_start = sim_os_msec ();
+        }
+    }
+sim_activate (uptr, sim_throt_wait);                    /* reschedule */
+return SCPE_OK;
+}
+
 
 /* Clock assist activites */
 t_stat sim_timer_tick_svc (UNIT *uptr)
@@ -2101,11 +2275,11 @@ RTC *rtc = &rtcs[tmr];
 rtc->clock_ticks += 1;
 rtc->calib_tick_time += rtc->clock_tick_size;
 /*
- * Some devices may depend on executing during the same instruction or 
- * immediately after the clock tick event.  To satisfy this, we directly 
+ * Some devices may depend on executing during the same instruction or
+ * immediately after the clock tick event.  To satisfy this, we directly
  * run the clock event here and if it completes successfully, schedule any
- * currently coschedule units to run now.  Ticks should never return a 
- * non-success status, while co-schedule activities might, so they are 
+ * currently coschedule units to run now.  Ticks should never return a
+ * non-success status, while co-schedule activities might, so they are
  * queued to run from sim_process_event
  */
 sim_debug (DBG_QUE, &sim_timer_dev, "sim_timer_tick_svc(tmr=%d) - scheduling %s - cosched interval: %d\n", tmr, sim_uname (rtc->clock_unit), rtc->cosched_interval);
@@ -2115,7 +2289,7 @@ stat = rtc->clock_unit->action (rtc->clock_unit);
 --rtc->cosched_interval;                    /* Countdown ticks */
 if (rtc->clock_cosched_queue != QUEUE_LIST_END)
     rtc->clock_cosched_queue->time = rtc->cosched_interval;
-if ((stat == SCPE_OK)                               && 
+if ((stat == SCPE_OK)                               &&
     (rtc->cosched_interval <= 0)                &&
     (rtc->clock_cosched_queue != QUEUE_LIST_END)) {
     UNIT *sptr = rtc->clock_cosched_queue;
@@ -2174,13 +2348,13 @@ t_stat sim_timer_stop_svc (UNIT *uptr)
 return SCPE_STOP;
 }
 
-void sim_rtcn_get_time (struct timespec *now, int tmr)
+void sim_rtcn_get_time (struct timespec *now, size_t tmr)
 {
-sim_debug (DBG_GET, &sim_timer_dev, "sim_rtcn_get_time(tmr=%d)\n", tmr);
+sim_debug (DBG_GET, &sim_timer_dev, "sim_rtcn_get_time(tmr=%" SIZE_T_FMT "u)\n", tmr);
 clock_gettime (CLOCK_REALTIME, now);
 }
 
-/* 
+/*
  * If the host system has a relatively large clock tick (as compared to
  * the desired simulated hz) ticks will naturally be scheduled late and
  * these delays will accumulate.  The net result will be unreasonably
@@ -2193,15 +2367,15 @@ clock_gettime (CLOCK_REALTIME, now);
  * We accomodate these problems and make up for lost ticks by injecting
  * catch-up ticks to the simulator.
  *
- * When necessary, catch-up ticks are scheduled to run under one 
+ * When necessary, catch-up ticks are scheduled to run under one
  * of two conditions:
  *   1) after indicated number of instructions in a call by the simulator
- *      to sim_rtcn_tick_ack.  sim_rtcn_tick_ack exists to provide a 
- *      mechanism to inform the simh timer facilities when the simulated 
+ *      to sim_rtcn_tick_ack.  sim_rtcn_tick_ack exists to provide a
+ *      mechanism to inform the simh timer facilities when the simulated
  *      system has accepted the most recent clock tick interrupt.
  *   2) immediately when the simulator calls sim_idle
  *
- * catchup ticks are only scheduled (eligible to happen) under these 
+ * catchup ticks are only scheduled (eligible to happen) under these
  * conditions after at least one tick has been acknowledged.
  *
  * The clock tick UNIT that will be scheduled to run for catchup ticks
@@ -2259,7 +2433,7 @@ if ((!rtc->clock_catchup_eligible) &&           /* not eligible yet? */
     sim_debug (DBG_QUE, &sim_timer_dev, "_rtcn_tick_catchup_check() - Enabling catchup ticks for %s\n", sim_uname (rtc->clock_unit));
     bReturn = TRUE;
     }
-if ((rtc->hz > 0) && 
+if ((rtc->hz > 0) &&
     rtc->clock_catchup_eligible)
     {
     double tnow = sim_timenow_double();
@@ -2278,7 +2452,7 @@ if ((rtc->hz > 0) &&
 return bReturn;
 }
 
-t_stat sim_rtcn_tick_ack (uint32 time, int32 tmr)
+t_stat sim_rtcn_tick_ack (uint32 time, size_t tmr)
 {
 RTC *rtc;
 
@@ -2325,8 +2499,8 @@ _timer_thread(void *arg)
 int sched_policy;
 struct sched_param sched_priority;
 
-/* Boost Priority for this I/O thread vs the CPU instruction execution 
-   thread which, in general, won't be readily yielding the processor when 
+/* Boost Priority for this I/O thread vs the CPU instruction execution
+   thread which, in general, won't be readily yielding the processor when
    this thread needs to run */
 pthread_getschedparam (pthread_self(), &sched_policy, &sched_priority);
 ++sched_priority.sched_priority;
@@ -2347,7 +2521,7 @@ while (sim_asynch_timer && sim_is_running) {
 
     if (sim_wallclock_entry) {                          /* something to insert in queue? */
 
-        sim_debug (DBG_TIM, &sim_timer_dev, "_timer_thread() - timing %s for %s\n", 
+        sim_debug (DBG_TIM, &sim_timer_dev, "_timer_thread() - timing %s for %s\n",
                    sim_uname(sim_wallclock_entry), sim_fmt_secs (sim_wallclock_entry->a_usec_delay/1000000.0));
 
         uptr = sim_wallclock_entry;
@@ -2386,7 +2560,7 @@ while (sim_asynch_timer && sim_is_running) {
         sim_debug (DBG_TIM, &sim_timer_dev, "_timer_thread() - waiting forever\n");
     else
         sim_debug (DBG_TIM, &sim_timer_dev, "_timer_thread() - waiting for %.0f usecs until %.6f for %s\n", wait_usec, sim_wallclock_queue->a_due_time, sim_uname(sim_wallclock_queue));
-    if ((wait_usec <= 0.0) || 
+    if ((wait_usec <= 0.0) ||
         (0 != pthread_cond_timedwait (&sim_timer_wake, &sim_timer_lock, &due_time))) {
 
         if (sim_wallclock_queue == QUEUE_LIST_END)      /* queue empty? */
@@ -2402,7 +2576,7 @@ while (sim_asynch_timer && sim_is_running) {
             inst_delay = 0;
         else
             inst_delay = (int32)(inst_per_sec*(_timespec_to_double(&due_time)-_timespec_to_double(&stop_time)));
-        sim_debug (DBG_TIM, &sim_timer_dev, "_timer_thread() - slept %.0fms - activating(%s,%d)\n", 
+        sim_debug (DBG_TIM, &sim_timer_dev, "_timer_thread() - slept %.0fms - activating(%s,%d)\n",
                    1000.0*(_timespec_to_double (&stop_time)-_timespec_to_double (&start_time)), sim_uname(uptr), inst_delay);
         sim_activate (uptr, inst_delay);
         }
@@ -2420,17 +2594,17 @@ return NULL;
 #endif /* defined(SIM_ASYNCH_CLOCKS) */
 
 /*
-   In the event that there are no active calibrated clock devices, 
-   no instruction rate calibration will be performed.  This is more 
-   likely on simpler simulators which don't have a full spectrum of 
-   standard devices or possibly when a clock device exists but its 
+   In the event that there are no active calibrated clock devices,
+   no instruction rate calibration will be performed.  This is more
+   likely on simpler simulators which don't have a full spectrum of
+   standard devices or possibly when a clock device exists but its
    use is optional.
 
    Additonally, when a host system has a natural clock tick (
-   or minimal sleep time) which is greater than the tick size that 
-   a simulator wants to run a clock at, we run this clock at the 
+   or minimal sleep time) which is greater than the tick size that
+   a simulator wants to run a clock at, we run this clock at the
    rate implied by the host system's minimal sleep time or 50Hz.
-   
+
    To solve this we merely run an internal clock at 100Hz.
  */
 
@@ -2442,48 +2616,46 @@ sim_activate_after (uptr, 1000000/sim_int_clk_tps);     /* reactivate unit */
 return SCPE_OK;
 }
 
-/* 
-  This routine exists to assure that there is a single reliably calibrated 
-  clock properly counting instruction execution relative to time.  The best 
-  way to assure reliable calibration is to use a clock which ticks no 
-  faster than the host system's clock.  This is optimal so that accurate 
-  time measurements are taken.  If the simulated system doesn't have a 
-  clock with an appropriate tick rate, an internal clock is run that meets 
+/*
+  This routine exists to assure that there is a single reliably calibrated
+  clock properly counting instruction execution relative to time.  The best
+  way to assure reliable calibration is to use a clock which ticks no
+  faster than the host system's clock.  This is optimal so that accurate
+  time measurements are taken.  If the simulated system doesn't have a
+  clock with an appropriate tick rate, an internal clock is run that meets
   this requirement, OR when asynch clocks are enabled, the internal clock
   is always run.
 
-  Some simulators have clocks that have dynamically programmable tick 
-  rates. Such a clock is only a reliable candidate to be the calibrated 
-  clock if it uses a single tick rate rather than changing the tick rate 
+  Some simulators have clocks that have dynamically programmable tick
+  rates. Such a clock is only a reliable candidate to be the calibrated
+  clock if it uses a single tick rate rather than changing the tick rate
   on the fly.  Generally most systems like this, under normal conditions
   don't change their tick rates unless they're running something that is
-  examining the behavior of the clock system (like a diagnostic).  Under 
+  examining the behavior of the clock system (like a diagnostic).  Under
   these conditions this clock is removed from the potential selection as
   "the" calibrated clock all others are relative to and if necessary, an
   internal calibrated clock is selected.
  */
-static void _rtcn_configure_calibrated_clock (int32 newtmr)
+static void _rtcn_configure_calibrated_clock (size_t newtmr)
 {
-int32 tmr;
+size_t tmr;
 RTC *rtc, *crtc;
 
 /* Look for a timer running slower or the same as the host system clock */
 sim_int_clk_tps = MIN(CLK_TPS, sim_os_tick_hz);
 for (tmr=0; tmr<SIM_NTIMERS; tmr++) {
     rtc = &rtcs[tmr];
-    if ((rtc->hz) &&
-        (rtc->hz <= (uint32)sim_os_tick_hz) &&
-        (rtc->clock_unit) &&
-        ((rtc->last_hz == 0) || (rtc->last_hz == rtc->hz)))
+    if ((rtc->hz > 0 && rtc->hz <= sim_os_tick_hz) &&
+        (rtc->clock_unit != NULL && (rtc->last_hz == 0 || rtc->last_hz == rtc->hz)))
         break;
     }
 if (tmr == SIM_NTIMERS) {                   /* None found? */
     if ((tmr != newtmr) && (!sim_is_active (&SIM_INTERNAL_UNIT))) {
-        if ((sim_calb_tmr != SIM_NTIMERS) &&/* not internal timer? */
-            (sim_calb_tmr != -1)) {         /* previously active? */
+        if ((sim_calb_tmr != SIM_NTIMERS) &&       /* not internal timer? */
+            (sim_calb_tmr != SIM_INVALID_TMR)) {   /* previously active? */
             crtc = &rtcs[sim_calb_tmr];
             if (!crtc->hz) {                /* now stopped? */
-                sim_debug (DBG_CAL, &sim_timer_dev, "_rtcn_configure_calibrated_clock(newtmr=%d) - Cleaning up stopped timer %s support\n", newtmr, sim_uname(crtc->clock_unit));
+                sim_debug (DBG_CAL, &sim_timer_dev, "_rtcn_configure_calibrated_clock(newtmr=%" SIZE_T_FMT "u) - Cleaning up stopped timer %s support\n", newtmr, sim_uname(crtc->clock_unit));
                 /* Migrate any coscheduled devices to the standard queue */
                 /* with appropriate usecs_remaining reflecting their currently */
                 /* scheduled firing time.  sim_process_event() will coschedule */
@@ -2506,7 +2678,7 @@ if (tmr == SIM_NTIMERS) {                   /* None found? */
             }
         /* Start the internal timer */
         sim_calb_tmr = SIM_NTIMERS;
-        sim_debug (DBG_CAL|DBG_INT, &sim_timer_dev, "_rtcn_configure_calibrated_clock(newtmr=%d) - Starting Internal Calibrated Timer at %dHz\n", newtmr, sim_int_clk_tps);
+        sim_debug (DBG_CAL|DBG_INT, &sim_timer_dev, "_rtcn_configure_calibrated_clock(newtmr=%" SIZE_T_FMT "u) - Starting Internal Calibrated Timer at %dHz\n", newtmr, sim_int_clk_tps);
         SIM_INTERNAL_UNIT.action = &sim_timer_clock_tick_svc;
         SIM_INTERNAL_UNIT.flags = UNIT_IDLE;
         sim_register_internal_device (&sim_int_timer_dev);      /* Register Internal timer device */
@@ -2515,11 +2687,11 @@ if (tmr == SIM_NTIMERS) {                   /* None found? */
         }
     return;
     }
-if ((tmr == newtmr) && 
+if ((tmr == newtmr) &&
     (sim_calb_tmr == newtmr))               /* already set? */
     return;
 if (sim_calb_tmr == SIM_NTIMERS) {          /* was old the internal timer? */
-    sim_debug (DBG_CAL|DBG_INT, &sim_timer_dev, "_rtcn_configure_calibrated_clock(newtmr=%d) - Stopping Internal Calibrated Timer, New Timer = %d (%dHz)\n", newtmr, tmr, rtc->hz);
+    sim_debug (DBG_CAL|DBG_INT, &sim_timer_dev, "_rtcn_configure_calibrated_clock(newtmr=%" SIZE_T_FMT "u) - Stopping Internal Calibrated Timer, New Timer = %" SIZE_T_FMT "u (%dHz)\n", newtmr, tmr, rtc->hz);
     rtcs[SIM_NTIMERS].initd = 0;
     rtcs[SIM_NTIMERS].hz = 0;
     sim_register_clock_unit_tmr (NULL, SIM_INTERNAL_CLK);
@@ -2527,7 +2699,7 @@ if (sim_calb_tmr == SIM_NTIMERS) {          /* was old the internal timer? */
     sim_cancel (&sim_timer_units[SIM_NTIMERS]);
     }
 else {
-    if (sim_calb_tmr != -1) {
+    if (sim_calb_tmr != SIM_INVALID_TMR) {
         crtc = &rtcs[sim_calb_tmr];
         if (crtc->hz == 0) {
             /* Migrate any coscheduled devices to the standard queue */
@@ -2546,7 +2718,7 @@ else {
                 }
             crtc->hz = 0;                          /* back to 0 */
             }
-        sim_debug (DBG_CAL|DBG_INT, &sim_timer_dev, "_rtcn_configure_calibrated_clock(newtmr=%d) - Changing Calibrated Timer from %d (%dHz) to %d (%dHz)\n", newtmr, sim_calb_tmr, crtc->last_hz, tmr, rtc->hz);
+        sim_debug (DBG_CAL|DBG_INT, &sim_timer_dev, "_rtcn_configure_calibrated_clock(newtmr=%" SIZE_T_FMT "u) - Changing Calibrated Timer from %" SIZE_T_FMT "u (%dHz) to %" SIZE_T_FMT "u (%dHz)\n", newtmr, sim_calb_tmr, crtc->last_hz, tmr, rtc->hz);
         }
     sim_calb_tmr = tmr;
     }
@@ -2563,7 +2735,7 @@ sim_int_timer_dev.description = &sim_int_timer_description;
 sim_stop_dev.description = &sim_int_stop_description;
 if (sim_switches & SWMASK ('P')) {
     sim_cancel (&SIM_INTERNAL_UNIT);
-    sim_calb_tmr = -1;
+    sim_calb_tmr = SIM_INVALID_TMR;
     }
 return SCPE_OK;
 }
@@ -2590,7 +2762,7 @@ for (tmr=0; tmr<=SIM_NTIMERS; tmr++) {
     }
 if (registered_units == 1)
     sim_catchup_ticks = FALSE;
-if (sim_calb_tmr == -1) {
+if (sim_calb_tmr == SIM_INVALID_TMR) {
     sim_debug (DBG_CAL, &sim_timer_dev, "sim_start_timer_services() - starting from scratch\n");
     _rtcn_configure_calibrated_clock (sim_calb_tmr);
     }
@@ -2624,7 +2796,7 @@ void sim_stop_timer_services (void)
 {
 int tmr;
 
-sim_debug (DBG_TRC, &sim_timer_dev, "sim_stop_timer_services(sim_interval=%d, sim_calb_tmr=%d)\n", sim_interval, sim_calb_tmr);
+sim_debug (DBG_TRC, &sim_timer_dev, "sim_stop_timer_services(sim_interval=%d, sim_calb_tmr=%" SIZE_T_FMT "u)\n", sim_interval, sim_calb_tmr);
 
 if (sim_interval < 0)
     sim_interval = 0;               /* No catching up after stopping */
@@ -2722,7 +2894,7 @@ double sim_timer_inst_per_sec (void)
 double inst_per_sec = sim_inst_per_sec_last;
 RTC *rtc;
 
-if (sim_calb_tmr == -1)
+if (sim_calb_tmr == SIM_INVALID_TMR)
     return inst_per_sec;
 rtc = &rtcs[sim_calb_tmr];
 inst_per_sec = ((double)rtc->currd) * rtc->hz;
@@ -2758,7 +2930,7 @@ for (tmr=0; tmr<=SIM_NTIMERS; tmr++) {
 if (sim_is_active (uptr))                               /* already active? */
     return SCPE_OK;
 if (usec_delay < 0.0) {
-    sim_debug (DBG_QUE, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - surprising usec value\n", 
+    sim_debug (DBG_QUE, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - surprising usec value\n",
                sim_uname(uptr), usec_delay);
     }
 if ((sim_is_running) || (tmr <= SIM_NTIMERS))
@@ -2767,7 +2939,7 @@ else {                                      /* defer non timer wallclock activat
     uptr->usecs_remaining = usec_delay;
     usec_delay = 0;
     }
-/* 
+/*
  * Handle long delays by aligning with the calibrated timer's calibration
  * activities.  Delays which would expire prior to the next calibration
  * are specifically scheduled directly based on the the current instruction
@@ -2783,7 +2955,7 @@ if ((inst_delay == 0) && (usec_delay != 0))
     inst_delay_d = inst_delay = 1;  /* Minimum non-zero delay is 1 instruction */
 if (uptr->usecs_remaining != 0.0)   /* No calibrated timer yet, wait one cycle */
     inst_delay_d = inst_delay = 1;  /* Minimum non-zero delay is 1 instruction */
-if (sim_calb_tmr != -1) {
+if (sim_calb_tmr != SIM_INVALID_TMR) {
     crtc = &rtcs[sim_calb_tmr];
     if (crtc->hz) {                 /* Calibrated Timer available? */
         int32 inst_til_tick = sim_activate_time (crtc->timer_unit) - 1;
@@ -2797,9 +2969,9 @@ if (sim_calb_tmr != -1) {
             if (inst_delay_d > (double)inst_til_calib) {    /* long wait? */
                 stat = sim_clock_coschedule_tmr (uptr, sim_calb_tmr, ticks_til_calib - 1);
                 uptr->usecs_remaining = (stat == SCPE_OK) ? usec_delay - usecs_til_calib : 0.0;
-                sim_debug (DBG_TIM, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - coscheduling with with calibrated timer(%d), ticks=%d, usecs_remaining=%.0f usecs, inst_til_tick=%d, ticks_til_calib=%d, usecs_til_calib=%u\n", 
+                sim_debug (DBG_TIM, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - coscheduling with with calibrated timer(%" SIZE_T_FMT "u), ticks=%d, usecs_remaining=%.0f usecs, inst_til_tick=%d, ticks_til_calib=%d, usecs_til_calib=%u\n",
                            sim_uname(uptr), usec_delay, sim_calb_tmr, ticks_til_calib, uptr->usecs_remaining, inst_til_tick, ticks_til_calib, usecs_til_calib);
-                sim_debug (DBG_CHK, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - result = %.0f usecs, %.0f usecs\n", 
+                sim_debug (DBG_CHK, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - result = %.0f usecs, %.0f usecs\n",
                            sim_uname(uptr), usec_delay, sim_timer_activate_time_usecs (ouptr), sim_timer_activate_time_usecs (uptr));
                 return stat;
                 }
@@ -2809,16 +2981,16 @@ if (sim_calb_tmr != -1) {
 
                 stat = sim_clock_coschedule_tmr (uptr, sim_calb_tmr, 0);
                 uptr->usecs_remaining = (stat == SCPE_OK) ? usec_delay - usecs_til_tick : 0.0;
-                sim_debug (DBG_TIM, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - coscheduling with with calibrated timer(%d), ticks=%d, usecs_remaining=%.0f usecs, inst_til_tick=%d, usecs_til_tick=%.0f\n", 
+                sim_debug (DBG_TIM, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - coscheduling with with calibrated timer(%" SIZE_T_FMT "u), ticks=%d, usecs_remaining=%.0f usecs, inst_til_tick=%d, usecs_til_tick=%.0f\n",
                            sim_uname(uptr), usec_delay, sim_calb_tmr, 0, uptr->usecs_remaining, inst_til_tick, usecs_til_tick);
-                sim_debug (DBG_CHK, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - result = %.0f usecs, %.0f usecs\n", 
+                sim_debug (DBG_CHK, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - result = %.0f usecs, %.0f usecs\n",
                            sim_uname(uptr), usec_delay, sim_timer_activate_time_usecs (ouptr), sim_timer_activate_time_usecs (uptr));
                 return stat;
                 }
             }
         }
     }
-/* 
+/*
  * We're here to schedule if:
  * No Calibrated Timer, OR
  * Scheduling the Calibrated Timer OR
@@ -2826,8 +2998,8 @@ if (sim_calb_tmr != -1) {
  */
 /*
  * Bound delay to avoid overflow.
- * Long delays are usually canceled before they expire, however bounding the 
- * delay will cause sim_activate_time to return inconsistent results when 
+ * Long delays are usually canceled before they expire, however bounding the
+ * delay will cause sim_activate_time to return inconsistent results when
  * truncation has happened.
  */
 if (inst_delay_d > (double)0x7fffffff)
@@ -2851,7 +3023,7 @@ if ((sim_asynch_timer) &&
         rtc->clock_unit->a_is_active = &_sim_wallclock_is_active;
         }
 
-    sim_debug (DBG_TIM, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - queueing wallclock addition at %.6f\n", 
+    sim_debug (DBG_TIM, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - queueing wallclock addition at %.6f\n",
                sim_uname(uptr), usec_delay, uptr->a_due_time);
 
     pthread_mutex_lock (&sim_timer_lock);
@@ -2864,7 +3036,7 @@ if ((sim_asynch_timer) &&
         uptr->a_next = QUEUE_LIST_END;              /* Temporarily mark as active */
         if (sim_timer_thread_running) {
             while (sim_wallclock_entry) {               /* wait for any prior entry has been digested */
-                sim_debug (DBG_TIM, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - queue insert entry %s busy waiting for 1ms\n", 
+                sim_debug (DBG_TIM, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - queue insert entry %s busy waiting for 1ms\n",
                            sim_uname(uptr), usec_delay, sim_uname(sim_wallclock_entry));
                 pthread_mutex_unlock (&sim_timer_lock);
                 sim_os_ms_sleep (1);
@@ -2885,16 +3057,16 @@ if ((sim_asynch_timer) &&
     }
 #endif
 stat = _sim_activate (uptr, inst_delay);                /* queue it now */
-sim_debug (DBG_TIM, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - queue addition at %d - remnant: %.0f\n", 
+sim_debug (DBG_TIM, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - queue addition at %d - remnant: %.0f\n",
            sim_uname(uptr), usec_delay, inst_delay, uptr->usecs_remaining);
-sim_debug (DBG_CHK, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - result = %.0f usecs, %.0f usecs\n", 
+sim_debug (DBG_CHK, &sim_timer_dev, "sim_timer_activate_after(%s, %.0f usecs) - result = %.0f usecs, %.0f usecs\n",
            sim_uname(uptr), usec_delay, sim_timer_activate_time_usecs (ouptr), sim_timer_activate_time_usecs (uptr));
 return stat;
 }
 
 /* Clock coscheduling routines */
 
-t_stat sim_register_clock_unit_tmr (UNIT *uptr, int32 tmr)
+t_stat sim_register_clock_unit_tmr (UNIT *uptr, size_t tmr)
 {
 RTC *rtc;
 
@@ -2928,20 +3100,20 @@ if (NULL == rtc->clock_unit)
     rtc->clock_cosched_queue = QUEUE_LIST_END;
 rtc->clock_unit = uptr;
 uptr->dynflags |= UNIT_TMR_UNIT;
-rtc->timer_unit->flags = ((tmr == SIM_NTIMERS) ? 0 : UNIT_DIS) | 
+rtc->timer_unit->flags = ((tmr == SIM_NTIMERS) ? 0 : UNIT_DIS) |
                           (rtc->clock_unit ? UNIT_IDLE : 0);
 return SCPE_OK;
 }
 
 /* Default timer is 0, otherwise use a calibrated one if it exists */
-int32 sim_rtcn_calibrated_tmr (void)
+size_t sim_rtcn_calibrated_tmr (void)
 {
-return ((rtcs[0].currd && rtcs[0].hz) ? 0 : ((sim_calb_tmr != -1) ? sim_calb_tmr : 0));
+return ((rtcs[0].currd && rtcs[0].hz) ? 0 : ((sim_calb_tmr != SIM_INVALID_TMR) ? sim_calb_tmr : 0));
 }
 
-int32 sim_rtcn_tick_size (int32 tmr)
+int32 sim_rtcn_tick_size (size_t tmr)
 {
-RTC *rtc = &rtcs[tmr];
+const RTC *rtc = &rtcs[tmr];
 
 return (rtc->currd) ? rtc->currd : 10000;
 }
@@ -2953,7 +3125,7 @@ return sim_register_clock_unit_tmr (uptr, 0);
 
 t_stat sim_clock_coschedule (UNIT *uptr, int32 interval)
 {
-int32 tmr = sim_rtcn_calibrated_tmr ();
+size_t tmr = sim_rtcn_calibrated_tmr ();
 int32 ticks = (interval + (sim_rtcn_tick_size (tmr)/2))/sim_rtcn_tick_size (tmr);/* Convert to ticks */
 
 sim_debug (DBG_QUE, &sim_timer_dev, "sim_clock_coschedule(%s, interval=%d, ticks=%d)\n", sim_uname(uptr), interval, ticks);
@@ -2969,14 +3141,14 @@ return sim_clock_coschedule (uptr, interval);
 
 /* ticks - 0 means on the next tick, 1 means the second tick, etc.  */
 
-t_stat sim_clock_coschedule_tmr (UNIT *uptr, int32 tmr, int32 ticks)
+t_stat sim_clock_coschedule_tmr (UNIT *uptr, size_t tmr, int32 ticks)
 {
 RTC *rtc;
 
 if (ticks < 0)
     return SCPE_ARG;
 if (sim_is_active (uptr)) {
-    sim_debug (DBG_TIM, &sim_timer_dev, "sim_clock_coschedule_tmr(%s, tmr=%d, ticks=%d) - already active\n", sim_uname (uptr), tmr, ticks);
+    sim_debug (DBG_TIM, &sim_timer_dev, "sim_clock_coschedule_tmr(%s, tmr=%" SIZE_T_FMT "u, ticks=%d) - already active\n", sim_uname (uptr), tmr, ticks);
     return SCPE_OK;
     }
 if (tmr == SIM_INTERNAL_CLK)
@@ -2987,7 +3159,7 @@ else {
     }
 rtc = &rtcs[tmr];
 if ((NULL == rtc->clock_unit) || (rtc->hz == 0)) {
-    sim_debug (DBG_TIM, &sim_timer_dev, "sim_clock_coschedule_tmr(%s, tmr=%d, ticks=%d) - no clock activating after %d instructions\n", sim_uname (uptr), tmr, ticks, ticks * (rtc->currd ? rtc->currd : rtcs[sim_rtcn_calibrated_tmr ()].currd));
+    sim_debug (DBG_TIM, &sim_timer_dev, "sim_clock_coschedule_tmr(%s, tmr=%" SIZE_T_FMT "u, ticks=%d) - no clock activating after %d instructions\n", sim_uname (uptr), tmr, ticks, ticks * (rtc->currd ? rtc->currd : rtcs[sim_rtcn_calibrated_tmr ()].currd));
     return sim_activate (uptr, ticks * (rtc->currd ? rtc->currd : rtcs[sim_rtcn_calibrated_tmr ()].currd));
     }
 else {
@@ -3018,12 +3190,12 @@ else {
     uptr->cancel = &_sim_coschedule_cancel;             /* bind cleanup method */
     if (uptr == rtc->clock_cosched_queue)
         rtc->cosched_interval = rtc->clock_cosched_queue->time;
-    sim_debug (DBG_QUE, &sim_timer_dev, "sim_clock_coschedule_tmr(%s, tmr=%d, ticks=%d, hz=%d) - queueing for clock co-schedule, interval now: %d\n", sim_uname (uptr), tmr, ticks, rtc->hz, rtc->cosched_interval);
+    sim_debug (DBG_QUE, &sim_timer_dev, "sim_clock_coschedule_tmr(%s, tmr=%" SIZE_T_FMT "u, ticks=%d, hz=%d) - queueing for clock co-schedule, interval now: %d\n", sim_uname (uptr), tmr, ticks, rtc->hz, rtc->cosched_interval);
     }
 return SCPE_OK;
 }
 
-t_stat sim_clock_coschedule_tmr_abs (UNIT *uptr, int32 tmr, int32 ticks)
+t_stat sim_clock_coschedule_tmr_abs (UNIT *uptr, size_t tmr, int32 ticks)
 {
 sim_cancel (uptr);
 return sim_clock_coschedule_tmr (uptr, tmr, ticks);
@@ -3241,7 +3413,7 @@ for (tmr=0; tmr<=SIM_NTIMERS; tmr++) {
         return _sim_activate_time (&sim_timer_units[tmr]);
         }
     }
-return -1;                                          /* Not found. */    
+return -1;                                          /* Not found. */
 }
 
 double sim_timer_activate_time_usecs (UNIT *uptr)
@@ -3333,7 +3505,7 @@ for (tmr=0; tmr<=SIM_NTIMERS; tmr++) {
     }
 result = uptr->usecs_remaining + (1000000.0 * (sim_activate_time (uptr) - 1)) / sim_timer_inst_per_sec ();
 sim_debug (DBG_QUE, &sim_timer_dev, "sim_timer_activate_time_usecs(%s) clock - %.0f usecs, inst_per_sec=%.0f, usecs_remaining=%.0f\n", sim_uname (uptr), result, sim_timer_inst_per_sec (), uptr->usecs_remaining);
-return result;                                          /* Not found. */    
+return result;                                          /* Not found. */
 }
 
 /* read only memory delayed support
@@ -3342,9 +3514,9 @@ return result;                                          /* Not found. */
    time to meet timing assumptions in the code being executed.
 
    The default calibration determines a way to limit activities
-   to 1Mhz for each call to sim_rom_read_with_delay().  If a 
-   simulator needs a different delay factor, the 1 Mhz initial 
-   value can be queried with sim_get_rom_delay_factor() and the 
+   to 1Mhz for each call to sim_rom_read_with_delay().  If a
+   simulator needs a different delay factor, the 1 Mhz initial
+   value can be queried with sim_get_rom_delay_factor() and the
    result can be adjusted as nessary and the operating delay
    can be set with sim_set_rom_delay_factor().
 */
@@ -3369,7 +3541,7 @@ return val + rom_loopval;
 SIM_NOINLINE uint32 sim_get_rom_delay_factor (void)
 {
 /* Calibrate the loop delay factor at startup.
-   Do this 4 times and use the largest value computed. 
+   Do this 4 times and use the largest value computed.
    The goal here is to come up with a delay factor which will throttle
    a 6 byte delay loop running from ROM address space to execute
    1 instruction per usec */
@@ -3389,7 +3561,7 @@ if (sim_rom_delay == 0) {
 
         for (i = 0; i < c; i++)
             rom_loopval |= (rom_loopval + ts) ^ _rom_swapb (_rom_swapb (rom_loopval + ts));
-        te = sim_os_msec (); 
+        te = sim_os_msec ();
         if ((te - ts) < 50)                         /* sample big enough? */
             continue;
         if (sim_rom_delay < (rom_loopval + (c / (te - ts) / 1000) + 1))
@@ -3413,9 +3585,9 @@ sim_rom_delay = delay;
  *
  * The point of this routine is to run a bunch of simulator provided
  * instructions that don't do anything, but run in an effective loop.
- * That loop is run for some 5 million instructions and based on 
+ * That loop is run for some 5 million instructions and based on
  * the time those 5 million instructions take to execute the effective
- * execution rate.  That rate is used to avoid the initial 3 to 5 
+ * execution rate.  That rate is used to avoid the initial 3 to 5
  * seconds that normal clock calibration takes.
  *
  */
