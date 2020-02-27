@@ -50,9 +50,11 @@ cmake/dependencies
 # Python generate/simgen stuff:
 **/__pycache__/
 
-# VS Code stuff...
+# VS Code, SublimeText3 stuff...
 simh.code-workspace
 .vscode
+*.sublime-workspace
+*.sublime-project
 
 # GNU Global (useful with VSCode's Intellisense module.)
 GPATH
