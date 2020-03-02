@@ -16,13 +16,13 @@
 
 find_path(PCRE_INCLUDE_DIR pcre.h
         HINTS
-	  ENV PCRE_DIR
-	# path suffixes to search inside ENV{PCRE_DIR}
-	PATHS ${PCRE_PATH}
-	PATH_SUFFIXES
-	    include/pcre
-	    include/PCRE
-	    include
+          ENV PCRE_DIR
+        # path suffixes to search inside ENV{PCRE_DIR}
+        PATHS ${PCRE_PATH}
+        PATH_SUFFIXES
+            include/pcre
+            include/PCRE
+            include
         )
 
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -34,23 +34,29 @@ endif ()
 find_library(PCRE_LIBRARY_RELEASE
         NAMES pcre pcre_static
         HINTS
-	  ENV PCRE_DIR
-	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
-        PATHS ${PCRE_PATH}
+            ENV PCRE_DIR
+        PATH_SUFFIXES
+            ${LIB_PATH_SUFFIXES}
+        PATHS
+            ${PCRE_PATH}
+        NO_SYSTEM_ENVIRONMENT_PATH
         )
 
 find_library(PCRE_LIBRARY_DEBUG
         NAMES pcred
         HINTS
-	  ENV PCRE_DIR
-	PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
-        PATHS ${PCRE_PATH}
+            ENV PCRE_DIR
+        PATH_SUFFIXES
+            ${LIB_PATH_SUFFIXES}
+        PATHS
+            ${PCRE_PATH}
+        NO_SYSTEM_ENVIRONMENT_PATH
         )
 
 if (PCRE_INCLUDE_DIR)
     if (EXISTS "${PCRE_INCLUDE_DIR}/pcre.h")
-	file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE_VERSION_MAJOR_LINE REGEX "^#define[ \t]+PCRE_MAJOR[ \t]+[0-9]+$")
-	file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE_VERSION_MINOR_LINE REGEX "^#define[ \t]+PCRE_MINOR[ \t]+[0-9]+$")
+        file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE_VERSION_MAJOR_LINE REGEX "^#define[ \t]+PCRE_MAJOR[ \t]+[0-9]+$")
+        file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE_VERSION_MINOR_LINE REGEX "^#define[ \t]+PCRE_MINOR[ \t]+[0-9]+$")
     endif ()
 
     string(REGEX REPLACE "^#define[ \t]+PCRE?_MAJOR[ \t]+([0-9]+)$" "\\1" PCRE_VERSION_MAJOR "${PCRE_VERSION_MAJOR_LINE}")
@@ -59,8 +65,8 @@ if (PCRE_INCLUDE_DIR)
     set(PCRE_VERSION_STRING ${PCRE_VERSION_MAJOR}.${PCRE_VERSION_MINOR})
     set(PCRE_VERSION_TWEAK "")
     if (PCRE_VERSION_STRING MATCHES "[0-9]+\.[0-9]+")
-	set(PCRE_VERSION_TWEAK "${CMAKE_MATCH_1}")
-	string(APPEND PCRE_VERSION_STRING ".${PCRE_VERSION_TWEAK}")
+        set(PCRE_VERSION_TWEAK "${CMAKE_MATCH_1}")
+        string(APPEND PCRE_VERSION_STRING ".${PCRE_VERSION_TWEAK}")
     endif ()
     unset(PCRE_VERSION_MAJOR_LINE)
     unset(PCRE_VERSION_MINOR_LINE)

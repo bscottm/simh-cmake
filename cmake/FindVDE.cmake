@@ -33,6 +33,7 @@ if (WITH_VDE)
                 ${LIB_PATH_SUFFIXES}
             PATHS
                 ${VDEPLUG_PATH}
+            NO_SYSTEM_ENVIRONMENT_PATH
     )
 
     if (VDEPLUG_INCLUDE_DIR)
