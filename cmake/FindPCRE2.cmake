@@ -35,17 +35,23 @@ endif ()
 find_library(PCRE2_LIBRARY_RELEASE
         NAMES pcre2-8
         HINTS
-          ENV PCRE_DIR
-        PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
-        PATHS ${PCRE_PATH}
+            ENV PCRE_DIR
+        PATH_SUFFIXES
+            ${LIB_PATH_SUFFIXES}
+        PATHS
+            ${PCRE_PATH}
+        NO_SYSTEM_ENVIRONMENT_PATH
         )
 
 find_library(PCRE2_LIBRARY_DEBUG
         NAMES pcre2-8d
         HINTS
-          ENV PCRE_DIR
-        PATH_SUFFIXES ${LIB_PATH_SUFFIXES}
-        PATHS ${PCRE_PATH}
+            ENV PCRE_DIR
+        PATH_SUFFIXES
+            ${LIB_PATH_SUFFIXES}
+        PATHS
+            ${PCRE_PATH}
+        NO_SYSTEM_ENVIRONMENT_PATH
         )
 
 if (PCRE2_INCLUDE_DIR)
