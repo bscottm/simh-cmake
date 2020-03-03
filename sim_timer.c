@@ -341,6 +341,49 @@ else {
 return retval;
 }
 
+/* EXPONENTIAL_WEIGHTED_MOVING_AVG: Use EWMA to compute min and sleep
+   increment instead of using a "truncated" average.
+
+   The truncated average has a non-zero probability of being zero due the
+   accumulated total being less than the denominator; observed several times
+   during testing and principally on virtual machines. The EWMA acts as a low
+   pass filter, which accommodates large and small swings without
+   substantially moving the average in one direction or the other. */
+#define EXPONENTIAL_WEIGHTED_MOVING_AVG
+
+static uint32 _average_ms_sleep(uint32 (*timer_func)(unsigned int), unsigned int delay)
+{
+size_t i;
+uint32 retval;
+
+#if !defined(EXPONENTIAL_WEIGHTED_MOVING_AVG)
+uint32 tot;
+
+for (i = 0, tot = 0; i < sleep1Samples; ++i) {
+    tot += (*timer_func)(delay);
+    }
+
+retval = tot / sleep1Samples;
+#else
+/* EWMA alpha: for 100 samples, this is ~0.06. */
+const double ewma_alpha = 2.0 / (sleep1Samples + 1.0);
+uint32 sample;
+double ewma;
+
+for (i = 0; i < sleep1Samples; ++i) {
+    sample = (*timer_func)(delay);
+    if (i > 0)
+        ewma = (1.0 - ewma_alpha) * ewma + (ewma_alpha * (double) sample);
+    else
+        ewma = (double) sample;
+    }
+
+retval = (uint32) floor(ewma);
+#endif
+
+return retval;
+}
+
 static uint32 _compute_minimum_sleep (void)
 {
 size_t i;
@@ -559,12 +602,12 @@ return 0;
 
 const t_bool rtc_avail = TRUE;
 
-uint32 sim_os_msec (void)
+uint32 SIM_INLINE sim_os_msec (void)
 {
 return timeGetTime ();                      /* use Multi-Media time source */
 }
 
-void sim_os_sleep (unsigned int sec)
+void SIM_INLINE sim_os_sleep (unsigned int sec)
 {
 Sleep (sec * 1000);
 }
