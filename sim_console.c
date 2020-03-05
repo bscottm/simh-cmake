@@ -138,10 +138,6 @@
 #define nice(n) ({})
 #endif
 
-#ifndef MIN
-#define MIN(a,b)  (((a) <= (b)) ? (a) : (b))
-#endif
-
 /* Forward Declaraations of Platform specific routines */
 
 static t_stat sim_os_poll_kbd (void);

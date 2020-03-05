@@ -50,12 +50,6 @@ noret __libc_longjmp (jmp_buf buf, int val);
 #define longjmp __libc_longjmp
 #endif
 
-#ifndef MAX
-#define MAX(x,y) ((x) > (y) ? (x) : (y))
-#endif
-#ifndef MIN
-#define MIN(x,y) ((x) < (y) ? (x) : (y))
-#endif
 #ifndef UNUSED
 #define UNUSED(x)  ((void)((x)))
 #endif

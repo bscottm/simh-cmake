@@ -463,8 +463,6 @@ typedef struct {
 #define TMR_PIC         1                               /* PIC = timer 1 */
 #define LPT_WIDTH       132
 #define VFU_LNT         132
-#define MIN(x,y)        (((x) < (y))? (x): (y))
-#define MAX(x,y)        (((x) > (y))? (x): (y))
 
 /* Function prototypes */
 
