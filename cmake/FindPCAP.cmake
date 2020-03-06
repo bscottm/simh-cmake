@@ -31,14 +31,14 @@ else ()
 endif ()
 
 find_library(PCAP_LIBRARY
-        NAMES pcap pcap_static libpcap libpcap_static
+        NAMES
+            pcap pcap_static libpcap libpcap_static
         HINTS
-          ENV PCAP_DIR
+            ENV PCAP_DIR
         PATH_SUFFIXES
-          ${LIB_PATH_SUFFIXES}
+            ${LIB_PATH_SUFFIXES}
         PATHS
-          ${PCAP_PATH}
-        NO_SYSTEM_ENVIRONMENT_PATH
+            ${PCAP_PATH}
         )
 ## message(STATUS "LIB_PATH_SUFFIXES ${LIB_PATH_SUFFIXES}")
 ## message(STATUS "PCAP_LIBRARY is ${PCAP_LIBRARY}")
@@ -46,14 +46,14 @@ find_library(PCAP_LIBRARY
 if (WIN32 AND PCAP_LIBRARY)
     ## Only worry about the packet library on Windows.
     find_library(PACKET_LIBRARY
-        NAMES packet Packet
+        NAMES
+            packet Packet
         HINTS
             ENV PCAP_DIR
         PATH_SUFFIXES
             ${LIB_PATH_SUFFIXES}
         PATHS
             ${PCAP_PATH}
-        NO_SYSTEM_ENVIRONMENT_PATH
     )
 else (WIN32 AND PCAP_LIBRARY)
     set(PACKET_LIBRARY)
@@ -67,5 +67,9 @@ set(PCAP_INCLUDE_DIR)
 
 include(FindPackageHandleStandardArgs)
 
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(PCAP
-        REQUIRED_VARS PCAP_LIBRARIES PCAP_INCLUDE_DIRS)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(
+    PCAP
+    REQUIRED_VARS
+        PCAP_LIBRARIES
+        PCAP_INCLUDE_DIRS
+)

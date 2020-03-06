@@ -7,8 +7,10 @@
 
 add_library(regexp_lib INTERFACE)
 
-include (FindPCRE)
-include (FindPCRE2)
+## include (FindPCRE)
+## include (FindPCRE2)
+find_package(PCRE)
+find_package(PCRE2)
 
 if (NOT (PCRE_FOUND OR PCRE2_FOUND) AND PKG_CONFIG_FOUND)
     pkg_check_modules(PCRE2 IMPORTED_TARGET libpcre2-8)
