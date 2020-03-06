@@ -91,13 +91,6 @@
 
 #define SIM_INTERNAL_CLK (SIM_NTIMERS+(1<<30))
 #define SIM_INTERNAL_UNIT sim_internal_timer_unit
-#ifndef MIN
-#define MIN(a,b)  (((a) < (b)) ? (a) : (b))
-#endif
-#ifndef MAX
-#define MAX(a,b)  (((a) > (b)) ? (a) : (b))
-#endif
-
 #define SIM_INVALID_TMR ((size_t) ~0)
 
 #define sleep1Samples       100
@@ -183,7 +176,7 @@ static uint32 sim_idle_rate_ms = 0;                 /* Minimum Sleep time */
 static uint32 sim_os_sleep_min_ms = 0;
 static uint32 sim_os_sleep_inc_ms = 0;
 static uint32 sim_os_clock_resoluton_ms = 0;
-static uint32 sim_os_tick_hz = 0;
+static uint32 sim_os_tick_hz = 0;                   /* Measured host OS */
 static uint32 sim_idle_stable = SIM_IDLE_STDFLT;
 static uint32 sim_idle_calib_pct = 100;
 static double sim_timer_stop_time = 0;
@@ -202,7 +195,8 @@ static int32 sim_throt_wait = 0;
 static uint32 sim_throt_delay = 3;
 #define CLK_TPS 100
 #define CLK_INIT (sim_precalibrate_ips/CLK_TPS)
-static int32 sim_int_clk_tps;
+static int32 sim_int_clk_tps;       /* Internal clock's ticks/sec, set as min(CLK_TPS, sim_os_tick_hz)
+                                     * [sim_os_tick_hz is usually smaller.] */
 
 typedef struct RTC {
     UNIT *clock_unit;               /* registered ticking clock unit */
@@ -1011,9 +1005,7 @@ return time;
 
 int32 sim_rtcn_calb_tick (size_t tmr)
 {
-RTC *rtc = &rtcs[tmr];
-
-return sim_rtcn_calb (rtc->hz, tmr);
+return sim_rtcn_calb (rtcs[tmr].hz, tmr);
 }
 
 int32 sim_rtcn_calb (uint32 ticksper, size_t tmr)
@@ -1288,7 +1280,10 @@ if ((sim_idle_rate_ms > 0) && (sim_os_clock_resoluton_ms > 0)) {
     if (sim_idle_rate_ms < sim_os_clock_resoluton_ms)
         sim_idle_rate_ms = sim_os_clock_resoluton_ms;
 
-    sim_os_tick_hz = 1000/(sim_os_clock_resoluton_ms * (sim_idle_rate_ms/sim_os_clock_resoluton_ms));
+    /* sim_os_tick_hz = 1000/(sim_os_clock_resoluton_ms * (sim_idle_rate_ms/sim_os_clock_resoluton_ms)); */
+    /* Refactored so there is no chance of a zero denominator due to integer division. */
+    sim_os_tick_hz = ((1000 * sim_os_clock_resoluton_ms) / sim_idle_rate_ms) / sim_os_clock_resoluton_ms;
+    sim_int_clk_tps = MIN(CLK_TPS, sim_os_tick_hz);
     }
 else {
     fprintf (stderr, "Can't properly determine host system clock capabilities.\n");
@@ -2646,12 +2641,11 @@ return SCPE_OK;
 static void _rtcn_configure_calibrated_clock (size_t newtmr)
 {
 size_t tmr;
-RTC *rtc, *crtc;
+RTC *crtc;
 
 /* Look for a timer running slower or the same as the host system clock */
-sim_int_clk_tps = MIN(CLK_TPS, sim_os_tick_hz);
 for (tmr=0; tmr<SIM_NTIMERS; tmr++) {
-    rtc = &rtcs[tmr];
+    const RTC *rtc = &rtcs[tmr];
     if ((rtc->hz > 0 && rtc->hz <= sim_os_tick_hz) &&
         (rtc->clock_unit != NULL && (rtc->last_hz == 0 || rtc->last_hz == rtc->hz)))
         break;
@@ -2698,7 +2692,8 @@ if ((tmr == newtmr) &&
     (sim_calb_tmr == newtmr))               /* already set? */
     return;
 if (sim_calb_tmr == SIM_NTIMERS) {          /* was old the internal timer? */
-    sim_debug (DBG_CAL|DBG_INT, &sim_timer_dev, "_rtcn_configure_calibrated_clock(newtmr=%" SIZE_T_FMT "u) - Stopping Internal Calibrated Timer, New Timer = %" SIZE_T_FMT "u (%dHz)\n", newtmr, tmr, rtc->hz);
+    sim_debug (DBG_CAL|DBG_INT, &sim_timer_dev, "_rtcn_configure_calibrated_clock(newtmr=%" SIZE_T_FMT "u) - Stopping Internal Calibrated Timer, New Timer = %" SIZE_T_FMT "u (%dHz)\n",
+               newtmr, tmr, rtcs[SIM_NTIMERS].hz);
     rtcs[SIM_NTIMERS].initd = 0;
     rtcs[SIM_NTIMERS].hz = 0;
     sim_register_clock_unit_tmr (NULL, SIM_INTERNAL_CLK);
@@ -2725,7 +2720,8 @@ else {
                 }
             crtc->hz = 0;                          /* back to 0 */
             }
-        sim_debug (DBG_CAL|DBG_INT, &sim_timer_dev, "_rtcn_configure_calibrated_clock(newtmr=%" SIZE_T_FMT "u) - Changing Calibrated Timer from %" SIZE_T_FMT "u (%dHz) to %" SIZE_T_FMT "u (%dHz)\n", newtmr, sim_calb_tmr, crtc->last_hz, tmr, rtc->hz);
+        sim_debug (DBG_CAL|DBG_INT, &sim_timer_dev, "_rtcn_configure_calibrated_clock(newtmr=%" SIZE_T_FMT "u) - Changing Calibrated Timer from %" SIZE_T_FMT "u (%dHz) to %" SIZE_T_FMT "u (%dHz)\n",
+                   newtmr, sim_calb_tmr, crtc->last_hz, tmr, crtc->hz);
         }
     sim_calb_tmr = tmr;
     }
@@ -2899,14 +2895,14 @@ return SCPE_OK;
 double sim_timer_inst_per_sec (void)
 {
 double inst_per_sec = sim_inst_per_sec_last;
-RTC *rtc;
+const RTC *rtc;
 
 if (sim_calb_tmr == SIM_INVALID_TMR)
     return inst_per_sec;
 rtc = &rtcs[sim_calb_tmr];
 inst_per_sec = ((double)rtc->currd) * rtc->hz;
 if (inst_per_sec == 0.0)
-    inst_per_sec = ((double)rtc->currd) * sim_int_clk_tps;
+    inst_per_sec = ((double)rtc->currd) * (double) sim_int_clk_tps;
 return inst_per_sec;
 }
 
@@ -2919,7 +2915,8 @@ return sim_timer_activate_after (uptr, (double)((interval * 1000000.0) / sim_tim
 t_stat sim_timer_activate_after (UNIT *uptr, double usec_delay)
 {
 UNIT *ouptr = uptr;
-int inst_delay, tmr;
+int inst_delay;
+size_t tmr;
 double inst_delay_d, inst_per_usec;
 t_stat stat;
 RTC *crtc;
@@ -2927,7 +2924,7 @@ RTC *crtc;
 AIO_VALIDATE(uptr);
 /* If this is a clock unit, we need to schedule the related timer unit instead */
 for (tmr=0; tmr<=SIM_NTIMERS; tmr++) {
-    RTC *rtc = &rtcs[tmr];
+    const RTC *rtc = &rtcs[tmr];
 
     if (rtc->clock_unit == uptr) {
         uptr = rtc->timer_unit;
