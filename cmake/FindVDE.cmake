@@ -33,7 +33,6 @@ if (WITH_VDE)
                 ${LIB_PATH_SUFFIXES}
             PATHS
                 ${VDEPLUG_PATH}
-            NO_SYSTEM_ENVIRONMENT_PATH
     )
 
     if (VDEPLUG_INCLUDE_DIR)
@@ -51,8 +50,6 @@ if (WITH_VDE)
 
     include(FindPackageHandleStandardArgs)
 
-    ### Note: If the libpcre.cmake configuration file isn't installed,
-    ### asking for a version is going to fail.
     FIND_PACKAGE_HANDLE_STANDARD_ARGS(VDE
         REQUIRED VDEPLUG_LIBRARY VDEPLUG_INCLUDE_DIR
         # VERSION_VAR VDEPLUG_VERSION_STRING

@@ -49,7 +49,6 @@ if (WIN32)
                 ${LIB_PATH_SUFFIXES}
             PATHS
                 ${PTW_PATH}
-            NO_SYSTEM_ENVIRONMENT_PATH
         )
 
         find_library(PTW_${flavor}_LIBRARY_DEBUG
@@ -61,7 +60,6 @@ if (WIN32)
                 ${LIB_PATH_SUFFIXES}
             PATHS
                 ${PTW_PATH}
-            NO_SYSTEM_ENVIRONMENT_PATH
         )
 
         SELECT_LIBRARY_CONFIGURATIONS(PTW_${flavor})

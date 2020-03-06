@@ -33,32 +33,29 @@ else ()
 endif ()
 
 find_library(PCRE2_LIBRARY_RELEASE
-        NAMES pcre2-8
+        NAMES
+            pcre2-8
         HINTS
             ENV PCRE_DIR
         PATH_SUFFIXES
             ${LIB_PATH_SUFFIXES}
         PATHS
             ${PCRE_PATH}
-        NO_SYSTEM_ENVIRONMENT_PATH
         )
 
 find_library(PCRE2_LIBRARY_DEBUG
-        NAMES pcre2-8d
+        NAMES
+            pcre2-8d
         HINTS
             ENV PCRE_DIR
         PATH_SUFFIXES
             ${LIB_PATH_SUFFIXES}
         PATHS
             ${PCRE_PATH}
-        NO_SYSTEM_ENVIRONMENT_PATH
         )
 
 if (PCRE2_INCLUDE_DIR)
-    if (EXISTS "${PCRE_INCLUDE_DIR}/pcre.h")
-        file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE2_VERSION_MAJOR_LINE REGEX "^#define[ \t]+PCRE_MAJOR[ \t]+[0-9]+$")
-        file(STRINGS "${PCRE_INCLUDE_DIR}/pcre.h" PCRE2_VERSION_MINOR_LINE REGEX "^#define[ \t]+PCRE_MINOR[ \t]+[0-9]+$")
-    elseif (EXISTS "${PCRE2_INCLUDE_DIR}/pcre2.h")
+    if (EXISTS "${PCRE2_INCLUDE_DIR}/pcre2.h")
         file(STRINGS "${PCRE2_INCLUDE_DIR}/pcre2.h" PCRE2_VERSION_MAJOR_LINE REGEX "^#define[ \t]+PCRE2_MAJOR[ \t]+[0-9]+$")
         file(STRINGS "${PCRE2_INCLUDE_DIR}/pcre2.h" PCRE2_VERSION_MINOR_LINE REGEX "^#define[ \t]+PCRE2_MINOR[ \t]+[0-9]+$")
     endif ()
@@ -66,12 +63,7 @@ if (PCRE2_INCLUDE_DIR)
     string(REGEX REPLACE "^#define[ \t]+PCRE2?_MAJOR[ \t]+([0-9]+)$" "\\1" PCRE2_VERSION_MAJOR "${PCRE2_VERSION_MAJOR_LINE}")
     string(REGEX REPLACE "^#define[ \t]+PCRE2?_MINOR[ \t]+([0-9]+)$" "\\1" PCRE2_VERSION_MINOR "${PCRE2_VERSION_MINOR_LINE}")
 
-    set(PCRE2_VERSION_STRING ${PCRE2_VERSION_MAJOR}.${PCRE2_VERSION_MINOR})
-    set(PCRE2_VERSION_TWEAK "")
-    if (PCRE2_VERSION_STRING MATCHES "[0-9]+\.[0-9]+")
-        set(PCRE2_VERSION_TWEAK "${CMAKE_MATCH_1}")
-        string(APPEND PCRE2_VERSION_STRING ".${PCRE2_VERSION_TWEAK}")
-    endif ()
+    set(PCRE2_VERSION_STRING "${PCRE2_VERSION_MAJOR}.${PCRE2_VERSION_MINOR}")
     unset(PCRE2_VERSION_MAJOR_LINE)
     unset(PCRE2_VERSION_MINOR_LINE)
     unset(PCRE2_VERSION_MAJOR)
@@ -80,7 +72,11 @@ endif ()
 
 include(SelectLibraryConfigurations)
 
-select_library_configurations(PCRE2)
+SELECT_LIBRARY_CONFIGURATIONS(PCRE2)
+## message("%% PCRE2_LIBRARY ${PCRE2_LIBRARY}")
+## message("%% PCRE2_LIBRARIES ${PCRE2_LIBRARIES}")
+## message("%% PCRE2_LIBRARY_DEBUG ${PCRE2_LIBRARY_DEBUG}")
+## message("%% PCRE2_LIBRARY_RELEASE ${PCRE2_LIBRARY_RELEASE}")
 
 set(PCRE2_INCLUDE_DIRS ${PCRE2_INCLUDE_DIR})
 set(PCRE2_LIBRARIES ${PCRE2_LIBRARY})
@@ -89,6 +85,9 @@ include(FindPackageHandleStandardArgs)
 
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(
     PCRE2
-    REQUIRED PCRE2_LIBRARY PCRE2_INCLUDE_DIR
-    # VERSION_VAR PCRE2_VERSION_STRING
+    REQUIRED_VARS
+        PCRE2_LIBRARY
+        PCRE2_INCLUDE_DIR
+    VERSION_VAR
+        PCRE2_VERSION_STRING
 )
