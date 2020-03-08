@@ -28,6 +28,7 @@ add_simulator(eclipse
         ${CMAKE_CURRENT_SOURCE_DIR}
     DEFINES
         ECLIPSE
+    INT64
     TEST eclipse)
 
 add_simulator(nova

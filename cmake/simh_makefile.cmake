@@ -928,6 +928,7 @@ add_simulator(eclipse
         ${NOVAD}
     DEFINES
         ECLIPSE
+    INT64
     TEST eclipse
     SOURCE_DIR ${NOVAD})
 
