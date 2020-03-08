@@ -51,8 +51,6 @@ if (WITH_VDE)
 
     include(FindPackageHandleStandardArgs)
 
-    ### Note: If the libpcre.cmake configuration file isn't installed,
-    ### asking for a version is going to fail.
     FIND_PACKAGE_HANDLE_STANDARD_ARGS(VDE
         REQUIRED VDEPLUG_LIBRARY VDEPLUG_INCLUDE_DIR
         # VERSION_VAR VDEPLUG_VERSION_STRING

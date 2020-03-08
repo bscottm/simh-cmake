@@ -149,7 +149,7 @@ find_exe = $(abspath $(strip $(firstword $(foreach dir,$(strip $(subst :, ,${PAT
 find_lib = $(abspath $(strip $(firstword $(foreach dir,$(strip ${LIBPATH}),$(wildcard $(dir)/lib$(1).${LIBEXT})))))
 find_include = $(abspath $(strip $(firstword $(foreach dir,$(strip ${INCPATH}),$(wildcard $(dir)/$(1).h)))))
 ifneq (0,$(TESTS))
-  find_test = $(abspath $(wildcard $(1)/tests/$(2)_test.ini))
+  find_test = RegisterSanityCheck $(abspath $(wildcard $(1)/tests/$(2)_test.ini)) </dev/null
   TESTING_FEATURES = - Per simulator tests will be run
 else
   TESTING_FEATURES = - Per simulator tests will be skipped
@@ -1254,7 +1254,7 @@ ECLIPSE = ${NOVAD}/eclipse_cpu.c ${NOVAD}/eclipse_tt.c ${NOVAD}/nova_sys.c \
 	${NOVAD}/nova_dkp.c ${NOVAD}/nova_dsk.c ${NOVAD}/nova_lp.c \
 	${NOVAD}/nova_mta.c ${NOVAD}/nova_plt.c ${NOVAD}/nova_pt.c \
 	${NOVAD}/nova_clk.c ${NOVAD}/nova_tt1.c ${NOVAD}/nova_qty.c
-ECLIPSE_OPT = -I ${NOVAD} -DECLIPSE
+ECLIPSE_OPT = -I ${NOVAD} -DECLIPSE -DUSE_INT64
 
 
 PDP18BD = ${SIMHD}/PDP18B

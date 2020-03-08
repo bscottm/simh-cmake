@@ -187,7 +187,7 @@ static int32 sectors_per_track [NUM_OF_DSK] = { DSK_SECT, DSK_SECT, DSK_SECT, DS
                                                 DSK_SECT, DSK_SECT, DSK_SECT, DSK_SECT,
                                                 DSK_SECT, DSK_SECT, DSK_SECT, DSK_SECT,
                                                 DSK_SECT, DSK_SECT, DSK_SECT, DSK_SECT };
-static uint8 tracks         [NUM_OF_DSK]    = { MAX_TRACKS, MAX_TRACKS, MAX_TRACKS, MAX_TRACKS,
+static int32 tracks         [NUM_OF_DSK]    = { MAX_TRACKS, MAX_TRACKS, MAX_TRACKS, MAX_TRACKS,
                                                 MAX_TRACKS, MAX_TRACKS, MAX_TRACKS, MAX_TRACKS,
                                                 MAX_TRACKS, MAX_TRACKS, MAX_TRACKS, MAX_TRACKS,
                                                 MAX_TRACKS, MAX_TRACKS, MAX_TRACKS, MAX_TRACKS };
@@ -298,17 +298,17 @@ static UNIT dsk_unit[] = {
 static REG dsk_reg[] = {
     { DRDATAD (DISK,         current_disk,      4,
                "Selected disk register"),                                                   },
-    { BRDATAD (CURTRACK,    current_track,      10, 32, NUM_OF_DSK,
+    { BRDATAD (CURTRACK,     current_track,     10, 32, NUM_OF_DSK,
                "Selected track register array"), REG_CIRC + REG_RO                          },
-    { BRDATAD (CURSECTOR,   current_sector,     10, 32, NUM_OF_DSK,
+    { BRDATAD (CURSECTOR,    current_sector,    10, 32, NUM_OF_DSK,
                "Selected sector register array"), REG_CIRC + REG_RO                         },
-    { BRDATAD (CURBYTE, current_byte,           10, 32, NUM_OF_DSK,
-               "Current byte register array"), REG_CIRC + REG_RO                           },
-    { BRDATAD (CURFLAG, current_flag,           10, 32, NUM_OF_DSK,
+    { BRDATAD (CURBYTE,      current_byte,      10, 32, NUM_OF_DSK,
+               "Current byte register array"), REG_CIRC + REG_RO                            },
+    { BRDATAD (CURFLAG,      current_flag,      10, 32, NUM_OF_DSK,
                "Current flag register array"), REG_CIRC + REG_RO                            },
-    { BRDATAD (TRACKS,      tracks,             10, 8,  NUM_OF_DSK,
-               "Number of tracks register array"),    REG_CIRC                              },
-    { BRDATAD (SECTPERTRACK,sectors_per_track,  10, 8,  NUM_OF_DSK,
+    { BRDATAD (TRACKS,      tracks,             10, 32,  NUM_OF_DSK,
+               "Number of tracks register array"), REG_CIRC                                 },
+    { BRDATAD (SECTPERTRACK, sectors_per_track, 10, 32,  NUM_OF_DSK,
                "Number of sectors per track register array"), REG_CIRC                      },
     { DRDATAD (IN9COUNT,     in9_count,         4,
                "Count of IN(9) register"),  REG_RO                                          },
@@ -328,7 +328,7 @@ static REG dsk_reg[] = {
                "Count of IN/OUT(9) on unattached disk register"), REG_RO                    },
     { DRDATAD (WARNDSK12,    warnDSK12,         4,
                "Count of IN/OUT(10) on unattached disk register"), REG_RO                   },
-    { BRDATAD (DISKBUFFER,   dskbuf,            10, 8,  DSK_SECTSIZE,
+    { BRDATAD (DISKBUFFER,   dskbuf,           10, 8,  DSK_SECTSIZE,
                "Disk data buffer array"), REG_CIRC + REG_RO                                 },
     { NULL }
 };
