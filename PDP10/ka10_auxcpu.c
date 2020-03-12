@@ -363,7 +363,7 @@ t_stat auxcpu_devio(uint32 dev, uint64 *data)
         break;
     case CONI:
         *data = (uptr->STATUS & 010) | uptr->PIA;
-        sim_debug(DEBUG_CONI, &auxcpu_dev, "CONI %012" T_UINt64_FMT "o\n", *data);
+        sim_debug(DEBUG_CONI, &auxcpu_dev, "CONI %012" T_UINT64_FMT "o\n", *data);
         break;
     case DATAI:
         *data = 0;
