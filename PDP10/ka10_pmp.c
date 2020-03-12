@@ -1,6 +1,6 @@
 /* PMP disk controller interface for WAITS.
 
-   Copyright (c) 2017, Richard Cornwell
+   Copyright (c) 2017-2020, Richard Cornwell
 
    Permission is hereby granted, free of charge, to any person obtaining a
    copy of this software and associated documentation files (the "Software"),
@@ -348,9 +348,9 @@ uint64              pmp_status;      /* CONI status for device 500 */
 int                 pmp_statusb;
 uint32              pmp_cmd_hold;    /* Command hold register */
 uint32              pmp_wc_hold;     /* Word count hold */
-uint32              pmp_addr_hold;   /* Address register hold */
+t_addr              pmp_addr_hold;   /* Address register hold */
 uint32              pmp_wc;          /* Current word count register */
-uint32              pmp_addr;        /* Current address register */
+t_addr              pmp_addr;        /* Current address register */
 uint64              pmp_data;        /* Data assembly register */
 int                 pmp_cnt;         /* Character count in asm register */
 int                 pmp_cmd;         /* Current command */
@@ -550,7 +550,8 @@ pmp_checkirq() {
           sim_debug(DEBUG_DETAIL, &pmp_dev, "parity irq\n");
         f = 1;
     }
-    if ((pmp_irq & IRQ_EMPTY) != 0 && (pmp_statusb & (WCMA_LD|CMD_LD)) != (WCMA_LD|CMD_LD))  {
+    if ((pmp_irq & IRQ_EMPTY) != 0 &&
+               (pmp_statusb & (WCMA_LD|CMD_LD)) != (WCMA_LD|CMD_LD))  {
           sim_debug(DEBUG_DETAIL, &pmp_dev, "load irq\n");
         f = 1;
     }
@@ -558,12 +559,14 @@ pmp_checkirq() {
           sim_debug(DEBUG_DETAIL, &pmp_dev, "idle irq\n");
         f = 1;
 }
-    if ((pmp_irq & IRQ_UEND) != 0 && (pmp_status & (NXM_ERR|CHA_ERR|SEL_ERR|UNU_END)) != 0) {
+    if ((pmp_irq & IRQ_UEND) != 0 &&
+                (pmp_status & (NXM_ERR|CHA_ERR|SEL_ERR|UNU_END)) != 0) {
           sim_debug(DEBUG_DETAIL, &pmp_dev, "uend irq\n");
         f = 1;
 }
     if ((pmp_status & pmp_irq & (IRQ_NSTS|IRQ_STS)) != 0) {
-          sim_debug(DEBUG_DETAIL, &pmp_dev, "mem sts %o\n", (int)(pmp_status & pmp_irq & (IRQ_NSTS|IRQ_STS)));
+          sim_debug(DEBUG_DETAIL, &pmp_dev, "mem sts %o\n",
+               (int)(pmp_status & pmp_irq & (IRQ_NSTS|IRQ_STS)));
         f = 1;
 }
     if (f)
@@ -597,10 +600,10 @@ chan_read_byte(uint8 *data) {
     pmp_statusb |= TRANS_CH;                 /* Tranfer in progress */
     /* Read in next work if buffer is in empty status */
     if (pmp_cnt & BUFF_EMPTY) {
-        if (pmp_addr >= (int)MEMSIZE) 
+        if (Mem_read_word(pmp_addr, &pmp_data, 0))
             return pmp_posterror(NXM_ERR);
-        pmp_data = M[pmp_addr];
-         sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_read %06o %012" T_UINT64_FMT "o\n", pmp_addr, pmp_data);
+         sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_read %06o %012" T_UINT64_FMT "o\n",
+                pmp_addr, pmp_data);
         pmp_addr++;
         pmp_cnt = 0;
         xfer = 1;  /* Read in a word */
@@ -616,10 +619,10 @@ chan_read_byte(uint8 *data) {
         if ((pmp_cnt & 0xf) > 0x3) {
            if ((pmp_cnt & 0xf) == 0x4) {   /* Split byte */
               byte = (pmp_data << 4) & 0xf0;
-              if (pmp_addr >= (int)MEMSIZE)
+              if (Mem_read_word(pmp_addr, &pmp_data, 0))
                   return pmp_posterror(NXM_ERR);
-              pmp_data = M[pmp_addr];
-         sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_read %06o %012" T_UINT64_FMT "o\n", pmp_addr, pmp_data);
+              sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_read %06o %012" T_UINT64_FMT "o\n",
+                     pmp_addr, pmp_data);
               pmp_addr++;
               xfer = 1;  /* Read in a word */
               byte |= pmp_data & 0xf;
@@ -642,27 +645,6 @@ chan_read_byte(uint8 *data) {
      if (pmp_wc & 07000000) 
          pmp_cnt |= BUFF_CHNEND;
      return 0;
-#if 0
-next:
-     /* If not data channing, let device know there will be no
-      * more data to come
-      */
-     if ((pmp_cmd & DATCH_ON) == 0) {
-         pmp_cnt = BUFF_CHNEND;
-         sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_read_end\n");
-         return 1;
-     } else {
-         if (pmp_statusb & WCMA_LD) {
-             pmp_statusb &= ~(WCMA_LD);
-             pmp_addr = pmp_addr_hold;
-             pmp_wc = pmp_wc_hold;
-             pmp_data = 0;
-         } else {
-             return pmp_posterror(CHA_ERR);
-         }
-     }
-     goto load;
-#endif
 }
 
 /* write byte to memory */
@@ -693,10 +675,10 @@ chan_write_byte(uint8 *data) {
         pmp_cnt |= BUFF_DIRTY;
         if ((pmp_cnt & 03) == 0) {
             pmp_cnt &= ~(BUFF_DIRTY|7);
-            if (pmp_addr >= (int)MEMSIZE)
+            if (Mem_write_word(pmp_addr, &pmp_data, 0))
                 return pmp_posterror(NXM_ERR);
-            M[pmp_addr] = pmp_data;
-              sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_write %06o %012" T_UINT64_FMT "o\n", pmp_addr, pmp_data);
+            sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_write %06o %012" T_UINT64_FMT "o\n",
+                          pmp_addr, pmp_data);
               pmp_addr++;
             xfer = 1;
         }
@@ -705,10 +687,10 @@ chan_write_byte(uint8 *data) {
            if ((pmp_cnt & 0xf) == 0x4) {   /* Split byte */
               pmp_data &= ~0xf;
               pmp_data |= (uint64)((*data >> 4) & 0xf);
-              if (pmp_addr >= (int)MEMSIZE)
+              if (Mem_write_word(pmp_addr, &pmp_data, 0))
                   return pmp_posterror(NXM_ERR);
-              M[pmp_addr] = pmp_data;
-              sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_write %06o %012" T_UINT64_FMT "o %2x\n", pmp_addr, pmp_data, pmp_cnt);
+              sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_write %06o %012" T_UINT64_FMT "o %2x\n",
+                         pmp_addr, pmp_data, pmp_cnt);
               pmp_addr++;
               xfer = 1;  /* Read in a word */
               pmp_data = *data & 0xf;
@@ -726,10 +708,10 @@ chan_write_byte(uint8 *data) {
         pmp_cnt++;
         if ((pmp_cnt & 0xf) == 9) {
             pmp_cnt = BUFF_EMPTY;
-            if (pmp_addr >= (int)MEMSIZE)
+            if (Mem_write_word(pmp_addr, &pmp_data, 0))
                 return pmp_posterror(NXM_ERR);
-            M[pmp_addr] = pmp_data;
-            sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_write %06o %012" T_UINT64_FMT "o %2x\n", pmp_addr, pmp_data, pmp_cnt);
+            sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_write %06o %012" T_UINT64_FMT "o %2x\n",
+                         pmp_addr, pmp_data, pmp_cnt);
             pmp_addr++;
             xfer = 1;  /* Read in a word */
         }
@@ -774,11 +756,10 @@ chan_end(uint8 flags) {
     /* Flush buffer if there was any change */
     if (pmp_cnt & BUFF_DIRTY) {
         pmp_cnt = BUFF_EMPTY;
-        if (pmp_addr >= (int)MEMSIZE) {
+        if (Mem_write_word(pmp_addr, &pmp_data, 0)) {
             (void) pmp_posterror(NXM_ERR);
             return;
         }
-        M[pmp_addr] = pmp_data;
         sim_debug(DEBUG_DATA, &pmp_dev, "chan_write %012" T_UINT64_FMT "o\n", pmp_data);
         pmp_addr++;
     }
@@ -792,7 +773,8 @@ chan_end(uint8 flags) {
     /* If channel is also finished, then skip any more data commands. */
     if (pmp_status & (CHN_END|DEV_END)) {
         pmp_cnt = BUFF_CHNEND;
-        sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_endc %012" T_UINT64_FMT "o %06o\n", pmp_status, pmp_cmd);
+        sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_endc %012" T_UINT64_FMT "o %06o\n",
+                         pmp_status, pmp_cmd);
 
         /* While command has chain data set, continue to skip */
         if (pmp_cmd & DATCH_ON) {
@@ -808,7 +790,8 @@ chan_end(uint8 flags) {
         /* Indicate that device is done */
         pmp_statusb &= ~OP1;
     }
-    sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_endf %012" T_UINT64_FMT "o %06o\n", pmp_status, pmp_statusb);
+    sim_debug(DEBUG_DETAIL, &pmp_dev, "chan_endf %012" T_UINT64_FMT "o %06o\n",
+                         pmp_status, pmp_statusb);
     (void)pmp_checkirq();
 }
 
@@ -959,7 +942,8 @@ pmp_startcmd() {
          pmp_statusb &= ~IDLE_CH;
          pmp_cur_unit->CMD &= ~(DK_PARAM);
          pmp_cur_unit->CMD |= cmd;
-         sim_debug(DEBUG_CMD, &pmp_dev, "CMD unit=%d CMD=%02x\n", unit, pmp_cur_unit->CMD);
+         sim_debug(DEBUG_CMD, &pmp_dev, "CMD unit=%d CMD=%02x\n", unit,
+                         pmp_cur_unit->CMD);
          return;
 
     case 0x0:               /* Status */
@@ -1233,8 +1217,8 @@ index:
          /* Compute delay based of difference. */
          /* Set next state = index */
          i = (uptr->POS >> 8) - data->cyl;
-         sim_debug(DEBUG_DETAIL, dptr, "seek unit=%d %d %d s=%x\n", unit, uptr->POS >> 8, i,
-                 data->state);
+         sim_debug(DEBUG_DETAIL, dptr, "seek unit=%d %d %d s=%x\n", unit, uptr->POS >> 8,
+                 i, data->state);
          if (i == 0) {
              uptr->CMD &= ~(DK_INDEX|DK_INDEX2);
              data->state = DK_POS_INDEX;
@@ -1256,8 +1240,8 @@ index:
                 sim_activate(uptr, 200);
              }
          }
-         sim_debug(DEBUG_DETAIL, dptr, "seek next unit=%d %d %d %x\n", unit, uptr->POS >> 8,
-                data->cyl, data->state);
+         sim_debug(DEBUG_DETAIL, dptr, "seek next unit=%d %d %d %x\n", unit,
+                uptr->POS >> 8, data->cyl, data->state);
          break;
     }
 
@@ -1449,7 +1433,6 @@ sense_end:
              uptr->CMD |= DK_PARAM;
              data->state = DK_POS_SEEK;
              sim_debug(DEBUG_DETAIL, dptr, "seek unit=%d doing\n", unit);
-//             chan_end(SNS_CHNEND);
          } else {
              pmp_adjpos(uptr);
              uptr->LASTCMD = cmd;
@@ -1598,7 +1581,8 @@ sense_end:
          if (state == DK_POS_CNT && count == 0) {
              sim_debug(DEBUG_DETAIL, dptr, "search ID unit=%d %x %d %x %d\n",
                            unit, state, count, uptr->POS, data->rec);
-             sim_debug(DEBUG_DETAIL, dptr, "ID unit=%d %02x %02x %02x %02x %02x %02x %02x %02x\n",
+             sim_debug(DEBUG_DETAIL, dptr,
+                      "ID unit=%d %02x %02x %02x %02x %02x %02x %02x %02x\n",
                  unit, da[0], da[1], da[2], da[3], da[4], da[5], da[6], da[7]);
              uptr->CMD &= ~(DK_SRCOK|DK_SHORTSRC|DK_NOEQ|DK_HIGH);
              uptr->CMD |= DK_PARAM;
@@ -1770,7 +1754,8 @@ sense_end:
          if (count == 0 && state == DK_POS_CNT && data->rec != 0) {
              uptr->CMD |= DK_PARAM;
              uptr->CMD &= ~(DK_INDEX|DK_INDEX2);
-             sim_debug(DEBUG_DETAIL, dptr, "RD CKD unit=%d %d k=%d d=%d %02x %04x %04x\n",
+             sim_debug(DEBUG_DETAIL, dptr,
+                  "RD CKD unit=%d %d k=%d d=%d %02x %04x %04x\n",
                  unit, data->rec, data->klen, data->dlen, data->state, data->dlen,
                  8 + data->klen + data->dlen);
          }
@@ -2251,7 +2236,8 @@ pmp_attach(UNIT * uptr, CONST char *file)
        return r;
 
     if (sim_fread(&hdr, 1, sizeof(struct pmp_header), uptr->fileref) !=
-          sizeof(struct pmp_header) || strncmp((CONST char *)&hdr.devid[0], "CKD_P370", 8) != 0 || flag) {
+          sizeof(struct pmp_header) || strncmp((CONST char *)&hdr.devid[0],
+                   "CKD_P370", 8) != 0 || flag) {
         if (pmp_format(uptr, flag)) {
             detach_unit(uptr);
             return SCPE_FMT;
@@ -2292,12 +2278,14 @@ pmp_attach(UNIT * uptr, CONST char *file)
         detach_unit(uptr);
         return SCPE_ARG;
     }
+    if ((sim_switches & SIM_SW_REST) == 0) {
     (void)sim_fseek(uptr->fileref, sizeof(struct pmp_header), SEEK_SET);
     (void)sim_fread(data->cbuf, 1, tsize, uptr->fileref);
     data->cpos = sizeof(struct pmp_header);
     data->ccyl = 0;
     uptr->CMD |= DK_ATTN;
     pmp_statusb |= REQ_CH;
+    }
     sim_activate(uptr, 100);
     return SCPE_OK;
 }
