@@ -158,7 +158,7 @@ if __name__ == '__main__':
     outfile_name = flags.get('file') or os.path.join(GEN_SCRIPT_DIR, "simh_makefile.cmake")
     if outfile_name != '-':
         outfile_stream = open(outfile_name, "w")
-        print('{0}: Writing "all-in-one" to {1}'.format(GEN_SCRIPT_NAME, outfile_name))
+        print('==== writing "all-in-one" to {0}'.format(outfile_name))
     else:
         outfile_stream = None
 

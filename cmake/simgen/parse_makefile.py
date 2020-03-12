@@ -21,7 +21,8 @@ _norm_var_rx = re.compile(r"\$\(([A-Za-z]\w*)\)")
 _special_vars = frozenset(['DISPLAYL',
     'DISPLAYVT',
     'DISPLAY340',
-    'DISPLAYNG'])
+    'DISPLAYNG',
+    'DISPLAYIII'])
 
 
 def parse_makefile(fn, g_vars=None, g_rules=None, g_actions=None):
