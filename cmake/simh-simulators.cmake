@@ -47,6 +47,7 @@ set(VAXD       "${CMAKE_SOURCE_DIR}/VAX")
 
 set(DISPLAYD   "${CMAKE_SOURCE_DIR}/display")
 set(DISPLAY340 "${DISPLAYD}/type340.c")
+set(DISPLAYIII "${DISPLAYD}/iii.c")
 set(DISPLAYNG  "${DISPLAYD}/ng.c")
 set(DISPLAYVT  "${DISPLAYD}/vt11.c")
 
