@@ -28,6 +28,7 @@ set(ID16D      "${CMAKE_SOURCE_DIR}/Interdata")
 set(ID32D      "${CMAKE_SOURCE_DIR}/Interdata")
 set(KA10D      "${CMAKE_SOURCE_DIR}/PDP10")
 set(KI10D      "${CMAKE_SOURCE_DIR}/PDP10")
+set(KL10D      "${CMAKE_SOURCE_DIR}/PDP10")
 set(LGPD       "${CMAKE_SOURCE_DIR}/LGP")
 set(NOVAD      "${CMAKE_SOURCE_DIR}/NOVA")
 set(PDP10D     "${CMAKE_SOURCE_DIR}/PDP10")
@@ -46,6 +47,7 @@ set(VAXD       "${CMAKE_SOURCE_DIR}/VAX")
 
 set(DISPLAYD   "${CMAKE_SOURCE_DIR}/display")
 set(DISPLAY340 "${DISPLAYD}/type340.c")
+set(DISPLAYIII "${DISPLAYD}/iii.c")
 set(DISPLAYNG  "${DISPLAYD}/ng.c")
 set(DISPLAYVT  "${DISPLAYD}/vt11.c")
 
@@ -1029,6 +1031,7 @@ if (BUILD_WITH_VIDEO)
             ${KA10D}/kx10_tu.c
             ${KA10D}/kx10_rs.c
             ${KA10D}/ka10_pd.c
+            ${KA10D}/kx10_rh.c
             ${KA10D}/kx10_imp.c
             ${KA10D}/ka10_tk10.c
             ${KA10D}/ka10_mty.c
@@ -1047,7 +1050,10 @@ if (BUILD_WITH_VIDEO)
             ${KA10D}/ka10_dpk.c
             ${KA10D}/kx10_dpy.c
             ${PDP10D}/ka10_ai.c
+            ${KA10D}/ka10_iii.c
+            ${KA10D}/kx10_disk.c
             ${DISPLAY340}
+            ${DISPLAYIII}
         INCLUDES
             ${KA10D}
         DEFINES
@@ -1076,6 +1082,7 @@ if (BUILD_WITH_VIDEO)
             ${KI10D}/kx10_lp.c
             ${KI10D}/kx10_pt.c
             ${KI10D}/kx10_dc.c
+            ${KI10D}/kx10_rh.c
             ${KI10D}/kx10_rp.c
             ${KI10D}/kx10_rc.c
             ${KI10D}/kx10_dt.c
@@ -1086,6 +1093,7 @@ if (BUILD_WITH_VIDEO)
             ${KI10D}/kx10_rs.c
             ${KI10D}/kx10_imp.c
             ${KI10D}/kx10_dpy.c
+            ${KI10D}/kx10_disk.c
             ${DISPLAY340}
         INCLUDES
             ${KI10D}
@@ -1096,6 +1104,32 @@ if (BUILD_WITH_VIDEO)
         TEST ki10
         SOURCE_DIR ${PDP10D})
 endif (BUILD_WITH_VIDEO)
+
+add_simulator(pdp10-kl
+    SOURCES
+        ${KL10D}/kx10_cpu.c
+        ${KL10D}/kx10_sys.c
+        ${KL10D}/kx10_df.c
+        ${KL10D}/kx10_mt.c
+        ${KL10D}/kx10_dc.c
+        ${KL10D}/kx10_rh.c
+        ${KL10D}/kx10_rp.c
+        ${KL10D}/kx10_tu.c
+        ${KL10D}/kx10_rs.c
+        ${KL10D}/kx10_imp.c
+        ${KL10D}/kl10_fe.c
+        ${KL10D}/ka10_pd.c
+        ${KL10D}/ka10_ch10.c
+        ${KL10D}/kx10_lp.c
+        ${KL10D}/kl10_nia.c
+        ${KL10D}/kx10_disk.c
+    INCLUDES
+        ${KL10D}
+    DEFINES
+        KL=1
+    INT64
+    TEST kl10
+    SOURCE_DIR ${PDP10D})
 
 if (BUILD_WITH_VIDEO)
     add_simulator(pdp6
@@ -1113,6 +1147,7 @@ if (BUILD_WITH_VIDEO)
             ${PDP6D}/pdp6_dsk.c
             ${PDP6D}/pdp6_dcs.c
             ${PDP6D}/kx10_dpy.c
+            ${PDP6D}/pdp6_slave.c
             ${DISPLAY340}
         INCLUDES
             ${PDP6D}

@@ -69,7 +69,8 @@ class CMakeBuildSystem:
         # emit into the CMakeLists.txt files.
         self.vars = {'DISPLAYVT': ['${DISPLAYD}/vt11.c'],
             'DISPLAY340': ['${DISPLAYD}/type340.c'],
-            'DISPLAYNG': ['${DISPLAYD}/ng.c'] }
+            'DISPLAYNG': ['${DISPLAYD}/ng.c'],
+            'DISPLAYIII': ['${DISPLAYD}/iii.c'] }
         # Subdirectory -> SimColletion mapping
         self.dirs = {}
 

@@ -119,7 +119,7 @@ Other objectives include, besides [CMake][cmake]:
 #### Richard Cornwell has implemented the IBM 701, IBM 704, IBM 7010/1410, IBM 7070/7074, IBM 7080/702/705/7053 and IBM 7090/7094/709/704 simulators.
 
 <!-- omit in toc -->
-#### Richard Cornwell has implemented the PDP6, PDP10-KA, and PDP10-KI simulators.
+#### Richard Cornwell has implemented the PDP6, PDP10-KA, PDP10-KI and PDP10-KL simulators.
 
 <!-- omit in toc -->
 #### Dave Bryan has implemented an HP-3000 Series III simulator.
@@ -274,7 +274,7 @@ Host platforms which have libSDL2 available can leverage this functionality.
     RAW Disk Access (including CDROM)
     Virtual Disk Container files, including differencing disks
     File System type detection to accurately autosize disks.
-    Recognized file systems are: DEC ODS1, DEC ODS2, DEC RT11, Ultrix Partitions
+    Recognized file systems are: DEC ODS1, DEC ODS2, DEC RT11, DEC RSX11, Ultrix Partitions
 
 #### Tape Extensions
     AWS format tape support
@@ -349,6 +349,9 @@ The following extensions to the SCP command language without affecting prior beh
                                  Restores the default CTRL+C behavior for the
                                  currently running command procedure.
 
+    DO <stdin>
+                                 Invokes a nested DO command with input from the 
+                                 running console.
 
 Error traps can be taken for any command which returns a status other than SCPE_STEP, SCPE_OK, and SCPE_EXIT.   
 
@@ -587,6 +590,7 @@ Different Linux distributions have different package management systems:
 Ubuntu:
 
     # apt-get install libpcap-dev
+    # apt-get install libpcre3-dev
     # apt-get install vde2
     # apt-get install libsdl2
     # apt-get install libsdl2_ttf
