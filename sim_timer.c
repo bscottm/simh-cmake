@@ -3182,7 +3182,7 @@ else {
     }
 rtc = &rtcs[tmr];
 if ((NULL == rtc->clock_unit) || (rtc->hz == 0)) {
-    sim_debug (DBG_TIM, &sim_timer_dev, "sim_clock_coschedule_tmr(%s, tmr=%d, ticks=%d) - no clock activating after %d %s\n", sim_uname (uptr), tmr, ticks, ticks * (rtc->currd ? rtc->currd : rtcs[sim_rtcn_calibrated_tmr ()].currd), sim_vm_interval_units);
+    sim_debug (DBG_TIM, &sim_timer_dev, "sim_clock_coschedule_tmr(%s, tmr=%" SIZE_T_FMT "u, ticks=%d) - no clock activating after %d %s\n", sim_uname (uptr), tmr, ticks, ticks * (rtc->currd ? rtc->currd : rtcs[sim_rtcn_calibrated_tmr ()].currd), sim_vm_interval_units);
     return sim_activate (uptr, ticks * (rtc->currd ? rtc->currd : rtcs[sim_rtcn_calibrated_tmr ()].currd));
     }
 else {
