@@ -611,7 +611,7 @@ iii_svc (UNIT *uptr)
 skip_up:
      if (uptr->STATUS & RUN_FLG) {
          iii_instr = M[uptr->MAR];
-         sim_debug(DEBUG_DETAIL, &iii_dev, "III: fetch %06o %012llo\n",
+         sim_debug(DEBUG_DETAIL, &iii_dev, "III: fetch %06o %012" T_UINT64_FMT "o\n",
                       uptr->MAR, iii_instr);
          uptr->MAR++;
          uptr->MAR &= RMASK;

@@ -175,7 +175,7 @@ t_stat imx_devio(uint32 dev, uint64 *data)
 
     switch(dev & 07) {
     case CONO|4:
-        sim_debug(DEBUG_CONO, &imx_dev, "%06llo\n", *data);
+        sim_debug(DEBUG_CONO, &imx_dev, "%06" T_UINT64_FMT "o\n", *data);
         status &= ~(IMX_CONO|IMX_DONE);
         status |= *data & IMX_CONO;
         imx_data = 0;
@@ -186,15 +186,15 @@ t_stat imx_devio(uint32 dev, uint64 *data)
         break;
     case CONI|4:
         *data = status & IMX_CONI;
-        sim_debug(DEBUG_CONI, &imx_dev, "%012llo\n", *data);
+        sim_debug(DEBUG_CONI, &imx_dev, "%012" T_UINT64_FMT "o\n", *data);
         break;
     case DATAO|4:
-        sim_debug(DEBUG_DATAIO, &imx_dev, "DATAO %012llo\n", *data);
+        sim_debug(DEBUG_DATAIO, &imx_dev, "DATAO %012" T_UINT64_FMT "o\n", *data);
         initial_channel = *data & IMX_CHANNEL;
         break;
     case DATAI|4:
         *data = imx_data;
-        sim_debug(DEBUG_DATAIO, &imx_dev, "DATAI %012llo\n", *data);
+        sim_debug(DEBUG_DATAIO, &imx_dev, "DATAI %012" T_UINT64_FMT "o\n", *data);
         imx_data = 0;
         imx_samples = 0;
         status &= ~IMX_DONE;

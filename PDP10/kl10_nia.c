@@ -468,12 +468,12 @@ t_stat nia_devio(uint32 dev, uint64 *data)
         }
         if (nia_data.status & (NIA_CPE|NIA_RQA))
             set_interrupt(NIA_DEVNUM, nia_data.status & NIA_PIA);
-        sim_debug(DEBUG_CONO, dptr, "NIA %03o CONO %06o PC=%06o %012llo\n", dev,
+        sim_debug(DEBUG_CONO, dptr, "NIA %03o CONO %06o PC=%06o %012" T_UINT64_FMT "o\n", dev,
                  (uint32)(*data & RMASK), PC, nia_data.status);
         break;
     case CONI:
         *data = nia_data.status|NIA_PPT|NIA_PID;
-        sim_debug(DEBUG_CONI, dptr, "NIA %03o CONI %012llo PC=%o\n", dev,
+        sim_debug(DEBUG_CONI, dptr, "NIA %03o CONI %012" T_UINT64_FMT "o PC=%o\n", dev,
                            *data, PC);
         break;
     case DATAO:
@@ -491,7 +491,7 @@ t_stat nia_devio(uint32 dev, uint64 *data)
                  dev, nia_data.rar, (uint32)(*data & RMASK));
             }
         }
-        sim_debug(DEBUG_DATAIO, dptr, "NIA %03o DATO %012llo PC=%o\n",
+        sim_debug(DEBUG_DATAIO, dptr, "NIA %03o DATO %012" T_UINT64_FMT "o PC=%o\n",
                  dev, *data, PC);
         break;
     case DATAI:
@@ -506,7 +506,7 @@ t_stat nia_devio(uint32 dev, uint64 *data)
                    *data = (uint64)nia_data.uver[nia_data.rar - 0274];
             }
         }
-        sim_debug(DEBUG_DATAIO, dptr, "NIA %03o DATI %012llo PC=%o\n",
+        sim_debug(DEBUG_DATAIO, dptr, "NIA %03o DATI %012" T_UINT64_FMT "o PC=%o\n",
                  dev, *data, PC);
         break;
     }
@@ -520,12 +520,14 @@ ipv4_inet_ntoa(struct in_addr ip)
    static char str[20];
 
    if (sim_end)
-       sprintf (str, "%d.%d.%d.%d", ip.s_addr & 0xFF,
+       sprintf (str, "%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u",
+                            ip.s_addr & 0xFF,
                             (ip.s_addr >> 8) & 0xFF,
                             (ip.s_addr >> 16) & 0xFF,
                             (ip.s_addr >> 24) & 0xFF);
    else
-       sprintf (str, "%d.%d.%d.%d", (ip.s_addr >> 24) & 0xFF,
+       sprintf (str, "%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u",
+                              (ip.s_addr >> 24) & 0xFF,
                               (ip.s_addr >> 16) & 0xFF,
                               (ip.s_addr >> 8) & 0xFF,
                                ip.s_addr & 0xFF);
@@ -559,7 +561,7 @@ void nia_start()
           nia_error(CHNERR);
           return;
     }
-    sim_debug(DEBUG_DETAIL, &nia_dev, "NIA PCB %012llo %o\n", nia_rh.buf,
+    sim_debug(DEBUG_DETAIL, &nia_dev, "NIA PCB %012" T_UINT64_FMT "o %o\n", nia_rh.buf,
                                                               nia_rh.wcr);
     nia_data.pcb = (t_addr)(nia_rh.buf & AMASK);
     nia_data.resp_hdr = (t_addr)((nia_rh.buf + 4) & AMASK);
@@ -569,7 +571,7 @@ void nia_start()
           nia_error(CHNERR);
           return;
     }
-    sim_debug(DEBUG_DETAIL, &nia_dev, "NIA PIA %012llo %o\n", nia_rh.buf,
+    sim_debug(DEBUG_DETAIL, &nia_dev, "NIA PIA %012" T_UINT64_FMT "o %o\n", nia_rh.buf,
                                                               nia_rh.wcr);
     nia_data.pia = (int)(nia_rh.buf & 7);
     nia_data.status |= NIA_MRN;
@@ -871,7 +873,7 @@ void nia_load_ptt()
             nia_error(EBSERR);
             return;
         }
-        sim_debug(DEBUG_DETAIL, &nia_dev, "NIA load ptt%d: %012llo %012llo\n\r",
+        sim_debug(DEBUG_DETAIL, &nia_dev, "NIA load ptt%d: %012" T_UINT64_FMT "o %012" T_UINT64_FMT "o\n\r",
               n,  word1, word2);
         if (word1 & SMASK) {
            uint16 type;
@@ -1349,7 +1351,7 @@ t_stat nia_cmd_srv(UNIT * uptr)
        nia_data.cmd_rply = (t_addr)(word1 & AMASK);
     }
     for(i = 0; i < len; i++)
-        sim_debug(DEBUG_DETAIL, &nia_dev, "NIA rcmd: %d %09llx %012llo\n",
+        sim_debug(DEBUG_DETAIL, &nia_dev, "NIA rcmd: %d %09" T_UINT64_FMT "x %012" T_UINT64_FMT "o\n",
                 i, M[nia_data.cmd_entry + i], M[nia_data.cmd_entry + i]);
     (void)nia_putq(nia_data.cmd_rply, &nia_data.cmd_entry);
     sim_activate(uptr, 500);
@@ -1466,7 +1468,7 @@ nia_rec_pkt()
     }
 
     for(i = 0; i < 10; i++)
-         sim_debug(DEBUG_DETAIL, &nia_dev, "NIA recv: %d %09llx %012llo\n",
+         sim_debug(DEBUG_DETAIL, &nia_dev, "NIA recv: %d %09" T_UINT64_FMT "x %012" T_UINT64_FMT "o\n",
                  i, M[nia_data.rec_entry + i], M[nia_data.rec_entry + i]);
     /* All done with packet */
     nia_data.r_pkt = 0;
