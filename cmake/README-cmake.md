@@ -148,7 +148,12 @@ and `SDL2-ttf`__ -- let `simh-cmake` compile and locally install those two depen
 is an active ticket with Kitware to resolve this issue.
 
 __Emulated Ethernet via Packet Capture (PCAP):__ If you want emulated Ethernet support in
-Windows-based simulators, you __have__ to install the [NPCAP][npcap] package.
+Windows-based simulators, you __have__ to install the [WinPCAP][winpcap] package. __Note__:
+The follow-on project, [NPCAP](https://nmap.org/npcap/), does not support packet reinjection
+whereas [WinPCAP][winpcap] does. [NPCAP](https://nmap.org/npcap/) cannot be used (at the moment)
+with `SIMH`. While there are no open CERT or CVE advisories and [WinPCAP][winpcap] still
+operates under Windows(tm) 10, [WinPCAP][winpcap] may not be a viable choice in certain
+configuration-controlled environments.
 
 ```shell
 # If you have Visual Studio installed, skip the following two development
@@ -253,7 +258,7 @@ respective package manager.
 | [Git][gitscm]            | Dev. tool  | git             | git            | git                    | (1, 2) |
 | [bison][bison]           | Dev. tool  | bison           | bison          | winflexbison           | (2, 3) |
 | [flex][flex]             | Dev. tool  | flex            | flex           | winflexbison           | (2, 3) |
-| [Npcap][npcap]           | Runtime    |                 |                |                        | (4)    |
+| [WinPCAP][winpcap]       | Runtime    |                 |                |                        | (4)    |
 | [zlib][zlib]             | Dependency | zlib1g-dev      | zlib-devel     |                        | (5)    |
 | [pcre2][pcre2]           | Dependency | libpcre2-dev    | pcre2-devel    |                        | (5)    |
 | [libpng][libpng]         | Dependency | libpng-dev      | libpng-devel   |                        | (5)    |
@@ -272,7 +277,7 @@ _Notes_:
     [bison][bison] and [flex][flex] are _only_ required to compile the [libpcap][libpcap] packet
     capture library. If you do not need emulated native Ethernet networking, [bison][bison] and
     [flex][flex] are optional.
-(4) [Npcap][npcap] is a Windows packet capture device driver. It is a runtime requirement used
+(4) [WinPCAP][winpcap] is a Windows packet capture device driver. It is a runtime requirement used
     by simulators that emulate native Ethernet networking on Windows.
 (5) If the package name is blank or you do not have the package installed, `simh-cmake` will
     download and compile the library dependency from source. [Scoop][scoop] does not provide these
@@ -650,7 +655,7 @@ libraries.
 [gitscm]: https://git-scm.com/
 [bison]: https://www.gnu.org/software/bison/
 [flex]: https://github.com/westes/flex
-[npcap]: https://nmap.org/npcap/
+[winpcap]: https://www.winpcap.org/
 [zlib]: https://www.zlib.net
 [pcre2]: https://pcre.org
 [libpng]: http://www.libpng.org/pub/png/libpng.html
