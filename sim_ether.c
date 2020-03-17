@@ -1651,7 +1651,9 @@ static int _eth_get_system_id (char *buf, size_t buf_size)
 #endif
   if ((status = RegOpenKeyExA (HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Cryptography", 0, KEY_QUERY_VALUE|KEY_WOW64_64KEY, &reghnd)) != ERROR_SUCCESS)
     return -1;
-  reglen = buf_size;
+  if (buf_size < 37)
+    return -1;
+  reglen = buf_size - 1;
   if ((status = RegQueryValueExA (reghnd, "MachineGuid", NULL, &regtype, (LPBYTE)buf, &reglen)) != ERROR_SUCCESS) {
     RegCloseKey (reghnd);
     return -1;
@@ -1670,19 +1672,16 @@ static int _eth_get_system_id (char *buf, size_t buf_size)
 FILE *f;
 
 memset (buf, 0, buf_size);
-if ((f = fopen ("/etc/machine-id", "r"))) {
-  if (fread (buf, 1, buf_size - 1, f))
-    fclose (f);
-  else
+if (buf_size < 37)
+    return -1;
+if ((f = fopen ("/etc/machine-id", "r")) == NULL)
+  f = popen ("hostname", "r");
+if (f) {
+  size_t read_size;
+
+  read_size = fread (buf, 1, buf_size - 1, f);
+  buf[read_size] = '\0';
   fclose (f);
-  }
-else {
-  if ((f = popen ("hostname", "r"))) {
-    if (fread (buf, 1, buf_size - 1, f))
-      pclose (f);
-    else
-    pclose (f);
-    }
   }
 while ((strlen (buf) > 0) && sim_isspace(buf[strlen (buf) - 1]))
   buf[strlen (buf) - 1] = '\0';
@@ -1957,7 +1956,8 @@ return NULL;
 t_stat eth_set_async (ETH_DEV *dev, int latency)
 {
 #if !defined(USE_READER_THREAD) || !defined(SIM_ASYNCH_IO)
-char *msg = "Eth: can't operate asynchronously, must poll\n";
+char *msg = "Eth: Can't operate asynchronously, must poll.\n"
+            " *** Build with USE_READER_THREAD defined and link with pthreads for asynchronous operation. ***\n";
 return sim_messagef (SCPE_NOFNC, "%s", msg);
 #else
 int wakeup_needed;
@@ -2071,7 +2071,7 @@ if (0 == strncmp("tap:", savname, 4)) {
         strcpy(savname, devname);
         }
 #if defined (__APPLE__)
-      if (1) {
+      if (tun < 0) {    /* Not good yet? */
         struct ifreq ifr;
         int s;
 
@@ -3838,7 +3838,7 @@ else
 /* test reflections.  This is done early in this routine since eth_reflect */
 /* calls eth_filter recursively and thus changes the state of the device. */
 if (dev->reflections == -1)
-  eth_reflect(dev);
+  status = eth_reflect(dev);
 
 /* set new filter addresses */
 for (i = 0; i < addr_count; i++)

@@ -177,7 +177,7 @@ function (add_simulator _targ)
         string(APPEND test_fname "/tests/${SIMH_TEST}_test.ini")
 
         IF (EXISTS "${test_fname}")
-            add_test(NAME "test-${_targ}" COMMAND "${_targ}" "${test_fname}")
+            add_test(NAME "test-${_targ}" COMMAND "${_targ}" "${test_fname}" "-v")
         ENDIF (EXISTS "${test_fname}")
     endif (DEFINED SIMH_TEST)
 
