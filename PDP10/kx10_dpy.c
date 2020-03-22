@@ -543,7 +543,7 @@ t_stat wcnsls_devio(uint32 dev, uint64 *data) {
           *data = keyboard_switches ();
         }
 
-        sim_debug(DEBUG_DATAIO, &wcnsls_dev, "WCNSLS %03o DATI %012llo PC=%06o\n",
+        sim_debug(DEBUG_DATAIO, &wcnsls_dev, "WCNSLS %03o DATI %012" T_UINT64_FMT "o PC=%06o\n",
                   dev, *data, PC);
         break;
     }
