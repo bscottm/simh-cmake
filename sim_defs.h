@@ -178,6 +178,16 @@ extern "C" {
 #undef PAGESIZE
 #endif
 
+/* Provide an implementation for MIN/MAX macros. These are defined in the various
+ * simulators often enough to deserve promotion here: */
+#if defined(__GNUC__)
+#  define MIN(a,b) ({__typeof__(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
+#  define MAX(a,b) ({__typeof__(a) _a = (a), _b = (b); _a > _b ? _a : _b; })
+#else
+#  define MIN(a,b)  (((a) < (b)) ? (a) : (b))
+#  define MAX(a,b)  (((a) > (b)) ? (a) : (b))
+#endif
+
 
 #ifndef TRUE
 #define TRUE            1

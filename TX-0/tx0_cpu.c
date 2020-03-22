@@ -234,8 +234,6 @@ In addtion, many of the operate-class micro-orders changed.
 #define UNIT_EXT_INST   (1 << UNIT_V_EXT)
 #define UNIT_MSIZE      (1 << UNIT_V_MSIZE)
 
-#define MIN(a,b) (((a) < (b)) ? (a) : (b))
-
 #define HIST_PC         0x40000000
 #define HIST_V_SHF      18
 #define HIST_MIN        64

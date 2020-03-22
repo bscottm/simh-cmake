@@ -375,8 +375,6 @@
 #include <unistd.h>
 #endif
 
-#define MAX(a,b) (((a) > (b)) ? (a) : (b))
-
 /* Internal routines - forward declarations */
 static int _eth_get_system_id (char *buf, size_t buf_size);
 static int _eth_devices (int max, ETH_LIST* dev);   /* get ethernet devices on host */

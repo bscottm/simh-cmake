@@ -246,13 +246,6 @@
 #include <dlfcn.h>
 #endif
 
-#ifndef MAX
-#define MAX(a,b)  (((a) >= (b)) ? (a) : (b))
-#endif
-#ifndef MIN
-#define MIN(a,b)  (((a) <= (b)) ? (a) : (b))
-#endif
-
 /* search logical and boolean ops */
 
 #define SCH_OR          0                               /* search logicals */
@@ -12930,7 +12923,9 @@ while ((eol = strchr (debug_line_buf, '\n')) || flush) {
         if (debug_line_count > 1) {
             char countstr[32];
 
-            sprintf (countstr, "same as above (%d time%s)\r\n", (int)(debug_line_count - 1), ((debug_line_count - 1) != 1) ? "s" : "");
+            /* Had "\r\n" as the line terminator, which only makes sense if the output stream is in
+               binary (vice text) mode. */
+            sprintf (countstr, "same as above (%d time%s)\n", (int)(debug_line_count - 1), ((debug_line_count - 1) != 1) ? "s" : "");
             _debug_fwrite (debug_line_last_prefix, strlen (debug_line_last_prefix));
             _debug_fwrite (countstr, strlen (countstr));
             }
@@ -13364,7 +13359,8 @@ if (sim_deb && dptr && ((dptr->dctrl | (uptr ? uptr->dctrl : 0)) & dbits)) {
                     if (!debug_unterm)                  /* print prefix when required */
                         _sim_debug_write (debug_prefix, strlen (debug_prefix));
                     _sim_debug_write (&buf[j], i-j);
-                    _sim_debug_write ("\r\n", 2);
+                    /* _sim_debug_write ("\r\n", 2); */ /* Would make sense if stdout was in binary mode. */
+                    _sim_debug_write ("\n", 1);
                     }
                 debug_unterm = 0;
                 }

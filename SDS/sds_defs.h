@@ -31,6 +31,13 @@
 #define SDS_DEFS_H_    0
 
 #include "sim_defs.h"                                   /* simulator defns */
+/* Acutally defined as opcodes for this simulator. */
+#if defined(MIN)
+#undef MIN
+#endif
+#if defined(MAX)
+#undef MAX
+#endif
 
 #if defined(USE_INT64) || defined(USE_ADDR64)
 #error "SDS 940 does not support 64b values!"
