@@ -113,7 +113,7 @@ void sim_rtcn_get_time (struct timespec *now, size_t tmr);
 t_stat sim_rtcn_tick_ack (uint32 time, size_t tmr);
 void sim_rtcn_init_all (void);
 int32 sim_rtcn_calb (uint32 ticksper, size_t tmr);
-int32 sim_rtcn_calb_tick (size_t tmr);
+/*int32 sim_rtcn_calb_tick (size_t tmr);*/
 int32 sim_rtc_init (int32 time);
 int32 sim_rtc_calb (uint32 ticksper);
 t_stat sim_set_timers (int32 arg, CONST char *cptr);
