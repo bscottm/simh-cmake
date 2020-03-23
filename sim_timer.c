@@ -2134,16 +2134,16 @@ sim_throt_ms_start = sim_os_msec ();
 sim_throt_inst_start = sim_gtime ();
 if (sim_throt_type != SIM_THROT_SPC) {          /* dynamic? */
     switch (sim_throt_type) {
-        case SIM_THROT_PCT:
-            sim_throt_wait = (int32)((sim_throt_peak_cps * sim_throt_val) / 100.0);
-            break;
-        case SIM_THROT_KCYC:
-            sim_throt_wait = sim_throt_val * 1000;
-            break;
-        case SIM_THROT_MCYC:
-            sim_throt_wait = sim_throt_val * 1000000;
-            break;
-        }
+	case SIM_THROT_PCT:
+	    sim_throt_wait = (int32)((sim_throt_peak_cps * sim_throt_val) / 100.0);
+	    break;
+	case SIM_THROT_KCYC:
+	    sim_throt_wait = sim_throt_val * 1000;
+	    break;
+	case SIM_THROT_MCYC:
+	    sim_throt_wait = sim_throt_val * 1000000;
+	    break;
+	}
     sim_throt_state = SIM_THROT_STATE_TIME;     /* next state */
     }
 else {                                          /* Non dynamic? */
