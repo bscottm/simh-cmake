@@ -165,6 +165,8 @@ return real_sim_os_ms_sleep (msec);
 t_bool sim_idle_enab = FALSE;                       /* global flag */
 volatile t_bool sim_idle_wait = FALSE;              /* global flag */
 
+int32 sim_vm_initial_ips = SIM_INITIAL_IPS;
+
 static int32 sim_precalibrate_ips = SIM_INITIAL_IPS;
 static size_t sim_calb_tmr = SIM_INVALID_TMR;       /* the system calibrated timer */
 static size_t sim_calb_tmr_last = SIM_INVALID_TMR;  /* shadow value when at sim> prompt */
@@ -3655,7 +3657,7 @@ sim_idle_stable = 0;
 double 
 sim_host_speed_factor (void)
 {
-if (sim_precalibrate_ips > SIM_INITIAL_IPS)
+if (sim_precalibrate_ips > sim_vm_initial_ips)
     return 1.0;
-return (double)SIM_INITIAL_IPS / (double)sim_precalibrate_ips;
+return (double)sim_vm_initial_ips / (double)sim_precalibrate_ips;
 }
