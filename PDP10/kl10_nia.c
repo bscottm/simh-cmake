@@ -1145,6 +1145,12 @@ int nia_send_pkt(uint64 cmd)
     memcpy(hdr->src, nia_data.mac, sizeof(ETH_MAC));
     /* Set packet length */
     nia_data.snd_buff.len = len + sizeof(struct nia_eth_hdr);
+    /* Preappend length if asking for pad */
+    if ((cmd & (NIA_FLG_PAD << 8)) != 0) {
+        *data++ = len & 0377;
+        *data++ = (len >> 8) & 0377;
+        nia_data.snd_buff.len += 2;
+    }
     /* Copy over rest of packet */
     if (cmd & (NIA_FLG_BSD << 8)) {
         if (Mem_read_word(nia_data.cmd_entry + 9, &word1, 0)) {
@@ -1177,7 +1183,7 @@ int nia_send_pkt(uint64 cmd)
     if (((cmd & (NIA_FLG_PAD << 8)) != 0) &&
                nia_data.snd_buff.len < ETH_MIN_PACKET) {
         while (nia_data.snd_buff.len < ETH_MIN_PACKET) {
-           *data = 0;
+           *data++ = 0;
            nia_data.snd_buff.len++;
         }
     }
