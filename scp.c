@@ -15463,8 +15463,12 @@ if (sim_switches & SWMASK ('D')) {
     }
 for (i = 0; (dptr = sim_devices[i]) != NULL; i++) {
     t_stat tstat = SCPE_OK;
+    t_bool was_disabled = ((dptr->flags & DEV_DIS) != 0);
 
     sim_switches = saved_switches;
+    if (was_disabled)
+        tstat = set_dev_enbdis (dptr, NULL, 1, NULL);
+    if (tstat == SCPE_OK) {
     switch (DEV_TYPE(dptr)) {
 #if defined(USE_SIM_CARD)
         case DEV_CARD:
@@ -15480,9 +15484,15 @@ for (i = 0; (dptr = sim_devices[i]) != NULL; i++) {
         case DEV_TAPE:
             tstat = sim_tape_test (dptr);
             break;
+            case DEV_MUX:
+                tstat = tmxr_sock_test (dptr);
+                break;
         default:
             break;
         }
+        }
+    if (was_disabled)
+        set_dev_enbdis (dptr, NULL, 0, NULL);
     if (tstat != SCPE_OK)
         stat = tstat;
     }
