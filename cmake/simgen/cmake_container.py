@@ -109,9 +109,9 @@ class CMakeBuildSystem:
                 ## sim.add_source(comp.replace(sim_dir + '/', ''))
                 sim.add_source(comp)
             elif comp.startswith('-I'):
-                all_comps = self.process_flag(all_comps, defs, sim.add_include)
+                all_comps = self.process_flag(all_comps, defs, sim.add_include, depth)
             elif comp.startswith('-D'):
-                all_comps = self.process_flag(all_comps, defs, sim.add_define)
+                all_comps = self.process_flag(all_comps, defs, sim.add_define, depth)
             elif comp.startswith('-L') or comp.startswith('-l'):
                 ## It's a library path or library. Skip.
                 pass
@@ -169,7 +169,7 @@ class CMakeBuildSystem:
         return thing.endswith('.c')
 
 
-    def process_flag(self, comps, defs, process_func):
+    def process_flag(self, comps, defs, process_func, depth):
         if len(comps[0]) > 2:
             # "-Ddef"
             val = comps[0][2:]
@@ -180,8 +180,12 @@ class CMakeBuildSystem:
         m = SPM._var_rx.match(val)
         if m:
             var = m.group(1)
-            if var not in self.vars:
-                self.vars[var] = defs[var]
+            ## Gracefully deal with undefined variables (ATT3B2M400B2D is a good example)
+            if var in defs:
+                if var not in self.vars:
+                    self.vars[var] = defs[var]
+            else:
+                print('{0}undefined make macro: {1}'.format(depth, var))
 
         process_func(val)
         return comps

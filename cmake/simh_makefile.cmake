@@ -79,19 +79,19 @@ set(SCELBID    "${INTELSYSD}/scelbi")
 
 add_simulator(3b2
     SOURCES
-        ${ATT3B2D}/3b2_cpu.c
-        ${ATT3B2D}/3b2_mmu.c
+        ${ATT3B2D}/3b2_400_cpu.c
+        ${ATT3B2D}/3b2_400_sys.c
+        ${ATT3B2D}/3b2_400_stddev.c
+        ${ATT3B2D}/3b2_400_mmu.c
+        ${ATT3B2D}/3b2_400_mau.c
         ${ATT3B2D}/3b2_iu.c
         ${ATT3B2D}/3b2_if.c
         ${ATT3B2D}/3b2_id.c
         ${ATT3B2D}/3b2_dmac.c
-        ${ATT3B2D}/3b2_sys.c
         ${ATT3B2D}/3b2_io.c
         ${ATT3B2D}/3b2_ports.c
         ${ATT3B2D}/3b2_ctc.c
         ${ATT3B2D}/3b2_ni.c
-        ${ATT3B2D}/3b2_mau.c
-        ${ATT3B2D}/3b2_sysdev.c
     INCLUDES
         ${ATT3B2D}
     FULL64
