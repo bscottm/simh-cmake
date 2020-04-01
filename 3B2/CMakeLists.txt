@@ -26,6 +26,6 @@ add_simulator(3b2
         3b2_ctc.c
         3b2_ni.c
     INCLUDES
-        ${ATT3B2M400B2D}
+        ${CMAKE_CURRENT_SOURCE_DIR}
     FULL64
     TEST 3b2-diag)

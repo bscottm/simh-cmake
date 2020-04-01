@@ -93,7 +93,7 @@ add_simulator(3b2
         ${ATT3B2D}/3b2_ctc.c
         ${ATT3B2D}/3b2_ni.c
     INCLUDES
-        ${ATT3B2M400B2D}
+        ${ATT3B2D}
     FULL64
     TEST 3b2-diag
     SOURCE_DIR ${ATT3B2D})
