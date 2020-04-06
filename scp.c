@@ -798,6 +798,7 @@ const struct scp_error {
          {"SIGTERM", "SIGTERM received"},
          {"FSSIZE",  "File System size larger than disk size"},
          {"RUNTIME", "Run time limit exhausted"},
+         {"INCOMPVHD", "Incompatible VHD Container"},
     };
 
 const size_t size_map[] = { sizeof (int8),
@@ -6086,7 +6087,6 @@ if (flag) {
     fprintf (st, "\n        Time taken by msleep(1): %dms", os_ms_sleep_1);
     if (eth_version ())
         fprintf (st, "\n        Ethernet packet info: %s", eth_version());
-    fprintf (st, "\n        Time taken by msleep(1): %dms", os_ms_sleep_1);
 #if defined(__VMS)
     if (1) {
         char *arch = 
