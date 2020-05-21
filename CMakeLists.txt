@@ -95,9 +95,6 @@ set(SIMH_PREFIX_PATH_LIST)
 list(APPEND SIMH_PREFIX_PATH_LIST ${SIMH_DEP_TOPDIR})
 list(APPEND CMAKE_PREFIX_PATH ${SIMH_PREFIX_PATH_LIST})
 
-## pkg-config is our fallback when find_package() can't find a package.
-find_package(PkgConfig)
-
 ##-- Options --##
 option(ALL_IN_ONE
        "Use the 'all-in-one' project definitions (vs. individual CMakeLists.txt) (def: disabled)"
@@ -208,18 +205,28 @@ set(SIMH_DEP_TARGETS)
 set(THREADING_PKG_STATUS "unknown")
 set(ZLIB_PKG_STATUS "unknown")
 set(PCRE_PKG_STATUS "unknown")
-set(VIDEO_PKG_STATUS "unknown")
-set(NETWORK_PKG_STATUS "unknown")
+set(VIDEO_PKG_STATUS)
+set(NETWORK_PKG_STATUS)
 set(NCURSES_PKG_STATUS "unknown")
 
 include(git-commit-id)
 include(build_dep_matrix)
 include(pthreads-dep)
 include(os-features)
-include(zlib-dep)
-include(pcre-dep)
-include(video-deps)
-include(network-deps)
+include(dep-locate)
+include(dep-targets)
+
+if (VIDEO_PKG_STATUS)
+    string(REPLACE ";" ", " VIDEO_PKG_STATUS "${VIDEO_PKG_STATUS}")
+else (VIDEO_PKG_STATUS)
+    set(VIDEO_PKG_STATUS "unknown")
+endif (VIDEO_PKG_STATUS)
+
+if (NETWORK_PKG_STATUS)
+    string(REPLACE ";" ", " NETWORK_PKG_STATUS "${NETWORK_PKG_STATUS}")
+else (NETWORK_PKG_STATUS)
+    set(NETWORK_PKG_STATUS "unknown")
+endif (NETWORK_PKG_STATUS)
 
 get_target_property(OS_FEATURE_DEFS os_features INTERFACE_COMPILE_DEFINITIONS)
 string(REPLACE ";" ", " OS_FEATURE_DEFS "${OS_FEATURE_DEFS}")
@@ -359,7 +366,7 @@ if (NOT DO_DEPENDENCY_BUILD)
     endif (WIN32 AND EXISTS ${SIMH_DEP_TOPDIR}/bin)
 else (NOT DO_DEPENDENCY_BUILD)
     message(STATUS "")
-    message(STATUS "The following dependencies need to be built:")
+    message(STATUS "Building the following dependency libraries:")
     message(STATUS "")
     message(STATUS "  ${SIMH_BUILD_DEPS}")
     message(STATUS "")
