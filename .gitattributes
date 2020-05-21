@@ -2,6 +2,7 @@
 *.bat     text eol=crlf
 *.bin     -text
 *.cmd     text eol=crlf
+*.crd     -text
 *.doc     -text
 *.docx    -text
 *.dsk     -text
@@ -18,5 +19,6 @@
 *.sln     text eol=crlf
 *.tap     -text
 *.vcproj  text eol=crlf
+*.vcxproj text eol=crlf
 *.vhd     -text
 sim_rev.h export-subst

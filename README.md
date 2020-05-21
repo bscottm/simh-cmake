@@ -145,6 +145,8 @@ Other objectives include, besides [CMake][cmake]:
 <!-- omit in toc -->
 #### Hans-�ke Lund has implemented an SCELBI (SCientic-ELectronics-BIology) simulator.
 
+#### IBM 650 simulator from Roberto Sancho Villa
+
 ### New Host Platform support - HP-UX and AIX
 
 ### Simulator Front Panel API
