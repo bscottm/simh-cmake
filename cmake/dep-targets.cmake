@@ -274,7 +274,7 @@ if (WITH_NETWORK)
             ## HAVE_PCAP_COMPILE is set in dep-locate.
             if (HAVE_PCAP_COMPILE)
                 target_compile_definitions(simh_network INTERFACE BPF_CONST_STRING)
-            endif (have_pcap_compile)
+            endif (HAVE_PCAP_COMPILE)
         else (NOT WIN32)
             ## USE_SHARED for Windows.
             set(network_runtime USE_SHARED)
