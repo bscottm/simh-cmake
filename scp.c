@@ -6451,7 +6451,7 @@ if (cptr && (*cptr != 0)) return SCPE_2MARG;            /* now eol? */
 if (flag < 0)
     lvl = sim_do_depth;
 else
-    if (flag > sim_do_depth)
+    if (flag >= 0 && (size_t) flag > sim_do_depth)
         return SCPE_ARG;
     else
         lvl = flag;
