@@ -20,6 +20,7 @@ set(HP2100D    "${CMAKE_SOURCE_DIR}/HP2100")
 set(HP3000D    "${CMAKE_SOURCE_DIR}/HP3000")
 set(I1401D     "${CMAKE_SOURCE_DIR}/I1401")
 set(I1620D     "${CMAKE_SOURCE_DIR}/I1620")
+set(I650D      "${CMAKE_SOURCE_DIR}/I650")
 set(I7000D     "${CMAKE_SOURCE_DIR}/I7000")
 set(I7010D     "${CMAKE_SOURCE_DIR}/I7000")
 set(I7094D     "${CMAKE_SOURCE_DIR}/I7094")
@@ -151,6 +152,7 @@ add_simulator(altairz80
         ${ALTAIRZ80D}/s100_adcs6.c
         ${ALTAIRZ80D}/m68kcpu.c
         ${ALTAIRZ80D}/m68kdasm.c
+        ${ALTAIRZ80D}/m68kasm.c
         ${ALTAIRZ80D}/m68kopac.c
         ${ALTAIRZ80D}/m68kopdm.c
         ${ALTAIRZ80D}/m68kopnz.c
@@ -397,6 +399,22 @@ add_simulator(i1620
         ${I1620D}
     TEST i1620
     SOURCE_DIR ${I1620D})
+
+## ----------------------------------------
+
+add_simulator(i650
+    SOURCES
+        ${I650D}/i650_cpu.c
+        ${I650D}/i650_cdr.c
+        ${I650D}/i650_cdp.c
+        ${I650D}/i650_dsk.c
+        ${I650D}/i650_mt.c
+        ${I650D}/i650_sys.c
+    INCLUDES
+        ${I650D}
+    INT64
+    TEST i650
+    SOURCE_DIR ${I650D})
 
 ## ----------------------------------------
 
