@@ -5941,7 +5941,7 @@ if (flag == 0) {
         }
     if (container) {
         container_size = size_function (container);
-        uptr->filename = strdup (cptr);
+        uptr->filename = host_os_strdup (cptr);
         uptr->fileref = container;
         uptr->flags |= UNIT_ATT;
         get_disk_footer (uptr);
@@ -6090,7 +6090,7 @@ free (c->data);
 free (c->wbitmap);
 free (c);
 if (r == SCPE_OK) {
-    char *filename = strdup (uptr->filename);
+    char *filename = host_os_strdup (uptr->filename);
 
     sim_disk_detach (uptr);
     (void)remove (filename);

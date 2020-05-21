@@ -4594,7 +4594,7 @@ if (file != NULL) {
     struct stat statb;
 
     memset (&statb, 0, sizeof (statb));
-    if (fstat (fileno (file), &statb) == 0) {
+    if (fstat (host_os_fileno (file), &statb) == 0) {
         if (((S_IFDIR | S_IFREG) & statb.st_mode) == S_IFREG)
             return file;
 
