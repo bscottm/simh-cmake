@@ -48,6 +48,7 @@ add_simulator(altairz80
         s100_adcs6.c
         m68kcpu.c
         m68kdasm.c
+        m68kasm.c
         m68kopac.c
         m68kopdm.c
         m68kopnz.c
