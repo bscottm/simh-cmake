@@ -187,14 +187,14 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
     # the VAX simulators. Reduce optimization and ensure strict overflow is turned off.
     string(REGEX REPLACE "-O3" "-O2" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
     string(REGEX REPLACE "-fstrict-overflow[ \t\r\n]*" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-    string(APPEND CMAKE_C_FLAGS_RELEASE " -fno-strict-overflow" "-finline-functions"
-               "-fgcse-after-reload" "-fpredictive-commoning" "-fipa-cp-clone"
+    string(APPEND CMAKE_C_FLAGS_RELEASE " -fno-strict-overflow -finline-functions "
+               "-fgcse-after-reload -fpredictive-commoning -fipa-cp-clone "
                "-fno-unsafe-loop-optimizations")
 
     string(REGEX REPLACE "-O3" "-O2" CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL}")
     string(REGEX REPLACE "-fstrict-overflow[ \t\r\n]*" "" CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_C_FLAGS_MINSIZEREL}")
-    string(APPEND CMAKE_C_FLAGS_MINSIZEREL " -fno-strict-overflow" "-finline-functions"
-               "-fgcse-after-reload" "-fpredictive-commoning" "-fipa-cp-clone"
+    string(APPEND CMAKE_C_FLAGS_MINSIZEREL " -fno-strict-overflow -finline-functions "
+               "-fgcse-after-reload -fpredictive-commoning -fipa-cp-clone "
                "-fno-unsafe-loop-optimizations")
 
     message(STATUS "CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE}")
