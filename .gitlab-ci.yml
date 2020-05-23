@@ -25,7 +25,8 @@ simh:
         ## - cmake/cmake-builder.sh --config Release --flavor unix  --parallel --clean
         - |
             echo "=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~" &&
-            cc -dM -E /dev/null 2>&1 | sort &&
+            /usr/bin/cc --version &&
+            /usr/bin/cc -dM -E - < /dev/null 2>&1 | sort &&
             echo "=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~" &&
             cmake/cmake-builder.sh --config Debug   --flavor ninja --parallel --clean &&
             echo "=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~" &&
