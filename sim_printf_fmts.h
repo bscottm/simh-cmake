@@ -59,18 +59,18 @@
 #  define SIZE_T_FMT     "z"
 #  define T_UINT64_FMT   "ll"
 #  define T_INT64_FMT    "ll"
-#  define NTOHL_FMT      ""
-#  define IP_SADDR_FMT   ""
-#  define SOCKET_FMT     ""
+#  define NTOHL_FMT      "l"
+#  define IP_SADDR_FMT   "l"
+#  define SOCKET_FMT     "l"
 #  define POINTER_FMT    "p"
 #else
 /* punt. */
 #  define SIZE_T_FMT     LL_FMT
 #  define T_UINT64_FMT   LL_FMT
 #  define T_INT64_FMT    LL_FMT
-#  define NTOHL_FMT      ""
-#  define IP_SADDR_FMT   ""
-#  define SOCKET_FMT     ""
+#  define NTOHL_FMT      "l"
+#  define IP_SADDR_FMT   "l"
+#  define SOCKET_FMT     "l"
 #  define POINTER_FMT    LL_FMT
 #endif
 
