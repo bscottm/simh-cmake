@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.5.0.  */
+/* A Bison parser, made by GNU Bison 3.6.2.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2019 Free Software Foundation,
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
    Inc.
 
    This program is free software: you can redistribute it and/or modify
@@ -34,6 +34,10 @@
 /* C LALR(1) parser skeleton written by Richard Stallman, by
    simplifying the original so-called "semantic" parser.  */
 
+/* DO NOT RELY ON FEATURES THAT ARE NOT DOCUMENTED in the manual,
+   especially those whose name start with YY_ or yy_.  They are
+   private implementation details that can be changed or removed.  */
+
 /* All symbols defined below should begin with yy or YY, to avoid
    infringing on user name space.  This should be done even for local
    variables, as they might otherwise be expanded by user macros.
@@ -41,14 +45,11 @@
    define necessary library symbols; they are noted "INFRINGES ON
    USER NAME SPACE" below.  */
 
-/* Undocumented macros, especially those whose name start with YY_,
-   are private implementation details.  Do not rely on them.  */
-
 /* Identify Bison output.  */
 #define YYBISON 1
 
 /* Bison version.  */
-#define YYBISON_VERSION "3.5.0"
+#define YYBISON_VERSION "3.6.2"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -66,77 +67,145 @@
 
 
 /* First part of user prologue.  */
-#line 1 "m68kasm.y.txt"
+#line 1 "m68kasm.y"
+
 
 /* m68k_parse.c: line assembler for generic m68k_cpu
+
   
+
    Copyright (c) 2009-2010, Holger Veit
 
+
+
    Permission is hereby granted, free of charge, to any person obtaining a
+
    copy of this software and associated documentation files (the "Software"),
+
    to deal in the Software without restriction, including without limitation
+
    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+
    and/or sell copies of the Software, and to permit persons to whom the
+
    Software is furnished to do so, subject to the following conditions:
 
+
+
    The above copyright notice and this permission notice shall be included in
+
    all copies or substantial portions of the Software.
 
+
+
    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+
    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+
    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+
    HOLGER VEIT BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+
    IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+
    CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
+
    Except as contained in this notice, the name of Holger Veit et al shall not be
+
    used in advertising or otherwise to promote the sale, use or other dealings
+
    in this Software without prior written authorization from Holger Veit et al.
 
+
+
    04-Oct-09    HV      Initial version
+
    20-Sep-14    PS      Adapted for AltairZ80
+
    
+
    use "bison m68kasm.y -o m68kasm.c" to create m68kasm.c
+
 */
 
+
+
 #include "sim_defs.h"
+
 #include <ctype.h>
+
 #include <string.h>
 
+
+
 struct _ea {
+
 	int ea;
+
 	int cnt;
+
 	t_value arg[10];
-};
-struct _rea {
-	int reg;
-	struct _ea ea;
-};
-struct _mask {
-	int x;
-	int d;
-};
-struct _brop {
-	int opc;
-	int len;
+
 };
 
+struct _rea {
+
+	int reg;
+
+	struct _ea ea;
+
+};
+
+struct _mask {
+
+	int x;
+
+	int d;
+
+};
+
+struct _brop {
+
+	int opc;
+
+	int len;
+
+};
+
+
+
 static int oplen;
+
 const static int movemx[] = {   0x0100, 0x0200, 0x0400, 0x0800, 0x1000, 0x2000, 0x4000, 0x8000,
+
                                 0x0001, 0x0002, 0x0004, 0x0008, 0x0010, 0x0020, 0x0040, 0x0080 };
+
 const static int movemd[] = {   0x0080, 0x0040, 0x0020, 0x0010, 0x0008, 0x0004, 0x0002, 0x0001,
+
                                 0x8000, 0x4000, 0x2000, 0x1000, 0x0800, 0x0400, 0x0200, 0x0100 };
+
 static int yyrc;
+
 static int yyerrc;
+
 static int yylex(void);
+
 static int _genop(t_value arg);
+
 static int _genea(struct _ea arg);
+
 static int _genbr(t_value arg,t_value,int);
+
 static void yyerror(char* s);
+
+
 
 #define YYDEBUG 1
 
-#line 140 "m68kasm.c"
+
+#line 141 "m68kasm.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -159,14 +228,6 @@ static void yyerror(char* s);
 #  endif
 # endif
 
-/* Enabling verbose error messages.  */
-#ifdef YYERROR_VERBOSE
-# undef YYERROR_VERBOSE
-# define YYERROR_VERBOSE 1
-#else
-# define YYERROR_VERBOSE 0
-#endif
-
 
 /* Debug traces.  */
 #ifndef YYDEBUG
@@ -176,175 +237,190 @@ static void yyerror(char* s);
 extern int yydebug;
 #endif
 
-/* Token type.  */
+/* Token kinds.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
   enum yytokentype
   {
-    A0 = 258,
-    A1 = 259,
-    A2 = 260,
-    A3 = 261,
-    A4 = 262,
-    A5 = 263,
-    A6 = 264,
-    A7 = 265,
-    D0 = 266,
-    D1 = 267,
-    D2 = 268,
-    D3 = 269,
-    D4 = 270,
-    D5 = 271,
-    D6 = 272,
-    D7 = 273,
-    CCR = 274,
-    SR = 275,
-    USP = 276,
-    PC = 277,
-    NUMBER = 278,
-    ABCD = 279,
-    ADD = 280,
-    ADDA = 281,
-    ADDI = 282,
-    ADDQ = 283,
-    ADDX = 284,
-    AND = 285,
-    ANDI = 286,
-    OR = 287,
-    ORI = 288,
-    SBCD = 289,
-    SUB = 290,
-    SUBA = 291,
-    SUBI = 292,
-    SUBQ = 293,
-    SUBX = 294,
-    ASL = 295,
-    ASR = 296,
-    LSL = 297,
-    LSR = 298,
-    ROL = 299,
-    ROR = 300,
-    ROXL = 301,
-    ROXR = 302,
-    BCC = 303,
-    BCS = 304,
-    BEQ = 305,
-    BGE = 306,
-    BGT = 307,
-    BHI = 308,
-    BLE = 309,
-    BLS = 310,
-    BLT = 311,
-    BMI = 312,
-    BNE = 313,
-    BPL = 314,
-    BVC = 315,
-    BVS = 316,
-    BSR = 317,
-    BRA = 318,
-    BCLR = 319,
-    BSET = 320,
-    BCHG = 321,
-    BTST = 322,
-    CHK = 323,
-    CMP = 324,
-    CMPA = 325,
-    CMPI = 326,
-    CMPM = 327,
-    EOR = 328,
-    EORI = 329,
-    EXG = 330,
-    EXT = 331,
-    DIVU = 332,
-    DIVS = 333,
-    MULU = 334,
-    MULS = 335,
-    DBCC = 336,
-    DBCS = 337,
-    DBEQ = 338,
-    DBF = 339,
-    DBGE = 340,
-    DBGT = 341,
-    DBHI = 342,
-    DBLE = 343,
-    DBLS = 344,
-    DBLT = 345,
-    DBMI = 346,
-    DBNE = 347,
-    DBPL = 348,
-    DBT = 349,
-    DBVC = 350,
-    DBVS = 351,
-    SCC = 352,
-    SCS = 353,
-    SEQ = 354,
-    SF = 355,
-    SGE = 356,
-    SGT = 357,
-    SHI = 358,
-    SLE = 359,
-    SLS = 360,
-    SLT = 361,
-    SMI = 362,
-    SNE = 363,
-    SPL = 364,
-    ST = 365,
-    SVC = 366,
-    SVS = 367,
-    ILLEGAL = 368,
-    NOP = 369,
-    RESET = 370,
-    RTE = 371,
-    RTR = 372,
-    RTS = 373,
-    TRAPV = 374,
-    JMP = 375,
-    JSR = 376,
-    LEA = 377,
-    LINK = 378,
-    MOVE = 379,
-    MOVEA = 380,
-    MOVEM = 381,
-    MOVEP = 382,
-    MOVEQ = 383,
-    CLR = 384,
-    NEG = 385,
-    NEGX = 386,
-    NBCD = 387,
-    NOT = 388,
-    PEA = 389,
-    STOP = 390,
-    TAS = 391,
-    SWAP = 392,
-    TRAP = 393,
-    TST = 394,
-    UNLK = 395,
-    PREDEC = 396,
-    POSTINC = 397,
-    BSIZE = 398,
-    WSIZE = 399,
-    LSIZE = 400,
-    SSIZE = 401
+    YYEMPTY = -2,
+    YYEOF = 0,                     /* "end of file"  */
+    YYerror = 256,                 /* error  */
+    YYUNDEF = 257,                 /* "invalid token"  */
+    A0 = 258,                      /* A0  */
+    A1 = 259,                      /* A1  */
+    A2 = 260,                      /* A2  */
+    A3 = 261,                      /* A3  */
+    A4 = 262,                      /* A4  */
+    A5 = 263,                      /* A5  */
+    A6 = 264,                      /* A6  */
+    A7 = 265,                      /* A7  */
+    D0 = 266,                      /* D0  */
+    D1 = 267,                      /* D1  */
+    D2 = 268,                      /* D2  */
+    D3 = 269,                      /* D3  */
+    D4 = 270,                      /* D4  */
+    D5 = 271,                      /* D5  */
+    D6 = 272,                      /* D6  */
+    D7 = 273,                      /* D7  */
+    CCR = 274,                     /* CCR  */
+    SR = 275,                      /* SR  */
+    USP = 276,                     /* USP  */
+    PC = 277,                      /* PC  */
+    NUMBER = 278,                  /* NUMBER  */
+    ABCD = 279,                    /* ABCD  */
+    ADD = 280,                     /* ADD  */
+    ADDA = 281,                    /* ADDA  */
+    ADDI = 282,                    /* ADDI  */
+    ADDQ = 283,                    /* ADDQ  */
+    ADDX = 284,                    /* ADDX  */
+    AND = 285,                     /* AND  */
+    ANDI = 286,                    /* ANDI  */
+    OR = 287,                      /* OR  */
+    ORI = 288,                     /* ORI  */
+    SBCD = 289,                    /* SBCD  */
+    SUB = 290,                     /* SUB  */
+    SUBA = 291,                    /* SUBA  */
+    SUBI = 292,                    /* SUBI  */
+    SUBQ = 293,                    /* SUBQ  */
+    SUBX = 294,                    /* SUBX  */
+    ASL = 295,                     /* ASL  */
+    ASR = 296,                     /* ASR  */
+    LSL = 297,                     /* LSL  */
+    LSR = 298,                     /* LSR  */
+    ROL = 299,                     /* ROL  */
+    ROR = 300,                     /* ROR  */
+    ROXL = 301,                    /* ROXL  */
+    ROXR = 302,                    /* ROXR  */
+    BCC = 303,                     /* BCC  */
+    BCS = 304,                     /* BCS  */
+    BEQ = 305,                     /* BEQ  */
+    BGE = 306,                     /* BGE  */
+    BGT = 307,                     /* BGT  */
+    BHI = 308,                     /* BHI  */
+    BLE = 309,                     /* BLE  */
+    BLS = 310,                     /* BLS  */
+    BLT = 311,                     /* BLT  */
+    BMI = 312,                     /* BMI  */
+    BNE = 313,                     /* BNE  */
+    BPL = 314,                     /* BPL  */
+    BVC = 315,                     /* BVC  */
+    BVS = 316,                     /* BVS  */
+    BSR = 317,                     /* BSR  */
+    BRA = 318,                     /* BRA  */
+    BCLR = 319,                    /* BCLR  */
+    BSET = 320,                    /* BSET  */
+    BCHG = 321,                    /* BCHG  */
+    BTST = 322,                    /* BTST  */
+    CHK = 323,                     /* CHK  */
+    CMP = 324,                     /* CMP  */
+    CMPA = 325,                    /* CMPA  */
+    CMPI = 326,                    /* CMPI  */
+    CMPM = 327,                    /* CMPM  */
+    EOR = 328,                     /* EOR  */
+    EORI = 329,                    /* EORI  */
+    EXG = 330,                     /* EXG  */
+    EXT = 331,                     /* EXT  */
+    DIVU = 332,                    /* DIVU  */
+    DIVS = 333,                    /* DIVS  */
+    MULU = 334,                    /* MULU  */
+    MULS = 335,                    /* MULS  */
+    DBCC = 336,                    /* DBCC  */
+    DBCS = 337,                    /* DBCS  */
+    DBEQ = 338,                    /* DBEQ  */
+    DBF = 339,                     /* DBF  */
+    DBGE = 340,                    /* DBGE  */
+    DBGT = 341,                    /* DBGT  */
+    DBHI = 342,                    /* DBHI  */
+    DBLE = 343,                    /* DBLE  */
+    DBLS = 344,                    /* DBLS  */
+    DBLT = 345,                    /* DBLT  */
+    DBMI = 346,                    /* DBMI  */
+    DBNE = 347,                    /* DBNE  */
+    DBPL = 348,                    /* DBPL  */
+    DBT = 349,                     /* DBT  */
+    DBVC = 350,                    /* DBVC  */
+    DBVS = 351,                    /* DBVS  */
+    SCC = 352,                     /* SCC  */
+    SCS = 353,                     /* SCS  */
+    SEQ = 354,                     /* SEQ  */
+    SF = 355,                      /* SF  */
+    SGE = 356,                     /* SGE  */
+    SGT = 357,                     /* SGT  */
+    SHI = 358,                     /* SHI  */
+    SLE = 359,                     /* SLE  */
+    SLS = 360,                     /* SLS  */
+    SLT = 361,                     /* SLT  */
+    SMI = 362,                     /* SMI  */
+    SNE = 363,                     /* SNE  */
+    SPL = 364,                     /* SPL  */
+    ST = 365,                      /* ST  */
+    SVC = 366,                     /* SVC  */
+    SVS = 367,                     /* SVS  */
+    ILLEGAL = 368,                 /* ILLEGAL  */
+    NOP = 369,                     /* NOP  */
+    RESET = 370,                   /* RESET  */
+    RTE = 371,                     /* RTE  */
+    RTR = 372,                     /* RTR  */
+    RTS = 373,                     /* RTS  */
+    TRAPV = 374,                   /* TRAPV  */
+    JMP = 375,                     /* JMP  */
+    JSR = 376,                     /* JSR  */
+    LEA = 377,                     /* LEA  */
+    LINK = 378,                    /* LINK  */
+    MOVE = 379,                    /* MOVE  */
+    MOVEA = 380,                   /* MOVEA  */
+    MOVEM = 381,                   /* MOVEM  */
+    MOVEP = 382,                   /* MOVEP  */
+    MOVEQ = 383,                   /* MOVEQ  */
+    CLR = 384,                     /* CLR  */
+    NEG = 385,                     /* NEG  */
+    NEGX = 386,                    /* NEGX  */
+    NBCD = 387,                    /* NBCD  */
+    NOT = 388,                     /* NOT  */
+    PEA = 389,                     /* PEA  */
+    STOP = 390,                    /* STOP  */
+    TAS = 391,                     /* TAS  */
+    SWAP = 392,                    /* SWAP  */
+    TRAP = 393,                    /* TRAP  */
+    TST = 394,                     /* TST  */
+    UNLK = 395,                    /* UNLK  */
+    PREDEC = 396,                  /* PREDEC  */
+    POSTINC = 397,                 /* POSTINC  */
+    BSIZE = 398,                   /* BSIZE  */
+    WSIZE = 399,                   /* WSIZE  */
+    LSIZE = 400,                   /* LSIZE  */
+    SSIZE = 401                    /* SSIZE  */
   };
+  typedef enum yytokentype yytoken_kind_t;
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 71 "m68kasm.y.txt"
+#line 71 "m68kasm.y"
+
 
 	int rc;
+
 	int reg;
+
 	int wl;
+
 	int opc;
+
 	struct _ea ea;
+
 	t_value num;
+
 	struct _rea rea;
+
 	struct _mask mask;
+
 	struct _brop brop;
 
-#line 348 "m68kasm.c"
+
+#line 346 "m68kasm.c"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -357,6 +433,215 @@ extern YYSTYPE yylval;
 
 int yyparse (void);
 
+
+/* Symbol kind.  */
+enum yysymbol_kind_t
+{
+  YYSYMBOL_YYEMPTY = -2,
+  YYSYMBOL_YYEOF = 0,                      /* "end of file"  */
+  YYSYMBOL_YYerror = 1,                    /* error  */
+  YYSYMBOL_YYUNDEF = 2,                    /* "invalid token"  */
+  YYSYMBOL_A0 = 3,                         /* A0  */
+  YYSYMBOL_A1 = 4,                         /* A1  */
+  YYSYMBOL_A2 = 5,                         /* A2  */
+  YYSYMBOL_A3 = 6,                         /* A3  */
+  YYSYMBOL_A4 = 7,                         /* A4  */
+  YYSYMBOL_A5 = 8,                         /* A5  */
+  YYSYMBOL_A6 = 9,                         /* A6  */
+  YYSYMBOL_A7 = 10,                        /* A7  */
+  YYSYMBOL_D0 = 11,                        /* D0  */
+  YYSYMBOL_D1 = 12,                        /* D1  */
+  YYSYMBOL_D2 = 13,                        /* D2  */
+  YYSYMBOL_D3 = 14,                        /* D3  */
+  YYSYMBOL_D4 = 15,                        /* D4  */
+  YYSYMBOL_D5 = 16,                        /* D5  */
+  YYSYMBOL_D6 = 17,                        /* D6  */
+  YYSYMBOL_D7 = 18,                        /* D7  */
+  YYSYMBOL_CCR = 19,                       /* CCR  */
+  YYSYMBOL_SR = 20,                        /* SR  */
+  YYSYMBOL_USP = 21,                       /* USP  */
+  YYSYMBOL_PC = 22,                        /* PC  */
+  YYSYMBOL_NUMBER = 23,                    /* NUMBER  */
+  YYSYMBOL_ABCD = 24,                      /* ABCD  */
+  YYSYMBOL_ADD = 25,                       /* ADD  */
+  YYSYMBOL_ADDA = 26,                      /* ADDA  */
+  YYSYMBOL_ADDI = 27,                      /* ADDI  */
+  YYSYMBOL_ADDQ = 28,                      /* ADDQ  */
+  YYSYMBOL_ADDX = 29,                      /* ADDX  */
+  YYSYMBOL_AND = 30,                       /* AND  */
+  YYSYMBOL_ANDI = 31,                      /* ANDI  */
+  YYSYMBOL_OR = 32,                        /* OR  */
+  YYSYMBOL_ORI = 33,                       /* ORI  */
+  YYSYMBOL_SBCD = 34,                      /* SBCD  */
+  YYSYMBOL_SUB = 35,                       /* SUB  */
+  YYSYMBOL_SUBA = 36,                      /* SUBA  */
+  YYSYMBOL_SUBI = 37,                      /* SUBI  */
+  YYSYMBOL_SUBQ = 38,                      /* SUBQ  */
+  YYSYMBOL_SUBX = 39,                      /* SUBX  */
+  YYSYMBOL_ASL = 40,                       /* ASL  */
+  YYSYMBOL_ASR = 41,                       /* ASR  */
+  YYSYMBOL_LSL = 42,                       /* LSL  */
+  YYSYMBOL_LSR = 43,                       /* LSR  */
+  YYSYMBOL_ROL = 44,                       /* ROL  */
+  YYSYMBOL_ROR = 45,                       /* ROR  */
+  YYSYMBOL_ROXL = 46,                      /* ROXL  */
+  YYSYMBOL_ROXR = 47,                      /* ROXR  */
+  YYSYMBOL_BCC = 48,                       /* BCC  */
+  YYSYMBOL_BCS = 49,                       /* BCS  */
+  YYSYMBOL_BEQ = 50,                       /* BEQ  */
+  YYSYMBOL_BGE = 51,                       /* BGE  */
+  YYSYMBOL_BGT = 52,                       /* BGT  */
+  YYSYMBOL_BHI = 53,                       /* BHI  */
+  YYSYMBOL_BLE = 54,                       /* BLE  */
+  YYSYMBOL_BLS = 55,                       /* BLS  */
+  YYSYMBOL_BLT = 56,                       /* BLT  */
+  YYSYMBOL_BMI = 57,                       /* BMI  */
+  YYSYMBOL_BNE = 58,                       /* BNE  */
+  YYSYMBOL_BPL = 59,                       /* BPL  */
+  YYSYMBOL_BVC = 60,                       /* BVC  */
+  YYSYMBOL_BVS = 61,                       /* BVS  */
+  YYSYMBOL_BSR = 62,                       /* BSR  */
+  YYSYMBOL_BRA = 63,                       /* BRA  */
+  YYSYMBOL_BCLR = 64,                      /* BCLR  */
+  YYSYMBOL_BSET = 65,                      /* BSET  */
+  YYSYMBOL_BCHG = 66,                      /* BCHG  */
+  YYSYMBOL_BTST = 67,                      /* BTST  */
+  YYSYMBOL_CHK = 68,                       /* CHK  */
+  YYSYMBOL_CMP = 69,                       /* CMP  */
+  YYSYMBOL_CMPA = 70,                      /* CMPA  */
+  YYSYMBOL_CMPI = 71,                      /* CMPI  */
+  YYSYMBOL_CMPM = 72,                      /* CMPM  */
+  YYSYMBOL_EOR = 73,                       /* EOR  */
+  YYSYMBOL_EORI = 74,                      /* EORI  */
+  YYSYMBOL_EXG = 75,                       /* EXG  */
+  YYSYMBOL_EXT = 76,                       /* EXT  */
+  YYSYMBOL_DIVU = 77,                      /* DIVU  */
+  YYSYMBOL_DIVS = 78,                      /* DIVS  */
+  YYSYMBOL_MULU = 79,                      /* MULU  */
+  YYSYMBOL_MULS = 80,                      /* MULS  */
+  YYSYMBOL_DBCC = 81,                      /* DBCC  */
+  YYSYMBOL_DBCS = 82,                      /* DBCS  */
+  YYSYMBOL_DBEQ = 83,                      /* DBEQ  */
+  YYSYMBOL_DBF = 84,                       /* DBF  */
+  YYSYMBOL_DBGE = 85,                      /* DBGE  */
+  YYSYMBOL_DBGT = 86,                      /* DBGT  */
+  YYSYMBOL_DBHI = 87,                      /* DBHI  */
+  YYSYMBOL_DBLE = 88,                      /* DBLE  */
+  YYSYMBOL_DBLS = 89,                      /* DBLS  */
+  YYSYMBOL_DBLT = 90,                      /* DBLT  */
+  YYSYMBOL_DBMI = 91,                      /* DBMI  */
+  YYSYMBOL_DBNE = 92,                      /* DBNE  */
+  YYSYMBOL_DBPL = 93,                      /* DBPL  */
+  YYSYMBOL_DBT = 94,                       /* DBT  */
+  YYSYMBOL_DBVC = 95,                      /* DBVC  */
+  YYSYMBOL_DBVS = 96,                      /* DBVS  */
+  YYSYMBOL_SCC = 97,                       /* SCC  */
+  YYSYMBOL_SCS = 98,                       /* SCS  */
+  YYSYMBOL_SEQ = 99,                       /* SEQ  */
+  YYSYMBOL_SF = 100,                       /* SF  */
+  YYSYMBOL_SGE = 101,                      /* SGE  */
+  YYSYMBOL_SGT = 102,                      /* SGT  */
+  YYSYMBOL_SHI = 103,                      /* SHI  */
+  YYSYMBOL_SLE = 104,                      /* SLE  */
+  YYSYMBOL_SLS = 105,                      /* SLS  */
+  YYSYMBOL_SLT = 106,                      /* SLT  */
+  YYSYMBOL_SMI = 107,                      /* SMI  */
+  YYSYMBOL_SNE = 108,                      /* SNE  */
+  YYSYMBOL_SPL = 109,                      /* SPL  */
+  YYSYMBOL_ST = 110,                       /* ST  */
+  YYSYMBOL_SVC = 111,                      /* SVC  */
+  YYSYMBOL_SVS = 112,                      /* SVS  */
+  YYSYMBOL_ILLEGAL = 113,                  /* ILLEGAL  */
+  YYSYMBOL_NOP = 114,                      /* NOP  */
+  YYSYMBOL_RESET = 115,                    /* RESET  */
+  YYSYMBOL_RTE = 116,                      /* RTE  */
+  YYSYMBOL_RTR = 117,                      /* RTR  */
+  YYSYMBOL_RTS = 118,                      /* RTS  */
+  YYSYMBOL_TRAPV = 119,                    /* TRAPV  */
+  YYSYMBOL_JMP = 120,                      /* JMP  */
+  YYSYMBOL_JSR = 121,                      /* JSR  */
+  YYSYMBOL_LEA = 122,                      /* LEA  */
+  YYSYMBOL_LINK = 123,                     /* LINK  */
+  YYSYMBOL_MOVE = 124,                     /* MOVE  */
+  YYSYMBOL_MOVEA = 125,                    /* MOVEA  */
+  YYSYMBOL_MOVEM = 126,                    /* MOVEM  */
+  YYSYMBOL_MOVEP = 127,                    /* MOVEP  */
+  YYSYMBOL_MOVEQ = 128,                    /* MOVEQ  */
+  YYSYMBOL_CLR = 129,                      /* CLR  */
+  YYSYMBOL_NEG = 130,                      /* NEG  */
+  YYSYMBOL_NEGX = 131,                     /* NEGX  */
+  YYSYMBOL_NBCD = 132,                     /* NBCD  */
+  YYSYMBOL_NOT = 133,                      /* NOT  */
+  YYSYMBOL_PEA = 134,                      /* PEA  */
+  YYSYMBOL_STOP = 135,                     /* STOP  */
+  YYSYMBOL_TAS = 136,                      /* TAS  */
+  YYSYMBOL_SWAP = 137,                     /* SWAP  */
+  YYSYMBOL_TRAP = 138,                     /* TRAP  */
+  YYSYMBOL_TST = 139,                      /* TST  */
+  YYSYMBOL_UNLK = 140,                     /* UNLK  */
+  YYSYMBOL_PREDEC = 141,                   /* PREDEC  */
+  YYSYMBOL_POSTINC = 142,                  /* POSTINC  */
+  YYSYMBOL_BSIZE = 143,                    /* BSIZE  */
+  YYSYMBOL_WSIZE = 144,                    /* WSIZE  */
+  YYSYMBOL_LSIZE = 145,                    /* LSIZE  */
+  YYSYMBOL_SSIZE = 146,                    /* SSIZE  */
+  YYSYMBOL_147_ = 147,                     /* '#'  */
+  YYSYMBOL_148_ = 148,                     /* ','  */
+  YYSYMBOL_149_ = 149,                     /* '/'  */
+  YYSYMBOL_150_ = 150,                     /* '-'  */
+  YYSYMBOL_151_ = 151,                     /* '('  */
+  YYSYMBOL_152_ = 152,                     /* ')'  */
+  YYSYMBOL_YYACCEPT = 153,                 /* $accept  */
+  YYSYMBOL_stmt = 154,                     /* stmt  */
+  YYSYMBOL_arop = 155,                     /* arop  */
+  YYSYMBOL_bcdop = 156,                    /* bcdop  */
+  YYSYMBOL_dualop = 157,                   /* dualop  */
+  YYSYMBOL_immop = 158,                    /* immop  */
+  YYSYMBOL_immop2 = 159,                   /* immop2  */
+  YYSYMBOL_qop = 160,                      /* qop  */
+  YYSYMBOL_shftop = 161,                   /* shftop  */
+  YYSYMBOL_brop = 162,                     /* brop  */
+  YYSYMBOL_btop = 163,                     /* btop  */
+  YYSYMBOL_monop = 164,                    /* monop  */
+  YYSYMBOL_mdop = 165,                     /* mdop  */
+  YYSYMBOL_dbop = 166,                     /* dbop  */
+  YYSYMBOL_direct = 167,                   /* direct  */
+  YYSYMBOL_jop = 168,                      /* jop  */
+  YYSYMBOL_shftarg = 169,                  /* shftarg  */
+  YYSYMBOL_bcdarg = 170,                   /* bcdarg  */
+  YYSYMBOL_dualarg = 171,                  /* dualarg  */
+  YYSYMBOL_areg = 172,                     /* areg  */
+  YYSYMBOL_dreg = 173,                     /* dreg  */
+  YYSYMBOL_szs = 174,                      /* szs  */
+  YYSYMBOL_szwl = 175,                     /* szwl  */
+  YYSYMBOL_szbwl = 176,                    /* szbwl  */
+  YYSYMBOL_szmv = 177,                     /* szmv  */
+  YYSYMBOL_szm = 178,                      /* szm  */
+  YYSYMBOL_reglist = 179,                  /* reglist  */
+  YYSYMBOL_regs = 180,                     /* regs  */
+  YYSYMBOL_eama = 181,                     /* eama  */
+  YYSYMBOL_eaa = 182,                      /* eaa  */
+  YYSYMBOL_ead = 183,                      /* ead  */
+  YYSYMBOL_eaall = 184,                    /* eaall  */
+  YYSYMBOL_eada = 185,                     /* eada  */
+  YYSYMBOL_eadas = 186,                    /* eadas  */
+  YYSYMBOL_eac = 187,                      /* eac  */
+  YYSYMBOL_eacai = 188,                    /* eacai  */
+  YYSYMBOL_eacad = 189,                    /* eacad  */
+  YYSYMBOL_ea0 = 190,                      /* ea0  */
+  YYSYMBOL_ea1 = 191,                      /* ea1  */
+  YYSYMBOL_ea2 = 192,                      /* ea2  */
+  YYSYMBOL_ea3 = 193,                      /* ea3  */
+  YYSYMBOL_ea4 = 194,                      /* ea4  */
+  YYSYMBOL_ea5 = 195,                      /* ea5  */
+  YYSYMBOL_ea6 = 196,                      /* ea6  */
+  YYSYMBOL_ea70 = 197,                     /* ea70  */
+  YYSYMBOL_ea72 = 198,                     /* ea72  */
+  YYSYMBOL_ea73 = 199,                     /* ea73  */
+  YYSYMBOL_ea74 = 200,                     /* ea74  */
+  YYSYMBOL_easr = 201                      /* easr  */
+};
+typedef enum yysymbol_kind_t yysymbol_kind_t;
 
 
 
@@ -457,6 +742,7 @@ typedef int yytype_uint16;
 
 #define YYSIZEOF(X) YY_CAST (YYPTRDIFF_T, sizeof (X))
 
+
 /* Stored state numbers (used for stacks). */
 typedef yytype_int16 yy_state_t;
 
@@ -474,6 +760,7 @@ typedef int yy_state_fast_t;
 #  define YY_(Msgid) Msgid
 # endif
 #endif
+
 
 #ifndef YY_ATTRIBUTE_PURE
 # if defined __GNUC__ && 2 < __GNUC__ + (96 <= __GNUC_MINOR__)
@@ -532,7 +819,7 @@ typedef int yy_state_fast_t;
 
 #define YY_ASSERT(E) ((void) (0 && (E)))
 
-#if ! defined yyoverflow || YYERROR_VERBOSE
+#if !defined yyoverflow
 
 /* The parser invokes alloca or malloc; define the necessary symbols.  */
 
@@ -597,8 +884,7 @@ void free (void *); /* INFRINGES ON USER NAME SPACE */
 #   endif
 #  endif
 # endif
-#endif /* ! defined yyoverflow || YYERROR_VERBOSE */
-
+#endif /* !defined yyoverflow */
 
 #if (! defined yyoverflow \
      && (! defined __cplusplus \
@@ -674,14 +960,15 @@ union yyalloc
 /* YYNSTATES -- Number of states.  */
 #define YYNSTATES  462
 
-#define YYUNDEFTOK  2
 #define YYMAXUTOK   401
 
 
 /* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
    as returned by yylex, with out-of-bounds checking.  */
-#define YYTRANSLATE(YYX)                                                \
-  (0 <= (YYX) && (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
+#define YYTRANSLATE(YYX)                                \
+  (0 <= (YYX) && (YYX) <= YYMAXUTOK                     \
+   ? YY_CAST (yysymbol_kind_t, yytranslate[YYX])        \
+   : YYSYMBOL_YYUNDEF)
 
 /* YYTRANSLATE[TOKEN-NUM] -- Symbol number corresponding to TOKEN-NUM
    as returned by yylex.  */
@@ -731,7 +1018,7 @@ static const yytype_uint8 yytranslate[] =
 };
 
 #if YYDEBUG
-  /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
+  /* YYRLINEYYN -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
        0,   112,   112,   113,   114,   116,   117,   119,   120,   121,
@@ -765,37 +1052,51 @@ static const yytype_int16 yyrline[] =
 };
 #endif
 
-#if YYDEBUG || YYERROR_VERBOSE || 0
+/** Accessing symbol of state STATE.  */
+#define YY_ACCESSING_SYMBOL(State) YY_CAST (yysymbol_kind_t, yystos[State])
+
+#if YYDEBUG || 0
+/* The user-facing name of the symbol whose (internal) number is
+   YYSYMBOL.  No bounds checking.  */
+static const char *yysymbol_name (yysymbol_kind_t yysymbol) YY_ATTRIBUTE_UNUSED;
+
 /* YYTNAME[SYMBOL-NUM] -- String name of the symbol SYMBOL-NUM.
    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
 static const char *const yytname[] =
 {
-  "$end", "error", "$undefined", "A0", "A1", "A2", "A3", "A4", "A5", "A6",
-  "A7", "D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7", "CCR", "SR", "USP",
-  "PC", "NUMBER", "ABCD", "ADD", "ADDA", "ADDI", "ADDQ", "ADDX", "AND",
-  "ANDI", "OR", "ORI", "SBCD", "SUB", "SUBA", "SUBI", "SUBQ", "SUBX",
-  "ASL", "ASR", "LSL", "LSR", "ROL", "ROR", "ROXL", "ROXR", "BCC", "BCS",
-  "BEQ", "BGE", "BGT", "BHI", "BLE", "BLS", "BLT", "BMI", "BNE", "BPL",
-  "BVC", "BVS", "BSR", "BRA", "BCLR", "BSET", "BCHG", "BTST", "CHK", "CMP",
-  "CMPA", "CMPI", "CMPM", "EOR", "EORI", "EXG", "EXT", "DIVU", "DIVS",
-  "MULU", "MULS", "DBCC", "DBCS", "DBEQ", "DBF", "DBGE", "DBGT", "DBHI",
-  "DBLE", "DBLS", "DBLT", "DBMI", "DBNE", "DBPL", "DBT", "DBVC", "DBVS",
-  "SCC", "SCS", "SEQ", "SF", "SGE", "SGT", "SHI", "SLE", "SLS", "SLT",
-  "SMI", "SNE", "SPL", "ST", "SVC", "SVS", "ILLEGAL", "NOP", "RESET",
-  "RTE", "RTR", "RTS", "TRAPV", "JMP", "JSR", "LEA", "LINK", "MOVE",
-  "MOVEA", "MOVEM", "MOVEP", "MOVEQ", "CLR", "NEG", "NEGX", "NBCD", "NOT",
-  "PEA", "STOP", "TAS", "SWAP", "TRAP", "TST", "UNLK", "PREDEC", "POSTINC",
-  "BSIZE", "WSIZE", "LSIZE", "SSIZE", "'#'", "','", "'/'", "'-'", "'('",
-  "')'", "$accept", "stmt", "arop", "bcdop", "dualop", "immop", "immop2",
-  "qop", "shftop", "brop", "btop", "monop", "mdop", "dbop", "direct",
-  "jop", "shftarg", "bcdarg", "dualarg", "areg", "dreg", "szs", "szwl",
-  "szbwl", "szmv", "szm", "reglist", "regs", "eama", "eaa", "ead", "eaall",
-  "eada", "eadas", "eac", "eacai", "eacad", "ea0", "ea1", "ea2", "ea3",
-  "ea4", "ea5", "ea6", "ea70", "ea72", "ea73", "ea74", "easr", YY_NULLPTR
+  "\"end of file\"", "error", "\"invalid token\"", "A0", "A1", "A2", "A3",
+  "A4", "A5", "A6", "A7", "D0", "D1", "D2", "D3", "D4", "D5", "D6", "D7",
+  "CCR", "SR", "USP", "PC", "NUMBER", "ABCD", "ADD", "ADDA", "ADDI",
+  "ADDQ", "ADDX", "AND", "ANDI", "OR", "ORI", "SBCD", "SUB", "SUBA",
+  "SUBI", "SUBQ", "SUBX", "ASL", "ASR", "LSL", "LSR", "ROL", "ROR", "ROXL",
+  "ROXR", "BCC", "BCS", "BEQ", "BGE", "BGT", "BHI", "BLE", "BLS", "BLT",
+  "BMI", "BNE", "BPL", "BVC", "BVS", "BSR", "BRA", "BCLR", "BSET", "BCHG",
+  "BTST", "CHK", "CMP", "CMPA", "CMPI", "CMPM", "EOR", "EORI", "EXG",
+  "EXT", "DIVU", "DIVS", "MULU", "MULS", "DBCC", "DBCS", "DBEQ", "DBF",
+  "DBGE", "DBGT", "DBHI", "DBLE", "DBLS", "DBLT", "DBMI", "DBNE", "DBPL",
+  "DBT", "DBVC", "DBVS", "SCC", "SCS", "SEQ", "SF", "SGE", "SGT", "SHI",
+  "SLE", "SLS", "SLT", "SMI", "SNE", "SPL", "ST", "SVC", "SVS", "ILLEGAL",
+  "NOP", "RESET", "RTE", "RTR", "RTS", "TRAPV", "JMP", "JSR", "LEA",
+  "LINK", "MOVE", "MOVEA", "MOVEM", "MOVEP", "MOVEQ", "CLR", "NEG", "NEGX",
+  "NBCD", "NOT", "PEA", "STOP", "TAS", "SWAP", "TRAP", "TST", "UNLK",
+  "PREDEC", "POSTINC", "BSIZE", "WSIZE", "LSIZE", "SSIZE", "'#'", "','",
+  "'/'", "'-'", "'('", "')'", "$accept", "stmt", "arop", "bcdop", "dualop",
+  "immop", "immop2", "qop", "shftop", "brop", "btop", "monop", "mdop",
+  "dbop", "direct", "jop", "shftarg", "bcdarg", "dualarg", "areg", "dreg",
+  "szs", "szwl", "szbwl", "szmv", "szm", "reglist", "regs", "eama", "eaa",
+  "ead", "eaall", "eada", "eadas", "eac", "eacai", "eacad", "ea0", "ea1",
+  "ea2", "ea3", "ea4", "ea5", "ea6", "ea70", "ea72", "ea73", "ea74",
+  "easr", YY_NULLPTR
 };
+
+static const char *
+yysymbol_name (yysymbol_kind_t yysymbol)
+{
+  return yytname[yysymbol];
+}
 #endif
 
-# ifdef YYPRINT
+#ifdef YYPRINT
 /* YYTOKNUM[NUM] -- (External) token number corresponding to the
    (internal) symbol number NUM (which must be that of a token).  */
 static const yytype_int16 yytoknum[] =
@@ -817,7 +1118,7 @@ static const yytype_int16 yytoknum[] =
      395,   396,   397,   398,   399,   400,   401,    35,    44,    47,
       45,    40,    41
 };
-# endif
+#endif
 
 #define YYPACT_NINF (-343)
 
@@ -829,7 +1130,7 @@ static const yytype_int16 yytoknum[] =
 #define yytable_value_is_error(Yyn) \
   0
 
-  /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
+  /* YYPACTSTATE-NUM -- Index in YYTABLE of the portion describing
      STATE-NUM.  */
 static const yytype_int16 yypact[] =
 {
@@ -882,7 +1183,7 @@ static const yytype_int16 yypact[] =
     -343,  -343
 };
 
-  /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
+  /* YYDEFACTSTATE-NUM -- Default reduction number in state STATE-NUM.
      Performed when YYTABLE does not specify something else to do.  Zero
      means the default is an error.  */
 static const yytype_int16 yydefact[] =
@@ -936,7 +1237,7 @@ static const yytype_int16 yydefact[] =
      267,   266
 };
 
-  /* YYPGOTO[NTERM-NUM].  */
+  /* YYPGOTONTERM-NUM.  */
 static const yytype_int16 yypgoto[] =
 {
     -343,  -343,  -343,  -343,  -343,  -343,  -343,  -343,  -343,  -343,
@@ -946,7 +1247,7 @@ static const yytype_int16 yypgoto[] =
      108,   137,   -30,    38,    69,    26,    28,   -33,  -343
 };
 
-  /* YYDEFGOTO[NTERM-NUM].  */
+  /* YYDEFGOTONTERM-NUM.  */
 static const yytype_int16 yydefgoto[] =
 {
       -1,   118,   119,   120,   121,   122,   123,   124,   125,   126,
@@ -956,7 +1257,7 @@ static const yytype_int16 yydefgoto[] =
      165,   166,   167,   168,   169,   170,   171,   172,   422
 };
 
-  /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
+  /* YYTABLEYYPACT[STATE-NUM] -- What to do in state STATE-NUM.  If
      positive, shift that token.  If negative, reduce the rule whose
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int16 yytable[] =
@@ -1153,7 +1454,7 @@ static const yytype_int16 yycheck[] =
      108,    -1,   110,    -1,    -1,    -1,    -1,    -1,   116
 };
 
-  /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
+  /* YYSTOSSTATE-NUM -- The (internal number of the) accessing
      symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
@@ -1206,7 +1507,7 @@ static const yytype_uint8 yystos[] =
      152,   152
 };
 
-  /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
+  /* YYR1YYN -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
        0,   153,   154,   154,   154,   154,   154,   154,   154,   154,
@@ -1239,7 +1540,7 @@ static const yytype_uint8 yyr1[] =
      198,   198,   199,   199,   200,   201,   201
 };
 
-  /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
+  /* YYR2YYN -- Number of symbols on the right hand side of rule YYN.  */
 static const yytype_int8 yyr2[] =
 {
        0,     2,     2,     2,     5,     5,     5,     1,     2,     4,
@@ -1273,10 +1574,10 @@ static const yytype_int8 yyr2[] =
 };
 
 
+enum { YYENOMEM = -2 };
+
 #define yyerrok         (yyerrstatus = 0)
 #define yyclearin       (yychar = YYEMPTY)
-#define YYEMPTY         (-2)
-#define YYEOF           0
 
 #define YYACCEPT        goto yyacceptlab
 #define YYABORT         goto yyabortlab
@@ -1302,10 +1603,9 @@ static const yytype_int8 yyr2[] =
       }                                                           \
   while (0)
 
-/* Error token number */
-#define YYTERROR        1
-#define YYERRCODE       256
-
+/* Backward compatibility with an undocumented macro.
+   Use YYerror or YYUNDEF. */
+#define YYERRCODE YYUNDEF
 
 
 /* Enable debugging if requested.  */
@@ -1323,18 +1623,18 @@ do {                                            \
 } while (0)
 
 /* This macro is provided for backward compatibility. */
-#ifndef YY_LOCATION_PRINT
-# define YY_LOCATION_PRINT(File, Loc) ((void) 0)
-#endif
+# ifndef YY_LOCATION_PRINT
+#  define YY_LOCATION_PRINT(File, Loc) ((void) 0)
+# endif
 
 
-# define YY_SYMBOL_PRINT(Title, Type, Value, Location)                    \
+# define YY_SYMBOL_PRINT(Title, Kind, Value, Location)                    \
 do {                                                                      \
   if (yydebug)                                                            \
     {                                                                     \
       YYFPRINTF (stderr, "%s ", Title);                                   \
       yy_symbol_print (stderr,                                            \
-                  Type, Value); \
+                  Kind, Value); \
       YYFPRINTF (stderr, "\n");                                           \
     }                                                                     \
 } while (0)
@@ -1345,18 +1645,19 @@ do {                                                                      \
 `-----------------------------------*/
 
 static void
-yy_symbol_value_print (FILE *yyo, int yytype, YYSTYPE const * const yyvaluep)
+yy_symbol_value_print (FILE *yyo,
+                       yysymbol_kind_t yykind, YYSTYPE const * const yyvaluep)
 {
   FILE *yyoutput = yyo;
   YYUSE (yyoutput);
   if (!yyvaluep)
     return;
 # ifdef YYPRINT
-  if (yytype < YYNTOKENS)
-    YYPRINT (yyo, yytoknum[yytype], *yyvaluep);
+  if (yykind < YYNTOKENS)
+    YYPRINT (yyo, yytoknum[yykind], *yyvaluep);
 # endif
   YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
-  YYUSE (yytype);
+  YYUSE (yykind);
   YY_IGNORE_MAYBE_UNINITIALIZED_END
 }
 
@@ -1366,12 +1667,13 @@ yy_symbol_value_print (FILE *yyo, int yytype, YYSTYPE const * const yyvaluep)
 `---------------------------*/
 
 static void
-yy_symbol_print (FILE *yyo, int yytype, YYSTYPE const * const yyvaluep)
+yy_symbol_print (FILE *yyo,
+                 yysymbol_kind_t yykind, YYSTYPE const * const yyvaluep)
 {
   YYFPRINTF (yyo, "%s %s (",
-             yytype < YYNTOKENS ? "token" : "nterm", yytname[yytype]);
+             yykind < YYNTOKENS ? "token" : "nterm", yysymbol_name (yykind));
 
-  yy_symbol_value_print (yyo, yytype, yyvaluep);
+  yy_symbol_value_print (yyo, yykind, yyvaluep);
   YYFPRINTF (yyo, ")");
 }
 
@@ -1404,7 +1706,8 @@ do {                                                            \
 `------------------------------------------------*/
 
 static void
-yy_reduce_print (yy_state_t *yyssp, YYSTYPE *yyvsp, int yyrule)
+yy_reduce_print (yy_state_t *yyssp, YYSTYPE *yyvsp,
+                 int yyrule)
 {
   int yylno = yyrline[yyrule];
   int yynrhs = yyr2[yyrule];
@@ -1416,9 +1719,8 @@ yy_reduce_print (yy_state_t *yyssp, YYSTYPE *yyvsp, int yyrule)
     {
       YYFPRINTF (stderr, "   $%d = ", yyi + 1);
       yy_symbol_print (stderr,
-                       yystos[yyssp[yyi + 1 - yynrhs]],
-                       &yyvsp[(yyi + 1) - (yynrhs)]
-                                              );
+                       YY_ACCESSING_SYMBOL (+yyssp[yyi + 1 - yynrhs]),
+                       &yyvsp[(yyi + 1) - (yynrhs)]);
       YYFPRINTF (stderr, "\n");
     }
 }
@@ -1433,8 +1735,8 @@ do {                                    \
    multiple parsers can coexist.  */
 int yydebug;
 #else /* !YYDEBUG */
-# define YYDPRINTF(Args)
-# define YY_SYMBOL_PRINT(Title, Type, Value, Location)
+# define YYDPRINTF(Args) ((void) 0)
+# define YY_SYMBOL_PRINT(Title, Kind, Value, Location)
 # define YY_STACK_PRINT(Bottom, Top)
 # define YY_REDUCE_PRINT(Rule)
 #endif /* !YYDEBUG */
@@ -1457,256 +1759,27 @@ int yydebug;
 #endif
 
 
-#if YYERROR_VERBOSE
 
-# ifndef yystrlen
-#  if defined __GLIBC__ && defined _STRING_H
-#   define yystrlen(S) (YY_CAST (YYPTRDIFF_T, strlen (S)))
-#  else
-/* Return the length of YYSTR.  */
-static YYPTRDIFF_T
-yystrlen (const char *yystr)
-{
-  YYPTRDIFF_T yylen;
-  for (yylen = 0; yystr[yylen]; yylen++)
-    continue;
-  return yylen;
-}
-#  endif
-# endif
 
-# ifndef yystpcpy
-#  if defined __GLIBC__ && defined _STRING_H && defined _GNU_SOURCE
-#   define yystpcpy stpcpy
-#  else
-/* Copy YYSRC to YYDEST, returning the address of the terminating '\0' in
-   YYDEST.  */
-static char *
-yystpcpy (char *yydest, const char *yysrc)
-{
-  char *yyd = yydest;
-  const char *yys = yysrc;
 
-  while ((*yyd++ = *yys++) != '\0')
-    continue;
-
-  return yyd - 1;
-}
-#  endif
-# endif
-
-# ifndef yytnamerr
-/* Copy to YYRES the contents of YYSTR after stripping away unnecessary
-   quotes and backslashes, so that it's suitable for yyerror.  The
-   heuristic is that double-quoting is unnecessary unless the string
-   contains an apostrophe, a comma, or backslash (other than
-   backslash-backslash).  YYSTR is taken from yytname.  If YYRES is
-   null, do not copy; instead, return the length of what the result
-   would have been.  */
-static YYPTRDIFF_T
-yytnamerr (char *yyres, const char *yystr)
-{
-  if (*yystr == '"')
-    {
-      YYPTRDIFF_T yyn = 0;
-      char const *yyp = yystr;
-
-      for (;;)
-        switch (*++yyp)
-          {
-          case '\'':
-          case ',':
-            goto do_not_strip_quotes;
-
-          case '\\':
-            if (*++yyp != '\\')
-              goto do_not_strip_quotes;
-            else
-              goto append;
-
-          append:
-          default:
-            if (yyres)
-              yyres[yyn] = *yyp;
-            yyn++;
-            break;
-
-          case '"':
-            if (yyres)
-              yyres[yyn] = '\0';
-            return yyn;
-          }
-    do_not_strip_quotes: ;
-    }
-
-  if (yyres)
-    return yystpcpy (yyres, yystr) - yyres;
-  else
-    return yystrlen (yystr);
-}
-# endif
-
-/* Copy into *YYMSG, which is of size *YYMSG_ALLOC, an error message
-   about the unexpected token YYTOKEN for the state stack whose top is
-   YYSSP.
-
-   Return 0 if *YYMSG was successfully written.  Return 1 if *YYMSG is
-   not large enough to hold the message.  In that case, also set
-   *YYMSG_ALLOC to the required number of bytes.  Return 2 if the
-   required number of bytes is too large to store.  */
-static int
-yysyntax_error (YYPTRDIFF_T *yymsg_alloc, char **yymsg,
-                yy_state_t *yyssp, int yytoken)
-{
-  enum { YYERROR_VERBOSE_ARGS_MAXIMUM = 5 };
-  /* Internationalized format string. */
-  const char *yyformat = YY_NULLPTR;
-  /* Arguments of yyformat: reported tokens (one for the "unexpected",
-     one per "expected"). */
-  char const *yyarg[YYERROR_VERBOSE_ARGS_MAXIMUM];
-  /* Actual size of YYARG. */
-  int yycount = 0;
-  /* Cumulated lengths of YYARG.  */
-  YYPTRDIFF_T yysize = 0;
-
-  /* There are many possibilities here to consider:
-     - If this state is a consistent state with a default action, then
-       the only way this function was invoked is if the default action
-       is an error action.  In that case, don't check for expected
-       tokens because there are none.
-     - The only way there can be no lookahead present (in yychar) is if
-       this state is a consistent state with a default action.  Thus,
-       detecting the absence of a lookahead is sufficient to determine
-       that there is no unexpected or expected token to report.  In that
-       case, just report a simple "syntax error".
-     - Don't assume there isn't a lookahead just because this state is a
-       consistent state with a default action.  There might have been a
-       previous inconsistent state, consistent state with a non-default
-       action, or user semantic action that manipulated yychar.
-     - Of course, the expected token list depends on states to have
-       correct lookahead information, and it depends on the parser not
-       to perform extra reductions after fetching a lookahead from the
-       scanner and before detecting a syntax error.  Thus, state merging
-       (from LALR or IELR) and default reductions corrupt the expected
-       token list.  However, the list is correct for canonical LR with
-       one exception: it will still contain any token that will not be
-       accepted due to an error action in a later state.
-  */
-  if (yytoken != YYEMPTY)
-    {
-      int yyn = yypact[*yyssp];
-      YYPTRDIFF_T yysize0 = yytnamerr (YY_NULLPTR, yytname[yytoken]);
-      yysize = yysize0;
-      yyarg[yycount++] = yytname[yytoken];
-      if (!yypact_value_is_default (yyn))
-        {
-          /* Start YYX at -YYN if negative to avoid negative indexes in
-             YYCHECK.  In other words, skip the first -YYN actions for
-             this state because they are default actions.  */
-          int yyxbegin = yyn < 0 ? -yyn : 0;
-          /* Stay within bounds of both yycheck and yytname.  */
-          int yychecklim = YYLAST - yyn + 1;
-          int yyxend = yychecklim < YYNTOKENS ? yychecklim : YYNTOKENS;
-          int yyx;
-
-          for (yyx = yyxbegin; yyx < yyxend; ++yyx)
-            if (yycheck[yyx + yyn] == yyx && yyx != YYTERROR
-                && !yytable_value_is_error (yytable[yyx + yyn]))
-              {
-                if (yycount == YYERROR_VERBOSE_ARGS_MAXIMUM)
-                  {
-                    yycount = 1;
-                    yysize = yysize0;
-                    break;
-                  }
-                yyarg[yycount++] = yytname[yyx];
-                {
-                  YYPTRDIFF_T yysize1
-                    = yysize + yytnamerr (YY_NULLPTR, yytname[yyx]);
-                  if (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM)
-                    yysize = yysize1;
-                  else
-                    return 2;
-                }
-              }
-        }
-    }
-
-  switch (yycount)
-    {
-# define YYCASE_(N, S)                      \
-      case N:                               \
-        yyformat = S;                       \
-      break
-    default: /* Avoid compiler warnings. */
-      YYCASE_(0, YY_("syntax error"));
-      YYCASE_(1, YY_("syntax error, unexpected %s"));
-      YYCASE_(2, YY_("syntax error, unexpected %s, expecting %s"));
-      YYCASE_(3, YY_("syntax error, unexpected %s, expecting %s or %s"));
-      YYCASE_(4, YY_("syntax error, unexpected %s, expecting %s or %s or %s"));
-      YYCASE_(5, YY_("syntax error, unexpected %s, expecting %s or %s or %s or %s"));
-# undef YYCASE_
-    }
-
-  {
-    /* Don't count the "%s"s in the final size, but reserve room for
-       the terminator.  */
-    YYPTRDIFF_T yysize1 = yysize + (yystrlen (yyformat) - 2 * yycount) + 1;
-    if (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM)
-      yysize = yysize1;
-    else
-      return 2;
-  }
-
-  if (*yymsg_alloc < yysize)
-    {
-      *yymsg_alloc = 2 * yysize;
-      if (! (yysize <= *yymsg_alloc
-             && *yymsg_alloc <= YYSTACK_ALLOC_MAXIMUM))
-        *yymsg_alloc = YYSTACK_ALLOC_MAXIMUM;
-      return 1;
-    }
-
-  /* Avoid sprintf, as that infringes on the user's name space.
-     Don't have undefined behavior even if the translation
-     produced a string with the wrong number of "%s"s.  */
-  {
-    char *yyp = *yymsg;
-    int yyi = 0;
-    while ((*yyp = *yyformat) != '\0')
-      if (*yyp == '%' && yyformat[1] == 's' && yyi < yycount)
-        {
-          yyp += yytnamerr (yyp, yyarg[yyi++]);
-          yyformat += 2;
-        }
-      else
-        {
-          ++yyp;
-          ++yyformat;
-        }
-  }
-  return 0;
-}
-#endif /* YYERROR_VERBOSE */
 
 /*-----------------------------------------------.
 | Release the memory associated to this symbol.  |
 `-----------------------------------------------*/
 
 static void
-yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep)
+yydestruct (const char *yymsg,
+            yysymbol_kind_t yykind, YYSTYPE *yyvaluep)
 {
   YYUSE (yyvaluep);
   if (!yymsg)
     yymsg = "Deleting";
-  YY_SYMBOL_PRINT (yymsg, yytype, yyvaluep, yylocationp);
+  YY_SYMBOL_PRINT (yymsg, yykind, yyvaluep, yylocationp);
 
   YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
-  YYUSE (yytype);
+  YYUSE (yykind);
   YY_IGNORE_MAYBE_UNINITIALIZED_END
 }
-
-
 
 
 /* The lookahead symbol.  */
@@ -1716,6 +1789,8 @@ int yychar;
 YYSTYPE yylval;
 /* Number of syntax errors so far.  */
 int yynerrs;
+
+
 
 
 /*----------.
@@ -1736,6 +1811,9 @@ yyparse (void)
        Refer to the stacks through separate pointers, to allow yyoverflow
        to reallocate them elsewhere.  */
 
+    /* Their size.  */
+    YYPTRDIFF_T yystacksize;
+
     /* The state stack.  */
     yy_state_t yyssa[YYINITDEPTH];
     yy_state_t *yyss;
@@ -1746,22 +1824,16 @@ yyparse (void)
     YYSTYPE *yyvs;
     YYSTYPE *yyvsp;
 
-    YYPTRDIFF_T yystacksize;
-
   int yyn;
+  /* The return value of yyparse.  */
   int yyresult;
   /* Lookahead token as an internal (translated) token number.  */
-  int yytoken = 0;
+  yysymbol_kind_t yytoken = YYSYMBOL_YYEMPTY;
   /* The variables used to return semantic value and location from the
      action routines.  */
   YYSTYPE yyval;
 
-#if YYERROR_VERBOSE
-  /* Buffer for error messages, and its allocated size.  */
-  char yymsgbuf[128];
-  char *yymsg = yymsgbuf;
-  YYPTRDIFF_T yymsg_alloc = sizeof yymsgbuf;
-#endif
+
 
 #define YYPOPSTACK(N)   (yyvsp -= (N), yyssp -= (N))
 
@@ -1769,15 +1841,17 @@ yyparse (void)
      Keep to zero when no symbol should be popped.  */
   int yylen = 0;
 
+  yynerrs = 0;
+  yystate = 0;
+  yyerrstatus = 0;
+
+  yystacksize = YYINITDEPTH;
   yyssp = yyss = yyssa;
   yyvsp = yyvs = yyvsa;
-  yystacksize = YYINITDEPTH;
+
 
   YYDPRINTF ((stderr, "Starting parse\n"));
 
-  yystate = 0;
-  yyerrstatus = 0;
-  yynerrs = 0;
   yychar = YYEMPTY; /* Cause a token to be read.  */
   goto yysetstate;
 
@@ -1800,6 +1874,7 @@ yysetstate:
   YY_IGNORE_USELESS_CAST_BEGIN
   *yyssp = YY_CAST (yy_state_t, yystate);
   YY_IGNORE_USELESS_CAST_END
+  YY_STACK_PRINT (yyss, yyssp);
 
   if (yyss + yystacksize - 1 <= yyssp)
 #if !defined yyoverflow && !defined YYSTACK_RELOCATE
@@ -1845,7 +1920,7 @@ yysetstate:
           goto yyexhaustedlab;
         YYSTACK_RELOCATE (yyss_alloc, yyss);
         YYSTACK_RELOCATE (yyvs_alloc, yyvs);
-# undef YYSTACK_RELOCATE
+#  undef YYSTACK_RELOCATE
         if (yyss1 != yyssa)
           YYSTACK_FREE (yyss1);
       }
@@ -1884,17 +1959,28 @@ yybackup:
 
   /* Not known => get a lookahead token if don't already have one.  */
 
-  /* YYCHAR is either YYEMPTY or YYEOF or a valid lookahead symbol.  */
+  /* YYCHAR is either empty, or end-of-input, or a valid lookahead.  */
   if (yychar == YYEMPTY)
     {
-      YYDPRINTF ((stderr, "Reading a token: "));
+      YYDPRINTF ((stderr, "Reading a token\n"));
       yychar = yylex ();
     }
 
   if (yychar <= YYEOF)
     {
-      yychar = yytoken = YYEOF;
+      yychar = YYEOF;
+      yytoken = YYSYMBOL_YYEOF;
       YYDPRINTF ((stderr, "Now at end of input.\n"));
+    }
+  else if (yychar == YYerror)
+    {
+      /* The scanner already issued an error message, process directly
+         to error recovery.  But do not keep the error token as
+         lookahead, it is too special and may lead us to an endless
+         loop in error recovery. */
+      yychar = YYUNDEF;
+      yytoken = YYSYMBOL_YYerror;
+      goto yyerrlab1;
     }
   else
     {
@@ -1965,1339 +2051,1351 @@ yyreduce:
   switch (yyn)
     {
   case 2:
-#line 112 "m68kasm.y.txt"
+#line 112 "m68kasm.y"
                      { _genop((yyvsp[-1].opc) | (yyvsp[0].opc)); yyrc = -1; }
-#line 1971 "m68kasm.c"
+#line 1979 "m68kasm.c"
     break;
 
   case 3:
-#line 113 "m68kasm.y.txt"
+#line 113 "m68kasm.y"
                        { _genop((yyvsp[-1].opc) | (yyvsp[0].rea).reg | (yyvsp[0].rea).ea.ea); yyrc = _genea((yyvsp[0].rea).ea) -1; }
-#line 1977 "m68kasm.c"
+#line 1985 "m68kasm.c"
     break;
 
   case 4:
-#line 114 "m68kasm.y.txt"
+#line 114 "m68kasm.y"
                               { _genop((yyvsp[-4].opc) | (yyvsp[0].ea).ea); if (oplen==0) { _genop((yyvsp[-2].num) & 0xff); yyrc = _genea((yyvsp[0].ea)) - 3; }
+
 		else if (oplen==1) { _genop((yyvsp[-2].num)); yyrc = _genea((yyvsp[0].ea)) - 3; } else { _genop((yyvsp[-2].num)>>16); _genop((yyvsp[-2].num) & 0xffff); yyrc = _genea((yyvsp[0].ea))-5; } }
-#line 1984 "m68kasm.c"
+#line 1992 "m68kasm.c"
     break;
 
   case 5:
-#line 116 "m68kasm.y.txt"
+#line 116 "m68kasm.y"
                            { _genop((yyvsp[-4].opc) | (((yyvsp[-2].num)&7)<<9) | (yyvsp[0].ea).ea); yyrc = _genea((yyvsp[0].ea)) - 1; }
-#line 1990 "m68kasm.c"
+#line 1998 "m68kasm.c"
     break;
 
   case 6:
-#line 117 "m68kasm.y.txt"
+#line 117 "m68kasm.y"
                                 { _genop((yyvsp[-4].opc) | (yyvsp[0].ea).ea); if (oplen==0) { _genop((yyvsp[-2].num) & 0xff); yyrc = _genea((yyvsp[0].ea)) - 3; }
+
 		else if (oplen==1) { _genop((yyvsp[-2].num)); yyrc = _genea((yyvsp[0].ea)) - 3; } else { _genop((yyvsp[-2].num)>>16); _genop((yyvsp[-2].num) & 0xffff); yyrc = _genea((yyvsp[0].ea))-5; } }
-#line 1997 "m68kasm.c"
+#line 2005 "m68kasm.c"
     break;
 
   case 7:
-#line 119 "m68kasm.y.txt"
+#line 119 "m68kasm.y"
            { _genop((yyvsp[0].rea).reg); if (((yyvsp[0].rea).reg&0xc0)==0xc0) yyrc = _genea((yyvsp[0].rea).ea) - 1; else { yyrc = -1; } }
-#line 2003 "m68kasm.c"
+#line 2011 "m68kasm.c"
     break;
 
   case 8:
-#line 120 "m68kasm.y.txt"
+#line 120 "m68kasm.y"
                     { yyrc = _genbr((yyvsp[-1].brop).opc,(yyvsp[0].num),(yyvsp[-1].brop).len); }
-#line 2009 "m68kasm.c"
+#line 2017 "m68kasm.c"
     break;
 
   case 9:
-#line 121 "m68kasm.y.txt"
+#line 121 "m68kasm.y"
                            { _genop((yyvsp[-3].opc) | ((yyvsp[-2].reg)<<9) | 0x100 | (yyvsp[0].ea).ea); yyrc = _genea((yyvsp[0].ea)) - 1; }
-#line 2015 "m68kasm.c"
+#line 2023 "m68kasm.c"
     break;
 
   case 10:
-#line 122 "m68kasm.y.txt"
+#line 122 "m68kasm.y"
                                  { _genop((yyvsp[-4].opc) | 0x0800 | (yyvsp[0].ea).ea); _genop((yyvsp[-2].num)); yyrc = _genea((yyvsp[0].ea)) - 3; }
-#line 2021 "m68kasm.c"
+#line 2029 "m68kasm.c"
     break;
 
   case 11:
-#line 123 "m68kasm.y.txt"
+#line 123 "m68kasm.y"
                          { _genop(0x4180 | ((yyvsp[0].reg)<<9) | (yyvsp[-2].ea).ea); yyrc = _genea((yyvsp[-2].ea)) - 1; }
-#line 2027 "m68kasm.c"
+#line 2035 "m68kasm.c"
     break;
 
   case 12:
-#line 124 "m68kasm.y.txt"
+#line 124 "m68kasm.y"
                    { _genop((yyvsp[-1].opc) | (yyvsp[0].ea).ea); yyrc = _genea((yyvsp[0].ea)) - 1; }
-#line 2033 "m68kasm.c"
+#line 2041 "m68kasm.c"
     break;
 
   case 13:
-#line 125 "m68kasm.y.txt"
+#line 125 "m68kasm.y"
                                  { _genop(0xb000 | ((yyvsp[-3].wl)<<6) | ((yyvsp[0].reg)<<9) | (yyvsp[-2].ea).ea); yyrc = _genea((yyvsp[-2].ea)) - 1; }
-#line 2039 "m68kasm.c"
+#line 2047 "m68kasm.c"
     break;
 
   case 14:
-#line 126 "m68kasm.y.txt"
+#line 126 "m68kasm.y"
                           { _genop((yyvsp[-3].opc) | ((yyvsp[0].reg)<<9) | (yyvsp[-2].ea).ea); yyrc = _genea((yyvsp[-2].ea)) - 1; }
-#line 2045 "m68kasm.c"
+#line 2053 "m68kasm.c"
     break;
 
   case 15:
-#line 127 "m68kasm.y.txt"
+#line 127 "m68kasm.y"
                                  { _genop(0xb0c0 | ((yyvsp[-3].wl)<<8) | ((yyvsp[0].reg)<<9) | (yyvsp[-2].ea).ea); yyrc = _genea((yyvsp[-2].ea)) - 1; }
-#line 2051 "m68kasm.c"
+#line 2059 "m68kasm.c"
     break;
 
   case 16:
-#line 128 "m68kasm.y.txt"
+#line 128 "m68kasm.y"
                                { _genop(0xb108 | ((yyvsp[0].ea).ea<<9) | ((yyvsp[-3].wl)<<6) | (yyvsp[-2].ea).ea); yyrc = -1; }
-#line 2057 "m68kasm.c"
+#line 2065 "m68kasm.c"
     break;
 
   case 17:
-#line 129 "m68kasm.y.txt"
+#line 129 "m68kasm.y"
                              { yyrc = _genbr((yyvsp[-3].opc) | (yyvsp[-2].reg), (yyvsp[0].num), 1); }
-#line 2063 "m68kasm.c"
+#line 2071 "m68kasm.c"
     break;
 
   case 18:
-#line 130 "m68kasm.y.txt"
+#line 130 "m68kasm.y"
                                 { _genop(0xb000 | ((yyvsp[-3].wl) << 6) | 0x100 | (yyvsp[0].ea).ea); yyrc = _genea((yyvsp[0].ea)) - 1; }
-#line 2069 "m68kasm.c"
+#line 2077 "m68kasm.c"
     break;
 
   case 19:
-#line 131 "m68kasm.y.txt"
+#line 131 "m68kasm.y"
                           { _genop(0xc140 | ((yyvsp[-2].reg)<<9) | (yyvsp[0].reg)); yyrc = -1; }
-#line 2075 "m68kasm.c"
+#line 2083 "m68kasm.c"
     break;
 
   case 20:
-#line 132 "m68kasm.y.txt"
+#line 132 "m68kasm.y"
                           { _genop(0xc148 | ((yyvsp[-2].reg)<<9) | (yyvsp[0].reg)); yyrc = -1; }
-#line 2081 "m68kasm.c"
+#line 2089 "m68kasm.c"
     break;
 
   case 21:
-#line 133 "m68kasm.y.txt"
+#line 133 "m68kasm.y"
                           { _genop(0xc188 | ((yyvsp[0].reg)<<9) | (yyvsp[-2].reg)); yyrc = -1; }
-#line 2087 "m68kasm.c"
+#line 2095 "m68kasm.c"
     break;
 
   case 22:
-#line 134 "m68kasm.y.txt"
+#line 134 "m68kasm.y"
                           { _genop(0xc188 | ((yyvsp[-2].reg)<<9) | (yyvsp[0].reg)); yyrc = -1; }
-#line 2093 "m68kasm.c"
+#line 2101 "m68kasm.c"
     break;
 
   case 23:
-#line 135 "m68kasm.y.txt"
+#line 135 "m68kasm.y"
                       { _genop(0x4840 | ((yyvsp[-1].wl)<<6) | (yyvsp[0].reg)); yyrc = -1; }
-#line 2099 "m68kasm.c"
+#line 2107 "m68kasm.c"
     break;
 
   case 24:
-#line 136 "m68kasm.y.txt"
+#line 136 "m68kasm.y"
                { _genop((yyvsp[0].opc)); yyrc = -1; }
-#line 2105 "m68kasm.c"
+#line 2113 "m68kasm.c"
     break;
 
   case 25:
-#line 137 "m68kasm.y.txt"
+#line 137 "m68kasm.y"
                 { _genop((yyvsp[-1].opc) | (yyvsp[0].ea).ea); yyrc = _genea((yyvsp[0].ea)) -1; }
-#line 2111 "m68kasm.c"
+#line 2119 "m68kasm.c"
     break;
 
   case 26:
-#line 138 "m68kasm.y.txt"
+#line 138 "m68kasm.y"
                          { _genop(0x41c0 | (yyvsp[-2].ea).ea); yyrc = _genea((yyvsp[-2].ea)) - 1; }
-#line 2117 "m68kasm.c"
+#line 2125 "m68kasm.c"
     break;
 
   case 27:
-#line 139 "m68kasm.y.txt"
+#line 139 "m68kasm.y"
                                  { _genop(0x4e50 | (yyvsp[-3].reg)); _genop((yyvsp[0].num)); yyrc = -3; }
-#line 2123 "m68kasm.c"
-    break;
-
-  case 28:
-#line 140 "m68kasm.y.txt"
-                                  { if ((yyvsp[0].ea).ea==074) { _genop(0x44c0 | ((yyvsp[0].ea).cnt==1?0x0200:0x0000) | (yyvsp[-2].ea).ea); yyrc = _genea((yyvsp[-2].ea)) - 1; }
-							    else { int tmp = (((yyvsp[0].ea).ea&070)>>3)|(((yyvsp[0].ea).ea&7)<<3); _genop(0x0000 | ((yyvsp[-3].wl)<<12) | (tmp<<6) | (yyvsp[-2].ea).ea);
-    	                           	   yyrc = _genea((yyvsp[-2].ea)) - 1; yyrc += _genea((yyvsp[0].ea)); } }
 #line 2131 "m68kasm.c"
     break;
 
+  case 28:
+#line 140 "m68kasm.y"
+                                  { if ((yyvsp[0].ea).ea==074) { _genop(0x44c0 | ((yyvsp[0].ea).cnt==1?0x0200:0x0000) | (yyvsp[-2].ea).ea); yyrc = _genea((yyvsp[-2].ea)) - 1; }
+
+							    else { int tmp = (((yyvsp[0].ea).ea&070)>>3)|(((yyvsp[0].ea).ea&7)<<3); _genop(0x0000 | ((yyvsp[-3].wl)<<12) | (tmp<<6) | (yyvsp[-2].ea).ea);
+
+    	                           	   yyrc = _genea((yyvsp[-2].ea)) - 1; yyrc += _genea((yyvsp[0].ea)); } }
+#line 2139 "m68kasm.c"
+    break;
+
   case 29:
-#line 143 "m68kasm.y.txt"
+#line 143 "m68kasm.y"
                          { _genop(0x40c0 | (yyvsp[0].ea).ea); yyrc = _genea((yyvsp[0].ea)) - 1; }
-#line 2137 "m68kasm.c"
+#line 2145 "m68kasm.c"
     break;
 
   case 30:
-#line 144 "m68kasm.y.txt"
+#line 144 "m68kasm.y"
                           { _genop(0x4e68 | (yyvsp[0].reg));  yyrc = -1; }
-#line 2143 "m68kasm.c"
+#line 2151 "m68kasm.c"
     break;
 
   case 31:
-#line 145 "m68kasm.y.txt"
+#line 145 "m68kasm.y"
                           { _genop(0x4e60 | (yyvsp[-2].reg));  yyrc = -1; }
-#line 2149 "m68kasm.c"
+#line 2157 "m68kasm.c"
     break;
 
   case 32:
-#line 146 "m68kasm.y.txt"
+#line 146 "m68kasm.y"
                                 { _genop(0x0040 | ((yyvsp[-3].wl)<<12) | ((yyvsp[0].reg)<<9) | (yyvsp[-2].ea).ea); yyrc = _genea((yyvsp[-2].ea)) - 1; }
-#line 2155 "m68kasm.c"
+#line 2163 "m68kasm.c"
     break;
 
   case 33:
-#line 147 "m68kasm.y.txt"
+#line 147 "m68kasm.y"
                                      { _genop(0x4880 | ((yyvsp[-3].wl)<<6) | (yyvsp[0].ea).ea); _genop(((yyvsp[0].ea).ea&070)==040 ? (yyvsp[-2].mask).d : (yyvsp[-2].mask).x); yyrc = _genea((yyvsp[0].ea)) - 3; }
-#line 2161 "m68kasm.c"
+#line 2169 "m68kasm.c"
     break;
 
   case 34:
-#line 148 "m68kasm.y.txt"
+#line 148 "m68kasm.y"
                                       { _genop(0x4c80 | ((yyvsp[-3].wl)<<6) | (yyvsp[-2].ea).ea); _genop((yyvsp[0].mask).x); yyrc = _genea((yyvsp[-2].ea)) - 3; }
-#line 2167 "m68kasm.c"
+#line 2175 "m68kasm.c"
     break;
 
   case 35:
-#line 149 "m68kasm.y.txt"
+#line 149 "m68kasm.y"
                                 { _genop(0x0108 | ((yyvsp[-2].reg)<<9) | ((yyvsp[-3].wl)<<6) | ((yyvsp[0].ea).ea & 7)); yyrc = _genea((yyvsp[0].ea)) - 1; }
-#line 2173 "m68kasm.c"
+#line 2181 "m68kasm.c"
     break;
 
   case 36:
-#line 150 "m68kasm.y.txt"
+#line 150 "m68kasm.y"
                                 { _genop(0x0188 | ((yyvsp[0].reg)<<9) | ((yyvsp[-3].wl)<<6) | ((yyvsp[-2].ea).ea & 7)); yyrc = _genea((yyvsp[-2].ea)) - 1; }
-#line 2179 "m68kasm.c"
+#line 2187 "m68kasm.c"
     break;
 
   case 37:
-#line 151 "m68kasm.y.txt"
+#line 151 "m68kasm.y"
                               { _genop(0x7000 | ((yyvsp[0].reg)<<9) | ((yyvsp[-2].num)&0xff)); yyrc = -1; }
-#line 2185 "m68kasm.c"
+#line 2193 "m68kasm.c"
     break;
 
   case 38:
-#line 152 "m68kasm.y.txt"
+#line 152 "m68kasm.y"
                         { _genop(0x4e72); yyrc = _genop((yyvsp[0].num)&0xffff) - 1; }
-#line 2191 "m68kasm.c"
+#line 2199 "m68kasm.c"
     break;
 
   case 39:
-#line 153 "m68kasm.y.txt"
+#line 153 "m68kasm.y"
                                  { _genop((yyvsp[-4].opc) | ((yyvsp[0].reg)<<9) | ((yyvsp[-3].wl)<<8) | (yyvsp[-2].ea).ea); yyrc = _genea((yyvsp[-2].ea)) - 1; }
-#line 2197 "m68kasm.c"
+#line 2205 "m68kasm.c"
     break;
 
   case 40:
-#line 154 "m68kasm.y.txt"
+#line 154 "m68kasm.y"
                   { _genop(0x4840 | (yyvsp[0].reg)); yyrc = -1; }
-#line 2203 "m68kasm.c"
+#line 2211 "m68kasm.c"
     break;
 
   case 41:
-#line 155 "m68kasm.y.txt"
+#line 155 "m68kasm.y"
                         { _genop(0x4e40 | ((yyvsp[0].num) & 0x0f)); yyrc = -1; }
-#line 2209 "m68kasm.c"
+#line 2217 "m68kasm.c"
     break;
 
   case 42:
-#line 156 "m68kasm.y.txt"
+#line 156 "m68kasm.y"
                   { _genop(0x4e58 | (yyvsp[0].reg)); yyrc = -1; }
-#line 2215 "m68kasm.c"
+#line 2223 "m68kasm.c"
     break;
 
   case 43:
-#line 160 "m68kasm.y.txt"
+#line 160 "m68kasm.y"
              { (yyval.opc) = 0xd0c0; }
-#line 2221 "m68kasm.c"
+#line 2229 "m68kasm.c"
     break;
 
   case 44:
-#line 161 "m68kasm.y.txt"
+#line 161 "m68kasm.y"
              { (yyval.opc) = 0x90c0; }
-#line 2227 "m68kasm.c"
+#line 2235 "m68kasm.c"
     break;
 
   case 45:
-#line 164 "m68kasm.y.txt"
+#line 164 "m68kasm.y"
              { (yyval.opc) = 0xc100; }
-#line 2233 "m68kasm.c"
+#line 2241 "m68kasm.c"
     break;
 
   case 46:
-#line 165 "m68kasm.y.txt"
+#line 165 "m68kasm.y"
                    { (yyval.opc) = 0xd100 | ((yyvsp[0].wl)<<6); }
-#line 2239 "m68kasm.c"
+#line 2247 "m68kasm.c"
     break;
 
   case 47:
-#line 166 "m68kasm.y.txt"
+#line 166 "m68kasm.y"
              { (yyval.opc) = 0x8100; }
-#line 2245 "m68kasm.c"
+#line 2253 "m68kasm.c"
     break;
 
   case 48:
-#line 167 "m68kasm.y.txt"
+#line 167 "m68kasm.y"
                    { (yyval.opc) = 0x9100 | ((yyvsp[0].wl)<<6); }
-#line 2251 "m68kasm.c"
+#line 2259 "m68kasm.c"
     break;
 
   case 49:
-#line 171 "m68kasm.y.txt"
+#line 171 "m68kasm.y"
                   { (yyval.opc) = 0xd000 | ((yyvsp[0].wl)<<6); }
-#line 2257 "m68kasm.c"
+#line 2265 "m68kasm.c"
     break;
 
   case 50:
-#line 172 "m68kasm.y.txt"
+#line 172 "m68kasm.y"
                   { (yyval.opc) = 0xc000 | ((yyvsp[0].wl)<<6); }
-#line 2263 "m68kasm.c"
+#line 2271 "m68kasm.c"
     break;
 
   case 51:
-#line 173 "m68kasm.y.txt"
+#line 173 "m68kasm.y"
                   { (yyval.opc) = 0x8000 | ((yyvsp[0].wl)<<6); }
-#line 2269 "m68kasm.c"
+#line 2277 "m68kasm.c"
     break;
 
   case 52:
-#line 174 "m68kasm.y.txt"
+#line 174 "m68kasm.y"
                   { (yyval.opc) = 0x9000 | ((yyvsp[0].wl)<<6); }
-#line 2275 "m68kasm.c"
+#line 2283 "m68kasm.c"
     break;
 
   case 53:
-#line 178 "m68kasm.y.txt"
+#line 178 "m68kasm.y"
                    { (yyval.opc) = 0x0600 | ((yyvsp[0].wl)<<6); }
-#line 2281 "m68kasm.c"
+#line 2289 "m68kasm.c"
     break;
 
   case 54:
-#line 179 "m68kasm.y.txt"
+#line 179 "m68kasm.y"
                    { (yyval.opc) = 0x0c00 | ((yyvsp[0].wl)<<6); }
-#line 2287 "m68kasm.c"
+#line 2295 "m68kasm.c"
     break;
 
   case 55:
-#line 180 "m68kasm.y.txt"
+#line 180 "m68kasm.y"
                    { (yyval.opc) = 0x0400 | ((yyvsp[0].wl)<<6); }
-#line 2293 "m68kasm.c"
+#line 2301 "m68kasm.c"
     break;
 
   case 56:
-#line 184 "m68kasm.y.txt"
+#line 184 "m68kasm.y"
                    { (yyval.opc) = 0x0200 | ((yyvsp[0].wl)<<6); }
-#line 2299 "m68kasm.c"
+#line 2307 "m68kasm.c"
     break;
 
   case 57:
-#line 185 "m68kasm.y.txt"
+#line 185 "m68kasm.y"
                    { (yyval.opc) = 0x0a00 | ((yyvsp[0].wl)<<6); }
-#line 2305 "m68kasm.c"
+#line 2313 "m68kasm.c"
     break;
 
   case 58:
-#line 186 "m68kasm.y.txt"
+#line 186 "m68kasm.y"
                    { (yyval.opc) = 0x0000 | ((yyvsp[0].wl)<<6); }
-#line 2311 "m68kasm.c"
+#line 2319 "m68kasm.c"
     break;
 
   case 59:
-#line 190 "m68kasm.y.txt"
+#line 190 "m68kasm.y"
                    { (yyval.opc) = 0x5000 | ((yyvsp[0].wl)<<6); }
-#line 2317 "m68kasm.c"
+#line 2325 "m68kasm.c"
     break;
 
   case 60:
-#line 191 "m68kasm.y.txt"
+#line 191 "m68kasm.y"
                    { (yyval.opc) = 0x5100 | ((yyvsp[0].wl)<<6); }
-#line 2323 "m68kasm.c"
+#line 2331 "m68kasm.c"
     break;
 
   case 61:
-#line 195 "m68kasm.y.txt"
+#line 195 "m68kasm.y"
                  { (yyval.rea).reg = 0xe1c0 | (yyvsp[0].ea).ea; (yyval.rea).ea = (yyvsp[0].ea); }
-#line 2329 "m68kasm.c"
+#line 2337 "m68kasm.c"
     break;
 
   case 62:
-#line 196 "m68kasm.y.txt"
+#line 196 "m68kasm.y"
                           { (yyval.rea).reg = 0xe100 | ((yyvsp[-1].wl)<<6) | (yyvsp[0].opc); }
-#line 2335 "m68kasm.c"
+#line 2343 "m68kasm.c"
     break;
 
   case 63:
-#line 197 "m68kasm.y.txt"
+#line 197 "m68kasm.y"
                  { (yyval.rea).reg = 0xe0c0 | (yyvsp[0].ea).ea; (yyval.rea).ea = (yyvsp[0].ea); }
-#line 2341 "m68kasm.c"
+#line 2349 "m68kasm.c"
     break;
 
   case 64:
-#line 198 "m68kasm.y.txt"
+#line 198 "m68kasm.y"
                           { (yyval.rea).reg = 0xe000 | ((yyvsp[-1].wl)<<6) | (yyvsp[0].opc); }
-#line 2347 "m68kasm.c"
+#line 2355 "m68kasm.c"
     break;
 
   case 65:
-#line 199 "m68kasm.y.txt"
+#line 199 "m68kasm.y"
                  { (yyval.rea).reg = 0xe3c0 | (yyvsp[0].ea).ea; (yyval.rea).ea = (yyvsp[0].ea); }
-#line 2353 "m68kasm.c"
+#line 2361 "m68kasm.c"
     break;
 
   case 66:
-#line 200 "m68kasm.y.txt"
+#line 200 "m68kasm.y"
                           { (yyval.rea).reg = 0xe108 | ((yyvsp[-1].wl)<<6) | (yyvsp[0].opc); }
-#line 2359 "m68kasm.c"
+#line 2367 "m68kasm.c"
     break;
 
   case 67:
-#line 201 "m68kasm.y.txt"
+#line 201 "m68kasm.y"
                  { (yyval.rea).reg = 0xe2c0 | (yyvsp[0].ea).ea; (yyval.rea).ea = (yyvsp[0].ea); }
-#line 2365 "m68kasm.c"
+#line 2373 "m68kasm.c"
     break;
 
   case 68:
-#line 202 "m68kasm.y.txt"
+#line 202 "m68kasm.y"
                           { (yyval.rea).reg = 0xe008 | ((yyvsp[-1].wl)<<6) | (yyvsp[0].opc); }
-#line 2371 "m68kasm.c"
+#line 2379 "m68kasm.c"
     break;
 
   case 69:
-#line 203 "m68kasm.y.txt"
+#line 203 "m68kasm.y"
                  { (yyval.rea).reg = 0xe7c0 | (yyvsp[0].ea).ea; (yyval.rea).ea = (yyvsp[0].ea); }
-#line 2377 "m68kasm.c"
+#line 2385 "m68kasm.c"
     break;
 
   case 70:
-#line 204 "m68kasm.y.txt"
+#line 204 "m68kasm.y"
                           { (yyval.rea).reg = 0xe118 | ((yyvsp[-1].wl)<<6) | (yyvsp[0].opc); }
-#line 2383 "m68kasm.c"
+#line 2391 "m68kasm.c"
     break;
 
   case 71:
-#line 205 "m68kasm.y.txt"
+#line 205 "m68kasm.y"
                  { (yyval.rea).reg = 0xe6c0 | (yyvsp[0].ea).ea; (yyval.rea).ea = (yyvsp[0].ea); }
-#line 2389 "m68kasm.c"
+#line 2397 "m68kasm.c"
     break;
 
   case 72:
-#line 206 "m68kasm.y.txt"
+#line 206 "m68kasm.y"
                           { (yyval.rea).reg = 0xe018 | ((yyvsp[-1].wl)<<6) | (yyvsp[0].opc); }
-#line 2395 "m68kasm.c"
+#line 2403 "m68kasm.c"
     break;
 
   case 73:
-#line 207 "m68kasm.y.txt"
+#line 207 "m68kasm.y"
                   { (yyval.rea).reg = 0xe5c0 | (yyvsp[0].ea).ea; (yyval.rea).ea = (yyvsp[0].ea); }
-#line 2401 "m68kasm.c"
+#line 2409 "m68kasm.c"
     break;
 
   case 74:
-#line 208 "m68kasm.y.txt"
+#line 208 "m68kasm.y"
                            { (yyval.rea).reg = 0xe100 | ((yyvsp[-1].wl)<<6) | (yyvsp[0].opc); }
-#line 2407 "m68kasm.c"
+#line 2415 "m68kasm.c"
     break;
 
   case 75:
-#line 209 "m68kasm.y.txt"
+#line 209 "m68kasm.y"
                   { (yyval.rea).reg = 0xe4c0 | (yyvsp[0].ea).ea; (yyval.rea).ea = (yyvsp[0].ea); }
-#line 2413 "m68kasm.c"
+#line 2421 "m68kasm.c"
     break;
 
   case 76:
-#line 210 "m68kasm.y.txt"
+#line 210 "m68kasm.y"
                            { (yyval.rea).reg = 0xe000 | ((yyvsp[-1].wl)<<6) | (yyvsp[0].opc); }
-#line 2419 "m68kasm.c"
+#line 2427 "m68kasm.c"
     break;
 
   case 77:
-#line 214 "m68kasm.y.txt"
+#line 214 "m68kasm.y"
             { (yyval.brop).opc = 0x6400; (yyval.brop).len = 1; }
-#line 2425 "m68kasm.c"
+#line 2433 "m68kasm.c"
     break;
 
   case 78:
-#line 215 "m68kasm.y.txt"
+#line 215 "m68kasm.y"
             { (yyval.brop).opc = 0x6500; (yyval.brop).len = 1; }
-#line 2431 "m68kasm.c"
+#line 2439 "m68kasm.c"
     break;
 
   case 79:
-#line 216 "m68kasm.y.txt"
+#line 216 "m68kasm.y"
             { (yyval.brop).opc = 0x6700; (yyval.brop).len = 1; }
-#line 2437 "m68kasm.c"
+#line 2445 "m68kasm.c"
     break;
 
   case 80:
-#line 217 "m68kasm.y.txt"
+#line 217 "m68kasm.y"
             { (yyval.brop).opc = 0x6c00; (yyval.brop).len = 1; }
-#line 2443 "m68kasm.c"
+#line 2451 "m68kasm.c"
     break;
 
   case 81:
-#line 218 "m68kasm.y.txt"
+#line 218 "m68kasm.y"
             { (yyval.brop).opc = 0x6e00; (yyval.brop).len = 1; }
-#line 2449 "m68kasm.c"
+#line 2457 "m68kasm.c"
     break;
 
   case 82:
-#line 219 "m68kasm.y.txt"
+#line 219 "m68kasm.y"
             { (yyval.brop).opc = 0x6200; (yyval.brop).len = 1; }
-#line 2455 "m68kasm.c"
+#line 2463 "m68kasm.c"
     break;
 
   case 83:
-#line 220 "m68kasm.y.txt"
+#line 220 "m68kasm.y"
             { (yyval.brop).opc = 0x6f00; (yyval.brop).len = 1; }
-#line 2461 "m68kasm.c"
+#line 2469 "m68kasm.c"
     break;
 
   case 84:
-#line 221 "m68kasm.y.txt"
+#line 221 "m68kasm.y"
             { (yyval.brop).opc = 0x6300; (yyval.brop).len = 1; }
-#line 2467 "m68kasm.c"
+#line 2475 "m68kasm.c"
     break;
 
   case 85:
-#line 222 "m68kasm.y.txt"
+#line 222 "m68kasm.y"
             { (yyval.brop).opc = 0x6d00; (yyval.brop).len = 1; }
-#line 2473 "m68kasm.c"
+#line 2481 "m68kasm.c"
     break;
 
   case 86:
-#line 223 "m68kasm.y.txt"
+#line 223 "m68kasm.y"
             { (yyval.brop).opc = 0x6b00; (yyval.brop).len = 1; }
-#line 2479 "m68kasm.c"
+#line 2487 "m68kasm.c"
     break;
 
   case 87:
-#line 224 "m68kasm.y.txt"
+#line 224 "m68kasm.y"
             { (yyval.brop).opc = 0x6600; (yyval.brop).len = 1; }
-#line 2485 "m68kasm.c"
+#line 2493 "m68kasm.c"
     break;
 
   case 88:
-#line 225 "m68kasm.y.txt"
+#line 225 "m68kasm.y"
             { (yyval.brop).opc = 0x6a00; (yyval.brop).len = 1; }
-#line 2491 "m68kasm.c"
+#line 2499 "m68kasm.c"
     break;
 
   case 89:
-#line 226 "m68kasm.y.txt"
+#line 226 "m68kasm.y"
             { (yyval.brop).opc = 0x6800; (yyval.brop).len = 1; }
-#line 2497 "m68kasm.c"
+#line 2505 "m68kasm.c"
     break;
 
   case 90:
-#line 227 "m68kasm.y.txt"
+#line 227 "m68kasm.y"
             { (yyval.brop).opc = 0x6900; (yyval.brop).len = 1; }
-#line 2503 "m68kasm.c"
+#line 2511 "m68kasm.c"
     break;
 
   case 91:
-#line 228 "m68kasm.y.txt"
+#line 228 "m68kasm.y"
             { (yyval.brop).opc = 0x6100; (yyval.brop).len = 1; }
-#line 2509 "m68kasm.c"
+#line 2517 "m68kasm.c"
     break;
 
   case 92:
-#line 229 "m68kasm.y.txt"
+#line 229 "m68kasm.y"
             { (yyval.brop).opc = 0x6000; (yyval.brop).len = 1; }
-#line 2515 "m68kasm.c"
+#line 2523 "m68kasm.c"
     break;
 
   case 93:
-#line 230 "m68kasm.y.txt"
+#line 230 "m68kasm.y"
                 { (yyval.brop).opc = 0x6400; (yyval.brop).len = 0; }
-#line 2521 "m68kasm.c"
+#line 2529 "m68kasm.c"
     break;
 
   case 94:
-#line 231 "m68kasm.y.txt"
+#line 231 "m68kasm.y"
                 { (yyval.brop).opc = 0x6500; (yyval.brop).len = 0; }
-#line 2527 "m68kasm.c"
+#line 2535 "m68kasm.c"
     break;
 
   case 95:
-#line 232 "m68kasm.y.txt"
+#line 232 "m68kasm.y"
                 { (yyval.brop).opc = 0x6700; (yyval.brop).len = 0; }
-#line 2533 "m68kasm.c"
+#line 2541 "m68kasm.c"
     break;
 
   case 96:
-#line 233 "m68kasm.y.txt"
+#line 233 "m68kasm.y"
                 { (yyval.brop).opc = 0x6c00; (yyval.brop).len = 0; }
-#line 2539 "m68kasm.c"
+#line 2547 "m68kasm.c"
     break;
 
   case 97:
-#line 234 "m68kasm.y.txt"
+#line 234 "m68kasm.y"
                 { (yyval.brop).opc = 0x6e00; (yyval.brop).len = 0; }
-#line 2545 "m68kasm.c"
+#line 2553 "m68kasm.c"
     break;
 
   case 98:
-#line 235 "m68kasm.y.txt"
+#line 235 "m68kasm.y"
                 { (yyval.brop).opc = 0x6200; (yyval.brop).len = 0; }
-#line 2551 "m68kasm.c"
+#line 2559 "m68kasm.c"
     break;
 
   case 99:
-#line 236 "m68kasm.y.txt"
+#line 236 "m68kasm.y"
                 { (yyval.brop).opc = 0x6f00; (yyval.brop).len = 0; }
-#line 2557 "m68kasm.c"
+#line 2565 "m68kasm.c"
     break;
 
   case 100:
-#line 237 "m68kasm.y.txt"
+#line 237 "m68kasm.y"
                 { (yyval.brop).opc = 0x6300; (yyval.brop).len = 0; }
-#line 2563 "m68kasm.c"
+#line 2571 "m68kasm.c"
     break;
 
   case 101:
-#line 238 "m68kasm.y.txt"
+#line 238 "m68kasm.y"
                 { (yyval.brop).opc = 0x6d00; (yyval.brop).len = 0; }
-#line 2569 "m68kasm.c"
+#line 2577 "m68kasm.c"
     break;
 
   case 102:
-#line 239 "m68kasm.y.txt"
+#line 239 "m68kasm.y"
                 { (yyval.brop).opc = 0x6b00; (yyval.brop).len = 0; }
-#line 2575 "m68kasm.c"
+#line 2583 "m68kasm.c"
     break;
 
   case 103:
-#line 240 "m68kasm.y.txt"
+#line 240 "m68kasm.y"
                 { (yyval.brop).opc = 0x6600; (yyval.brop).len = 0; }
-#line 2581 "m68kasm.c"
+#line 2589 "m68kasm.c"
     break;
 
   case 104:
-#line 241 "m68kasm.y.txt"
+#line 241 "m68kasm.y"
                 { (yyval.brop).opc = 0x6a00; (yyval.brop).len = 0; }
-#line 2587 "m68kasm.c"
+#line 2595 "m68kasm.c"
     break;
 
   case 105:
-#line 242 "m68kasm.y.txt"
+#line 242 "m68kasm.y"
                 { (yyval.brop).opc = 0x6800; (yyval.brop).len = 0; }
-#line 2593 "m68kasm.c"
+#line 2601 "m68kasm.c"
     break;
 
   case 106:
-#line 243 "m68kasm.y.txt"
+#line 243 "m68kasm.y"
                 { (yyval.brop).opc = 0x6900; (yyval.brop).len = 0; }
-#line 2599 "m68kasm.c"
+#line 2607 "m68kasm.c"
     break;
 
   case 107:
-#line 244 "m68kasm.y.txt"
+#line 244 "m68kasm.y"
                 { (yyval.brop).opc = 0x6100; (yyval.brop).len = 0; }
-#line 2605 "m68kasm.c"
+#line 2613 "m68kasm.c"
     break;
 
   case 108:
-#line 245 "m68kasm.y.txt"
+#line 245 "m68kasm.y"
                 { (yyval.brop).opc = 0x6000; (yyval.brop).len = 0; }
-#line 2611 "m68kasm.c"
+#line 2619 "m68kasm.c"
     break;
 
   case 109:
-#line 249 "m68kasm.y.txt"
+#line 249 "m68kasm.y"
              { (yyval.opc) = 0x0040; }
-#line 2617 "m68kasm.c"
+#line 2625 "m68kasm.c"
     break;
 
   case 110:
-#line 250 "m68kasm.y.txt"
+#line 250 "m68kasm.y"
              { (yyval.opc) = 0x0080; }
-#line 2623 "m68kasm.c"
+#line 2631 "m68kasm.c"
     break;
 
   case 111:
-#line 251 "m68kasm.y.txt"
+#line 251 "m68kasm.y"
              { (yyval.opc) = 0x00c0; }
-#line 2629 "m68kasm.c"
+#line 2637 "m68kasm.c"
     break;
 
   case 112:
-#line 252 "m68kasm.y.txt"
+#line 252 "m68kasm.y"
              { (yyval.opc) = 0x0000; }
-#line 2635 "m68kasm.c"
+#line 2643 "m68kasm.c"
     break;
 
   case 113:
-#line 256 "m68kasm.y.txt"
+#line 256 "m68kasm.y"
                   { (yyval.opc) = 0x4200 | ((yyvsp[0].wl)<<6); }
-#line 2641 "m68kasm.c"
+#line 2649 "m68kasm.c"
     break;
 
   case 114:
-#line 257 "m68kasm.y.txt"
+#line 257 "m68kasm.y"
              { (yyval.opc) = 0x4800; }
-#line 2647 "m68kasm.c"
+#line 2655 "m68kasm.c"
     break;
 
   case 115:
-#line 258 "m68kasm.y.txt"
+#line 258 "m68kasm.y"
                   { (yyval.opc) = 0x4400 | ((yyvsp[0].wl)<<6); }
-#line 2653 "m68kasm.c"
+#line 2661 "m68kasm.c"
     break;
 
   case 116:
-#line 259 "m68kasm.y.txt"
+#line 259 "m68kasm.y"
                    { (yyval.opc) = 0x4000 | ((yyvsp[0].wl)<<6); }
-#line 2659 "m68kasm.c"
+#line 2667 "m68kasm.c"
     break;
 
   case 117:
-#line 260 "m68kasm.y.txt"
+#line 260 "m68kasm.y"
                   { (yyval.opc) = 0x4600 | ((yyvsp[0].wl)<<6); }
-#line 2665 "m68kasm.c"
+#line 2673 "m68kasm.c"
     break;
 
   case 118:
-#line 261 "m68kasm.y.txt"
+#line 261 "m68kasm.y"
             { (yyval.opc) = 0x54c0; }
-#line 2671 "m68kasm.c"
+#line 2679 "m68kasm.c"
     break;
 
   case 119:
-#line 262 "m68kasm.y.txt"
+#line 262 "m68kasm.y"
             { (yyval.opc) = 0x55c0; }
-#line 2677 "m68kasm.c"
+#line 2685 "m68kasm.c"
     break;
 
   case 120:
-#line 263 "m68kasm.y.txt"
+#line 263 "m68kasm.y"
             { (yyval.opc) = 0x57c0; }
-#line 2683 "m68kasm.c"
+#line 2691 "m68kasm.c"
     break;
 
   case 121:
-#line 264 "m68kasm.y.txt"
+#line 264 "m68kasm.y"
            { (yyval.opc) = 0x51c0; }
-#line 2689 "m68kasm.c"
+#line 2697 "m68kasm.c"
     break;
 
   case 122:
-#line 265 "m68kasm.y.txt"
+#line 265 "m68kasm.y"
             { (yyval.opc) = 0x5cc0; }
-#line 2695 "m68kasm.c"
+#line 2703 "m68kasm.c"
     break;
 
   case 123:
-#line 266 "m68kasm.y.txt"
+#line 266 "m68kasm.y"
             { (yyval.opc) = 0x5ec0; }
-#line 2701 "m68kasm.c"
+#line 2709 "m68kasm.c"
     break;
 
   case 124:
-#line 267 "m68kasm.y.txt"
+#line 267 "m68kasm.y"
             { (yyval.opc) = 0x52c0; }
-#line 2707 "m68kasm.c"
+#line 2715 "m68kasm.c"
     break;
 
   case 125:
-#line 268 "m68kasm.y.txt"
+#line 268 "m68kasm.y"
             { (yyval.opc) = 0x5fc0; }
-#line 2713 "m68kasm.c"
+#line 2721 "m68kasm.c"
     break;
 
   case 126:
-#line 269 "m68kasm.y.txt"
+#line 269 "m68kasm.y"
             { (yyval.opc) = 0x53c0; }
-#line 2719 "m68kasm.c"
+#line 2727 "m68kasm.c"
     break;
 
   case 127:
-#line 270 "m68kasm.y.txt"
+#line 270 "m68kasm.y"
             { (yyval.opc) = 0x5dc0; }
-#line 2725 "m68kasm.c"
+#line 2733 "m68kasm.c"
     break;
 
   case 128:
-#line 271 "m68kasm.y.txt"
+#line 271 "m68kasm.y"
             { (yyval.opc) = 0x5bc0; }
-#line 2731 "m68kasm.c"
+#line 2739 "m68kasm.c"
     break;
 
   case 129:
-#line 272 "m68kasm.y.txt"
+#line 272 "m68kasm.y"
             { (yyval.opc) = 0x56c0; }
-#line 2737 "m68kasm.c"
+#line 2745 "m68kasm.c"
     break;
 
   case 130:
-#line 273 "m68kasm.y.txt"
+#line 273 "m68kasm.y"
             { (yyval.opc) = 0x5ac0; }
-#line 2743 "m68kasm.c"
+#line 2751 "m68kasm.c"
     break;
 
   case 131:
-#line 274 "m68kasm.y.txt"
+#line 274 "m68kasm.y"
            { (yyval.opc) = 0x50c0; }
-#line 2749 "m68kasm.c"
+#line 2757 "m68kasm.c"
     break;
 
   case 132:
-#line 275 "m68kasm.y.txt"
+#line 275 "m68kasm.y"
             { (yyval.opc) = 0x58c0; }
-#line 2755 "m68kasm.c"
+#line 2763 "m68kasm.c"
     break;
 
   case 133:
-#line 276 "m68kasm.y.txt"
+#line 276 "m68kasm.y"
             { (yyval.opc) = 0x59c0; }
-#line 2761 "m68kasm.c"
+#line 2769 "m68kasm.c"
     break;
 
   case 134:
-#line 277 "m68kasm.y.txt"
+#line 277 "m68kasm.y"
             { (yyval.opc) = 0x4ac0; }
-#line 2767 "m68kasm.c"
+#line 2775 "m68kasm.c"
     break;
 
   case 135:
-#line 278 "m68kasm.y.txt"
+#line 278 "m68kasm.y"
                   { (yyval.opc) = 0x4a00 | ((yyvsp[0].wl)<<6); }
-#line 2773 "m68kasm.c"
+#line 2781 "m68kasm.c"
     break;
 
   case 136:
-#line 282 "m68kasm.y.txt"
+#line 282 "m68kasm.y"
              { (yyval.opc) = 0x81c0; }
-#line 2779 "m68kasm.c"
+#line 2787 "m68kasm.c"
     break;
 
   case 137:
-#line 283 "m68kasm.y.txt"
+#line 283 "m68kasm.y"
              { (yyval.opc) = 0x80c0; }
-#line 2785 "m68kasm.c"
+#line 2793 "m68kasm.c"
     break;
 
   case 138:
-#line 284 "m68kasm.y.txt"
+#line 284 "m68kasm.y"
              { (yyval.opc) = 0xc1c0; }
-#line 2791 "m68kasm.c"
+#line 2799 "m68kasm.c"
     break;
 
   case 139:
-#line 285 "m68kasm.y.txt"
+#line 285 "m68kasm.y"
              { (yyval.opc) = 0xc0c0; }
-#line 2797 "m68kasm.c"
+#line 2805 "m68kasm.c"
     break;
 
   case 140:
-#line 289 "m68kasm.y.txt"
+#line 289 "m68kasm.y"
              { (yyval.opc) = 0x54c8; }
-#line 2803 "m68kasm.c"
+#line 2811 "m68kasm.c"
     break;
 
   case 141:
-#line 290 "m68kasm.y.txt"
+#line 290 "m68kasm.y"
              { (yyval.opc) = 0x55c8; }
-#line 2809 "m68kasm.c"
+#line 2817 "m68kasm.c"
     break;
 
   case 142:
-#line 291 "m68kasm.y.txt"
+#line 291 "m68kasm.y"
              { (yyval.opc) = 0x57c8; }
-#line 2815 "m68kasm.c"
+#line 2823 "m68kasm.c"
     break;
 
   case 143:
-#line 292 "m68kasm.y.txt"
+#line 292 "m68kasm.y"
              { (yyval.opc) = 0x5cc8; }
-#line 2821 "m68kasm.c"
+#line 2829 "m68kasm.c"
     break;
 
   case 144:
-#line 293 "m68kasm.y.txt"
+#line 293 "m68kasm.y"
              { (yyval.opc) = 0x5ec8; }
-#line 2827 "m68kasm.c"
+#line 2835 "m68kasm.c"
     break;
 
   case 145:
-#line 294 "m68kasm.y.txt"
+#line 294 "m68kasm.y"
              { (yyval.opc) = 0x52c8; }
-#line 2833 "m68kasm.c"
+#line 2841 "m68kasm.c"
     break;
 
   case 146:
-#line 295 "m68kasm.y.txt"
+#line 295 "m68kasm.y"
              { (yyval.opc) = 0x5fc8; }
-#line 2839 "m68kasm.c"
+#line 2847 "m68kasm.c"
     break;
 
   case 147:
-#line 296 "m68kasm.y.txt"
+#line 296 "m68kasm.y"
              { (yyval.opc) = 0x53c8; }
-#line 2845 "m68kasm.c"
+#line 2853 "m68kasm.c"
     break;
 
   case 148:
-#line 297 "m68kasm.y.txt"
+#line 297 "m68kasm.y"
              { (yyval.opc) = 0x5dc8; }
-#line 2851 "m68kasm.c"
+#line 2859 "m68kasm.c"
     break;
 
   case 149:
-#line 298 "m68kasm.y.txt"
+#line 298 "m68kasm.y"
              { (yyval.opc) = 0x5bc8; }
-#line 2857 "m68kasm.c"
+#line 2865 "m68kasm.c"
     break;
 
   case 150:
-#line 299 "m68kasm.y.txt"
+#line 299 "m68kasm.y"
              { (yyval.opc) = 0x56c8; }
-#line 2863 "m68kasm.c"
+#line 2871 "m68kasm.c"
     break;
 
   case 151:
-#line 300 "m68kasm.y.txt"
+#line 300 "m68kasm.y"
              { (yyval.opc) = 0x5ac8; }
-#line 2869 "m68kasm.c"
+#line 2877 "m68kasm.c"
     break;
 
   case 152:
-#line 301 "m68kasm.y.txt"
+#line 301 "m68kasm.y"
              { (yyval.opc) = 0x58c8; }
-#line 2875 "m68kasm.c"
+#line 2883 "m68kasm.c"
     break;
 
   case 153:
-#line 302 "m68kasm.y.txt"
+#line 302 "m68kasm.y"
              { (yyval.opc) = 0x59c8; }
-#line 2881 "m68kasm.c"
+#line 2889 "m68kasm.c"
     break;
 
   case 154:
-#line 303 "m68kasm.y.txt"
+#line 303 "m68kasm.y"
              { (yyval.opc) = 0x51c8; }
-#line 2887 "m68kasm.c"
+#line 2895 "m68kasm.c"
     break;
 
   case 155:
-#line 304 "m68kasm.y.txt"
+#line 304 "m68kasm.y"
              { (yyval.opc) = 0x50c8; }
-#line 2893 "m68kasm.c"
+#line 2901 "m68kasm.c"
     break;
 
   case 156:
-#line 308 "m68kasm.y.txt"
+#line 308 "m68kasm.y"
                 { (yyval.opc) = 0x4afc; }
-#line 2899 "m68kasm.c"
+#line 2907 "m68kasm.c"
     break;
 
   case 157:
-#line 309 "m68kasm.y.txt"
+#line 309 "m68kasm.y"
             { (yyval.opc) = 0x4e71; }
-#line 2905 "m68kasm.c"
+#line 2913 "m68kasm.c"
     break;
 
   case 158:
-#line 310 "m68kasm.y.txt"
+#line 310 "m68kasm.y"
               { (yyval.opc) = 0x4e70; }
-#line 2911 "m68kasm.c"
+#line 2919 "m68kasm.c"
     break;
 
   case 159:
-#line 311 "m68kasm.y.txt"
+#line 311 "m68kasm.y"
             { (yyval.opc) = 0x4e73; }
-#line 2917 "m68kasm.c"
+#line 2925 "m68kasm.c"
     break;
 
   case 160:
-#line 312 "m68kasm.y.txt"
+#line 312 "m68kasm.y"
             { (yyval.opc) = 0x4e77; }
-#line 2923 "m68kasm.c"
+#line 2931 "m68kasm.c"
     break;
 
   case 161:
-#line 313 "m68kasm.y.txt"
+#line 313 "m68kasm.y"
             { (yyval.opc) = 0x4e75; }
-#line 2929 "m68kasm.c"
+#line 2937 "m68kasm.c"
     break;
 
   case 162:
-#line 314 "m68kasm.y.txt"
+#line 314 "m68kasm.y"
               { (yyval.opc) = 0x4e76; }
-#line 2935 "m68kasm.c"
+#line 2943 "m68kasm.c"
     break;
 
   case 163:
-#line 318 "m68kasm.y.txt"
+#line 318 "m68kasm.y"
             { (yyval.opc) = 0x4ec0; }
-#line 2941 "m68kasm.c"
+#line 2949 "m68kasm.c"
     break;
 
   case 164:
-#line 319 "m68kasm.y.txt"
+#line 319 "m68kasm.y"
             { (yyval.opc) = 0x4e80; }
-#line 2947 "m68kasm.c"
+#line 2955 "m68kasm.c"
     break;
 
   case 165:
-#line 320 "m68kasm.y.txt"
+#line 320 "m68kasm.y"
             { (yyval.opc) = 0x4840; }
-#line 2953 "m68kasm.c"
+#line 2961 "m68kasm.c"
     break;
 
   case 166:
-#line 323 "m68kasm.y.txt"
+#line 323 "m68kasm.y"
                       { (yyval.opc) = ((yyvsp[-2].reg)<<9) | 0x20 | (yyvsp[0].reg); }
-#line 2959 "m68kasm.c"
+#line 2967 "m68kasm.c"
     break;
 
   case 167:
-#line 324 "m68kasm.y.txt"
+#line 324 "m68kasm.y"
                             { (yyval.opc) = (((yyvsp[-2].num) & 7)<<9) | (yyvsp[0].reg); }
-#line 2965 "m68kasm.c"
+#line 2973 "m68kasm.c"
     break;
 
   case 168:
-#line 327 "m68kasm.y.txt"
+#line 327 "m68kasm.y"
                     { (yyval.opc) = (((yyvsp[-2].ea).ea & 7) << 9) |          ((yyvsp[0].ea).ea & 7); }
-#line 2971 "m68kasm.c"
+#line 2979 "m68kasm.c"
     break;
 
   case 169:
-#line 328 "m68kasm.y.txt"
+#line 328 "m68kasm.y"
                     { (yyval.opc) = (((yyvsp[-2].ea).ea & 7) << 9) | 0x0008 | ((yyvsp[0].ea).ea & 7); }
-#line 2977 "m68kasm.c"
-    break;
-
-  case 170:
-#line 331 "m68kasm.y.txt"
-                      { if (((yyvsp[0].ea).ea & 070)==0) { /* dx,dy must be swapped */
-						(yyval.rea).reg = ((yyvsp[0].ea).ea & 7)<<9; (yyvsp[0].ea).ea = (yyvsp[-2].reg) & 7; (yyval.rea).ea = (yyvsp[0].ea); }
-					else { (yyval.rea).reg = ((yyvsp[-2].reg)<<9) | 0x100; (yyval.rea).ea = (yyvsp[0].ea); } }
 #line 2985 "m68kasm.c"
     break;
 
+  case 170:
+#line 331 "m68kasm.y"
+                      { if (((yyvsp[0].ea).ea & 070)==0) { /* dx,dy must be swapped */
+
+						(yyval.rea).reg = ((yyvsp[0].ea).ea & 7)<<9; (yyvsp[0].ea).ea = (yyvsp[-2].reg) & 7; (yyval.rea).ea = (yyvsp[0].ea); }
+
+					else { (yyval.rea).reg = ((yyvsp[-2].reg)<<9) | 0x100; (yyval.rea).ea = (yyvsp[0].ea); } }
+#line 2993 "m68kasm.c"
+    break;
+
   case 171:
-#line 334 "m68kasm.y.txt"
+#line 334 "m68kasm.y"
                       { (yyval.rea).reg = ((yyvsp[0].reg)<<9); (yyval.rea).ea = (yyvsp[-2].ea); }
-#line 2991 "m68kasm.c"
+#line 2999 "m68kasm.c"
     break;
 
   case 172:
-#line 337 "m68kasm.y.txt"
+#line 337 "m68kasm.y"
            { (yyval.reg)=0; }
-#line 2997 "m68kasm.c"
+#line 3005 "m68kasm.c"
     break;
 
   case 173:
-#line 338 "m68kasm.y.txt"
+#line 338 "m68kasm.y"
            { (yyval.reg)=1; }
-#line 3003 "m68kasm.c"
+#line 3011 "m68kasm.c"
     break;
 
   case 174:
-#line 339 "m68kasm.y.txt"
+#line 339 "m68kasm.y"
            { (yyval.reg)=2; }
-#line 3009 "m68kasm.c"
+#line 3017 "m68kasm.c"
     break;
 
   case 175:
-#line 340 "m68kasm.y.txt"
+#line 340 "m68kasm.y"
            { (yyval.reg)=3; }
-#line 3015 "m68kasm.c"
+#line 3023 "m68kasm.c"
     break;
 
   case 176:
-#line 341 "m68kasm.y.txt"
+#line 341 "m68kasm.y"
            { (yyval.reg)=4; }
-#line 3021 "m68kasm.c"
+#line 3029 "m68kasm.c"
     break;
 
   case 177:
-#line 342 "m68kasm.y.txt"
+#line 342 "m68kasm.y"
            { (yyval.reg)=5; }
-#line 3027 "m68kasm.c"
+#line 3035 "m68kasm.c"
     break;
 
   case 178:
-#line 343 "m68kasm.y.txt"
+#line 343 "m68kasm.y"
            { (yyval.reg)=6; }
-#line 3033 "m68kasm.c"
+#line 3041 "m68kasm.c"
     break;
 
   case 179:
-#line 344 "m68kasm.y.txt"
+#line 344 "m68kasm.y"
            { (yyval.reg)=7; }
-#line 3039 "m68kasm.c"
+#line 3047 "m68kasm.c"
     break;
 
   case 180:
-#line 347 "m68kasm.y.txt"
+#line 347 "m68kasm.y"
            { (yyval.reg)=0; }
-#line 3045 "m68kasm.c"
+#line 3053 "m68kasm.c"
     break;
 
   case 181:
-#line 348 "m68kasm.y.txt"
+#line 348 "m68kasm.y"
            { (yyval.reg)=1; }
-#line 3051 "m68kasm.c"
+#line 3059 "m68kasm.c"
     break;
 
   case 182:
-#line 349 "m68kasm.y.txt"
+#line 349 "m68kasm.y"
            { (yyval.reg)=2; }
-#line 3057 "m68kasm.c"
+#line 3065 "m68kasm.c"
     break;
 
   case 183:
-#line 350 "m68kasm.y.txt"
+#line 350 "m68kasm.y"
            { (yyval.reg)=3; }
-#line 3063 "m68kasm.c"
+#line 3071 "m68kasm.c"
     break;
 
   case 184:
-#line 351 "m68kasm.y.txt"
+#line 351 "m68kasm.y"
            { (yyval.reg)=4; }
-#line 3069 "m68kasm.c"
+#line 3077 "m68kasm.c"
     break;
 
   case 185:
-#line 352 "m68kasm.y.txt"
+#line 352 "m68kasm.y"
            { (yyval.reg)=5; }
-#line 3075 "m68kasm.c"
+#line 3083 "m68kasm.c"
     break;
 
   case 186:
-#line 353 "m68kasm.y.txt"
+#line 353 "m68kasm.y"
            { (yyval.reg)=6; }
-#line 3081 "m68kasm.c"
+#line 3089 "m68kasm.c"
     break;
 
   case 187:
-#line 354 "m68kasm.y.txt"
+#line 354 "m68kasm.y"
            { (yyval.reg)=7; }
-#line 3087 "m68kasm.c"
+#line 3095 "m68kasm.c"
     break;
 
   case 188:
-#line 357 "m68kasm.y.txt"
+#line 357 "m68kasm.y"
               { (yyval.wl) = 1; oplen = 0; }
-#line 3093 "m68kasm.c"
+#line 3101 "m68kasm.c"
     break;
 
   case 189:
-#line 360 "m68kasm.y.txt"
+#line 360 "m68kasm.y"
               { (yyval.wl) = 0; oplen = 1; }
-#line 3099 "m68kasm.c"
+#line 3107 "m68kasm.c"
     break;
 
   case 190:
-#line 361 "m68kasm.y.txt"
+#line 361 "m68kasm.y"
               { (yyval.wl) = 1; oplen = 2; }
-#line 3105 "m68kasm.c"
+#line 3113 "m68kasm.c"
     break;
 
   case 191:
-#line 364 "m68kasm.y.txt"
+#line 364 "m68kasm.y"
               { (yyval.wl) = 0; oplen = 0; }
-#line 3111 "m68kasm.c"
+#line 3119 "m68kasm.c"
     break;
 
   case 192:
-#line 365 "m68kasm.y.txt"
+#line 365 "m68kasm.y"
               { (yyval.wl) = 1; oplen = 1; }
-#line 3117 "m68kasm.c"
+#line 3125 "m68kasm.c"
     break;
 
   case 193:
-#line 366 "m68kasm.y.txt"
+#line 366 "m68kasm.y"
               { (yyval.wl) = 2; oplen = 2; }
-#line 3123 "m68kasm.c"
+#line 3131 "m68kasm.c"
     break;
 
   case 194:
-#line 369 "m68kasm.y.txt"
+#line 369 "m68kasm.y"
               { (yyval.wl) = 1; oplen = 0; }
-#line 3129 "m68kasm.c"
+#line 3137 "m68kasm.c"
     break;
 
   case 195:
-#line 370 "m68kasm.y.txt"
+#line 370 "m68kasm.y"
               { (yyval.wl) = 3; oplen = 1; }
-#line 3135 "m68kasm.c"
+#line 3143 "m68kasm.c"
     break;
 
   case 196:
-#line 371 "m68kasm.y.txt"
+#line 371 "m68kasm.y"
               { (yyval.wl) = 2; oplen = 2; }
-#line 3141 "m68kasm.c"
+#line 3149 "m68kasm.c"
     break;
 
   case 197:
-#line 374 "m68kasm.y.txt"
+#line 374 "m68kasm.y"
               { (yyval.wl) = 3; oplen = 1; }
-#line 3147 "m68kasm.c"
+#line 3155 "m68kasm.c"
     break;
 
   case 198:
-#line 375 "m68kasm.y.txt"
+#line 375 "m68kasm.y"
               { (yyval.wl) = 2; oplen = 2; }
-#line 3153 "m68kasm.c"
+#line 3161 "m68kasm.c"
     break;
 
   case 199:
-#line 378 "m68kasm.y.txt"
+#line 378 "m68kasm.y"
              { (yyval.mask) = (yyvsp[0].mask); }
-#line 3159 "m68kasm.c"
+#line 3167 "m68kasm.c"
     break;
 
   case 200:
-#line 379 "m68kasm.y.txt"
+#line 379 "m68kasm.y"
                          { (yyval.mask).x = (yyvsp[-2].mask).x | (yyvsp[0].mask).x; (yyval.mask).d = (yyvsp[-2].mask).d | (yyvsp[0].mask).d; }
-#line 3165 "m68kasm.c"
+#line 3173 "m68kasm.c"
     break;
 
   case 201:
-#line 382 "m68kasm.y.txt"
+#line 382 "m68kasm.y"
              { (yyval.mask).x = movemx[(yyvsp[0].reg)]; (yyval.mask).d = movemd[(yyvsp[0].reg)]; }
-#line 3171 "m68kasm.c"
+#line 3179 "m68kasm.c"
     break;
 
   case 202:
-#line 383 "m68kasm.y.txt"
+#line 383 "m68kasm.y"
              { (yyval.mask).x = movemx[(yyvsp[0].reg)+8]; (yyval.mask).d = movemd[(yyvsp[0].reg)+8]; }
-#line 3177 "m68kasm.c"
+#line 3185 "m68kasm.c"
     break;
 
   case 203:
-#line 384 "m68kasm.y.txt"
+#line 384 "m68kasm.y"
                       { int i,l=(yyvsp[-2].reg),h=(yyvsp[0].reg); if (l>h) { l=(yyvsp[0].reg); h=(yyvsp[-2].reg); } (yyval.mask).x = (yyval.mask).d = 0; 
+
 					for (i=l; i<=h; i++) { (yyval.mask).d |= movemx[i]; (yyval.mask).d |= movemd[i]; } }
-#line 3184 "m68kasm.c"
+#line 3192 "m68kasm.c"
     break;
 
   case 204:
-#line 386 "m68kasm.y.txt"
+#line 386 "m68kasm.y"
                       { int i,l=(yyvsp[-2].reg),h=(yyvsp[0].reg); if (l>h) { l=(yyvsp[0].reg); h=(yyvsp[-2].reg); } (yyval.mask).x = (yyval.mask).d = 0; 
+
 					for (i=l; i<=h; i++) { (yyval.mask).x |= movemx[i+8]; (yyval.mask).d |= movemd[i+8]; } }
-#line 3191 "m68kasm.c"
+#line 3199 "m68kasm.c"
     break;
 
   case 260:
-#line 401 "m68kasm.y.txt"
+#line 401 "m68kasm.y"
              { (yyval.ea).ea = (yyvsp[0].reg); (yyval.ea).cnt = 0; }
-#line 3197 "m68kasm.c"
+#line 3205 "m68kasm.c"
     break;
 
   case 261:
-#line 403 "m68kasm.y.txt"
+#line 403 "m68kasm.y"
              { (yyval.ea).ea = 010 | (yyvsp[0].reg); (yyval.ea).cnt = 0; }
-#line 3203 "m68kasm.c"
+#line 3211 "m68kasm.c"
     break;
 
   case 262:
-#line 405 "m68kasm.y.txt"
+#line 405 "m68kasm.y"
                      { (yyval.ea).ea = 020 | (yyvsp[-1].reg); (yyval.ea).cnt = 0; }
-#line 3209 "m68kasm.c"
+#line 3217 "m68kasm.c"
     break;
 
   case 263:
-#line 407 "m68kasm.y.txt"
+#line 407 "m68kasm.y"
                          { (yyval.ea).ea = 030 | (yyvsp[-1].reg); (yyval.ea).cnt = 0; }
-#line 3215 "m68kasm.c"
+#line 3223 "m68kasm.c"
     break;
 
   case 264:
-#line 409 "m68kasm.y.txt"
+#line 409 "m68kasm.y"
                         { (yyval.ea).ea = 040 | (yyvsp[-1].reg); (yyval.ea).cnt = 0; }
-#line 3221 "m68kasm.c"
+#line 3229 "m68kasm.c"
     break;
 
   case 265:
-#line 411 "m68kasm.y.txt"
+#line 411 "m68kasm.y"
                                 { (yyval.ea).ea = 050 | (yyvsp[-1].reg); (yyval.ea).cnt = 1; (yyval.ea).arg[0] = (yyvsp[-3].num); }
-#line 3227 "m68kasm.c"
+#line 3235 "m68kasm.c"
     break;
 
   case 266:
-#line 414 "m68kasm.y.txt"
+#line 414 "m68kasm.y"
                 { (yyval.ea).ea = 060 | (yyvsp[-4].reg); (yyval.ea).cnt = 1; (yyval.ea).arg[0] = 0x8000 | ((yyvsp[-2].reg)<<12) | ((yyvsp[-1].wl)<<11) | ((yyvsp[-6].num) & 0xff); }
-#line 3233 "m68kasm.c"
+#line 3241 "m68kasm.c"
     break;
 
   case 267:
-#line 416 "m68kasm.y.txt"
+#line 416 "m68kasm.y"
                 { (yyval.ea).ea = 060 | (yyvsp[-4].reg); (yyval.ea).cnt = 1; (yyval.ea).arg[0] =          ((yyvsp[-2].reg)<<12) | ((yyvsp[-1].wl)<<11) | ((yyvsp[-6].num) & 0xff); }
-#line 3239 "m68kasm.c"
+#line 3247 "m68kasm.c"
     break;
 
   case 268:
-#line 418 "m68kasm.y.txt"
+#line 418 "m68kasm.y"
                             { if ((yyvsp[0].wl)==0) { (yyval.ea).ea = 070; (yyval.ea).cnt = 1; (yyval.ea).arg[0] = (yyvsp[-2].num); } 
+
 				          else {       (yyval.ea).ea = 071; (yyval.ea).cnt = 2; (yyval.ea).arg[0] = (yyvsp[-2].num) >> 16; (yyval.ea).arg[1] = (yyvsp[-2].num) & 0xffff; } }
-#line 3246 "m68kasm.c"
+#line 3254 "m68kasm.c"
     break;
 
   case 269:
-#line 420 "m68kasm.y.txt"
+#line 420 "m68kasm.y"
                    { int tmp = ((yyvsp[-1].num)>>15) & 0x1ffff; if (tmp==0 || tmp==0x1ffff) { (yyval.ea).ea = 070; (yyval.ea).cnt = 1; (yyval.ea).arg[0] = (yyvsp[-1].num); }
+
 			 else { (yyval.ea).ea = 070; (yyval.ea).cnt = 2;  (yyval.ea).arg[0] = (yyvsp[-1].num) >> 16; (yyval.ea).arg[1] = (yyvsp[-1].num) & 0xffff; } }
-#line 3253 "m68kasm.c"
+#line 3261 "m68kasm.c"
     break;
 
   case 270:
-#line 423 "m68kasm.y.txt"
+#line 423 "m68kasm.y"
                               { (yyval.ea).ea = 072; (yyval.ea).cnt = 1; (yyval.ea).arg[0] = (yyvsp[-3].num); }
-#line 3259 "m68kasm.c"
+#line 3267 "m68kasm.c"
     break;
 
   case 271:
-#line 424 "m68kasm.y.txt"
+#line 424 "m68kasm.y"
                { (yyval.ea).ea = 072; (yyval.ea).cnt = 1; (yyval.ea).arg[0] = (yyvsp[0].num); }
-#line 3265 "m68kasm.c"
+#line 3273 "m68kasm.c"
     break;
 
   case 272:
-#line 427 "m68kasm.y.txt"
+#line 427 "m68kasm.y"
                 { (yyval.ea).ea = 073; (yyval.ea).cnt = 1; (yyval.ea).arg[0] = 0x8000 | ((yyvsp[-2].reg)<<12) | ((yyvsp[-1].wl)<<11) | ((yyvsp[-6].num) & 0xff); }
-#line 3271 "m68kasm.c"
+#line 3279 "m68kasm.c"
     break;
 
   case 273:
-#line 429 "m68kasm.y.txt"
+#line 429 "m68kasm.y"
                 { (yyval.ea).ea = 073; (yyval.ea).cnt = 1; (yyval.ea).arg[0] = ((yyvsp[-2].reg)<<12) | ((yyvsp[-1].wl)<<11) | ((yyvsp[-6].num) & 0xff); }
-#line 3277 "m68kasm.c"
-    break;
-
-  case 274:
-#line 431 "m68kasm.y.txt"
-                   { (yyval.ea).ea = 074; if (oplen==0) { (yyval.ea).cnt = 1; (yyval.ea).arg[0] = (yyvsp[0].num) & 0xff; }
-				 else if (oplen==1) { (yyval.ea).cnt = 1; (yyval.ea).arg[0] = (yyvsp[0].num) & 0xffff; }
-				 else { (yyval.ea).cnt = 2; (yyval.ea).arg[0] = (yyvsp[0].num) >> 16; (yyval.ea).arg[1] = (yyvsp[0].num) & 0xffff; } }
 #line 3285 "m68kasm.c"
     break;
 
+  case 274:
+#line 431 "m68kasm.y"
+                   { (yyval.ea).ea = 074; if (oplen==0) { (yyval.ea).cnt = 1; (yyval.ea).arg[0] = (yyvsp[0].num) & 0xff; }
+
+				 else if (oplen==1) { (yyval.ea).cnt = 1; (yyval.ea).arg[0] = (yyvsp[0].num) & 0xffff; }
+
+				 else { (yyval.ea).cnt = 2; (yyval.ea).arg[0] = (yyvsp[0].num) >> 16; (yyval.ea).arg[1] = (yyvsp[0].num) & 0xffff; } }
+#line 3293 "m68kasm.c"
+    break;
+
   case 275:
-#line 435 "m68kasm.y.txt"
+#line 435 "m68kasm.y"
             { (yyval.ea).ea = 074; (yyval.ea).cnt = 0; }
-#line 3291 "m68kasm.c"
+#line 3299 "m68kasm.c"
     break;
 
   case 276:
-#line 436 "m68kasm.y.txt"
+#line 436 "m68kasm.y"
            { (yyval.ea).ea = 074; (yyval.ea).cnt = 1; }
-#line 3297 "m68kasm.c"
+#line 3305 "m68kasm.c"
     break;
 
 
-#line 3301 "m68kasm.c"
+#line 3309 "m68kasm.c"
 
       default: break;
     }
@@ -3312,11 +3410,10 @@ yyreduce:
      case of YYERROR or YYBACKUP, subsequent parser actions might lead
      to an incorrect destructor call or verbose syntax error message
      before the lookahead is translated.  */
-  YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
+  YY_SYMBOL_PRINT ("-> $$ =", YY_CAST (yysymbol_kind_t, yyr1[yyn]), &yyval, &yyloc);
 
   YYPOPSTACK (yylen);
   yylen = 0;
-  YY_STACK_PRINT (yyss, yyssp);
 
   *++yyvsp = yyval;
 
@@ -3340,49 +3437,13 @@ yyreduce:
 yyerrlab:
   /* Make sure we have latest lookahead translation.  See comments at
      user semantic actions for why this is necessary.  */
-  yytoken = yychar == YYEMPTY ? YYEMPTY : YYTRANSLATE (yychar);
-
+  yytoken = yychar == YYEMPTY ? YYSYMBOL_YYEMPTY : YYTRANSLATE (yychar);
   /* If not already recovering from an error, report this error.  */
   if (!yyerrstatus)
     {
       ++yynerrs;
-#if ! YYERROR_VERBOSE
       yyerror (YY_("syntax error"));
-#else
-# define YYSYNTAX_ERROR yysyntax_error (&yymsg_alloc, &yymsg, \
-                                        yyssp, yytoken)
-      {
-        char const *yymsgp = YY_("syntax error");
-        int yysyntax_error_status;
-        yysyntax_error_status = YYSYNTAX_ERROR;
-        if (yysyntax_error_status == 0)
-          yymsgp = yymsg;
-        else if (yysyntax_error_status == 1)
-          {
-            if (yymsg != yymsgbuf)
-              YYSTACK_FREE (yymsg);
-            yymsg = YY_CAST (char *, YYSTACK_ALLOC (YY_CAST (YYSIZE_T, yymsg_alloc)));
-            if (!yymsg)
-              {
-                yymsg = yymsgbuf;
-                yymsg_alloc = sizeof yymsgbuf;
-                yysyntax_error_status = 2;
-              }
-            else
-              {
-                yysyntax_error_status = YYSYNTAX_ERROR;
-                yymsgp = yymsg;
-              }
-          }
-        yyerror (yymsgp);
-        if (yysyntax_error_status == 2)
-          goto yyexhaustedlab;
-      }
-# undef YYSYNTAX_ERROR
-#endif
     }
-
-
 
   if (yyerrstatus == 3)
     {
@@ -3432,13 +3493,14 @@ yyerrorlab:
 yyerrlab1:
   yyerrstatus = 3;      /* Each real token shifted decrements this.  */
 
+  /* Pop stack until we find a state that shifts the error token.  */
   for (;;)
     {
       yyn = yypact[yystate];
       if (!yypact_value_is_default (yyn))
         {
-          yyn += YYTERROR;
-          if (0 <= yyn && yyn <= YYLAST && yycheck[yyn] == YYTERROR)
+          yyn += YYSYMBOL_YYerror;
+          if (0 <= yyn && yyn <= YYLAST && yycheck[yyn] == YYSYMBOL_YYerror)
             {
               yyn = yytable[yyn];
               if (0 < yyn)
@@ -3452,7 +3514,7 @@ yyerrlab1:
 
 
       yydestruct ("Error: popping",
-                  yystos[yystate], yyvsp);
+                  YY_ACCESSING_SYMBOL (yystate), yyvsp);
       YYPOPSTACK (1);
       yystate = *yyssp;
       YY_STACK_PRINT (yyss, yyssp);
@@ -3464,7 +3526,7 @@ yyerrlab1:
 
 
   /* Shift the error token.  */
-  YY_SYMBOL_PRINT ("Shifting", yystos[yyn], yyvsp, yylsp);
+  YY_SYMBOL_PRINT ("Shifting", YY_ACCESSING_SYMBOL (yyn), yyvsp, yylsp);
 
   yystate = yyn;
   goto yynewstate;
@@ -3486,7 +3548,7 @@ yyabortlab:
   goto yyreturn;
 
 
-#if !defined yyoverflow || YYERROR_VERBOSE
+#if !defined yyoverflow
 /*-------------------------------------------------.
 | yyexhaustedlab -- memory exhaustion comes here.  |
 `-------------------------------------------------*/
@@ -3516,247 +3578,475 @@ yyreturn:
   while (yyssp != yyss)
     {
       yydestruct ("Cleanup: popping",
-                  yystos[*yyssp], yyvsp);
+                  YY_ACCESSING_SYMBOL (+*yyssp), yyvsp);
       YYPOPSTACK (1);
     }
 #ifndef yyoverflow
   if (yyss != yyssa)
     YYSTACK_FREE (yyss);
 #endif
-#if YYERROR_VERBOSE
-  if (yymsg != yymsgbuf)
-    YYSTACK_FREE (yymsg);
-#endif
+
   return yyresult;
 }
-#line 437 "m68kasm.y.txt"
+
+#line 437 "m68kasm.y"
+
+
 
 
 static void yyerror(char* s)
+
 {
+
 	/* do not emit anything, but set error flag */
+
 	yyerrc = 1;
+
 }
 
+
+
 struct _optable {
+
 	char* mnem;
+
 	int token;
+
 };
+
+
 
 static struct _optable ops[] = {
+
 	{ "abcd",	ABCD },		{ "add",	ADD },		{ "adda",	ADDA },		{ "addi",	ADDI },
+
 	{ "addq",	ADDQ },		{ "addx",	ADDX },		{ "and",	AND },		{ "andi",	ANDI },
+
 	{ "asl",	ASL }, 		{ "asr",	ASR },		{ "bcc",	BCC },		{ "bcs",	BCS },
+
 	{ "beq",	BEQ },		{ "bge",	BGE },		{ "bgt",	BGT },		{ "bhi",	BHI },
+
 	{ "ble",	BLE },		{ "bls",	BLS },		{ "blt",	BLT },		{ "bmi",	BMI },
+
 	{ "bne",	BNE },		{ "bpl",	BPL },		{ "bvc",	BVC },		{ "bvs",	BVS },
+
 	{ "bchg",	BCHG },		{ "bclr",	BCLR },		{ "bra",	BRA },		{ "bset",	BSET },
+
 	{ "bsr",	BSR },		{ "btst",	BTST },		{ "chk",	CHK },		{ "clr",	CLR },
+
 	{ "cmp",	CMP },		{ "cmpa",	CMPA },		{ "cmpi",	CMPI },		{ "cmpm",	CMPM },
+
 	{ "dbcc",	DBCC },		{ "dbcs",	DBCS },		{ "dbeq",	DBEQ },		{ "dbf",	DBF },
+
 	{ "dbge",	DBGE },		{ "dbgt",	DBGT },		{ "dbhi",	DBHI },		{ "dble",	DBLE },
+
 	{ "dbls",	DBLS },		{ "dblt",	DBLT },		{ "dbmi",	DBMI },		{ "dbne",	DBNE },
+
 	{ "dbpl",	DBPL },		{ "dbt",	DBT },		{ "dbvc",	DBVC },		{ "dbvs",	DBVS },
+
 	{ "divs",	DIVS },		{ "divu",	DIVU },		{ "eor",	EOR },		{ "eori",	EORI },
+
 	{ "exg",	EXG },		{ "ext",	EXT },		{ "illegal",ILLEGAL },	{ "jmp",	JMP },
+
 	{ "jsr",	JSR },		{ "lea",	LEA },		{ "link",	LINK },		{ "lsl",	LSL },
+
 	{ "lsr",	LSR }, 		{ "move",	MOVE },		{ "movea",	MOVEA },	{ "movem",	MOVEM },
+
 	{ "movep",	MOVEP },	{ "moveq",	MOVEQ },	{ "muls",	MULS },		{ "mulu",	MULU },
+
 	{ "nbcd",	NBCD },		{ "neg",	NEG },		{ "negx",	NEGX },		{ "nop",	NOP },
+
 	{ "not",	NOT },		{ "or",		OR },		{ "ori",	ORI },		{ "pea",	PEA },
+
 	{ "reset",	RESET },	{ "rol",	ROL },		{ "ror",	ROR },		{ "roxl",	ROXL },
+
 	{ "roxr",	ROXR },		{ "rte",	RTE },		{ "rtr",	RTR },
+
 	{ "rts",	RTS },		{ "scc",	SCC },		{ "scs",	SCS },		{ "seq",	SEQ },
+
 	{ "sf",		SF },		{ "sge",	SGE },		{ "sgt",	SGT },		{ "shi",	SHI },
+
 	{ "sle",	SLE },		{ "sls",	SLS },		{ "slt",	SLT },		{ "smi",	SMI },
+
 	{ "sne",	SNE },		{ "spl",	SPL },		{ "st",		ST },		{ "svc",	SVC },
+
 	{ "svs",	SVS },		{ "stop",	STOP },		{ "sub",	SUB },		{ "suba",	SUBA },
+
 	{ "subi",	SUBI },		{ "subq",	SUBQ },		{ "subx",	SUBX },		{ "swap",	SWAP },
+
 	{ "tas",	TAS },		{ "trap",	TRAP },		{ "trapv",	TRAPV },	{ "tst",	TST },
+
 	{ "unlk",	UNLK },		{ "a0",		A0 },		{ "a1",		A1 },		{ "a2",		A2 },
+
 	{ "a3",		A3 },		{ "a4",		A4 },		{ "a5",		A5 },		{ "a6",		A6 },
+
 	{ "a7",		A7 },		{ "d0",		D0 },		{ "d1",		D1 },		{ "d2",		D2 },
+
 	{ "d3",		D3 },		{ "d4",		D4 },		{ "d5",		D5 },		{ "d6",		D6 },
+
 	{ "d7",		D7 },		{ "ccr",	CCR },		{ "sr",		SR },		{ "usp",	USP },
+
 	{ "pc",		PC },		
+
 	{ 0, 		0 }
+
 };
 
+
+
 typedef struct _ophash {
+
 	struct _ophash* next;
+
 	struct _optable* op;
+
 } OPHASH;
+
 #define OPHASHSIZE 97
+
+
 
 static OPHASH **ophash = 0;
 
+
+
 static int getophash(const char* s)
+
 {
+
 	int h = 0;
+
 	while (*s++) h += (int)*s;
+
 	return h % OPHASHSIZE;
+
 }
+
+
 
 static int oplookup(const char* s)
+
 {
+
 	int idx = getophash(s);
+
 	OPHASH* oph = ophash[idx];
+
 	if (oph) {
+
 		if (oph->next) {
+
 			while (oph) {
+
 				if (!strcmp(s,oph->op->mnem)) return oph->op->token;
+
 				oph = oph->next;
+
 			}
+
 			return 0;
+
 		}
+
 		return oph->op->token;
+
 	}
+
 	return 0;
+
 }
 
+
+
 static void init_ophash() 
+
 {
+
 	struct _optable* op = ops;
+
 	OPHASH* oph;
+
 	ophash = (OPHASH**)calloc(sizeof(OPHASH*),OPHASHSIZE);
+
 	while (op->mnem) {
+
 		int idx = getophash(op->mnem);
+
 		oph = (OPHASH*)malloc(sizeof(OPHASH));
+
 		oph->next = ophash[idx];
+
 		oph->op = op;
+
 		ophash[idx] = oph;
+
 		op++;
+
 	}
+
 }
+
+
 
 static char* yystream;
 
+
+
 static int yylex()
+
 {
+
 	char ident[30];
+
 	char *p = ident;
+
 	char c = yystream[0];
+
 	
+
 	while (c != 0 && (c=='\t' || c==' ')) {
+
 		c = *++yystream;
+
 	}
+
 	if (c==0) return EOF;
+
 	
+
 	if (isalpha(c)) {
+
 		while (isalnum(c) && (p-ident)<28) {
+
 			*p++ = tolower(c); c = *++yystream;
+
 		}
+
 		*p = 0;
+
 		if (p>ident) { return oplookup(ident); }
+
 		return EOF;
+
 	} else if (isdigit(c)) {
+
 		*p++ = c; 
+
 		if (yystream[1]=='x' || yystream[1]=='X') { *p++ = 'x'; yystream++; }
+
 		c = *++yystream;
+
 		while ((isdigit(c) || isxdigit(c)) && (p-ident)<28) {
+
 			*p++ = c; c = *++yystream;
+
 		}
+
 		*p = 0;
+
 		yylval.num = strtol(ident,0,0);
+
 		return NUMBER;
+
     } else if (c=='$') {
+
     	if (isdigit(yystream[1]) || isxdigit(yystream[1])) {
+
 			c = *++yystream;
+
 			while ((isdigit(c) || isxdigit(c)) && (p-ident)<28) {
+
 				*p++ = c; c = *++yystream;
+
 			}
+
 			*p = 0;
+
 			yylval.num = strtol(ident,0,16);
+
 			return NUMBER;
+
 		} else return '$';
+
 	} else if (c == '-' && yystream[1] == '(') {
+
 		yystream += 2; return PREDEC;
+
 	} else if (c == ')' && yystream[1] == '+') {
+
 		yystream += 2; return POSTINC;
+
 	} else if (c == '.') {
+
 		switch (yystream[1]) {
+
 		case 'b': yystream += 2; return BSIZE;
+
 		case 'w': yystream += 2; return WSIZE;
+
 		case 'l': yystream += 2; return LSIZE;
+
 		case 's': yystream += 2; return SSIZE;
+
 		default: yystream++; return '.';
+
 		}
+
 	} else {
+
 		++yystream; return c;
+
 	}
+
 }
+
+
 
 static t_value *yyvalptr;
+
 static t_addr yyaddr;
 
+
+
 t_stat parse_sym_m68k(char* c, t_addr a, UNIT* u, t_value* val, int32 sw)
+
 {
+
 	char ch;
+
 	
+
 	if (!ophash) init_ophash();
 
+
+
 	yyvalptr = val;
+
 	yyaddr = a;
 
+
+
 	yystream = c;
+
 	yyerrc = 0;
+
 	
+
 	ch = *yystream;
+
 	while (ch != 0 && (ch=='\t' || ch==' ')) {
+
 		ch = *++yystream;
+
 	}
+
 	if (ch == 0) return 0;
 
+
+
 	if (sw & SWMASK('Y')) yydebug = 1 - yydebug;
+
 	if ((sw & SWMASK('A')) || ch=='\'') {
+
 		if ((ch = yystream[1])) {
+
 			val[0] = (uint32)ch;
+
 			return SCPE_OK;
+
 		} else return SCPE_ARG;
+
 	}
+
 	if ((sw & SWMASK('C')) || ch=='"') {
+
 		if ((ch = yystream[1])) {
+
 			val[0] = ((uint32)ch << 8) | (uint32)yystream[1];
+
 			return SCPE_OK;
+
 		} else return SCPE_ARG;
+
 	}
+
 	
+
 	yyparse();
+
 //    sim_printf("rc=%d\n",yyrc);
+
 	if (yyerrc) return SCPE_ARG;
+
 	return yyrc;
+
 }
+
+
 
 static int _genop(t_value arg)
+
 {
+
 //    sim_printf("_genop(%x)@%x\n",arg,(int)yyvalptr);
+
     *yyvalptr = (arg >> 8) & 0xff;
+
     yyvalptr++;
+
     *yyvalptr = arg & 0xff;
+
     yyvalptr++;
+
     return -1;
+
 }
+
+
 
 static int _genea(struct _ea arg)
+
 {
+
 	int i;
+
 	for (i=0; i<arg.cnt; i++) _genop(arg.arg[i]);
+
 	return -(arg.cnt*2)-1;
+
 }
 
+
+
 static int _genbr(t_value arg,t_addr tgt,int len) 
+
 {
+
 	t_addr a = tgt - yyaddr -2;
+
 	if (len==1) {
+
 		_genop(arg);
+
 		_genop(a & 0xffff);
+
 		a &= 0xffff8000;
+
 		if (a != 0x00000000 && a != 0xffff8000) return SCPE_ARG;
+
 		return -3;
+
 	} else {
+
 		_genop(arg | (a&0xff));
+
 		a &= 0xffffff80;
+
 		if (a != 0x00000000 && a != 0xffffff80) return SCPE_ARG;
+
 		return -1;
+
 	}
+
 }
+

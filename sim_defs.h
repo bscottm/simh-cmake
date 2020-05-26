@@ -336,24 +336,6 @@ typedef uint32          t_addr;
 #endif
 
 
-/* Storage class modifier for weak link definition for sim_vm_init() */
-
-#if defined(__cplusplus)
-#if defined(__GNUC__)
-#define WEAK __attribute__((weak))
-#elif defined(_MSC_VER)
-#define WEAK __declspec(selectany) 
-#else   /* !defined(__GNUC__) && !defined(_MSC_VER)  */
-#define WEAK 
-#endif  /* __GNUC__ */
-#else   /* !defined(__cplusplus) */
-#if defined(__GNUC__)
-#define WEAK __attribute__((common))
-#else   /* !defined(__GNUC__) */
-#define WEAK
-#endif  /* defined(__GNUC__) */
-#endif  /* defined(__cplusplus) */
-
 /* sim_regex_t: Type alias for the appropriate PCRE package to reduce
    conditional compiles in this header. Unfortunately, that's not the
    case when the actual PCRE/PCRE2 functions are called in scp.c. */
