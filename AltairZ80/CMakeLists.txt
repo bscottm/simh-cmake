@@ -35,6 +35,7 @@ add_simulator(altairz80
         s100_disk3.c
         s100_fif.c
         s100_mdriveh.c
+        s100_jadedd.c
         s100_mdsa.c
         s100_mdsad.c
         s100_selchan.c

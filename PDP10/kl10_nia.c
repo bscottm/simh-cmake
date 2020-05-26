@@ -520,13 +520,13 @@ ipv4_inet_ntoa(struct in_addr ip)
    static char str[20];
 
    if (sim_end)
-       sprintf (str, "%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u",
+       sprintf (str, "%" IP_SADDR_FMT ".%" IP_SADDR_FMT ".%" IP_SADDR_FMT ".%" IP_SADDR_FMT,
                             ip.s_addr & 0xFF,
                             (ip.s_addr >> 8) & 0xFF,
                             (ip.s_addr >> 16) & 0xFF,
                             (ip.s_addr >> 24) & 0xFF);
    else
-       sprintf (str, "%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u",
+       sprintf (str, "%" IP_SADDR_FMT ".%" IP_SADDR_FMT ".%" IP_SADDR_FMT ".%" IP_SADDR_FMT,
                               (ip.s_addr >> 24) & 0xFF,
                               (ip.s_addr >> 16) & 0xFF,
                               (ip.s_addr >> 8) & 0xFF,
