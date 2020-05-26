@@ -283,7 +283,7 @@ if (WITH_NETWORK)
         set(NETWORK_PKG_STATUS "installed PCAP")
     else (PCAP_FOUND)
         # Extract the npcap headers and libraries
-        set(NPCAP_ARCHIVE ${SIMH_DEP_PATCHES}/libpcap/npcap-sdk-1.04.zip)
+        set(NPCAP_ARCHIVE ${SIMH_DEP_PATCHES}/libpcap/npcap-sdk-1.05.zip)
 
         if (WIN32)
             execute_process(

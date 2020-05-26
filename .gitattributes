@@ -5,6 +5,7 @@
 *.crd     -text
 *.doc     -text
 *.docx    -text
+*.dck     -text
 *.dsk     -text
 *.exe     -text
 *.imd     -text
