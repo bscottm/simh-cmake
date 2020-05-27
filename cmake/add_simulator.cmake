@@ -176,9 +176,13 @@ function (add_simulator _targ)
         endif (DEFINED SIMH_SOURCE_DIR)
         string(APPEND test_fname "/tests/${SIMH_TEST}_test.ini")
 
+        set(test_cmd "${_targ}" "RegisterSanityCheck")
+
         IF (EXISTS "${test_fname}")
-            add_test(NAME "test-${_targ}" COMMAND "${_targ}" "${test_fname}" "-v")
+            list(APPEND test_cmd "${test_fname}" "-v")
         ENDIF (EXISTS "${test_fname}")
+
+        add_test(NAME "test-${_targ}" COMMAND ${test_cmd})
     endif (DEFINED SIMH_TEST)
 
     if (NOT DONT_USE_ROMS AND SIMH_BUILDROMS)
