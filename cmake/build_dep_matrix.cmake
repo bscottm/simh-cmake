@@ -44,14 +44,9 @@ function(BuildDepMatrix dep pretty)
         list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} -E echo "-- Building ${pretty} '${cfg}' configuration")
         list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} -E remove -f CMakeCache.txt)
         list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} -E remove_directory CMakeFiles)
-        if (NOT CMAKE_CONFIGURATION_TYPES)
-            list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} ${cmake_cfg_args} -DCMAKE_BUILD_TYPE=${cfg}
-                -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR})
-            list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config ${cfg} --clean-first)
-        else (NOT CMAKE_CONFIGURATION_TYPES)
-            list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} ${cmake_cfg_args} -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR})
-            list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config "${cfg}" --clean-first)
-        endif (NOT CMAKE_CONFIGURATION_TYPES)
+        list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} ${cmake_cfg_args} -DCMAKE_BUILD_TYPE=${cfg}
+          -DCMAKE_INSTALL_PREFIX=${SIMH_DEP_TOPDIR})
+        list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config "${cfg}" --clean-first)
         list(APPEND dep_cmds COMMAND ${CMAKE_COMMAND} --install <BINARY_DIR> --config ${cfg})
     endforeach ()
 
