@@ -76,8 +76,8 @@ char *ipaddrstr = NULL;
 char *portstr = NULL;
 struct redir_tcp_udp *newp;
 
-gbuf[sizeof(gbuf)-1] = '\0';
 strncpy (gbuf, buff, sizeof(gbuf)-1);
+gbuf[sizeof(gbuf) - 1] = '\0';
 if (((ipaddrstr = strchr(gbuf, ':')) == NULL) || (*(ipaddrstr+1) == 0)) {
     sim_printf ("redir %s syntax error\n", tcpudp[is_udp]);
     return -1;

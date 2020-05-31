@@ -781,7 +781,7 @@ int decode_ra_wiring(uint16 image[80], int HiPunch)
        //
        A = decode_num_word(&buf[10], 4, 1);
        I = (hbuf[13]) ? A : 1903; // if HiPunch on (A1) last digit, replace 1903 with (A1) value
-       IOSync[0] = (t_int64) 24 * 10000 * 10000 + A * 10000  + I;
+       IOSync[0] = (t_int64) (24ull * 10000ull * 10000ull) + A * 10000ull  + I;
        IOSync[1] = decode_num_word(&buf[14], 10, 1) * wsgn[0];
 
        A = decode_num_word(&buf[24], 4, 1);
