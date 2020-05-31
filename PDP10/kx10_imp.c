@@ -1590,19 +1590,19 @@ void imp_packet_debug(struct imp_device *imp, const char *action, ETH_PACK *pack
                     case DHCP_OPTION_LEASE_TIME:
                           opt_len = *opt++;
                           memcpy(&numeric, opt, 4);
-                          sim_debug(DEBUG_DHCP, &imp_dev, ", lease-time=%" NTOHL_FMT "u", ntohl(numeric));
+                          sim_debug(DEBUG_DHCP, &imp_dev, ", lease-time=%" NTOHL_FMT, ntohl(numeric));
                           opt += opt_len;
                           break;
                     case DHCP_OPTION_T1:
                           opt_len = *opt++;
                           memcpy(&numeric, opt, 4);
-                          sim_debug(DEBUG_DHCP, &imp_dev, ", renew-time=%" NTOHL_FMT "u", ntohl(numeric));
+                          sim_debug(DEBUG_DHCP, &imp_dev, ", renew-time=%" NTOHL_FMT, ntohl(numeric));
                           opt += opt_len;
                           break;
                     case DHCP_OPTION_T2:
                           opt_len = *opt++;
                           memcpy(&numeric, opt, 4);
-                          sim_debug(DEBUG_DHCP, &imp_dev, ", rebind-time=%" NTOHL_FMT "u", ntohl(numeric));
+                          sim_debug(DEBUG_DHCP, &imp_dev, ", rebind-time=%" NTOHL_FMT, ntohl(numeric));
                           opt += opt_len;
                           break;
                     case DHCP_OPTION_SERVER_ID:
@@ -2401,10 +2401,10 @@ ipv4_inet_ntoa(struct in_addr ip)
    static char str[20];
 
    if (sim_end)
-       sprintf (str, "%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u", ip.s_addr & 0xFF, (ip.s_addr >> 8) & 0xFF,
+       sprintf (str, "%" IP_SADDR_FMT ".%" IP_SADDR_FMT ".%" IP_SADDR_FMT ".%" IP_SADDR_FMT, ip.s_addr & 0xFF, (ip.s_addr >> 8) & 0xFF,
                               (ip.s_addr >> 16) & 0xFF, (ip.s_addr >> 24) & 0xFF);
    else
-       sprintf (str, "%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u.%" IP_SADDR_FMT "u", (ip.s_addr >> 24) & 0xFF, (ip.s_addr >> 16) & 0xFF,
+       sprintf (str, "%" IP_SADDR_FMT ".%" IP_SADDR_FMT ".%" IP_SADDR_FMT ".%" IP_SADDR_FMT, (ip.s_addr >> 24) & 0xFF, (ip.s_addr >> 16) & 0xFF,
                               (ip.s_addr >> 8) & 0xFF, ip.s_addr & 0xFF);
    return str;
 }

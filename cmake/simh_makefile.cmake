@@ -139,6 +139,7 @@ add_simulator(altairz80
         ${ALTAIRZ80D}/s100_disk3.c
         ${ALTAIRZ80D}/s100_fif.c
         ${ALTAIRZ80D}/s100_mdriveh.c
+        ${ALTAIRZ80D}/s100_jadedd.c
         ${ALTAIRZ80D}/s100_mdsa.c
         ${ALTAIRZ80D}/s100_mdsad.c
         ${ALTAIRZ80D}/s100_selchan.c

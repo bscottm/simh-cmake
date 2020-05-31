@@ -211,7 +211,7 @@ static t_stat net_svc(UNIT *uptr) {
                     s = sim_accept_conn(serviceDescriptor[1].masterSocket, NULL);
                     if (s != INVALID_SOCKET) {
                         serviceDescriptor[i].ioSocket = s;
-                        sim_debug(ACCEPT_MSG, &net_dev, "NET: " ADDRESS_FORMAT " Accepted connection %i with socket %" SOCKET_FMT "i.\n", PCX, i, s);
+                        sim_debug(ACCEPT_MSG, &net_dev, "NET: " ADDRESS_FORMAT " Accepted connection %i with socket %" SOCKET_FMT ".\n", PCX, i, s);
                     }
                 }
         }
@@ -228,7 +228,7 @@ static t_stat net_svc(UNIT *uptr) {
                     r = sim_read_sock(serviceDescriptor[i].ioSocket, svcBuffer,
                         BUFFER_LENGTH - serviceDescriptor[i].inputSize);
                     if (r == -1) {
-                        sim_debug(DROP_MSG, &net_dev, "NET: " ADDRESS_FORMAT " Drop connection %i with socket %" SOCKET_FMT "i.\n", PCX, i, serviceDescriptor[i].ioSocket);
+                        sim_debug(DROP_MSG, &net_dev, "NET: " ADDRESS_FORMAT " Drop connection %i with socket %" SOCKET_FMT ".\n", PCX, i, serviceDescriptor[i].ioSocket);
                         sim_close_sock(serviceDescriptor[i].ioSocket);
                         serviceDescriptor[i].ioSocket = 0;
                         serviceDescriptor_reset(i);

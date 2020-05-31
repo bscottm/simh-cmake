@@ -176,9 +176,27 @@ function (add_simulator _targ)
         endif (DEFINED SIMH_SOURCE_DIR)
         string(APPEND test_fname "/tests/${SIMH_TEST}_test.ini")
 
+        list(APPEND test_cmd "${_targ}" "RegisterSanityCheck")
+
         IF (EXISTS "${test_fname}")
-            add_test(NAME "test-${_targ}" COMMAND "${_targ}" "${test_fname}" "-v")
+            list(APPEND test_cmd "${test_fname}" "-v")
         ENDIF (EXISTS "${test_fname}")
+
+        add_test(NAME "test-${_targ}" COMMAND ${test_cmd})
+
+        ## Make sure that the tests can find the DLLs/shared objects:
+        file(TO_NATIVE_PATH "${SIMH_DEP_TOPDIR}/bin" native_dep_bindir)
+        file(TO_NATIVE_PATH "${CMAKE_BINARY_DIR}" native_binary_dir)
+        if (WIN32)
+            set(test_path "PATH=${native_dep_bindir}\\\$<SEMICOLON>${native_binary_dir}\\$<SEMICOLON>")
+            string(REPLACE ";" "\\\$<SEMICOLON>" escaped_path "$ENV{PATH}")
+            string(APPEND test_path "${escaped_path}")
+            set_property(TEST "test-${_targ}" PROPERTY ENVIRONMENT "${test_path}")
+        else (WIN32)
+            set_property(TEST "test-${_targ}" PROPERTY
+                            ENVIRONMENT "LD_LIBRARY_PATH=${native_dep_bindir}:${native_binary_dir}:\$LD_LIBRARY_PATH"
+            )
+        endif (WIN32)
     endif (DEFINED SIMH_TEST)
 
     if (NOT DONT_USE_ROMS AND SIMH_BUILDROMS)
