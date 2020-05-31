@@ -4374,6 +4374,8 @@ static t_bool memory_tape_add_block (MEMORY_TAPE *tape, uint8 *block, uint32 siz
 {
 TAPE_RECORD *rec;
 
+ASSURE((size == 0) == (block == NULL));
+
 if (tape->array_size <= tape->record_count) {
     TAPE_RECORD **new_records;
     new_records = (TAPE_RECORD **)realloc (tape->records, (tape->array_size + 1000) * sizeof (*tape->records));
@@ -4708,7 +4710,7 @@ sprintf (file_sequence, "%04d", 1 + tape->file_count);
 memcpy (hdr1.file_sequence, file_sequence, sizeof (hdr1.file_sequence));
 if (ansi->fixed_text)
     max_record_size = 512;
-ansi_make_HDR2 (&hdr2, !lf_line_endings && !crlf_line_endings, tape->block_size, (tape->ansi_type > MTUF_F_ANSI) ? 512 : max_record_size, tape->ansi_type);
+ansi_make_HDR2 (&hdr2, !lf_line_endings && !crlf_line_endings, tape->block_size, max_record_size, tape->ansi_type);
 
 if (!ansi->nohdr3) {               /* Need HDR3? */
     if (!lf_line_endings && !crlf_line_endings)         /* Binary File? */
@@ -4739,10 +4741,11 @@ while (!feof(f) && !error) {
                                ansi->fixed_text);
     else
         data_read = fread (block, 1, tape->block_size, f);
-    if (data_read > 0)
+    if (data_read > 0) {
         error = memory_tape_add_block (tape, block, data_read);
     if (!error)
         ++block_count;
+    }
     }
 fclose (f);
 free (block);
