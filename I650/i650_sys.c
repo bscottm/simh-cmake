@@ -478,7 +478,7 @@ CONST char * parse_n(t_int64 *d, CONST char *cptr, int n)
         if (i++ > n) {
             cptr++;
         } else {
-            *d = (*d * 10) + (*cptr++ - '0');
+            *d = (*d * 10) + ((t_int64) *cptr++ - (t_int64) '0');
         }
     }
     if (n ==  4) {*d = *d % D4; } else 
@@ -1022,7 +1022,7 @@ static t_stat deck_join_cmd(CONST char *cptr)
     char fnSrc[4*CBUFSIZE];
     char fnDest[4*CBUFSIZE];
     CONST char *cptr0;
-    CONST char *cptrAS;
+    CONST char *cptrAS = NULL;
     char gbuf[4*CBUFSIZE];
     t_stat r;
 

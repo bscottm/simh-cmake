@@ -108,7 +108,7 @@ void encode_lpt_str(const char * buf)
 void encode_lpt_num(t_int64 d, int l)
 {
     char s[20];
-    int i,n;
+    size_t i;
     char pad;
     
     if (l < 0) {
@@ -117,10 +117,10 @@ void encode_lpt_num(t_int64 d, int l)
         pad = '0';       // if l > 0 pag with zero
     }
     d=AbsWord(d);
-    for (i=9;i>=0;i--) {
-        n = (int) (d % 10);
+    for (i = 0; i <= 9; ++i) {
+        char n = (char) (d % 10);
         d = d / 10;
-        s[i] = '0' + n;
+        s[9-i] = '0' + n;
     }
     s[10] = 0;
     if (pad == ' ') {
@@ -193,7 +193,7 @@ void encode_lpt_word(t_int64 d, int NegZero, int wFormat)
 // if last digit is negative, never set HiPunch even if asked for (a card column cannot have both X(11) and Y(12) punched)
 void sprintf_word(char * pch_word, t_int64 d, int NegZero, int bSetHiPuch)
 {
-    int i,n,neg, hi; 
+    int i,neg; 
     
     if (d < 0) {
         neg = 1; 
@@ -204,6 +204,8 @@ void sprintf_word(char * pch_word, t_int64 d, int NegZero, int bSetHiPuch)
         neg = 0;
     }
     for (i=9;i>=0;i--) {
+        int n, hi;
+
         hi = 0;
         if ((i==1) && (bSetHiPuch == 2)) hi = 1;                                            // Set Hi Punch on second digit
         if ((i==2) && (bSetHiPuch == 3)) hi = 1;                                            // Set Hi Punch on third digit
@@ -560,17 +562,17 @@ void encode_supersoap_wiring()
     d         =  IOSync[9];
 
     b4      = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    i       = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    i       = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    i       = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    i       = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
+    /* NOEFFECT: i       = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
+    /* NOEFFECT: i       = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
+    /* NOEFFECT: i       = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
+    /* NOEFFECT: i       = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
     neg     = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
     fiv     = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
     b_8word = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    i       = ((int) (d % 10) == 8) ? 1:0; d = d / 10;    
+    /* NOEFFECT: i       = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;    
     b_blank = (int) (d % 10); d = d / 10;
 
-    opcodeNum = (int) (IOSync[3] / D4); // origina ibm650 char opcode
+    opcodeNum = (int) (IOSync[3] / D4); // original ibm650 char opcode
 
     if (b_blank==7) {
         cardtype = 'P'; // punch availability table card PAT
@@ -942,14 +944,14 @@ void encode_it_wiring(void)
     word_to_ascii(rem2,      1, 5, IOSync[5]);
     CardNum  = (int) ((IOSync[8] / D4) % D4);
     d        =  IOSync[9];
-    b        = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    b        = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
+    /* NOEFFECT: b        = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
+    /* NOEFFECT: b        = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
     b_data   = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
     b_pit    = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    b        = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    b        = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
+    /* NOEFFECT: b        = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
+    /* NOEFFECT: b        = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
     neg      = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    b        = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
+    /* NOEFFECT: b        = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
     b_reg    = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
     b_resv   = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
 
@@ -1185,7 +1187,8 @@ void encode_fortransit_wiring(void)
     char loc[6], data_addr[6], inst_addr[6], OpCode[6], rem1[6], rem2[6];
     t_int64 d;
     int CardNum;
-    int b, neg, b_it_hdr, b_it_src, b_fort, b_soap, b_data; // punch control word flags
+    /* neg: Set, but never changed (constant value == 0) */
+    int b, /*neg,*/ b_it_hdr, b_it_src, b_fort, b_soap, b_data; // punch control word flags
     int i;
 
     word_to_ascii(&lin[0],   1, 5, IOSync[0]);
@@ -1205,18 +1208,18 @@ void encode_fortransit_wiring(void)
     word_to_ascii(rem1,      1, 5, IOSync[4]);
     word_to_ascii(rem2,      1, 5, IOSync[5]);
 
-    neg = 0;
+    /* UNUSED: neg = 0; */
 
     d        = IOSync[9];
     b_it_hdr = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
     b_fort   = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    b        = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
+    /* NOEFFECT: b        = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
     b_it_src = ((int) (d % 10) == 8) ? 1:0; d = d / 10; b_soap = ((b_fort == 1) && (b_it_src == 0));
-    b        = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    b        = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    b        = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    b        = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
-    b        = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
+    /* NOEFFECT: b        = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
+    /* NOEFFECT: b        = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
+    /* NOEFFECT: b        = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
+    /* NOEFFECT: b        = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
+    /* NOEFFECT: b        = ((int) (d % 10) == 8) ? 1:0; */ d = d / 10;
     b_data   = ((int) (d % 10) == 8) ? 1:0; d = d / 10;
 
     // printf("bits %06d%04d%c ", printfw(IOSync[9]));    // to echo the control word of punched card
@@ -1237,7 +1240,8 @@ void encode_fortransit_wiring(void)
         // punch SOAP source instruction
         for(i=0;i<40;i++) encode_pch_str(" "); // leave 40 first columns blank
         encode_pch_str(" ");
-        encode_char(neg == 0 ? ' ' : '-',    0); 
+        /* UNUSED: encode_char(neg == 0 ? ' ' : '-',    0); */
+        encode_char(' ', 0); 
         encode_pch_str(loc);
         encode_pch_str(OpCode);
         encode_pch_str(data_addr);
@@ -1297,7 +1301,8 @@ void encode_fortransit_wiring(void)
         encode_lpt_num(CardNum, -4); 
         encode_lpt_spc(6);
         encode_lpt_str(loc);  
-        encode_lpt_spc(2); encode_char(0, neg ? '-':' '); encode_lpt_spc(1);
+        /* UNUSED: encode_lpt_spc(2); encode_char(0, neg ? '-':' '); encode_lpt_spc(1); */
+        encode_lpt_spc(2); encode_char(0, ' '); encode_lpt_spc(1);
         encode_lpt_str(OpCode); encode_lpt_spc(3); 
         encode_lpt_str(data_addr); encode_lpt_spc(3); 
         encode_lpt_str(inst_addr); encode_lpt_spc(6); 
