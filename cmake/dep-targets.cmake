@@ -237,6 +237,15 @@ IF (WITH_VIDEO)
             target_link_libraries(simh_video INTERFACE PkgConfig::FREETYPE)
         endif (TARGET Freetype::Freetype)
 
+        if (HARFBUZZ_FOUND)
+            target_link_libraries(simh_video INTERFACE Harfbuzz::Harfbuzz)
+        endif (HARFBUZZ_FOUND)
+
+        if (BROTLIDEC_FOUND)
+          target_include_directories(simh_video INTERFACE ${BROTLIDEC_INCLUDE_DIRS})
+          target_link_libraries(simh_video INTERFACE ${BROTLIDEC_LIBRARIES})
+        endif (BROTLIDEC_FOUND)
+
         list(APPEND VIDEO_PKG_STATUS "installed Freetype")
     ENDIF (FREETYPE_FOUND)
 

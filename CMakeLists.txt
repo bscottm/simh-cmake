@@ -23,6 +23,8 @@ include(CheckCCompilerFlag)
 include(CheckIncludeFile)
 include(CheckSymbolExists)
 include(ExternalProject)
+include(FindPkgConfig)
+include(FindPackageHandleStandardArgs)
 
 ## Provide a default CMAKE_BUILD_TYPE if CMAKE_CONFIGURATION_TYPES is empty or not defined.
 if (NOT CMAKE_CONFIGURATION_TYPES)

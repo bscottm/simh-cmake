@@ -218,7 +218,7 @@ for ph in ${phases}; do
         }
         ;;
     build)
-        ${cmake} --build "${buildSubdir}" ${buildArgs} -- -v ${buildPostArgs} || {
+        ${cmake} --build "${buildSubdir}" ${buildArgs} -- ${buildPostArgs} || {
             echo "*** ${scriptName}: Build errors detected. Exiting."
             exit 1
         }
