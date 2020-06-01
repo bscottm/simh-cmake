@@ -94,7 +94,7 @@ if (BUILD_WITH_VIDEO)
 endif (BUILD_WITH_VIDEO)
 
 if (PANDA_LIGHTS)
-  target_sources(pdp10-ka PUBLIC ${KA10D}/ka10_lights.c)
+  target_sources(pdp10-ka PUBLIC ${PDP10D}/ka10_lights.c)
   target_compile_definitions(pdp10-ka PUBLIC PANDA_LIGHTS)
   target_link_libraries(pdp10-ka PUBLIC usb-1.0)
 endif (PANDA_LIGHTS)

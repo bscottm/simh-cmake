@@ -7,8 +7,9 @@ import simgen.utils as SU
 ## Map simulator name to its class, for special cases
 _special_simulators = {
     "besm6": SBS.BESM6Simulator,
-    "vax": SBS.VAXSimulator,
-    "pdp10-ka": SBS.KA10Simulator
+    "i650": SBS.IBM650Simulator,
+    "pdp10-ka": SBS.KA10Simulator,
+    "vax": SBS.VAXSimulator
 }
 
 def get_simulator_ctor(name):

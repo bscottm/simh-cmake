@@ -417,6 +417,18 @@ add_simulator(i650
     TEST i650
     SOURCE_DIR ${I650D})
 
+if (WIN32)
+    if (MSVC)
+        set(I650_STACK_FLAG "/STACK:8388608")
+    else ()
+        set(I650_STACK_FLAG "-Wl,--stack,8388608")
+    endif ()
+    if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.13")
+        target_link_options(i650 PUBLIC "${I650_STACK_FLAG}")
+    else ()
+        set_property(TARGET i650 LINK_FLAGS " ${I650_STACK_FLAG}")
+    endif ()
+endif()
 ## ----------------------------------------
 
 add_simulator(i701
@@ -1084,7 +1096,7 @@ if (BUILD_WITH_VIDEO)
 endif (BUILD_WITH_VIDEO)
 
 if (PANDA_LIGHTS)
-  target_sources(pdp10-ka PUBLIC ${KA10D}/ka10_lights.c)
+  target_sources(pdp10-ka PUBLIC ${PDP10D}/ka10_lights.c)
   target_compile_definitions(pdp10-ka PUBLIC PANDA_LIGHTS)
   target_link_libraries(pdp10-ka PUBLIC usb-1.0)
 endif (PANDA_LIGHTS)

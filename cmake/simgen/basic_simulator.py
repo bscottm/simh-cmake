@@ -216,12 +216,40 @@ class KA10Simulator(SIMHBasicSimulator):
         stream.write('\n')
         stream.write('\n'.join([
             'if (PANDA_LIGHTS)',
-            '  target_sources(pdp10-ka PUBLIC ${KA10D}/ka10_lights.c)',
-            '  target_compile_definitions(pdp10-ka PUBLIC PANDA_LIGHTS)',
-            '  target_link_libraries(pdp10-ka PUBLIC usb-1.0)',
+            '  target_sources({0} PUBLIC {1}/ka10_lights.c)'.format(self.sim_name, self.dir_macro),
+            '  target_compile_definitions({0} PUBLIC PANDA_LIGHTS)'.format(self.sim_name),
+            '  target_link_libraries({0} PUBLIC usb-1.0)'.format(self.sim_name),
             'endif (PANDA_LIGHTS)'
         ]))
         stream.write('\n')
+
+class IBM650Simulator(SIMHBasicSimulator):
+    '''The IBM650 simulator creates relatively deep stacks, which will fail on Windows.
+    Adjust target simulator link flags to provide a 8M stack, similar to Linux.
+    '''
+    def __init__(self, sim_name, dir_macro, test_name):
+        super().__init__(sim_name, dir_macro, test_name)
+        self.stack_size = 8 * 1024 * 1024
+
+    def write_simulator(self, stream, indent, individual=False):
+        super().write_simulator(stream, indent, individual)
+        stream.write('\n')
+        ## Link i650 with a 8M stack on windows
+        stream.write('\n'.join([
+            'if (WIN32)',
+            '    if (MSVC)',
+            '        set(I650_STACK_FLAG "/STACK:{0}")'.format(self.stack_size),
+            '    else ()',
+            '        set(I650_STACK_FLAG "-Wl,--stack,{0}")'.format(self.stack_size),
+            '    endif ()',
+            '    if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.13")',
+            '        target_link_options({0} PUBLIC "${{I650_STACK_FLAG}}")'.format(self.sim_name),
+            '    else ()',
+            '        set_property(TARGET {0} LINK_FLAGS " ${{I650_STACK_FLAG}}")'.format(self.sim_name),
+            '    endif ()',
+            'endif()'
+        ]))
+
 
 if '_dispatch' in pprint.PrettyPrinter.__dict__:
     def sim_pprinter(pprinter, sim, stream, indent, allowance, context, level):

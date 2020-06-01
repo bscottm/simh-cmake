@@ -22,3 +22,16 @@ add_simulator(i650
         ${CMAKE_CURRENT_SOURCE_DIR}
     INT64
     TEST i650)
+
+if (WIN32)
+    if (MSVC)
+        set(I650_STACK_FLAG "/STACK:8388608")
+    else ()
+        set(I650_STACK_FLAG "-Wl,--stack,8388608")
+    endif ()
+    if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.13")
+        target_link_options(i650 PUBLIC "${I650_STACK_FLAG}")
+    else ()
+        set_property(TARGET i650 LINK_FLAGS " ${I650_STACK_FLAG}")
+    endif ()
+endif()
