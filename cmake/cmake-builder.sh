@@ -39,8 +39,9 @@ buildClean=
 buildFlavor="Unix Makefiles"
 buildSubdir=build-unix
 buildConfig=Release
-notest=
-buildParallel=yes
+testArgs=
+notest=no
+buildParallel=no
 generateOnly=
 testOnly=
 noinstall=
@@ -161,18 +162,6 @@ while true; do
     esac
 done
 
-## Parallel only applies to the unix flavor. GNU make will overwhelm your
-## machine if the number of jobs isn't capped.
-if [[ x"$canParallel" = xyes ]] ; then
-    if [ x"$buildParallel" = xyes -a "$buildFlavor" != Ninja ] ; then
-        buildPostArgs="${buildPostArgs} -j 8"
-        (cmake --build . --help 2>&1 | grep parallel 2>&1 > /dev/null) && \
-          buildArgs="${buildArgs} --parallel"
-    fi
-else
-    buildParallel=
-fi
-
 ## Determine the SIMH top-level source directory:
 simhTopDir=$(dirname $(realpath $0))
 while [ "x${simhTopDir}" != x -a ! -f "${simhTopDir}/CMakeLists.txt" ]; do
@@ -197,6 +186,24 @@ if [[ ! -d ${buildSubdir} ]]; then
     mkdir ${buildSubdir}
 fi
 
+## Setup test arguments (and add parallel later)
+testArgs="-C ${buildConfig} --timeout 180 --output-on-failure"
+
+## Parallel only applies to the unix flavor. GNU make will overwhelm your
+## machine if the number of jobs isn't capped.
+if [[ x"$canParallel" = xyes ]] ; then
+    if [ x"$buildParallel" = xyes -a "$buildFlavor" != Ninja ] ; then
+        (${cmake} --build . --help 2>&1 | grep parallel 2>&1 > /dev/null) && {
+          buildArgs="${buildArgs} --parallel"
+	  buildPostArgs="${buildPostArgs} -j 8"
+	}
+        (${ctest} --help 2>&1 | grep parallel 2>&1 > /dev/null) && {
+            testArgs="${testArgs} --parallel 4"
+        }
+    fi
+else
+    buildParallel=
+fi
 
 if [[ x$generateOnly = xyes ]]; then
     phases=generate
@@ -205,7 +212,11 @@ elif [[ x$testOnly = xyes ]]; then
 elif [[ x$installOnly = xyes ]]; then
     phases=install
 else
-    phases="generate build test install"
+    phases="generate build"
+    if [[ x${notest} != xyes ]]; then
+        phases="${phases} test"
+    fi
+    phases="${phases} install"
 fi
 
 for ph in ${phases}; do
@@ -224,7 +235,7 @@ for ph in ${phases}; do
         }
         ;;
     test)
-        (cd "${buildSubdir}" && ${ctest} -C ${buildConfig} --timeout 180 --output-on-failure) || {
+        (cd "${buildSubdir}" && ${ctest} ${testArgs}) || {
             echo "*** ${scriptName}: Errors detected during testing. Exiting."
             exit 1
         }
