@@ -394,6 +394,14 @@ if (($scriptPhases -contains "generate") -or ($scriptPhases -contains "build"))
       $buildSpecificArgs += @("-j",  "8")
     }
 
+    ## CTest arguments:
+    $testArgs = @("-C", $config, "--timeout", $ctestTimeout, "-T", "test",
+                    "--output-on-failure")
+    if ($parallel)
+    {
+        $testArgs += @("--parallel", $ctestParallel)
+    }
+
     $exitval = 0
 
     $env:PATH = $modPath
@@ -458,16 +466,7 @@ if ($scriptPhases -contains "test")
             ## RHS of the cached variable's value.
             $depTopDir = $depTopDir.Line.Split('=')[1]
             $env:PATH =  "${depTopdir}\bin;${env:PATH}"
-            & $ctestCmd @("-C", $config,
-                "--timeout", $ctestTimeout,
-                "-T", "test",
-                ## Don't uncomment because (a) simh can leave the Powershell or cmd
-                ## terminal in an uncertain state, (b) puts a lot of strain on the
-                ## host system, which might lead to thread/timing calibration issues.
-                ##
-                ## "--parallel", $ctestParallel,
-                "--output-on-failure"
-            )
+            & $ctestCmd ${testArgs}
             if ($LastExitCode -gt 0) {
                 "** ${scriptName}: Tests failed. Exiting."
                 exit 1
