@@ -55,58 +55,29 @@ if (WITH_NETWORK)
 endif (WITH_NETWORK)
 
 ##=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
-## Using pkg-config seems to be questionable. Let FindPackage.cmake do all
-## of the work.
+## pkg-config is our fallback when find_package() can't find a package.
 ##=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
-# ##=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
-# ## pkg-config is our fallback when find_package() can't find a package.
-# ##=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
-# 
-# find_package(PkgConfig)
-# 
-# ## Don't use pkg-config searches with MS Visual C -- the library names are incompatible.
-# ## [Also: Leave the "(MSVC)" alone. Intent is to add "OR <cond>" if there are more
-# ##  exceptions to pkg-config on Windows.]
-# if (PKG_CONFIG_FOUND AND NOT (MSVC))
-#     ## PNG tries to find ZLIB via the FindPackage mechanism, so if we find
-#     ## it via pkgconfig, the dependency build will break.
-#     if (NOT ZLIB_FOUND)
-#         pkg_check_modules(ZLIB IMPORTED_TARGET zlib)
-#     endif (NOT ZLIB_FOUND)
-# 
-#     if (NOT BZIP2_FOUND)
-#         pkg_check_modules(BZIP2 IMPORTED_TARGET bzip2)
-#     endif (NOT BZIP2_FOUND)
-#  
-#     if (NOT PCRE2_FOUND)
-#         pkg_check_modules(PCRE2 IMPORTED_TARGET libpcre2-8)
-#     endif (NOT PCRE2_FOUND)
-# 
-#     if (NOT PCRE_FOUND)
-#         pkg_check_modules(PCRE IMPORTED_TARGET libpcre)
-#     endif (NOT PCRE_FOUND)
-# 
-#     if (WITH_VIDEO)
-#         if (NOT PNG_FOUND)
-#             pkg_check_modules(PNG IMPORTED_TARGET libpng)
-#         endif (NOT PNG_FOUND)
-# 
-#         if (NOT FREETYPE_FOUND)
-#             pkg_check_modules(FREETYPE IMPORTED_TARGET freetype2)
-#         endif (NOT FREETYPE_FOUND)
-# 
-#         if (NOT SDL2_FOUND)
-#             pkg_check_modules(SDL2 IMPORTED_TARGET SDL2)
-#         endif (NOT SDL2_FOUND)
-# 
-#         IF (NOT SDL2_ttf_FOUND)
-#             pkg_check_modules(SDL2_ttf IMPORTED_TARGET SDL2_ttf)
-#         ENDIF (NOT SDL2_ttf_FOUND)
-#     endif (WITH_VIDEO)
-# 
-#     if (WITH_NETWORK)
-#         if (NOT VDE_FOUND)
-#             pkg_check_modules(VDE IMPORTED_TARGET VDEPLUG)
-#         endif (NOT VDE_FOUND)
-#     endif (WITH_NETWORK)
-# endif (PKG_CONFIG_FOUND AND NOT (MSVC))
+
+find_package(PkgConfig)
+
+## pkg_check_modules() should only be used with runtime dependencies that don't
+## have a corresponding 'Find<package>.cmake' script. There are only two at
+## present: SDL2 and SDL2_ttf.
+##
+## Don't use pkg-config searches with MS Visual C -- the library names are
+## incompatible.
+##
+## [Leave the "(MSVC)" alone. Intent is to add "OR <cond>" if there are more
+##  exceptions to pkg-config than just Windows.]
+
+if (PKG_CONFIG_FOUND AND NOT (MSVC))
+    if (WITH_VIDEO)
+        if (NOT SDL2_FOUND)
+            pkg_check_modules(SDL2 IMPORTED_TARGET SDL2)
+        endif (NOT SDL2_FOUND)
+
+        IF (NOT SDL2_ttf_FOUND)
+            pkg_check_modules(SDL2_ttf IMPORTED_TARGET SDL2_ttf)
+        ENDIF (NOT SDL2_ttf_FOUND)
+    endif (WITH_VIDEO)
+endif (PKG_CONFIG_FOUND AND NOT (MSVC))

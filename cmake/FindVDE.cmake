@@ -6,12 +6,15 @@
 ## "scooter me fecit"
 
 if (WITH_VDE)
+    pkg_check_modules(PC_VDE QUIET VDEPLUG)
+
+    if (PC_VDE_VERSION)
+        set(VDEPLUG_VERSION "${PC_VDE_VERSION}")
+    endif (PC_VDE_VERSION)
+
     find_path(VDEPLUG_INCLUDE_DIR libvdeplug.h
             HINTS
-                ENV VDEPLUG_DIR
-            # path suffixes to search inside ENV{VDEPLUG_DIR}
-            PATHS
-                ${VDEPLUG_PATH}
+                ${PC_VDE_INCLUDE_DIRS}
             PATH_SUFFIXES
                 include/libvdeplug
                 include/vde2
@@ -26,13 +29,12 @@ if (WITH_VDE)
     endif ()
 
     find_library(VDEPLUG_LIBRARY_RELEASE
-            NAMES vdeplug
+            NAMES
+                vdeplug
             HINTS
-                ENV VDEPLUG_DIR
+                ${PC_VDE_LIBRARY_DIRS}
             PATH_SUFFIXES
                 ${LIB_PATH_SUFFIXES}
-            PATHS
-                ${VDEPLUG_PATH}
     )
 
     if (VDEPLUG_INCLUDE_DIR)
@@ -48,10 +50,12 @@ if (WITH_VDE)
     set(VDEPLUG_LIBRARIES ${VDEPLUG_LIBRARY})
     set(VDEPLUG_INCLUDE_DIRS ${VDEPLUG_INCLUDE_DIR})
 
-    include(FindPackageHandleStandardArgs)
+    find_package(PackageHandleStandardArgs)
 
     FIND_PACKAGE_HANDLE_STANDARD_ARGS(VDE
-        REQUIRED VDEPLUG_LIBRARY VDEPLUG_INCLUDE_DIR
+        REQUIRED
+            VDEPLUG_LIBRARY
+            VDEPLUG_INCLUDE_DIR
         # VERSION_VAR VDEPLUG_VERSION_STRING
     )
 endif (WITH_VDE)
