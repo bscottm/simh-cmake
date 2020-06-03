@@ -12,7 +12,10 @@ class SIMHBasicSimulator:
         self.test_name = test_name
         self.int64 = False
         self.full64 = False
-        self.video = False
+        ## self.has_display -> True if there is a specific display used by the simulator.
+        self.has_display = False
+        ## self.uses_video   -> True if USE_SIM_VIDEO appears in the simulator's preprocessor defn's.
+        self.uses_video = False
         self.sources = []
         self.defines = []
         self.includes = []
@@ -48,8 +51,11 @@ class SIMHBasicSimulator:
                 self.defines.remove('USE_ADDR64')
             except:
                 pass
-        self.video = any(map(lambda s: 'DISPLAY' in SPM.shallow_expand_vars(s, defs), self.sources))
-        if self.video:
+
+        ## Video support:
+
+        self.has_display = any(map(lambda s: 'DISPLAY' in SPM.shallow_expand_vars(s, defs), self.sources))
+        if self.has_display:
             try:
                 self.sources.remove('${DISPLAYL}')
             except:
@@ -58,6 +64,8 @@ class SIMHBasicSimulator:
                 self.sources.remove('$(DISPLAYL)')
             except:
                 pass
+
+        self.uses_video = 'USE_SIM_VIDEO' in self.defines
 
     def cleanup_defines(self):
         """Remove command line defines that aren't needed (because the CMake interface libraries
@@ -92,9 +100,18 @@ class SIMHBasicSimulator:
             srcs = self.sources
             incs = self.includes
 
-        if self.video:
+        if self.has_display or self.uses_video:
             stream.write(' ' * indent + 'if (BUILD_WITH_VIDEO)\n')
             indent += 4
+
+        if self.uses_video:
+            stream.write(' ' * indent + 'set({0}_VIDEO "VIDEO")\n'.format(self.sim_name.upper()))
+            indent -= 4
+            stream.write(' ' * indent + 'else (BUILD_WITH_VIDEO)\n')
+            indent += 4
+            stream.write(' ' * indent + 'set({0}_VIDEO "")\n'.format(self.sim_name.upper()))
+            indent -= 4
+            stream.write(' ' * indent + 'endif (BUILD_WITH_VIDEO)\n\n')
 
         indent4 = ' ' * (indent + 4)
         indent8 = ' ' * (indent + 8)
@@ -111,14 +128,16 @@ class SIMHBasicSimulator:
             stream.write('\n' + indent4 + 'INT64')
         if self.full64:
             stream.write('\n' + indent4 + 'FULL64')
-        if self.video:
+        if self.has_display:
             stream.write('\n' + indent4 + "VIDEO")
+        if self.uses_video:
+            stream.write('\n' + indent4 + "${{{0}_VIDEO}}".format(self.sim_name.upper()))
         stream.write('\n' + indent4 + "TEST " + self.test_name)
         if not individual:
             stream.write('\n' + indent4 + "SOURCE_DIR " + self.dir_macro)
         stream.write(')\n')
 
-        if self.video:
+        if self.has_display:
             indent -= 4
             stream.write(' ' * indent + 'endif (BUILD_WITH_VIDEO)\n')
 
@@ -138,7 +157,7 @@ class BESM6Simulator(SIMHBasicSimulator):
 
     def scan_for_flags(self, defs):
         super().scan_for_flags(defs)
-        self.video = True
+        self.has_display = True
 
     def write_simulator(self, stream, indent, individual=False):
         ## Fixups... :-)
@@ -264,7 +283,7 @@ if '_dispatch' in pprint.PrettyPrinter.__dict__:
         stream.write(',')
         pprinter._format(sim.full64, stream, indent, allowance + 2, context, level)
         stream.write(',')
-        pprinter._format(sim.video, stream, indent, allowance + 2, context, level)
+        pprinter._format(sim.has_display, stream, indent, allowance + 2, context, level)
         stream.write(',')
         pprinter._format(sim.sources, stream, indent, allowance + 2, context, level)
         stream.write(',\n' + ' ' * indent)

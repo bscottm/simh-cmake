@@ -1546,6 +1546,12 @@ set(VAX630
     ${PDP11D}/pdp11_io_lib.c)
 
 
+if (BUILD_WITH_VIDEO)
+    set(INFOSERVER100_VIDEO "VIDEO")
+else (BUILD_WITH_VIDEO)
+    set(INFOSERVER100_VIDEO "")
+endif (BUILD_WITH_VIDEO)
+
 add_simulator(infoserver100
     SOURCES
         ${VAX420}
@@ -1557,6 +1563,7 @@ add_simulator(infoserver100
         VAX_420
         VAX_411
     FULL64
+    ${INFOSERVER100_VIDEO}
     TEST vax-diag
     SOURCE_DIR ${VAXD})
 
@@ -1587,6 +1594,12 @@ add_simulator(infoserver1000
     TEST vax-diag
     SOURCE_DIR ${VAXD})
 
+if (BUILD_WITH_VIDEO)
+    set(INFOSERVER150VXT_VIDEO "VIDEO")
+else (BUILD_WITH_VIDEO)
+    set(INFOSERVER150VXT_VIDEO "")
+endif (BUILD_WITH_VIDEO)
+
 add_simulator(infoserver150vxt
     SOURCES
         ${VAX420}
@@ -1598,8 +1611,15 @@ add_simulator(infoserver150vxt
         VAX_420
         VAX_412
     FULL64
+    ${INFOSERVER150VXT_VIDEO}
     TEST vax-diag
     SOURCE_DIR ${VAXD})
+
+if (BUILD_WITH_VIDEO)
+    set(MICROVAX1_VIDEO "VIDEO")
+else (BUILD_WITH_VIDEO)
+    set(MICROVAX1_VIDEO "")
+endif (BUILD_WITH_VIDEO)
 
 add_simulator(microvax1
     SOURCES
@@ -1639,8 +1659,15 @@ add_simulator(microvax1
         VM_VAX
         VAX_610
     FULL64
+    ${MICROVAX1_VIDEO}
     TEST vax-diag
     SOURCE_DIR ${VAXD})
+
+if (BUILD_WITH_VIDEO)
+    set(MICROVAX2_VIDEO "VIDEO")
+else (BUILD_WITH_VIDEO)
+    set(MICROVAX2_VIDEO "")
+endif (BUILD_WITH_VIDEO)
 
 add_simulator(microvax2
     SOURCES
@@ -1652,8 +1679,15 @@ add_simulator(microvax2
         VM_VAX
         VAX_630
     FULL64
+    ${MICROVAX2_VIDEO}
     TEST vax-diag
     SOURCE_DIR ${VAXD})
+
+if (BUILD_WITH_VIDEO)
+    set(MICROVAX2000_VIDEO "VIDEO")
+else (BUILD_WITH_VIDEO)
+    set(MICROVAX2000_VIDEO "")
+endif (BUILD_WITH_VIDEO)
 
 add_simulator(microvax2000
     SOURCES
@@ -1686,8 +1720,15 @@ add_simulator(microvax2000
         VM_VAX
         VAX_410
     FULL64
+    ${MICROVAX2000_VIDEO}
     TEST vax-diag
     SOURCE_DIR ${VAXD})
+
+if (BUILD_WITH_VIDEO)
+    set(MICROVAX3100_VIDEO "VIDEO")
+else (BUILD_WITH_VIDEO)
+    set(MICROVAX3100_VIDEO "")
+endif (BUILD_WITH_VIDEO)
 
 add_simulator(microvax3100
     SOURCES
@@ -1700,8 +1741,15 @@ add_simulator(microvax3100
         VAX_420
         VAX_41A
     FULL64
+    ${MICROVAX3100_VIDEO}
     TEST vax-diag
     SOURCE_DIR ${VAXD})
+
+if (BUILD_WITH_VIDEO)
+    set(MICROVAX3100E_VIDEO "VIDEO")
+else (BUILD_WITH_VIDEO)
+    set(MICROVAX3100E_VIDEO "")
+endif (BUILD_WITH_VIDEO)
 
 add_simulator(microvax3100e
     SOURCES
@@ -1714,6 +1762,7 @@ add_simulator(microvax3100e
         VAX_420
         VAX_41D
     FULL64
+    ${MICROVAX3100E_VIDEO}
     TEST vax-diag
     SOURCE_DIR ${VAXD})
 
@@ -1743,6 +1792,12 @@ add_simulator(rtvax1000
     TEST vax-diag
     SOURCE_DIR ${VAXD})
 
+if (BUILD_WITH_VIDEO)
+    set(VAX_VIDEO "VIDEO")
+else (BUILD_WITH_VIDEO)
+    set(VAX_VIDEO "")
+endif (BUILD_WITH_VIDEO)
+
 add_simulator(vax
     SOURCES
         ${VAX}
@@ -1752,6 +1807,7 @@ add_simulator(vax
     DEFINES
         VM_VAX
     FULL64
+    ${VAX_VIDEO}
     TEST vax-diag
     SOURCE_DIR ${VAXD})
 
@@ -1994,6 +2050,12 @@ add_simulator(vax8600
     TEST vax-diag
     SOURCE_DIR ${VAXD})
 
+if (BUILD_WITH_VIDEO)
+    set(VAXSTATION3100M30_VIDEO "VIDEO")
+else (BUILD_WITH_VIDEO)
+    set(VAXSTATION3100M30_VIDEO "")
+endif (BUILD_WITH_VIDEO)
+
 add_simulator(vaxstation3100m30
     SOURCES
         ${VAX420}
@@ -2005,8 +2067,15 @@ add_simulator(vaxstation3100m30
         VAX_420
         VAX_42A
     FULL64
+    ${VAXSTATION3100M30_VIDEO}
     TEST vax-diag
     SOURCE_DIR ${VAXD})
+
+if (BUILD_WITH_VIDEO)
+    set(VAXSTATION3100M38_VIDEO "VIDEO")
+else (BUILD_WITH_VIDEO)
+    set(VAXSTATION3100M38_VIDEO "")
+endif (BUILD_WITH_VIDEO)
 
 add_simulator(vaxstation3100m38
     SOURCES
@@ -2019,8 +2088,15 @@ add_simulator(vaxstation3100m38
         VAX_420
         VAX_42B
     FULL64
+    ${VAXSTATION3100M38_VIDEO}
     TEST vax-diag
     SOURCE_DIR ${VAXD})
+
+if (BUILD_WITH_VIDEO)
+    set(VAXSTATION3100M76_VIDEO "VIDEO")
+else (BUILD_WITH_VIDEO)
+    set(VAXSTATION3100M76_VIDEO "")
+endif (BUILD_WITH_VIDEO)
 
 add_simulator(vaxstation3100m76
     SOURCES
@@ -2051,6 +2127,7 @@ add_simulator(vaxstation3100m76
         VM_VAX
         VAX_43
     FULL64
+    ${VAXSTATION3100M76_VIDEO}
     TEST vax-diag
     SOURCE_DIR ${VAXD})
 
