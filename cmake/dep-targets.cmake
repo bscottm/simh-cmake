@@ -64,8 +64,11 @@ else (PCRE2_FOUND)
         list(APPEND PCRE_DEPS zlib-dep)
     endif (TARGET zlib-dep)
 
+    ## set(PCRE2_URL "https://ftp.pcre.org/pub/pcre/pcre2-10.35.zip")
+    set(PCRE2_URL "https://gitlab.com/scooter-phd/pcre2/-/archive/pcre2-10.35-patch/pcre2-pcre2-10.35-patch.zip")
+
     ExternalProject_Add(pcre-ext
-        URL https://ftp.pcre.org/pub/pcre/pcre2-10.35.zip
+        URL ${PCRE2_URL}
         DEPENDS
             ${PCRE_DEPS}
         CONFIGURE_COMMAND ""
@@ -81,7 +84,7 @@ else (PCRE2_FOUND)
 
     list(APPEND SIMH_BUILD_DEPS pcre)
     list(APPEND SIMH_DEP_TARGETS pcre-ext)
-    message(STATUS "Building PCRE from https://ftp.pcre.org/pub/pcre/pcre2-10.33.zip")
+    message(STATUS "Building PCRE from ${PCRE2_URL}")
     set(PCRE_PKG_STATUS "pcre2 source build")
 endif (PCRE2_FOUND)
 
@@ -291,7 +294,8 @@ if (WITH_NETWORK)
             )
         endif (WIN32)
 
-        set(LIBPCAP_SOURCE_URL "https://github.com/the-tcpdump-group/libpcap/archive/libpcap-1.9.1.tar.gz")
+        ## set(LIBPCAP_SOURCE_URL "https://github.com/the-tcpdump-group/libpcap/archive/libpcap-1.9.1.tar.gz")
+        set(LIBPCAP_SOURCE_URL "https://gitlab.com/scooter-phd/libpcap/-/archive/chksym_exists/libpcap-chksym_exists.zip")
         ExternalProject_Add(pcap-dep
             URL ${LIBPCAP_SOURCE_URL}
             CONFIGURE_COMMAND ""
