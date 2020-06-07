@@ -1405,6 +1405,7 @@ for (i=(was_active_command ? sim_rem_cmd_active_line : 0);
             sim_rem_cmd_active_line = -1;           /* Done with active command */
             if (!sim_rem_active_command) {          /* STEP command? */
                 stat = SCPE_STEP;
+                if (sim_con_stable_registers || !sim_rem_master_mode)
                 _sim_rem_message ("STEP", stat);    /* produce a STEP complete message */
                 }
             _sim_rem_log_out (lp);
@@ -1840,8 +1841,14 @@ if (sim_rem_master_was_connected &&                         /* Master mode ever 
     !sim_rem_con_tmxr.ldsc[0].sock)                         /* Master Connection lost? */
     return sim_messagef (SCPE_EXIT, "Master Session Disconnect");/* simulator has been 'unplugged' */
 if (sim_rem_cmd_active_line != -1) {
-    if (steps)
+    if (steps) {
+        if (!sim_con_stable_registers && sim_rem_master_mode) {
+            sim_step = steps;
+            sim_sched_step ();
+            }
+        else
         sim_activate(uptr, steps);                          /* check again after 'steps' instructions */
+        }
     else
         return SCPE_REMOTE;                                 /* force sim_instr() to exit to process command */
     }
@@ -2007,6 +2014,13 @@ sprintf(cmdbuf, "BUFFERED=%d", bufsize);
 return tmxr_open_master (&sim_rem_con_tmxr, cmdbuf);        /* open master socket */
 }
 
+t_bool sim_is_remote_console_master_line (void *lp)
+{
+return sim_rem_master_mode &&                                           /* master mode */
+       (((TMLN *)lp) >= sim_rem_con_tmxr.ldsc) &&                       /* And it is one of the Remote Console Lines */
+       (((TMLN *)lp) < sim_rem_con_tmxr.ldsc + sim_rem_con_tmxr.lines);
+}
+
 /* Enable or disable Remote Console master mode */
 
 /* In master mode, commands are subsequently processed from the
@@ -2058,8 +2072,11 @@ if (sim_rem_master_mode) {
             }
         sim_rem_cmd_active_line = 0;                    /* Make it look like */
         sim_rem_consoles[0].single_mode = FALSE;
+        sim_cancel_step ();
         if (stat != SCPE_STEP)
             sim_rem_active_command = &allowed_single_remote_cmds[0];/* Dummy */
+        else
+            sim_activate_abs (rem_con_data_unit, 0);    /* force step completion processing */
         sim_last_cmd_stat = SCPE_BARE_STATUS(stat);     /* make exit status available to remote console */
         }
     sim_rem_master_was_enabled = FALSE;

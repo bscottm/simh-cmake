@@ -41,7 +41,7 @@
 #define PCQ_MASK        (PCQ_SIZE - 1)
 #define PCQ_ENTRY(PC)   if (pcq[pcq_p] != (PC)) { pcq[pcq_p = (pcq_p - 1) & PCQ_MASK] = (PC); }
 
-#define	INST_MAX_BYTES	4                       /* instruction max bytes */
+#define INST_MAX_BYTES  4                       /* instruction max bytes */
 
 #define FLAG_C  1
 #define FLAG_N  2
@@ -52,7 +52,7 @@
 
 #define SETFLAG(f,c)    AF = (c) ? AF | FLAG_ ## f : AF & ~FLAG_ ## f
 #define TSTFLAG(f)      ((AF & FLAG_ ## f) != 0)
-#define TSTFLAG2(a, f)	((a & FLAG_ ## f) != 0)
+#define TSTFLAG2(a, f)  ((a & FLAG_ ## f) != 0)
 
 #define LOW_DIGIT(x)     ((x) & 0xf)
 #define HIGH_DIGIT(x)    (((x) >> 4) & 0xf)
@@ -271,9 +271,9 @@ typedef struct {
     t_value op[INST_MAX_BYTES];
 } insthist_t;
 
-static	uint32 hst_p = 0;                           /* history pointer      */
-static	uint32 hst_lnt = 0;                         /* history length       */
-static	insthist_t *hst = NULL;                     /* instruction history  */
+static  uint32 hst_p = 0;                           /* history pointer      */
+static  uint32 hst_lnt = 0;                         /* history length       */
+static  insthist_t *hst = NULL;                     /* instruction history  */
 
 uint32 m68k_registers[M68K_REG_CPU_TYPE + 1];       /* M68K CPU registers   */
 
@@ -1845,9 +1845,9 @@ static void PutBYTE(register uint32 Addr, const register uint32 Value) {
         m.routine(Addr, 1, Value);
     else if (cpu_unit.flags & UNIT_CPU_VERBOSE) {
         if (m.isEmpty)
-            sim_printf("CPU: " ADDRESS_FORMAT " Attempt to write to non existing memory " ADDRESS_FORMAT "." NLP, PCX, Addr);
+            sim_printf("CPU: " ADDRESS_FORMAT " Attempt to write to non existing memory " ADDRESS_FORMAT ".\n", PCX, Addr);
         else
-            sim_printf("CPU: " ADDRESS_FORMAT " Attempt to write to ROM " ADDRESS_FORMAT "." NLP, PCX, Addr);
+            sim_printf("CPU: " ADDRESS_FORMAT " Attempt to write to ROM " ADDRESS_FORMAT ".\n", PCX, Addr);
     }
 }
 
@@ -1863,9 +1863,9 @@ void PutBYTEExtended(register uint32 Addr, const register uint32 Value) {
         m.routine(Addr, 1, Value);
     else if (cpu_unit.flags & UNIT_CPU_VERBOSE) {
         if (m.isEmpty)
-            sim_printf("CPU: " ADDRESS_FORMAT " Attempt to write to non existing memory " ADDRESS_FORMAT "." NLP, PCX, Addr);
+            sim_printf("CPU: " ADDRESS_FORMAT " Attempt to write to non existing memory " ADDRESS_FORMAT ".\n", PCX, Addr);
         else
-            sim_printf("CPU: " ADDRESS_FORMAT " Attempt to write to ROM " ADDRESS_FORMAT "." NLP, PCX, Addr);
+            sim_printf("CPU: " ADDRESS_FORMAT " Attempt to write to ROM " ADDRESS_FORMAT ".\n", PCX, Addr);
     }
 }
 
@@ -1888,7 +1888,7 @@ static uint32 GetBYTE(register uint32 Addr) {
         return m.routine(Addr, 0, 0); /* memory mapped I/O */
     if (m.isEmpty) {
         if (cpu_unit.flags & UNIT_CPU_VERBOSE)
-            sim_printf("CPU: " ADDRESS_FORMAT " Attempt to read from non existing memory " ADDRESS_FORMAT "." NLP, PCX, Addr);
+            sim_printf("CPU: " ADDRESS_FORMAT " Attempt to read from non existing memory " ADDRESS_FORMAT ".\n", PCX, Addr);
         return 0xff;
     }
     return M[Addr]; /* ROM */
@@ -1906,7 +1906,7 @@ uint32 GetBYTEExtended(register uint32 Addr) {
         return m.routine(Addr, 0, 0);
     if (m.isEmpty) {
         if (cpu_unit.flags & UNIT_CPU_VERBOSE)
-            sim_printf("CPU: " ADDRESS_FORMAT " Attempt to read from non existing memory " ADDRESS_FORMAT "." NLP, PCX, Addr);
+            sim_printf("CPU: " ADDRESS_FORMAT " Attempt to read from non existing memory " ADDRESS_FORMAT ".\n", PCX, Addr);
         return 0xff;
     }
     return M[Addr];
@@ -2062,23 +2062,6 @@ void setClockFrequency(const uint32 Value) {
 }
 
 
-#if !UNIX_PLATFORM
-
-/* Poll for CPU stop when user presses sim_int_char. Must be followed by sim_process_event */
-
-#define INITIAL_POLL_COUNTER    1000
-
-void pollForCPUStop(void) {
-    static uint32 pollCounter = INITIAL_POLL_COUNTER;
-    if (--pollCounter == 0) {
-        pollCounter = INITIAL_POLL_COUNTER;
-        sim_poll_kbd(); /* the following sim_process_event will check for stop */
-    }
-}
-
-#endif
-
-
 static t_stat sim_instr_mmu (void) {
     extern int32 timerInterrupt;
     extern int32 timerInterruptHandler;
@@ -2129,10 +2112,6 @@ static t_stat sim_instr_mmu (void) {
     /* main instruction fetch/decode loop */
     while (switch_cpu_now == TRUE) {        /* loop until halted    */
         if (sim_interval <= 0) {            /* check clock queue    */
-#if !UNIX_PLATFORM
-            /* poll on platforms without reliable signalling but not too often */
-            pollForCPUStop(); /* following sim_process_event will check for stop */
-#endif
             if ((reason = sim_process_event()))
                 break;
             if (clockHasChanged) {
@@ -6145,32 +6124,32 @@ static t_stat sim_instr_mmu (void) {
             PC = 0x38;
         }
 
-	/*
-	** Save in instruction history ring buffer?
-	*/
-	if (hst_lnt && ((chiptype == CHIP_TYPE_8080) || (chiptype == CHIP_TYPE_Z80))) {
-		hst[hst_p].valid = 1;
-		hst[hst_p].pc = PCX;
-		hst[hst_p].sp = SP;
-		hst[hst_p].af = AF;
-		hst[hst_p].bc = BC;
-		hst[hst_p].de = DE;
-		hst[hst_p].hl = HL;
-		hst[hst_p].af1 = AF1_S;
-		hst[hst_p].bc1 = BC1_S;
-		hst[hst_p].de1 = DE1_S;
-		hst[hst_p].hl1 = HL1_S;
-		hst[hst_p].ix = IX;
-		hst[hst_p].iy = IY;
+    /*
+    ** Save in instruction history ring buffer?
+    */
+    if (hst_lnt && ((chiptype == CHIP_TYPE_8080) || (chiptype == CHIP_TYPE_Z80))) {
+        hst[hst_p].valid = 1;
+        hst[hst_p].pc = PCX;
+        hst[hst_p].sp = SP;
+        hst[hst_p].af = AF;
+        hst[hst_p].bc = BC;
+        hst[hst_p].de = DE;
+        hst[hst_p].hl = HL;
+        hst[hst_p].af1 = AF1_S;
+        hst[hst_p].bc1 = BC1_S;
+        hst[hst_p].de1 = DE1_S;
+        hst[hst_p].hl1 = HL1_S;
+        hst[hst_p].ix = IX;
+        hst[hst_p].iy = IY;
 
-		for (i = 0; i < INST_MAX_BYTES; i++) {
-		    hst[hst_p].op[i] = GetBYTE(PCX + i);
-		}
+        for (i = 0; i < INST_MAX_BYTES; i++) {
+            hst[hst_p].op[i] = GetBYTE(PCX + i);
+        }
 
-		if (++hst_p == hst_lnt) {
-			hst_p = 0;
-		}
-	}
+        if (++hst_p == hst_lnt) {
+            hst_p = 0;
+        }
+    }
 
         sim_interval--;
     }
@@ -6550,13 +6529,13 @@ static int32 bankseldev(const int32 port, const int32 io, const int32 data) {
         switch(ramtype) {
             case 1:
                 if (data & 0x40) {
-                    sim_printf("HRAM: Parity %s" NLP, data & 1 ? "ON" : "OFF");
+                    sim_printf("HRAM: Parity %s\n", data & 1 ? "ON" : "OFF");
                 } else {
-                    sim_printf("HRAM BANKSEL=%02x" NLP, data);
+                    sim_printf("HRAM BANKSEL=%02x\n", data);
                 }
                 break;
             case 2:
-/*              sim_printf("VRAM BANKSEL=%02x" NLP, data);*/
+/*              sim_printf("VRAM BANKSEL=%02x\n", data);*/
                 switch(data & 0xFF) {
                     case 0x01:
 /*                  case 0x41:      // OASIS uses this for some reason? */
@@ -6585,12 +6564,12 @@ static int32 bankseldev(const int32 port, const int32 io, const int32 data) {
                         setBankSelect(7);
                         break;
                     default:
-/*                      sim_printf("Invalid bank select 0x%02x for VRAM" NLP, data);*/
+/*                      sim_printf("Invalid bank select 0x%02x for VRAM\n", data);*/
                         break;
                 }
                 break;
             case 3:
-/*                sim_printf(ADDRESS_FORMAT " CRAM BANKSEL=%02x" NLP, PCX, data); */
+/*                sim_printf(ADDRESS_FORMAT " CRAM BANKSEL=%02x\n", PCX, data); */
                 switch(data & 0x7F) {
                     case 0x01:
                         setBankSelect(0);
@@ -6617,7 +6596,7 @@ static int32 bankseldev(const int32 port, const int32 io, const int32 data) {
 /*                        setBankSelect(7); */
 /*                        break; */
                     default:
-                        sim_printf("Invalid bank select 0x%02x for CRAM" NLP, data);
+                        sim_printf("Invalid bank select 0x%02x for CRAM\n", data);
                         break;
                 }
 
@@ -6683,14 +6662,14 @@ static int32 switchcpu_io(const int32 port, const int32 io, CONST int32 data) {
             case CHIP_TYPE_8080:
             case CHIP_TYPE_Z80:
                 if (cpu_unit.flags & UNIT_CPU_VERBOSE) {
-                    sim_printf("CPU: " ADDRESS_FORMAT " SWITCH(port=%02x) to 8086" NLP, PCX, port);
+                    sim_printf("CPU: " ADDRESS_FORMAT " SWITCH(port=%02x) to 8086\n", PCX, port);
                 }
                 new_chiptype = CHIP_TYPE_8086;
                 switch_cpu_now = FALSE; /* hharte */
                 break;
             case CHIP_TYPE_8086:
                 if (cpu_unit.flags & UNIT_CPU_VERBOSE) {
-                    sim_printf("CPU: " ADDRESS_FORMAT " SWITCH(port=%02x) to 8085/Z80" NLP, PCX, port);
+                    sim_printf("CPU: " ADDRESS_FORMAT " SWITCH(port=%02x) to 8085/Z80\n", PCX, port);
                 }
                 new_chiptype = CHIP_TYPE_Z80;
                 switch_cpu_now = FALSE; /* hharte */
