@@ -355,7 +355,7 @@ uint32 mt_cmd(UNIT * uptr, uint16 cmd, uint16 fast)
     t_stat              r;   
     uint8               buf[1024];
     char                cbuf[100];
-    t_mtrlnt            reclen;
+    t_mtrlnt            reclen = 0;
 
     time = 0;
     /* Make sure valid drive number */
