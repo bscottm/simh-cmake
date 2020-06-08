@@ -153,6 +153,19 @@ endif
 ifneq ($(NOVIDEO),)
   VIDEO_USEFUL =
 endif
+ifneq ($(findstring Windows,${OS}),)
+  ifeq ($(findstring .exe,${SHELL}),.exe)
+    # MinGW
+    WIN32 := 1
+    # Tests don't run under MinGW
+    TESTS := 0
+  else # Msys or cygwin
+    ifeq (MINGW,$(findstring MINGW,$(shell uname)))
+      $(info *** This makefile can not be used with the Msys bash shell)
+      $(error Use build_mingw.bat ${MAKECMDGOALS} from a Windows command prompt)
+    endif
+  endif
+endif
 find_exe = $(abspath $(strip $(firstword $(foreach dir,$(strip $(subst :, ,${PATH})),$(wildcard $(dir)/$(1))))))
 find_lib = $(abspath $(strip $(firstword $(foreach dir,$(strip ${LIBPATH}),$(wildcard $(dir)/lib$(1).${LIBEXT})))))
 find_include = $(abspath $(strip $(firstword $(foreach dir,$(strip ${INCPATH}),$(wildcard $(dir)/$(1).h)))))
@@ -161,17 +174,6 @@ ifneq (0,$(TESTS))
   TESTING_FEATURES = - Per simulator tests will be run
 else
   TESTING_FEATURES = - Per simulator tests will be skipped
-endif
-ifneq ($(findstring Windows,${OS}),)
-  ifeq ($(findstring .exe,${SHELL}),.exe)
-    # MinGW
-    WIN32 := 1
-  else # Msys or cygwin
-    ifeq (MINGW,$(findstring MINGW,$(shell uname)))
-      $(info *** This makefile can not be used with the Msys bash shell)
-      $(error Use build_mingw.bat ${MAKECMDGOALS} from a Windows command prompt)
-    endif
-  endif
 endif
 ifeq (${WIN32},)  #*nix Environments (&& cygwin)
   ifeq (${GCC},)
@@ -256,8 +258,11 @@ ifeq (${WIN32},)  #*nix Environments (&& cygwin)
       NEED_COMMIT_ID = need-commit-id
     endif
     ifeq (need-commit-id,$(NEED_COMMIT_ID))
+      ifneq (,$(shell git update-index --refresh --))
+        GIT_EXTRA_FILES=+uncommitted-changes
+      endif
       isodate=$(shell git log -1 --pretty="%ai"|sed -e 's/ /T/'|sed -e 's/ //')
-      $(shell git log -1 --pretty="SIM_GIT_COMMIT_ID %H%nSIM_GIT_COMMIT_TIME $(isodate)" >.git-commit-id)
+      $(shell git log -1 --pretty="SIM_GIT_COMMIT_ID %H$(GIT_EXTRA_FILES)%nSIM_GIT_COMMIT_TIME $(isodate)" >.git-commit-id)
     endif
   endif
   LTO_EXCLUDE_VERSIONS = 
@@ -992,7 +997,10 @@ else
     endif
     ifeq (commit-id-exists,$(shell if exist .git-commit-id echo commit-id-exists))
       CURRENT_GIT_COMMIT_ID=$(shell for /F "tokens=2" %%i in ("$(shell findstr /C:"SIM_GIT_COMMIT_ID" .git-commit-id)") do echo %%i)
-      ACTUAL_GIT_COMMIT_ID=$(strip $(shell git log -1 --pretty=%H))
+      ifneq (, $(shell git update-index --refresh --))
+        ACTUAL_GIT_COMMIT_EXTRAS=+uncommitted-changes
+      endif
+      ACTUAL_GIT_COMMIT_ID=$(strip $(shell git log -1 --pretty=%H))$(ACTUAL_GIT_COMMIT_EXTRAS)
       ifneq ($(CURRENT_GIT_COMMIT_ID),$(ACTUAL_GIT_COMMIT_ID))
         NEED_COMMIT_ID = need-commit-id
         # make sure that the invalidly formatted .git-commit-id file wasn't generated
@@ -1005,10 +1013,13 @@ else
       NEED_COMMIT_ID = need-commit-id
     endif
     ifeq (need-commit-id,$(NEED_COMMIT_ID))
-      commit_id=$(shell git log -1 --pretty=%H)
+      ifneq (, $(shell git update-index --refresh --))
+        ACTUAL_GIT_COMMIT_EXTRAS=+uncommitted-changes
+      endif
+      ACTUAL_GIT_COMMIT_ID=$(strip $(shell git log -1 --pretty=%H))$(ACTUAL_GIT_COMMIT_EXTRAS)
       isodate=$(shell git log -1 --pretty=%ai)
       commit_time=$(word 1,$(isodate))T$(word 2,$(isodate))$(word 3,$(isodate))
-      $(shell echo SIM_GIT_COMMIT_ID $(commit_id)>.git-commit-id)
+      $(shell echo SIM_GIT_COMMIT_ID $(ACTUAL_GIT_COMMIT_ID)>.git-commit-id)
       $(shell echo SIM_GIT_COMMIT_TIME $(commit_time)>>.git-commit-id)
     endif
   endif
@@ -1817,8 +1828,7 @@ IMDS800 = ${IMDS800C}/i8080.c ${IMDS800D}/imds-800_sys.c \
 	${IMDS800C}/multibus.c ${IMDS800C}/isbc064.c \
 	${IMDS800C}/isbc202.c ${IMDS800C}/isbc201.c \
 	${IMDS800C}/zx200a.c ${IMDS800C}/isbc464.c \
-	${IMDS800C}/isbc206.c ${IMDS800C}/i3214.c \
-	${IMDS800C}/isbc208.c
+	${IMDS800C}/isbc206.c ${IMDS800C}/i3214.c
 IMDS800_OPT = -I ${IMDS800D}
 
 
@@ -1831,8 +1841,7 @@ IMDS810 = ${IMDS800C}/i8080.c ${IMDS810D}/imds-810_sys.c \
 	${IMDS810C}/multibus.c ${IMDS810C}/isbc064.c \
 	${IMDS810C}/isbc202.c ${IMDS810C}/isbc201.c \
 	${IMDS810C}/zx200a.c ${IMDS810C}/isbc464.c \
-	${IMDS810C}/isbc206.c ${IMDS800C}/i3214.c \
-        ${IMDS225C}/isbc208.c
+	${IMDS810C}/isbc206.c ${IMDS800C}/i3214.c
 IMDS810_OPT = -I ${IMDS810D}
 
 
@@ -2807,7 +2816,7 @@ ${BIN}3b2${EXE} : ${ATT3B2M400} ${SIM} ${BUILD_ROMS}
 	${MKDIRBIN}
 	${CC} ${ATT3B2M400} ${SIM} ${ATT3B2_OPT} ${CC_OUTSPEC} ${LDFLAGS}
 ifneq (,$(call find_test,${ATT3B2D},3b2))
-	$@ $(call find_test,${ATT3B2D},3b2-diag) ${TEST_ARG}
+	$@ $(call find_test,${ATT3B2D},3b2) ${TEST_ARG}
 endif
 
 i7090 : ${BIN}i7090${EXE}
