@@ -1406,7 +1406,7 @@ for (i=(was_active_command ? sim_rem_cmd_active_line : 0);
             if (!sim_rem_active_command) {          /* STEP command? */
                 stat = SCPE_STEP;
                 if (sim_con_stable_registers || !sim_rem_master_mode)
-                _sim_rem_message ("STEP", stat);    /* produce a STEP complete message */
+                    _sim_rem_message ("STEP", stat);/* produce a STEP complete message */
                 }
             _sim_rem_log_out (lp);
             sim_rem_active_command = NULL;          /* Restart loop to process available input */
@@ -1847,7 +1847,7 @@ if (sim_rem_cmd_active_line != -1) {
             sim_sched_step ();
             }
         else
-        sim_activate(uptr, steps);                          /* check again after 'steps' instructions */
+            sim_activate(uptr, steps);                      /* check again after 'steps' instructions */
         }
     else
         return SCPE_REMOTE;                                 /* force sim_instr() to exit to process command */

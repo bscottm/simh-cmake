@@ -1742,8 +1742,8 @@ static int32 simh_out(const int32 port, const int32 data) {
                             markTime[markTimeSP++] = sim_os_msec();
                         else
                             sim_printf("SIMH: " ADDRESS_FORMAT " Timer stack overflow.\n", PCX);
-                        else
-                            warnNoRealTimeClock();
+                    else
+                        warnNoRealTimeClock();
                     break;
 
                 case stopTimerCmd:  /* stop timer on top of stack and show time difference */
@@ -1753,8 +1753,8 @@ static int32 simh_out(const int32 port, const int32 data) {
                             sim_printf("SIMH: " ADDRESS_FORMAT " Timer stopped. Elapsed time in milliseconds = %d.\n", PCX, delta);
                         } else
                             sim_printf("SIMH: " ADDRESS_FORMAT " No timer active.\n", PCX);
-                        else
-                            warnNoRealTimeClock();
+                    else
+                        warnNoRealTimeClock();
                     break;
 
                 case resetPTRCmd:   /* reset ptr device */
@@ -1829,8 +1829,8 @@ static int32 simh_out(const int32 port, const int32 data) {
                             sim_printf("SIMH: " ADDRESS_FORMAT " Timer running. Elapsed in milliseconds = %d.\n", PCX, delta);
                         } else
                             sim_printf("SIMH: " ADDRESS_FORMAT " No timer active.\n", PCX);
-                        else
-                            warnNoRealTimeClock();
+                    else
+                        warnNoRealTimeClock();
                     break;
 
                 case attachPTPCmd:  /* attach ptp to the file with name at beginning of CP/M command line */
