@@ -198,7 +198,7 @@ if ((!callback) || !ctx->asynch_io)
                                                                 \
         sim_debug_unit (ctx->dbit, uptr,                        \
       "sim_disk AIO_CALL(op=%d, unit=%d, lba=0x%X, sects=%d)\n",\
-                op, (int)(uptr-ctx->dptr->units), _lba, _sects);\
+                op, (int)(uptr - ctx->dptr->units), _lba, _sects);\
                                                                 \
         if (ctx->callback)                                      \
             abort(); /* horrible mistake, stop */               \
@@ -232,7 +232,7 @@ struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
    this thread needs to run */
 sim_os_set_thread_priority (PRIORITY_ABOVE_NORMAL);
 
-sim_debug_unit (ctx->dbit, uptr, "_disk_io(unit=%d) starting\n", (int)(uptr-ctx->dptr->units));
+sim_debug_unit (ctx->dbit, uptr, "_disk_io(unit=%d) starting\n", (int)(uptr - ctx->dptr->units));
 
 pthread_mutex_lock (&ctx->io_lock);
 pthread_cond_signal (&ctx->startup_cond);   /* Signal we're ready to go */
@@ -259,7 +259,7 @@ while (ctx->asynch_io) {
     }
 pthread_mutex_unlock (&ctx->io_lock);
 
-sim_debug_unit (ctx->dbit, uptr, "_disk_io(unit=%d) exiting\n", (int)(uptr-ctx->dptr->units));
+sim_debug_unit (ctx->dbit, uptr, "_disk_io(unit=%d) exiting\n", (int)(uptr - ctx->dptr->units));
 
 return NULL;
 }
@@ -280,7 +280,7 @@ static void _disk_completion_dispatch (UNIT *uptr)
 struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 DISK_PCALLBACK callback = ctx->callback;
 
-sim_debug_unit (ctx->dbit, uptr, "_disk_completion_dispatch(unit=%d, dop=%d, callback=%p)\n", (int)(uptr-ctx->dptr->units), ctx->io_dop, (void *)(ctx->callback));
+sim_debug_unit (ctx->dbit, uptr, "_disk_completion_dispatch(unit=%d, dop=%d, callback=%p)\n", (int)(uptr - ctx->dptr->units), ctx->io_dop, (void *)(ctx->callback));
 
 if (ctx->io_dop != DOP_DONE)
     abort();                                            /* horribly wrong, stop */
@@ -296,7 +296,7 @@ static t_bool _disk_is_active (UNIT *uptr)
 struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 
 if (ctx) {
-    sim_debug_unit (ctx->dbit, uptr, "_disk_is_active(unit=%d, dop=%d)\n", (int)(uptr-ctx->dptr->units), ctx->io_dop);
+    sim_debug_unit (ctx->dbit, uptr, "_disk_is_active(unit=%d, dop=%d)\n", (int)(uptr - ctx->dptr->units), ctx->io_dop);
     return (ctx->io_dop != DOP_DONE);
     }
 return FALSE;
@@ -307,7 +307,7 @@ static t_bool _disk_cancel (UNIT *uptr)
 struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 
 if (ctx) {
-    sim_debug_unit (ctx->dbit, uptr, "_disk_cancel(unit=%d, dop=%d)\n", (int)(uptr-ctx->dptr->units), ctx->io_dop);
+    sim_debug_unit (ctx->dbit, uptr, "_disk_cancel(unit=%d, dop=%d)\n", (int)(uptr - ctx->dptr->units), ctx->io_dop);
     if (ctx->asynch_io) {
         pthread_mutex_lock (&ctx->io_lock);
         while (ctx->io_dop != DOP_DONE)
@@ -364,10 +364,10 @@ struct sim_disk_fmt {
 
 static struct sim_disk_fmt fmts[] = {
     { "AUTO detect", 0, DKUF_F_AUTO, NULL},
-    { "SIMH", 0, DKUF_F_STD,  NULL},
-    { "RAW",  0, DKUF_F_RAW,  sim_os_disk_implemented_raw},
-    { "VHD",  0, DKUF_F_VHD,  sim_vhd_disk_implemented},
-    { NULL,   0, 0,           NULL}
+    { "SIMH",        0, DKUF_F_STD,  NULL},
+    { "RAW",         0, DKUF_F_RAW,  sim_os_disk_implemented_raw},
+    { "VHD",         0, DKUF_F_VHD,  sim_vhd_disk_implemented},
+    { NULL,          0, 0,           NULL}
     };
 
 /* Set disk format */
@@ -495,7 +495,7 @@ switch (DK_GET_FMT (uptr)) {                            /* case on format */
         is_available = FALSE;
         break;
     }
-sim_debug_unit (ctx->dbit, uptr, "sim_disk_isavailable(unit=%d)=%s\n", (int)(uptr-ctx->dptr->units), is_available ? "true" : "false");
+sim_debug_unit (ctx->dbit, uptr, "sim_disk_isavailable(unit=%d)=%s\n", (int)(uptr - ctx->dptr->units), is_available ? "true" : "false");
 return is_available;
 }
 
@@ -524,7 +524,7 @@ t_offset physical_size, filesystem_size;
 t_bool saved_quiet = sim_quiet;
 
 if ((uptr->flags & UNIT_ATT) == 0)
-        return (t_offset)-1;
+    return (t_offset)-1;
 physical_size = ctx->container_size;
 sim_quiet = TRUE;
 filesystem_size = get_filesystem_size (uptr);
@@ -547,7 +547,7 @@ return SCPE_NOFNC;
 struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 pthread_attr_t attr;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_disk_set_async(unit=%d)\n", (int)(uptr-ctx->dptr->units));
+sim_debug_unit (ctx->dbit, uptr, "sim_disk_set_async(unit=%d)\n", (int)(uptr - ctx->dptr->units));
 
 ctx->asynch_io = sim_asynch_enabled;
 ctx->asynch_io_latency = latency;
@@ -584,7 +584,7 @@ struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 /* make sure device exists */
 if (!ctx) return SCPE_UNATT;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_disk_clr_async(unit=%d)\n", (int)(uptr-ctx->dptr->units));
+sim_debug_unit (ctx->dbit, uptr, "sim_disk_clr_async(unit=%d)\n", (int)(uptr - ctx->dptr->units));
 
 if (ctx->asynch_io) {
     pthread_mutex_lock (&ctx->io_lock);
@@ -609,7 +609,7 @@ uint32 err, tbc;
 size_t i;
 struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 
-sim_debug_unit (ctx->dbit, uptr, "_sim_disk_rdsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr-ctx->dptr->units), lba, sects);
+sim_debug_unit (ctx->dbit, uptr, "_sim_disk_rdsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr - ctx->dptr->units), lba, sects);
 
 da = ((t_offset)lba) * ctx->sector_size;
 tbc = sects * ctx->sector_size;
@@ -618,7 +618,7 @@ if (sectsread)
 while (tbc) {
     size_t sectbytes;
 
-err = sim_fseeko (uptr->fileref, da, SEEK_SET);          /* set pos */
+    err = sim_fseeko (uptr->fileref, da, SEEK_SET);          /* set pos */
     if (err)
         return SCPE_IOERR;
     i = sim_fread (buf, 1, tbc, uptr->fileref);
@@ -646,7 +646,7 @@ struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 uint32 f = DK_GET_FMT (uptr);
 t_seccnt sread = 0;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_disk_rdsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr-ctx->dptr->units), lba, sects);
+sim_debug_unit (ctx->dbit, uptr, "sim_disk_rdsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr - ctx->dptr->units), lba, sects);
 
 if ((sects == 1) &&                                     /* Single sector reads */
     (lba >= (uptr->capac*ctx->capac_factor)/(ctx->sector_size/((ctx->dptr->flags & DEV_SECTORS) ? 512 : 1)))) {/* beyond the end of the disk */
@@ -720,7 +720,7 @@ uint32 err, tbc;
 size_t i;
 struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 
-sim_debug_unit (ctx->dbit, uptr, "_sim_disk_wrsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr-ctx->dptr->units), lba, sects);
+sim_debug_unit (ctx->dbit, uptr, "_sim_disk_wrsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr - ctx->dptr->units), lba, sects);
 
 da = ((t_offset)lba) * ctx->sector_size;
 tbc = sects * ctx->sector_size;
@@ -729,10 +729,10 @@ if (sectswritten)
 err = sim_fseeko (uptr->fileref, da, SEEK_SET);          /* set pos */
 if (err)
     return SCPE_IOERR;
-    i = sim_fwrite (buf, ctx->xfer_element_size, tbc/ctx->xfer_element_size, uptr->fileref);
+i = sim_fwrite (buf, ctx->xfer_element_size, tbc/ctx->xfer_element_size, uptr->fileref);
 if (sectswritten)
     *sectswritten += (t_seccnt)((i * ctx->xfer_element_size + ctx->sector_size - 1)/ctx->sector_size);
-    err = ferror (uptr->fileref);
+err = ferror (uptr->fileref);
 if (err)
     return SCPE_IOERR;
 return SCPE_OK;
@@ -745,7 +745,7 @@ uint32 f = DK_GET_FMT (uptr);
 t_stat r;
 uint8 *tbuf = NULL;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_disk_wrsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr-ctx->dptr->units), lba, sects);
+sim_debug_unit (ctx->dbit, uptr, "sim_disk_wrsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr - ctx->dptr->units), lba, sects);
 
 if (uptr->dynflags & UNIT_DISK_CHK) {
     DEVICE *dptr = find_dev_from_unit (uptr);
@@ -1991,25 +1991,25 @@ Next_Partition:
 
 Return_Cleanup:
 if (partitions) {
-        const char *parttype;
+    const char *parttype;
 
-        switch (version) {
-            case HB_C_SYSVER_V3A:
-                parttype = "V3A";
-                break;
+    switch (version) {
+        case HB_C_SYSVER_V3A:
+            parttype = "V3A";
+            break;
 
-            case HB_C_SYSVER_V04:
-                parttype = "V04";
-                break;
+        case HB_C_SYSVER_V04:
+            parttype = "V04";
+            break;
 
-            case HB_C_SYSVER_V05:
-                parttype = "V05";
-                break;
+        case HB_C_SYSVER_V05:
+            parttype = "V05";
+            break;
 
-            default:
-                parttype = "???";
-                break;
-            }
+        default:
+            parttype = "???";
+            break;
+        }
     sim_messagef (SCPE_OK, "%s: '%s' Contains RT11 partitions\n", sim_uname (uptr), uptr->filename);
     sim_messagef (SCPE_OK, "%d valid partition%s, Type: %s, Sectors On Disk: %u\n", partitions, partitions == 1 ? "" : "s", parttype, (uint32)(ret_val / 512));
     }
@@ -2078,23 +2078,23 @@ switch (DK_GET_FMT (uptr)) {                            /* case on format */
         if (1) {
             time_t creation_time;
 
-        /* Construct a pseudo simh disk footer*/
-        memcpy (f->Signature, "simh", 4);
+            /* Construct a pseudo simh disk footer*/
+            memcpy (f->Signature, "simh", 4);
             strncpy ((char *)f->DriveType, sim_vhd_disk_get_dtype (uptr->fileref, &f->SectorSize, &f->TransferElementSize, (char *)f->CreatingSimulator, &creation_time), sizeof (f->DriveType) - 1);
-        f->SectorSize = NtoHl (f->SectorSize);
-        f->TransferElementSize = NtoHl (f->TransferElementSize);
-        if ((f->SectorSize == 0) || (NtoHl (f->SectorSize) == 0x00020000)) {  /* Old or mangled format VHD footer */
-            sim_vhd_disk_set_dtype (uptr->fileref, (char *)f->DriveType, ctx->sector_size, ctx->xfer_element_size);
-                sim_vhd_disk_get_dtype (uptr->fileref, &f->SectorSize, &f->TransferElementSize, (char *)f->CreatingSimulator, NULL);
             f->SectorSize = NtoHl (f->SectorSize);
             f->TransferElementSize = NtoHl (f->TransferElementSize);
-            }
+            if ((f->SectorSize == 0) || (NtoHl (f->SectorSize) == 0x00020000)) {  /* Old or mangled format VHD footer */
+                sim_vhd_disk_set_dtype (uptr->fileref, (char *)f->DriveType, ctx->sector_size, ctx->xfer_element_size);
+                sim_vhd_disk_get_dtype (uptr->fileref, &f->SectorSize, &f->TransferElementSize, (char *)f->CreatingSimulator, NULL);
+                f->SectorSize = NtoHl (f->SectorSize);
+                f->TransferElementSize = NtoHl (f->TransferElementSize);
+                }
             strncpy ((char*)f->CreationTime, ctime (&creation_time), sizeof (f->CreationTime) - 1);
-        container_size = sim_vhd_disk_size (uptr->fileref);
-        f->SectorCount = NtoHl ((uint32)(container_size / NtoHl (f->SectorSize)));
-        container_size += sizeof (*f);      /* Adjust since it is removed below */
-        f->AccessFormat = DKUF_F_VHD;
-        f->Checksum = NtoHl (eth_crc32 (0, f, sizeof (*f) - sizeof (f->Checksum)));
+            container_size = sim_vhd_disk_size (uptr->fileref);
+            f->SectorCount = NtoHl ((uint32)(container_size / NtoHl (f->SectorSize)));
+            container_size += sizeof (*f);      /* Adjust since it is removed below */
+            f->AccessFormat = DKUF_F_VHD;
+            f->Checksum = NtoHl (eth_crc32 (0, f, sizeof (*f) - sizeof (f->Checksum)));
             }
         break;
     default:
@@ -2158,7 +2158,7 @@ ctx->footer = f;
 switch (f->AccessFormat) {
     case DKUF_F_STD:                                    /* SIMH format */
         if (sim_fseeko ((FILE *)uptr->fileref, total_sectors * ctx->sector_size, SEEK_SET) == 0)
-        sim_fwrite (f, sizeof (*f), 1, (FILE *)uptr->fileref);
+            sim_fwrite (f, sizeof (*f), 1, (FILE *)uptr->fileref);
         break;
     case DKUF_F_VHD:                                    /* VHD format */
         break;
@@ -2479,7 +2479,7 @@ ctx->xfer_element_size = (uint32)xfer_element_size;     /* save xfer_element_siz
 ctx->dptr = dptr;                                       /* save DEVICE pointer */
 ctx->dbit = dbit;                                       /* save debug bit */
 ctx->media_removed = 0;                                 /* default present */
-sim_debug_unit (ctx->dbit, uptr, "sim_disk_attach(unit=%d,filename='%s')\n", (int)(uptr-ctx->dptr->units), uptr->filename);
+sim_debug_unit (ctx->dbit, uptr, "sim_disk_attach(unit=%d,filename='%s')\n", (int)(uptr - ctx->dptr->units), uptr->filename);
 ctx->auto_format = auto_format;                         /* save that we auto selected format */
 ctx->storage_sector_size = (uint32)sector_size;         /* Default */
 if ((sim_switches & SWMASK ('R')) ||                    /* read only? */
@@ -2804,7 +2804,7 @@ if (!(uptr->flags & UNIT_ATT))
 ctx = (struct disk_context *)uptr->disk_ctx;
 fileref = uptr->fileref;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_disk_detach(unit=%d,filename='%s')\n", (int)(uptr-ctx->dptr->units), uptr->filename);
+sim_debug_unit (ctx->dbit, uptr, "sim_disk_detach(unit=%d,filename='%s')\n", (int)(uptr - ctx->dptr->units), uptr->filename);
 
 switch (DK_GET_FMT (uptr)) {                            /* case on format */
     case DKUF_F_STD:                                    /* Simh */
@@ -2879,13 +2879,13 @@ fprintf (st, "%s Disk Attach Help\n\n", dptr->name);
 
 fprintf (st, "Disk container files can be one of several different types:\n\n");
 if (strstr (sim_name, "-10") == NULL) {
-fprintf (st, "    SIMH   A disk is an unstructured binary file of the size appropriate\n");
+    fprintf (st, "    SIMH   A disk is an unstructured binary file of the size appropriate\n");
     fprintf (st, "           for the disk drive being simulated accessed by C runtime APIs\n");
-fprintf (st, "    VHD    Virtual Disk format which is described in the \"Microsoft\n");
-fprintf (st, "           Virtual Hard Disk (VHD) Image Format Specification\".  The\n");
-fprintf (st, "           VHD implementation includes support for 1) Fixed (Preallocated)\n");
-fprintf (st, "           disks, 2) Dynamically Expanding disks, and 3) Differencing disks.\n");
-fprintf (st, "    RAW    platform specific access to physical disk or CDROM drives\n\n");
+    fprintf (st, "    VHD    Virtual Disk format which is described in the \"Microsoft\n");
+    fprintf (st, "           Virtual Hard Disk (VHD) Image Format Specification\".  The\n");
+    fprintf (st, "           VHD implementation includes support for 1) Fixed (Preallocated)\n");
+    fprintf (st, "           disks, 2) Dynamically Expanding disks, and 3) Differencing disks.\n");
+    fprintf (st, "    RAW    platform specific access to physical disk or CDROM drives\n\n");
     }
 else {
     fprintf (st, "    SIMH   A disk is an unstructured binary file of 64bit integers\n"
@@ -2909,36 +2909,36 @@ fprintf (st, "was created.  This metadata is therefore available whenever that V
 fprintf (st, "attached to an emulated disk device in the future so the device type and\n");
 fprintf (st, "size can be automatically be configured.\n\n");
 
-    if (dptr->numunits > 1) {
-        uint32 i, attachable_count = 0, out_count = 0, skip_count;
+if (dptr->numunits > 1) {
+    uint32 i, attachable_count = 0, out_count = 0, skip_count;
 
-        for (i=0; i < dptr->numunits; ++i)
-            if ((dptr->units[i].flags & UNIT_ATTABLE) &&
-                !(dptr->units[i].flags & UNIT_DIS))
-                ++attachable_count;
-        for (i=0; (i < dptr->numunits) && (out_count < 2); ++i)
-            if ((dptr->units[i].flags & UNIT_ATTABLE) &&
-                !(dptr->units[i].flags & UNIT_DIS)) {
-                fprintf (st, "  sim> ATTACH {switches} %s%d diskfile\n", dptr->name, i);
-                ++out_count;
-                }
-        if (attachable_count > 4) {
-            fprintf (st, "       .\n");
-            fprintf (st, "       .\n");
-            fprintf (st, "       .\n");
+    for (i=0; i < dptr->numunits; ++i)
+        if ((dptr->units[i].flags & UNIT_ATTABLE) &&
+            !(dptr->units[i].flags & UNIT_DIS))
+            ++attachable_count;
+    for (i=0; (i < dptr->numunits) && (out_count < 2); ++i)
+        if ((dptr->units[i].flags & UNIT_ATTABLE) &&
+            !(dptr->units[i].flags & UNIT_DIS)) {
+            fprintf (st, "  sim> ATTACH {switches} %s%d diskfile\n", dptr->name, i);
+            ++out_count;
             }
-        skip_count = attachable_count - 2;
-        for (i=0; i < dptr->numunits; ++i)
-            if ((dptr->units[i].flags & UNIT_ATTABLE) &&
-                !(dptr->units[i].flags & UNIT_DIS)) {
-                if (skip_count == 0)
-                fprintf (st, "  sim> ATTACH {switches} %s%d diskfile\n", dptr->name, i);
-                else
-                    --skip_count;
-                }
+    if (attachable_count > 4) {
+        fprintf (st, "       .\n");
+        fprintf (st, "       .\n");
+        fprintf (st, "       .\n");
         }
-    else
-        fprintf (st, "  sim> ATTACH {switches} %s diskfile\n", dptr->name);
+    skip_count = attachable_count - 2;
+    for (i=0; i < dptr->numunits; ++i)
+        if ((dptr->units[i].flags & UNIT_ATTABLE) &&
+            !(dptr->units[i].flags & UNIT_DIS)) {
+            if (skip_count == 0)
+                fprintf (st, "  sim> ATTACH {switches} %s%d diskfile\n", dptr->name, i);
+            else
+                --skip_count;
+            }
+    }
+else
+    fprintf (st, "  sim> ATTACH {switches} %s diskfile\n", dptr->name);
 fprintf (st, "\n%s attach command switches\n", dptr->name);
 fprintf (st, "    -R          Attach Read Only.\n");
 fprintf (st, "    -E          Must Exist (if not specified an attempt to create the indicated\n");
@@ -2967,8 +2967,8 @@ fprintf (st, "    -O          Override consistency checks when attaching differe
 fprintf (st, "                which have unexpected parent disk GUID or timestamps\n\n");
 fprintf (st, "    -U          Fix inconsistencies which are overridden by the -O switch\n");
 if (strstr (sim_name, "-10") == NULL) {
-fprintf (st, "    -Y          Answer Yes to prompt to overwrite last track (on disk create)\n");
-fprintf (st, "    -N          Answer No to prompt to overwrite last track (on disk create)\n");
+    fprintf (st, "    -Y          Answer Yes to prompt to overwrite last track (on disk create)\n");
+    fprintf (st, "    -N          Answer No to prompt to overwrite last track (on disk create)\n");
     }
 fprintf (st, "Examples:\n");
 fprintf (st, "  sim> show %s\n", ex->dname);
@@ -3042,7 +3042,7 @@ struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 if (!(uptr->flags & UNIT_ATT))                          /* attached? */
     return SCPE_OK;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_disk_reset(unit=%d)\n", (int)(uptr-ctx->dptr->units));
+sim_debug_unit (ctx->dbit, uptr, "sim_disk_reset(unit=%d)\n", (int)(uptr - ctx->dptr->units));
 
 _sim_disk_io_flush(uptr);
 AIO_VALIDATE(uptr);
@@ -3622,7 +3622,7 @@ struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 long long addr = ((long long)lba) * ctx->sector_size;
 DWORD bytestoread = sects * ctx->sector_size;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_rdsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr-ctx->dptr->units), lba, sects);
+sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_rdsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr - ctx->dptr->units), lba, sects);
 if (sectsread)
     *sectsread = 0;
 memset (&pos, 0, sizeof (pos));
@@ -3630,18 +3630,18 @@ while (bytestoread) {
     DWORD bytesread;
     DWORD sectorbytes;
 
-pos.Offset = (DWORD)addr;
-pos.OffsetHigh = (DWORD)(addr >> 32);
+    pos.Offset = (DWORD)addr;
+    pos.OffsetHigh = (DWORD)(addr >> 32);
     if (!ReadFile ((HANDLE)(uptr->fileref), buf, bytestoread, &bytesread, &pos)) {
-if (ERROR_HANDLE_EOF == GetLastError ()) {  /* Return 0's for reads past EOF */
+        if (ERROR_HANDLE_EOF == GetLastError ()) {  /* Return 0's for reads past EOF */
             memset (buf, 0, bytestoread);
-    if (sectsread)
+            if (sectsread)
                 *sectsread += bytestoread / ctx->sector_size;
-    return SCPE_OK;
-    }
-_set_errno_from_status (GetLastError ());
-return SCPE_IOERR;
-}
+            return SCPE_OK;
+            }
+        _set_errno_from_status (GetLastError ());
+        return SCPE_IOERR;
+        }
     sectorbytes = (bytesread / ctx->sector_size) * ctx->sector_size; 
     if (sectsread)
         *sectsread += sectorbytes / ctx->sector_size;
@@ -3659,7 +3659,7 @@ static t_stat sim_os_disk_read (UNIT *uptr, t_offset addr, uint8 *buf, uint32 *b
 OVERLAPPED pos;
 struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_read(unit=%d, addr=0x%X, bytes=%u)\n", (int)(uptr-ctx->dptr->units), (uint32)addr, bytes);
+sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_read(unit=%d, addr=0x%X, bytes=%u)\n", (int)(uptr - ctx->dptr->units), (uint32)addr, bytes);
 
 memset (&pos, 0, sizeof (pos));
 pos.Offset = (DWORD)addr;
@@ -3684,7 +3684,7 @@ long long addr;
 DWORD byteswritten;
 DWORD bytestowrite = sects * ctx->sector_size;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_wrsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr-ctx->dptr->units), lba, sects);
+sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_wrsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr - ctx->dptr->units), lba, sects);
 
 if (sectswritten)
     *sectswritten = 0;
@@ -3693,12 +3693,12 @@ memset (&pos, 0, sizeof (pos));
 while (bytestowrite) {
     DWORD sectorbytes;
 
-pos.Offset = (DWORD)addr;
-pos.OffsetHigh = (DWORD)(addr >> 32);
+    pos.Offset = (DWORD)addr;
+    pos.OffsetHigh = (DWORD)(addr >> 32);
     if (!WriteFile ((HANDLE)(uptr->fileref), buf, bytestowrite, &byteswritten, &pos)) {
-_set_errno_from_status (GetLastError ());
-return SCPE_IOERR;
-}
+        _set_errno_from_status (GetLastError ());
+        return SCPE_IOERR;
+        }
     if (sectswritten)
         *sectswritten += byteswritten / ctx->sector_size;
     sectorbytes = (byteswritten / ctx->sector_size) * ctx->sector_size;
@@ -3716,7 +3716,7 @@ static t_stat sim_os_disk_write (UNIT *uptr, t_offset addr, uint8 *buf, uint32 *
 OVERLAPPED pos;
 struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_write(unit=%d, lba=0x%X, bytes=%u)\n", (int)(uptr-ctx->dptr->units), (uint32)addr, bytes);
+sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_write(unit=%d, lba=0x%X, bytes=%u)\n", (int)(uptr - ctx->dptr->units), (uint32)addr, bytes);
 
 memset (&pos, 0, sizeof (pos));
 pos.Offset = (DWORD)addr;
@@ -3827,23 +3827,23 @@ off_t addr = ((off_t)lba) * ctx->sector_size;
 ssize_t bytesread;
 size_t bytestoread = sects * ctx->sector_size;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_rdsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr-ctx->dptr->units), lba, sects);
+sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_rdsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr - ctx->dptr->units), lba, sects);
 
-    if (sectsread)
-        *sectsread = 0;
+if (sectsread)
+    *sectsread = 0;
 while (bytestoread) {
     size_t sectorbytes;
 
     bytesread = pread((int)((long)uptr->fileref), buf, bytestoread, addr);
     if (bytesread < 0) {
-    return SCPE_IOERR;
-    }
+        return SCPE_IOERR;
+        }
     if (bytesread == 0) {   /* read zeros at/past EOF */
         bytesread = bytestoread;
         memset (buf, 0, bytesread);
         }
     sectorbytes = (bytesread / ctx->sector_size) * ctx->sector_size;
-if (sectsread)
+    if (sectsread)
         *sectsread += sectorbytes / ctx->sector_size;
     bytestoread -= sectorbytes;
     if (bytestoread == 0)
@@ -3859,7 +3859,7 @@ static t_stat sim_os_disk_read (UNIT *uptr, t_offset addr, uint8 *buf, uint32 *r
 struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 ssize_t bytesread;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_read(unit=%d, addr=0x%X, bytes=%u)\n", (int)(uptr-ctx->dptr->units), (uint32)addr, bytes);
+sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_read(unit=%d, addr=0x%X, bytes=%u)\n", (int)(uptr - ctx->dptr->units), (uint32)addr, bytes);
 
 bytesread = pread((int)((long)uptr->fileref), buf, bytes, (off_t)addr);
 if (bytesread < 0) {
@@ -3879,18 +3879,18 @@ off_t addr = ((off_t)lba) * ctx->sector_size;
 ssize_t byteswritten;
 size_t bytestowrite = sects * ctx->sector_size;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_wrsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr-ctx->dptr->units), lba, sects);
+sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_wrsect(unit=%d, lba=0x%X, sects=%d)\n", (int)(uptr - ctx->dptr->units), lba, sects);
 
-    if (sectswritten)
-        *sectswritten = 0;
+if (sectswritten)
+    *sectswritten = 0;
 while (bytestowrite) {
     size_t sectorbytes;
 
     byteswritten = pwrite((int)((long)uptr->fileref), buf, bytestowrite, addr);
     if (byteswritten < 0) {
-    return SCPE_IOERR;
-    }
-if (sectswritten)
+        return SCPE_IOERR;
+        }
+    if (sectswritten)
         *sectswritten += byteswritten / ctx->sector_size;
     sectorbytes = (byteswritten / ctx->sector_size) * ctx->sector_size;
     bytestowrite -= sectorbytes;
@@ -3907,10 +3907,10 @@ static t_stat sim_os_disk_write (UNIT *uptr, t_offset addr, uint8 *buf, uint32 *
 struct disk_context *ctx = (struct disk_context *)uptr->disk_ctx;
 ssize_t byteswritten;
 
-sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_write(unit=%d, addr=0x%X, bytes=%u)\n", (int)(uptr-ctx->dptr->units), (uint32)addr, bytes);
+sim_debug_unit (ctx->dbit, uptr, "sim_os_disk_write(unit=%d, addr=0x%X, bytes=%u)\n", (int)(uptr - ctx->dptr->units), (uint32)addr, bytes);
 
-    if (rbyteswritten)
-        *rbyteswritten = 0;
+if (rbyteswritten)
+    *rbyteswritten = 0;
 byteswritten = pwrite((int)((long)uptr->fileref), buf, bytes, (off_t)addr);
 if (byteswritten < 0)
     return SCPE_IOERR;
@@ -3990,26 +3990,31 @@ return FALSE;
 
 static t_stat sim_os_disk_rdsect (UNIT *uptr, t_lba lba, uint8 *buf, t_seccnt *sectsread, t_seccnt sects)
 {
+*sectsread = 0;
 return SCPE_NOFNC;
 }
 
 static t_stat sim_os_disk_read (UNIT *uptr, t_offset addr, uint8 *buf, uint32 *bytesread, uint32 bytes)
 {
+*bytesread = 0;
 return SCPE_NOFNC;
 }
 
 static t_stat sim_os_disk_wrsect (UNIT *uptr, t_lba lba, uint8 *buf, t_seccnt *sectswritten, t_seccnt sects)
 {
+*sectswritten = 0;
 return SCPE_NOFNC;
 }
 
 static t_stat sim_os_disk_write (UNIT *uptr, t_offset addr, uint8 *buf, uint32 *byteswritten, uint32 bytes)
 {
+*byteswritten = 0;
 return SCPE_NOFNC;
 }
 
 static t_stat sim_os_disk_info_raw (FILE *f, uint32 *sector_size, uint32 *removable, uint32 *is_cdrom)
 {
+*sector_size = *removable = *is_cdrom = 0;
 return SCPE_NOFNC;
 }
 
@@ -4069,6 +4074,7 @@ return (t_offset)-1;
 
 static t_stat sim_vhd_disk_rdsect (UNIT *uptr, t_lba lba, uint8 *buf, t_seccnt *sectsread, t_seccnt sects)
 {
+*sectsread = 0;
 return SCPE_IOERR;
 }
 
@@ -4079,6 +4085,7 @@ return SCPE_IOERR;
 
 static t_stat sim_vhd_disk_wrsect (UNIT *uptr, t_lba lba, uint8 *buf, t_seccnt *sectswritten, t_seccnt sects)
 {
+*sectswritten = 0;
 return SCPE_IOERR;
 }
 
@@ -4089,6 +4096,7 @@ return SCPE_NOFNC;
 
 static const char *sim_vhd_disk_get_dtype (FILE *f, uint32 *SectorSize, uint32 *xfer_element_size, char sim_name[64], time_t *creation_time)
 {
+*SectorSize = *xfer_element_size = 0;
 return NULL;
 }
 
@@ -4596,7 +4604,7 @@ if ((sDynamic) &&
         *aBAT = (uint32*) calloc(1, VHD_Internal_SectorSize * ((sizeof(**aBAT) * NtoHl(sDynamic->MaxTableEntries) + VHD_Internal_SectorSize - 1) / VHD_Internal_SectorSize));
         if (ReadFilePosition(File,
                              *aBAT,
-                             sizeof (**aBAT)*NtoHl(sDynamic->MaxTableEntries),
+                             sizeof (**aBAT) * NtoHl(sDynamic->MaxTableEntries),
                              NULL,
                              NtoHll (sDynamic->TableOffset))) {
             Return = EINVAL;                            /* File Corrupt */
@@ -5103,12 +5111,12 @@ uint32 i;
 FILE *File = NULL;
 uint32 Status = 0;
 uint32 BytesPerSector = 512;
-uint64 SizeInBytes = ((uint64)SizeInSectors)*BytesPerSector;
+uint64 SizeInBytes = ((uint64)SizeInSectors) * BytesPerSector;
 uint64 TableOffset;
 uint32 MaxTableEntries;
 VHDHANDLE hVHD = NULL;
 
-if (SizeInBytes > ((uint64)(1024*1024*1024))*2040) {
+if (SizeInBytes > ((uint64)(1024 * 1024 * 1024)) * 2040) {
     Status = EFBIG;
     goto Cleanup_Return;
     }
@@ -5131,7 +5139,7 @@ Footer.Features = NtoHl (0x00000002);;
 Footer.FileFormatVersion = NtoHl (0x00010000);;
 Footer.DataOffset = NtoHll (bFixedVHD ? ((long long)-1) : (long long)(sizeof(Footer)));
 time (&now);
-Footer.TimeStamp = NtoHl ((uint32)(now-946684800));
+Footer.TimeStamp = NtoHl ((uint32)(now - 946684800));
 memcpy (Footer.CreatorApplication, "simh", 4);
 Footer.CreatorVersion = NtoHl (0x00040000);
 memcpy (Footer.CreatorHostOS, "Wi2k", 4);
@@ -5731,7 +5739,7 @@ while (BytesToWrite && (r == SCPE_OK)) {
             BitMapBufferSize = BitMapSectors * VHD_Internal_SectorSize;
         BitMapBuffer = (uint8 *)calloc(1, BitMapBufferSize + NtoHl(hVHD->Dynamic.BlockSize));
         if (BitMapBufferSize > BitMapSectors * VHD_Internal_SectorSize)
-            BitMap = BitMapBuffer + BitMapBufferSize-BitMapBytes;
+            BitMap = BitMapBuffer + BitMapBufferSize - BitMapBytes;
         else
             BitMap = BitMapBuffer;
         memset(BitMap, 0xFF, BitMapBytes);
@@ -5755,7 +5763,7 @@ while (BytesToWrite && (r == SCPE_OK)) {
             BlockOffset += BitMapSectors * VHD_Internal_SectorSize;
             // round up this address to the desired alignment
             BlockOffset += VHD_DATA_BLOCK_ALIGNMENT-1;
-            BlockOffset &= ~(VHD_DATA_BLOCK_ALIGNMENT-1);
+            BlockOffset &= ~(VHD_DATA_BLOCK_ALIGNMENT - 1);
             BlockOffset -= BitMapSectors * VHD_Internal_SectorSize;
             if (WriteFilePosition(hVHD->File,
                                   BitMap,
