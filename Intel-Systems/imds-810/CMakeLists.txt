@@ -28,7 +28,6 @@ add_simulator(imds-810
         ${IMDS810C}/isbc464.c
         ${IMDS810C}/isbc206.c
         ${IMDS800C}/i3214.c
-        ${IMDS225C}/isbc208.c
     INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}
     TEST imds-810)
