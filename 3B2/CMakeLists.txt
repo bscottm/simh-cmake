@@ -28,4 +28,4 @@ add_simulator(3b2
     INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}
     FULL64
-    TEST 3b2-diag)
+    TEST 3b2)
