@@ -38,6 +38,8 @@ _ReSharper*/
 *#
 BIN/
 ipch/
+# MS Office lock files
+doc/~$*
 
 # 3B2 diagnostic temporaries
 3B2/tests/diags/nvram.bin
