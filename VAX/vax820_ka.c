@@ -298,12 +298,12 @@ switch (ch) {
         printf (">>> %s\n", &rxcd_ibuf[0]);
         if (rxcd_ibuf[0] == 'D') {                      /* DEPOSIT */
             /* why? snprintf (&conv[0], 2, "%s", &rxcd_ibuf[4]); */
-            strncpy(conv, rxcd_ibuf + 4, conv_size);
-            conv[conv_size - 1] = '\0';
+            strncpy(conv, rxcd_ibuf + 4, 2);
+            conv[2] = '\0';
             rg = (int32)get_uint (&conv[0], 16, 0xF, &r); /* get register number */
             /* why? snprintf (&conv[0], 9, "%s", &rxcd_ibuf[6]); */
-            strncpy(conv, rxcd_ibuf + 6, conv_size);
-            conv[conv_size - 1] = '\0';
+            strncpy(conv, rxcd_ibuf + 6, 9);
+            conv[9] = '\0';
             rval = (int32)get_uint (&conv[0], 16, 0xFFFFFFFF, &r); /* get deposit value */
 #if defined (VAX_MP)
             cpu_setreg (cpu, rg, rval);
