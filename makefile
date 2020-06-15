@@ -1841,7 +1841,8 @@ IMDS800 = ${IMDS800C}/i8080.c ${IMDS800D}/imds-800_sys.c \
 	${IMDS800C}/multibus.c ${IMDS800C}/isbc064.c \
 	${IMDS800C}/isbc202.c ${IMDS800C}/isbc201.c \
 	${IMDS800C}/zx200a.c ${IMDS800C}/isbc464.c \
-	${IMDS800C}/isbc206.c ${IMDS800C}/i3214.c
+	${IMDS800C}/isbc206.c ${IMDS800C}/i3214.c \
+	${IMDS225C}/isbc208.c
 IMDS800_OPT = -I ${IMDS800D}
 
 
@@ -1854,7 +1855,8 @@ IMDS810 = ${IMDS800C}/i8080.c ${IMDS810D}/imds-810_sys.c \
 	${IMDS810C}/multibus.c ${IMDS810C}/isbc064.c \
 	${IMDS810C}/isbc202.c ${IMDS810C}/isbc201.c \
 	${IMDS810C}/zx200a.c ${IMDS810C}/isbc464.c \
-	${IMDS810C}/isbc206.c ${IMDS800C}/i3214.c
+	${IMDS810C}/isbc206.c ${IMDS800C}/i3214.c \
+	${IMDS225C}/isbc208.c
 IMDS810_OPT = -I ${IMDS810D}
 
 

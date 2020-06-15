@@ -737,6 +737,7 @@ add_simulator(imds-800
         ${IMDS800C}/isbc464.c
         ${IMDS800C}/isbc206.c
         ${IMDS800C}/i3214.c
+        ${IMDS225C}/isbc208.c
     INCLUDES
         ${IMDS800D}
     TEST imds-800
@@ -762,6 +763,7 @@ add_simulator(imds-810
         ${IMDS810C}/isbc464.c
         ${IMDS810C}/isbc206.c
         ${IMDS800C}/i3214.c
+        ${IMDS225C}/isbc208.c
     INCLUDES
         ${IMDS810D}
     TEST imds-810

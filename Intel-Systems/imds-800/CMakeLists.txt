@@ -28,6 +28,7 @@ add_simulator(imds-800
         ${IMDS800C}/isbc464.c
         ${IMDS800C}/isbc206.c
         ${IMDS800C}/i3214.c
+        ${IMDS225C}/isbc208.c
     INCLUDES
         ${CMAKE_CURRENT_SOURCE_DIR}
     TEST imds-800)
