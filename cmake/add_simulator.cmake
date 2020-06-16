@@ -286,7 +286,7 @@ add_executable(frontpaneltest
 target_link_libraries(frontpaneltest PUBLIC thread_lib)
 
 if (WIN32)
-    target_link_libraries(frontpaneltest PUBLIC wsock32)
+    target_link_libraries(frontpaneltest PUBLIC simh_network)
 
     if (MSVC)
             target_link_options(frontpaneltest PUBLIC "/SUBSYSTEM:CONSOLE")

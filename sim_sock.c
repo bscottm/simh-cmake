@@ -71,6 +71,14 @@ extern "C" {
 #define   NI_MAXHOST 1025
 #endif
 
+/* If compiling for a newer-ish Windows API, don't compile in the stubs.
+ * They're basically vestigial and if the ws2_32 functions we need aren't
+ * available, then the user has a bigger problem (ws2_32 is messed up or
+ * the executable itself is on the wrong version of Windows.) */
+#if !defined(TEST_INFO_STUBS) && (_WIN32_WINNT >= 0x0600)
+#define NO_WS2_STUBS
+#endif
+
 /* OS dependent routines
 
    sim_master_sock      create master socket
@@ -124,7 +132,6 @@ void sim_close_sock (SOCKET sock)
 {
 return;
 }
-
 #else                                                   /* endif unimpl */
 
 /* UNIX, Win32, Macintosh, VMS, OS2 (Berkeley socket) routines */
@@ -206,6 +213,8 @@ typedef size_t socklen_t;
 typedef int (WSAAPI *getnameinfo_func) (const struct sockaddr *sa, socklen_t salen, char *host, size_t hostlen, char *serv, size_t servlen, int flags);
 static getnameinfo_func p_getnameinfo;
 
+
+#if !defined(NO_WS2_STUBS)
 static void    WSAAPI s_freeaddrinfo (struct addrinfo *ai)
 {
 struct addrinfo *a, *an;
@@ -281,7 +290,8 @@ if (service) {
     }
 
 if (hostname) {
-    if ((0xffffffff != (ipaddr.s_addr = inet_addr(hostname))) || 
+    /* Disambiguate between an error return value (-1) and a broadcast address */
+    if ((0xffffffff != (ipaddr.s_addr = inet_addr(hostname))) ||
         (0 == strcmp("255.255.255.255", hostname))) {
         fixed[0] = &ipaddr;
         fixed[1] = NULL;
@@ -426,6 +436,7 @@ if ((host) && (hostlen > 0)) {
     }
 return 0;
 }
+#endif
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 
@@ -486,10 +497,30 @@ int load_ws2(void) {
       load_function("freeaddrinfo",      (_func *) &p_freeaddrinfo);
 
       if (lib_loaded != 1) {
+#if defined(NO_WS2_STUBS)
+        if (p_getaddrinfo == NULL) {
+          sim_printf("sim_sock/load_ws2: getaddrinfo not loaded from %s\n", lib_name);
+          sim_printf("SIMH compiled for a Windows 7 or newer.\n");
+          lib_loaded = 2;
+        }
+
+        if (p_getnameinfo == NULL) {
+          sim_printf("sim_sock/load_ws2: getnameinfo not loaded from %s\n", lib_name);
+          sim_printf("SIMH compiled for a Windows 7 or newer.\n");
+          lib_loaded = 2;
+        }
+
+        if (p_freeaddrinfo == NULL) {
+          sim_printf("sim_sock/load_ws2: freeaddrinfo not loaded from %s\n", lib_name);
+          sim_printf("SIMH compiled for a Windows 7 or newer.\n");
+          lib_loaded = 2;
+        }
+#else
         /* unsuccessful load, connect stubs */
         p_getaddrinfo = (getaddrinfo_func)s_getaddrinfo;
         p_getnameinfo = (getnameinfo_func)s_getnameinfo;
         p_freeaddrinfo = (freeaddrinfo_func)s_freeaddrinfo;
+#endif
       }
       break;
     default:                /* loaded or failed */
@@ -726,7 +757,10 @@ err = WSAStartup (wVersionRequested, &wsaData);         /* start Winsock */
 if (err != 0)
     sim_printf ("Winsock: startup error %d\n", err);
 #if defined(AF_INET6)
-load_ws2 ();
+if (load_ws2 ()) {
+    sim_printf ("sim_init_sock: Ws2_32.DLL load failed.\n");
+    exit(1);
+}
 #endif                                                  /* endif AF_INET6 */
 #else                                                   /* Use native addrinfo APIs */
 #if defined(AF_INET6)
